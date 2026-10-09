@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iLotto管理中心</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#0b1220;--card:#111827;--card2:#0f172a;--line:#1f2937;
+  --cyan:#22d3ee;--amber:#f59e0b;--rose:#fb7184;--ok:#34d399;
+  --text:#e2e8f0;--muted:#94a3b8;--dim:#64748b;--ink:#04232a;--white:#f8fafc;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:Outfit,system-ui,sans-serif;color:var(--text);background:
+    radial-gradient(1000px 480px at 0% -10%, rgba(34,211,238,.16), transparent 55%),
+    radial-gradient(800px 420px at 100% 0%, rgba(124,58,237,.18), transparent 50%),
+    var(--bg);
+  letter-spacing:-.011em;
+}
+button,input,select,textarea{font-family:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+#app{min-height:100%}
+.lang{display:flex;padding:3px;border:1px solid var(--line);border-radius:999px;background:rgba(15,23,42,.8);gap:2px}
+.lang button{border:0;background:transparent;color:var(--muted);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700}
+.lang button.on{background:var(--cyan);color:var(--ink)}
+.login{
+  min-height:100vh;display:grid;grid-template-columns:1.15fr .85fr;position:relative;
+}
+.login-hero{
+  padding:28px 48px 48px;display:flex;flex-direction:column;position:relative;overflow:hidden;
+}
+.login-hero:before{
+  content:"";position:absolute;width:420px;height:420px;border-radius:50%;right:-80px;bottom:-120px;
+  background:radial-gradient(circle, rgba(34,211,238,.28), transparent 68%);filter:blur(8px);animation:float 8s ease-in-out infinite;
+}
+.brand{font-weight:800;font-size:28px;color:#fff;letter-spacing:-.03em}
+.brand em{font-style:italic;color:var(--cyan)}
+.login-hero h1{margin:auto 0 12px;font-size:56px;line-height:.98;color:#fff;max-width:640px;font-weight:800}
+.login-hero h1 span{display:block;color:var(--cyan)}
+.lede{max-width:460px;color:#cbd5e1;font-size:16px;line-height:1.55;margin:0 0 28px}
+.hero-metrics{display:flex;gap:12px;flex-wrap:wrap;position:relative}
+.hero-metrics div{
+  min-width:160px;padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.08);
+  background:rgba(15,23,42,.55);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+.hero-metrics b{display:block;color:#fff;font-size:18px;margin-top:4px}
+.hero-metrics span{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.login-panel{display:flex;align-items:center;justify-content:center;padding:28px}
+.panel{
+  width:min(440px,100%);background:linear-gradient(180deg, rgba(17,24,39,.96), rgba(15,23,42,.96));
+  border:1px solid var(--line);border-radius:24px;padding:28px;position:relative;
+  box-shadow:0 30px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.panel h2{margin:0 0 6px;color:#fff;font-size:26px}
+.sub{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 16px}
+label.f{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:600}
+input,select,textarea{
+  width:100%;background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:12px 13px;font-size:14px;outline:none;
+}
+textarea{min-height:110px;resize:vertical;line-height:1.5}
+input:focus,select:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.16)}
+.pw{position:relative}
+.pw input{padding-right:64px}
+.pw .link{position:absolute;right:10px;top:50%;transform:translateY(-50%)}
+.btn{
+  border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:12px;
+  padding:10px 14px;font-size:13px;font-weight:700;transition:.16s transform,.16s border-color,.16s filter;
+}
+.btn:hover{transform:translateY(-1px);border-color:#345}
+.btn-primary{
+  width:100%;margin-top:16px;border:0;color:var(--ink);font-weight:800;border-radius:999px;padding:13px 16px;
+  background:linear-gradient(180deg,#67e8f9,#22d3ee 45%,#06b6d4);
+  box-shadow:0 10px 28px rgba(34,211,238,.28);
+}
+.btn-primary:hover{filter:brightness(1.05);color:var(--ink)}
+.btn-ghost{background:transparent;color:#fff}
+.btn-rose{border:0;color:#fff;background:linear-gradient(135deg,#fb7184,#e11d48);font-weight:800}
+.btn-ok{border:0;color:#042218;background:linear-gradient(180deg,#6ee7b7,#34d399);font-weight:800}
+.btn-sm{padding:7px 10px;font-size:12px;border-radius:10px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.link{background:none;border:0;color:var(--cyan);font-weight:700;font-size:12px;padding:0}
+.err{color:var(--rose);font-size:12px;min-height:18px;margin-top:8px}
+.otp{display:flex;gap:8px;margin-top:8px}
+.otp input{text-align:center;font-size:22px;font-weight:700;padding:12px 0}
+.note{
+  margin-top:14px;padding:10px 12px;border-radius:12px;background:rgba(251,113,132,.08);
+  border:1px solid rgba(251,113,132,.28);color:#fecdd3;font-size:12px;line-height:1.5;
+}
+.shell{min-height:100vh;display:grid;grid-template-columns:248px 1fr}
+.side{
+  position:sticky;top:0;height:100vh;padding:16px 12px 24px;overflow:auto;
+  background:rgba(15,23,42,.78);border-right:1px solid var(--line);backdrop-filter:blur(16px);
+}
+.side-brand{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 14px}
+.side-brand .brand{font-size:22px}
+.side-brand small{display:block;color:var(--dim);font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+.nav-btn{
+  width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:0;background:transparent;
+  color:var(--text);border-radius:12px;padding:10px 10px;font-size:13.5px;font-weight:600;margin:2px 0;
+}
+.nav-btn svg{width:18px;height:18px;flex:none;opacity:.8}
+.nav-btn:hover{background:rgba(34,211,238,.06);color:#fff}
+.nav-btn.on{background:rgba(34,211,238,.12);color:var(--cyan);box-shadow:inset 3px 0 0 var(--cyan)}
+.nav-btn.on svg{opacity:1}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:14px 28px;
+  background:rgba(11,18,32,.82);border-bottom:1px solid var(--line);backdrop-filter:blur(16px);
+}
+.top h2{margin:0;font-size:16px;color:#fff;white-space:nowrap}
+.top .crumb{color:var(--dim);font-size:12px;white-space:nowrap}
+.top > div:first-child{flex:none}
+.clock{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
+.view{padding:22px 28px 48px;animation:rise .35s ease}
+.page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.page-h h3{margin:0;color:#fff;font-size:26px;letter-spacing:-.03em}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px}
+.tabs button.on{background:rgba(34,211,238,.14);color:var(--cyan);border-color:rgba(34,211,238,.45)}
+.role-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#a5f3fc;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.28);border-radius:999px;padding:4px 10px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpis.k3{grid-template-columns:repeat(3,1fr)}
+.kpis.k5{grid-template-columns:repeat(5,1fr)}
+.kpis.k6{grid-template-columns:repeat(6,1fr)}
+.kpi,.card{
+  background:linear-gradient(180deg, rgba(17,24,39,.94), rgba(15,23,42,.94));
+  border:1px solid var(--line);border-radius:18px;
+  box-shadow:0 16px 40px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.kpi{padding:16px 16px 14px;position:relative;overflow:hidden}
+.kpi:before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--cyan),transparent 80%)}
+.kpi.warn:before{background:linear-gradient(90deg,var(--amber),transparent 80%)}
+.kpi.bad:before{background:linear-gradient(90deg,var(--rose),transparent 80%)}
+.kpi.ok:before{background:linear-gradient(90deg,var(--ok),transparent 80%)}
+.kpi .lbl{color:var(--muted);font-size:12px;font-weight:600}
+.kpi .num{color:#fff;font-size:26px;font-weight:800;margin:8px 0 4px;letter-spacing:-.03em}
+.kpi .subl{color:var(--dim);font-size:12px;line-height:1.45}
+.delta{font-weight:800;font-size:12px}
+.delta.up{color:var(--ok)}
+.delta.down{color:var(--rose)}
+.card{padding:16px 16px 14px;margin-bottom:14px}
+.card h4{margin:0 0 10px;color:#fff;font-size:15px}
+.grid2{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.split{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}
+.muted{color:var(--muted);font-size:12.5px;line-height:1.55}
+.tiny{color:var(--dim);font-size:11.5px;line-height:1.5}
+.tag{display:inline-flex;align-items:center;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap}
+.tag-ok{color:var(--ok);background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.35)}
+.tag-warn{color:var(--amber);background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35)}
+.tag-rose{color:var(--rose);background:rgba(251,113,132,.12);border-color:rgba(251,113,132,.35)}
+.tag-cyan{color:var(--cyan);background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.3)}
+.tag-muted{color:var(--muted);background:#0b1220;border-color:var(--line)}
+.banner{
+  display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;margin-bottom:14px;
+  background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.22);color:#cffafe;font-size:13px;line-height:1.5;
+}
+.banner.rose{background:rgba(251,113,132,.08);border-color:rgba(251,113,132,.3);color:#ffe4e6}
+.banner.amber{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.28);color:#fef3c7}
+.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.filters.f3{grid-template-columns:repeat(3,1fr)}
+.fcard{
+  text-align:left;border:1px solid var(--line);background:rgba(15,23,42,.7);border-radius:16px;padding:14px;
+  color:inherit;transition:.16s transform,.16s border-color;
+}
+.fcard:hover{transform:translateY(-2px);border-color:#345}
+.fcard.on{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(34,211,238,.35), 0 12px 30px rgba(0,0,0,.25)}
+.fcard b{display:block;color:#fff;font-size:24px;margin:6px 0 2px}
+.fcard span{color:var(--muted);font-size:12px;font-weight:700}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:700;padding:10px 12px;background:#0d1526;position:sticky;top:0}
+td{padding:11px 12px;border-top:1px solid var(--line);vertical-align:middle}
+tr.click:hover td{background:rgba(34,211,238,.04);cursor:pointer}
+tr.alert td{background:rgba(251,113,132,.08)}
+tr.alert td:first-child{box-shadow:inset 3px 0 0 var(--rose)}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap}
+.games{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.gcard{padding:16px;position:relative}
+.gcard.off{opacity:.72}
+.gcard.off:after{content:"";position:absolute;inset:0;border-radius:18px;pointer-events:none;background:repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(251,113,132,.04) 8px, rgba(251,113,132,.04) 16px)}
+.gtop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.gcard h4{margin:0;color:#fff;font-size:16px}
+.switch{width:46px;height:26px;border-radius:99px;border:0;background:#1f2937;position:relative;padding:0;flex:none}
+.switch i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#94a3b8;transition:.2s left,.2s background}
+.switch.on{background:linear-gradient(90deg,#22d3ee,#0891b2);box-shadow:0 0 16px rgba(34,211,238,.35)}
+.switch.on i{left:23px;background:#fff}
+.bill{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bill div{background:#0b1220;border:1px solid var(--line);border-radius:14px;padding:12px}
+.bill b{display:block;color:#fff;font-size:16px;margin:4px 0}
+.modal-back{position:fixed;inset:0;background:rgba(2,6,16,.72);backdrop-filter:blur(8px);z-index:40;display:grid;place-items:center;padding:24px;animation:fade .2s ease}
+.modal{
+  width:min(860px,100%);max-height:min(86vh,900px);overflow:auto;background:#0f172a;border:1px solid #243044;
+  border-radius:22px;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:rise .25s ease;
+}
+.modal h3{margin:0 0 6px;color:#fff}
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);opacity:0;pointer-events:none;
+  background:#04232a;color:#cffafe;border:1px solid rgba(34,211,238,.4);padding:12px 16px;border-radius:999px;
+  font-weight:700;font-size:13px;z-index:60;transition:.2s;box-shadow:0 12px 30px rgba(0,0,0,.35);
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.checks{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.check{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:8px;font-size:11px}
+.check b{display:block;color:#fff;font-size:12px;margin-top:4px}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:grid;grid-template-columns:110px 1fr 92px;gap:8px;align-items:center;font-size:12px}
+.track{height:10px;border-radius:99px;background:#0b1220;overflow:hidden;border:1px solid var(--line)}
+.track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#22d3ee,#818cf8)}
+.track.amber span{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.track.rose span{background:linear-gradient(90deg,#fb7184,#e11d48)}
+.flow{display:flex;flex-direction:column;gap:0}
+.flow .step{display:grid;grid-template-columns:160px 1fr;gap:12px;padding:12px 0;border-top:1px dashed #243044}
+.flow .step:first-child{border-top:0}
+.flow .step b{color:#fff}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.tools .f{margin:0}
+.tools input,.tools select{width:auto;min-width:140px}
+.rte{min-height:120px;background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:12px;line-height:1.55}
+.rte:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.16);outline:none}
+.userchip{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border:1px solid var(--line);border-radius:999px;background:var(--card)}
+.avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#22d3ee,#6366f1);color:var(--ink);font-size:11px;font-weight:800}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);display:inline-block}
+.dot.warn{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+.dot.bad{background:var(--rose);box-shadow:0 0 10px var(--rose)}
+.matrix td,.matrix th{text-align:center}
+.matrix td:first-child,.matrix th:first-child{text-align:left}
+.cell-rw{color:var(--cyan);font-weight:800}
+.cell-ro{color:var(--muted)}
+.cell-hide{color:var(--rose);opacity:.8}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes float{50%{transform:translateY(-12px)}}
+@media (max-width:1100px){
+  .kpis,.kpis.k5,.kpis.k6,.games,.bill,.checks,.filters,.filters.f3{grid-template-columns:1fr 1fr}
+  .grid2,.split,.login{grid-template-columns:1fr}
+  .login-hero h1{font-size:40px;margin-top:48px}
+  .kpis.k5,.kpis.k6{grid-template-columns:1fr 1fr}
+}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  .side{position:sticky;top:0;height:auto;display:flex;gap:4px;overflow:auto;z-index:25;padding:8px}
+  .side-brand{display:none}
+  .nav-btn{width:auto;white-space:nowrap;margin:0}
+  .view{padding:16px}
+  .top{padding:12px 16px;overflow:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast" role="status"></div>
+<script>
+const BILL = { dst: 0.2, wht: 0.2, exempt: 10000, autoCap: 300000, prize: 0.55, charity: 0.3, ops: 0.15, unit: 25 };
+const t = (zh, en) => (S.lang === "en" ? en : zh);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const peso = (n) => "₱" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+const peso2 = (n) => "₱" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pesoM = (n) => "₱" + (n / 1e6).toFixed(2) + "M";
+const pct = (n) => (n > 0 ? "+" : "") + n.toFixed(1) + "%";
+const $ = (id) => document.getElementById(id);
+
+const NAV = [
+  ["dash", "仪表盘", "Dashboard", "M3 13h8M3 6h18M3 20h12"],
+  ["games", "游戏管理", "Games", "M4 7h16v10H4zM8 7V5h8v2"],
+  ["draws", "开奖记录", "Draw results", "M12 8v5l3 2M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"],
+  ["kyc", "身份审核", "Identity review", "M12 12a4 4 0 1 0-4-4M4 20c1.5-3 3.8-4.5 8-4.5s6.5 1.5 8 4.5"],
+  ["players", "玩家档案", "Players", "M8 11a4 4 0 1 1 8 0 4 4 0 0 1-8 0zM4 20c1.2-3 3.5-4.5 8-4.5S18.8 17 20 20"],
+  ["rg", "责任博彩", "Responsible gaming", "M12 3l8 4v5c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z"],
+  ["txn", "交易流水", "Transactions", "M4 7h16M4 12h16M4 17h10"],
+  ["reports", "报表", "Reports", "M4 19V5M10 19V9M16 19v-6M22 19H2"],
+  ["audit", "审计日志", "Audit log", "M6 4h9l3 3v13H6zM9 12h6M9 16h4"],
+  ["sys", "系统管理", "System", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 3v2M12 19v2M3 12h2M19 12h2"]
+];
+const ROLES = [
+  ["ops", "运营专员", "Operations"],
+  ["kyc", "身份审核员", "Identity reviewer"],
+  ["counter", "兑奖柜台", "Prize counter"],
+  ["finance", "财务复核", "Finance review"],
+  ["compliance", "合规审计", "Compliance audit"],
+  ["admin", "系统管理员", "System admin"]
+];
+const MENUS = NAV.map((n) => [n[0], n[1], n[2]]);
+const MATRIX = {
+  ops: ["ro", "rw", "ro", "hide", "rw", "ro", "ro", "ro", "hide", "hide"],
+  kyc: ["ro", "hide", "ro", "rw", "ro", "ro", "hide", "hide", "ro", "hide"],
+  counter: ["ro", "ro", "ro", "hide", "ro", "hide", "rw", "ro", "hide", "hide"],
+  finance: ["ro", "ro", "ro", "hide", "ro", "hide", "rw", "rw", "ro", "hide"],
+  compliance: ["rw", "ro", "ro", "ro", "ro", "rw", "ro", "ro", "ro", "ro"],
+  admin: ["ro", "hide", "hide", "hide", "hide", "rw", "hide", "hide", "ro", "rw"]
+};
+
+const GAMES = [
+  { id: "u658", zh: "终极乐透 6/58", en: "Ultra Lotto 6/58", kind: "lotto", on: true, price: 25, pickZh: "1–58 选 6", pickEn: "Pick 6 from 1–58", freqZh: "每周 3 场", freqEn: "3 draws / week", advance: 12, playZh: "标准选号", playEn: "Standard", prizes: [
+    ["6 中 · 头奖", "Match 6 · Jackpot", "奖池制滚存", "Rollover jackpot"],
+    ["5 中", "Match 5", "₱280,000", "₱280,000"],
+    ["4 中", "Match 4", "₱4,000", "₱4,000"],
+    ["3 中", "Match 3", "₱25", "₱25"]
+  ]},
+  { id: "g655", zh: "大乐透 6/55", en: "Grand Lotto 6/55", kind: "lotto", on: true, price: 25, pickZh: "1–55 选 6", pickEn: "Pick 6 from 1–55", freqZh: "每周 3 场", freqEn: "3 draws / week", advance: 12, playZh: "标准选号", playEn: "Standard", prizes: [
+    ["6 中 · 头奖", "Match 6 · Jackpot", "奖池制滚存", "Rollover jackpot"],
+    ["5 中", "Match 5", "₱150,000", "₱150,000"],
+    ["4 中", "Match 4", "₱2,500", "₱2,500"],
+    ["3 中", "Match 3", "₱25", "₱25"]
+  ]},
+  { id: "s649", zh: "超级乐透 6/49", en: "Super Lotto 6/49", kind: "lotto", on: true, price: 25, pickZh: "1–49 选 6", pickEn: "Pick 6 from 1–49", freqZh: "每周 3 场", freqEn: "3 draws / week", advance: 12, playZh: "标准选号", playEn: "Standard", prizes: [
+    ["6 中 · 头奖", "Match 6 · Jackpot", "奖池制滚存", "Rollover jackpot"],
+    ["5 中", "Match 5", "₱50,000", "₱50,000"],
+    ["4 中", "Match 4", "₱1,500", "₱1,500"],
+    ["3 中", "Match 3", "₱50", "₱50"]
+  ]},
+  { id: "m645", zh: "百万乐透 6/45", en: "Mega Lotto 6/45", kind: "lotto", on: false, price: 25, pickZh: "1–45 选 6", pickEn: "Pick 6 from 1–45", freqZh: "每周 3 场", freqEn: "3 draws / week", advance: 12, playZh: "标准选号", playEn: "Standard", prizes: [
+    ["6 中 · 头奖", "Match 6 · Jackpot", "奖池制滚存", "Rollover jackpot"],
+    ["5 中", "Match 5", "₱32,000", "₱32,000"],
+    ["4 中", "Match 4", "₱1,200", "₱1,200"],
+    ["3 中", "Match 3", "₱30", "₱30"]
+  ]},
+  { id: "l642", zh: "乐透 6/42", en: "Lotto 6/42", kind: "lotto", on: true, price: 25, pickZh: "1–42 选 6", pickEn: "Pick 6 from 1–42", freqZh: "每周 3 场", freqEn: "3 draws / week", advance: 12, playZh: "标准选号", playEn: "Standard", v41: true, prizes: [
+    ["6 中 · 头奖", "Match 6 · Jackpot", "奖池制滚存", "Rollover jackpot"],
+    ["5 中", "Match 5", "₱25,000", "₱25,000"],
+    ["4 中", "Match 4", "₱1,000", "₱1,000"],
+    ["3 中", "Match 3", "₱25", "₱25"]
+  ]},
+  { id: "ez2", zh: "EZ2", en: "EZ2", kind: "digit", on: true, price: 10, pickZh: "0–31 选 2 位", pickEn: "Pick 2 digits from 0–31", freqZh: "每天 3 场", freqEn: "3 draws / day", advance: 90, playZh: "Straight / Rambolito", playEn: "Straight / Rambolito", prizes: [
+    ["Straight", "Straight", "₱4,000", "₱4,000"],
+    ["Rambolito", "Rambolito", "₱2,000", "₱2,000"]
+  ]},
+  { id: "sw3", zh: "Swertres", en: "Swertres", kind: "digit", on: true, price: 10, pickZh: "0–9 选 3 位", pickEn: "Pick 3 digits from 0–9", freqZh: "每天 3 场", freqEn: "3 draws / day", advance: 90, playZh: "Straight / Rambolito 6 / Rambolito 3", playEn: "Straight / Rambolito 6 / Rambolito 3", prizes: [
+    ["Straight", "Straight", "₱4,500", "₱4,500"],
+    ["Rambolito 6", "Rambolito 6", "₱750", "₱750"],
+    ["Rambolito 3", "Rambolito 3", "₱1,500", "₱1,500"]
+  ]},
+  { id: "d4", zh: "4D", en: "4D", kind: "digit", on: true, price: 12, pickZh: "0–9 选 4 位", pickEn: "Pick 4 digits from 0–9", freqZh: "每周 3 场", freqEn: "3 draws / week", advance: 90, playZh: "Straight", playEn: "Straight", prizes: [
+    ["1st", "1st", "奖池制 ≥ ₱10,000", "Pool ≥ ₱10,000"],
+    ["2nd", "2nd", "≥ ₱800", "≥ ₱800"],
+    ["3rd", "3rd", "≥ ₱100", "≥ ₱100"]
+  ]},
+  { id: "d6", zh: "6D", en: "6D", kind: "digit", on: false, price: 12, pickZh: "0–9 选 6 位", pickEn: "Pick 6 digits from 0–9", freqZh: "每周 2 场", freqEn: "2 draws / week", advance: 90, playZh: "Straight", playEn: "Straight", prizes: [
+    ["1st", "1st", "奖池制 ≥ ₱150,000", "Pool ≥ ₱150,000"],
+    ["2nd", "2nd", "次级奖", "Lower tier"],
+    ["3rd", "3rd", "次级奖", "Lower tier"],
+    ["4th", "4th", "次级奖", "Lower tier"],
+    ["5th", "5th", "₱40", "₱40"]
+  ]}
+];
+const gameBy = (id) => GAMES.find((g) => g.id === id);
+const gname = (g) => (S.lang === "en" ? g.en : g.zh);
+
+const GAME_SALES = [
+  { id: "u658", sales: 42180000, tickets: 1687200, players: 84210, mom: 11.2 },
+  { id: "g655", sales: 31260000, tickets: 1250400, players: 70120, mom: 8.4 },
+  { id: "s649", sales: 22410000, tickets: 896400, players: 51280, mom: 6.1 },
+  { id: "m645", sales: 13850000, tickets: 554000, players: 33410, mom: -2.4 },
+  { id: "l642", sales: 8720000, tickets: 348800, players: 22140, mom: 4.8 },
+  { id: "ez2", sales: 11240000, tickets: 1000000, players: 64020, mom: 14.2 },
+  { id: "sw3", sales: 10860000, tickets: 980000, players: 58810, mom: 9.6 },
+  { id: "d4", sales: 4520000, tickets: 300000, players: 18440, mom: 3.1 },
+  { id: "d6", sales: 3220000, tickets: 206667, players: 12180, mom: -1.2 }
+];
+const PLAY_SALES = [
+  { zh: "EZ2 Straight", en: "EZ2 Straight", sales: 6820000, avg: 20, nz: "两位直选", ne: "2-digit straight" },
+  { zh: "EZ2 Rambolito", en: "EZ2 Rambolito", sales: 4420000, avg: 10, nz: "两位任意序", ne: "2-digit any order" },
+  { zh: "Swertres Straight", en: "Swertres Straight", sales: 5140000, avg: 10, nz: "三位直选", ne: "3-digit straight" },
+  { zh: "Swertres Rambolito 6", en: "Swertres Rambolito 6", sales: 3210000, avg: 10, nz: "六种排列", ne: "6 permutations" },
+  { zh: "Swertres Rambolito 3", en: "Swertres Rambolito 3", sales: 2510000, avg: 10, nz: "三种排列", ne: "3 permutations" },
+  { zh: "4D Straight", en: "4D Straight", sales: 4520000, avg: 12, nz: "四位直选", ne: "4-digit straight" },
+  { zh: "6D Straight", en: "6D Straight", sales: 3220000, avg: 12, nz: "六位直选", ne: "6-digit straight" }
+];
+const TREND = {
+  day: [4.12, 4.28, 3.96, 4.41, 5.02, 4.66, 4.82, 5.11, 4.74, 4.9, 5.24, 4.58, 4.82, 5.06],
+  week: [28.4, 30.1, 29.2, 31.8, 33.4, 32.6, 34.1, 35.2],
+  month: [112.4, 118.6, 121.2, 126.8, 135.9, 148.26]
+};
+const PRIZE_RATE = [52.4, 49.8, 61.2, 54.1, 48.6, 55.4, 57.9, 53.2, 66.4, 51.8, 54.6, 55.1];
+const PRIZE_MONTHS = ["10月", "11月", "12月", "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月"];
+const PRIZE_MONTHS_EN = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"];
+
+const TIER_LOTTO = [
+  ["中 6 个号 · 头奖", "Match 6 · Jackpot", 5, "浮动", "Floating", 34330000, "柜台 / 待领取", "Counter / unclaimed"],
+  ["中 5 个号", "Match 5", 80, "按游戏固定", "Fixed by game", 12000000, "自动入账", "Auto credit"],
+  ["中 4 个号", "Match 4", 1800, "按游戏固定", "Fixed by game", 3602500, "自动入账", "Auto credit"],
+  ["中 3 个号", "Match 3", 81588, "按游戏固定", "Fixed by game", 2172300, "自动入账", "Auto credit"]
+];
+const TIER_DIGIT = [
+  ["EZ2 Straight", "EZ2 Straight", 1100, "₱4,000", "₱4,000", 4400000, "自动入账", "Auto credit"],
+  ["EZ2 Rambolito", "EZ2 Rambolito", 1500, "₱2,000", "₱2,000", 3000000, "自动入账", "Auto credit"],
+  ["Swertres Straight", "Swertres Straight", 800, "₱4,500", "₱4,500", 3600000, "自动入账", "Auto credit"],
+  ["Rambolito 6", "Rambolito 6", 1200, "₱750", "₱750", 900000, "自动入账", "Auto credit"],
+  ["Rambolito 3", "Rambolito 3", 400, "₱1,500", "₱1,500", 600000, "自动入账", "Auto credit"],
+  ["4D 1st", "4D 1st", 6, "≥ ₱10,000", "≥ ₱10,000", 60000, "自动入账", "Auto credit"],
+  ["4D 2nd", "4D 2nd", 80, "≥ ₱800", "≥ ₱800", 64000, "自动入账", "Auto credit"],
+  ["4D 3rd", "4D 3rd", 2000, "≥ ₱100", "≥ ₱100", 200000, "自动入账", "Auto credit"],
+  ["6D 5th", "6D 5th", 5460, "₱40", "₱40", 218400, "自动入账", "Auto credit"],
+  ["6D 2nd–4th", "6D 2nd–4th", 18, "次级奖", "Lower tiers", 87200, "自动入账", "Auto credit"]
+];
+
+const S = {
+  lang: "zh",
+  authed: false,
+  step: "creds",
+  showPw: false,
+  login: { user: "", pass: "", otp: ["", "", "", "", "", ""], err: "" },
+  page: "dash",
+  tab: { dash: "biz", txn: "dep", report: "sales", sys: "sms" },
+  kycFilter: "all",
+  rgFilter: "all",
+  playerId: null,
+  playerQ: "",
+  drawQ: { game: "all", issue: "" },
+  txnQ: { dep: "all", wd: "all" },
+  salesGrain: "day",
+  period: "2026-09",
+  kind: "all",
+  basis: "drawn",
+  prizeMonth: "2026-09",
+  auditOpen: null,
+  modal: null,
+  freezeReason: "",
+  ann: { title: "", html: "", start: "2026-10-10T09:00", end: "2026-10-16T23:59", scope: "both" },
+  inboxQ: { player: "", tpl: "all" },
+  tplEdit: null
+};
+
+S.kyc = [
+  { id: "KYC-88421", name: "Rafael Cruz", mobile: "+63 917 *** 4412", kind: "doc", hard: false, soft: "", idno: "PSN-4429183", checks: ["fail", "ok", "ok", "ok", "ok", "ok", "ok"], noteZh: "证件全息标反光异常，疑似翻拍。", noteEn: "Hologram reflection looks like a photo of a photo." },
+  { id: "KYC-88430", name: "Elena Ramos", mobile: "+63 918 *** 2201", kind: "live", hard: false, soft: "", idno: "PSN-2201844", checks: ["ok", "ok", "fail", "ok", "ok", "ok", "ok"], noteZh: "活体检测未通过，眨眼序列中断。", noteEn: "Liveness failed. Blink sequence broke." },
+  { id: "KYC-88441", name: "Mark Villanueva", mobile: "+63 919 *** 8830", kind: "multi", hard: true, soft: "", idno: "PSN-1002933", checks: ["ok", "ok", "ok", "ok", "ok", "ok", "fail"], noteZh: "证件号与 PL-100552 重复。硬命中，直接拒绝开户。", noteEn: "ID number duplicates PL-100552. Hard hit. Decline the account." },
+  { id: "KYC-88452", name: "Joy Navarro", mobile: "+63 920 *** 1194", kind: "multi", hard: false, soft: "device", idno: "PSN-7732109", checks: ["ok", "ok", "ok", "ok", "ok", "ok", "warn"], noteZh: "设备指纹与 PL-101882 相同。软命中，只标记关联，不自动合并限额。合并规则二期实现。", noteEn: "Device fingerprint matches PL-101882. Soft hit: link only, do not merge limits. Merge rules come in phase 2." },
+  { id: "KYC-88460", name: "Carlo Mendoza", mobile: "+63 921 *** 6602", kind: "multi", hard: false, soft: "pay", idno: "PSN-6612033", checks: ["ok", "ok", "ok", "ok", "ok", "ok", "warn"], noteZh: "GCash 账号与 PL-102110 相同。软命中，只标记关联，不自动合并限额。合并规则二期实现。", noteEn: "GCash account matches PL-102110. Soft hit: link only, do not merge limits. Merge rules come in phase 2." },
+  { id: "KYC-88471", name: "Bianca Flores", mobile: "+63 922 *** 3044", kind: "doc", hard: false, soft: "", idno: "PSN-3091442", checks: ["ok", "ok", "ok", "fail", "ok", "ok", "ok"], noteZh: "证件边框有拼接痕迹。", noteEn: "Document edges show a splice." },
+  { id: "KYC-88480", name: "Andre Lim", mobile: "+63 923 *** 7781", kind: "doc", hard: false, soft: "", idno: "PSN-1900231", checks: ["ok", "ok", "ok", "ok", "fail", "ok", "ok"], noteZh: "出生日期接近 21 岁边界，需人工看证件。", noteEn: "Date of birth sits on the age boundary. Check the document." },
+  { id: "KYC-88492", name: "Sofia Garcia", mobile: "+63 925 *** 4410", kind: "allok", hard: false, soft: "", idno: "PSN-8821004", checks: ["ok", "ok", "ok", "ok", "ok", "fail", "ok"], noteZh: "排除名单姓名音近，需人工排除误伤。", noteEn: "Exclusion list has a near name match. Rule out a false positive." },
+  { id: "KYC-88503", name: "Paolo Reyes", mobile: "+63 926 *** 1550", kind: "live", hard: false, soft: "", idno: "PSN-4412980", checks: ["ok", "warn", "fail", "ok", "ok", "ok", "ok"], noteZh: "人脸比对偏低且活体失败。", noteEn: "Face match is low and liveness failed." },
+  { id: "KYC-88514", name: "Isabel Torres", mobile: "+63 927 *** 9091", kind: "allok", hard: false, soft: "", idno: "PSN-2201988", checks: ["ok", "ok", "ok", "ok", "ok", "ok", "ok"], noteZh: "七项自动校验通过，等待人工确认开户。", noteEn: "All seven automatic checks passed. Waiting for a human decision." }
+];
+S.kyc.forEach((k) => { k.status = "pending"; });
+
+const CHECK_LABELS = [
+  ["证件真伪", "Document"],
+  ["人脸比对", "Face match"],
+  ["活体检测", "Liveness"],
+  ["证件篡改", "Tamper"],
+  ["年龄校验", "Age"],
+  ["排除名单", "Exclusion list"],
+  ["一人多号", "Multi-account"]
+];
+
+S.players = [
+  { id: "PL-104482", name: "Juan Dela Cruz", mobile: "+63 917 *** 2184", email: "j.delacruz@mail.com", kyc: "verified", status: "normal", cash: 12480, prize: 3250, reg: "2024-11-02", login: "2026-10-10 01:12", lockUntil: Date.now() + 18 * 60 * 1000, limits: [5000, 20000, 60000], cool: "", excl: "", mfaFails: 3 },
+  { id: "PL-100218", name: "Maria Santos", mobile: "+63 918 *** 7740", email: "maria.s@mail.com", kyc: "verified", status: "frozen", cash: 860, prize: 0, reg: "2025-02-14", login: "2026-10-08 22:40", lockUntil: 0, limits: [2000, 8000, 20000], cool: "", excl: "", reason: "充值来源与证件地址不符，风控冻结" },
+  { id: "PL-100903", name: "Ana Reyes", mobile: "+63 919 *** 3308", email: "ana.reyes@mail.com", kyc: "verified", status: "limited", cash: 5400, prize: 800, reg: "2025-06-01", login: "2026-10-09 19:02", lockUntil: 0, limits: [1000, 4000, 12000], cool: "", excl: "", reason: "短时高频投注，限制投注但保留登录" },
+  { id: "PL-101552", name: "Miguel Aquino", mobile: "+63 920 *** 6612", email: "m.aquino@mail.com", kyc: "verified", status: "normal", cash: 220, prize: 15000, reg: "2023-08-19", login: "2026-10-09 11:24", lockUntil: 0, limits: [5000, 20000, 60000], cool: "", excl: "" },
+  { id: "PL-101774", name: "Liza Gomez", mobile: "+63 921 *** 4481", email: "liza.g@mail.com", kyc: "verified", status: "normal", cash: 300, prize: 0, reg: "2025-09-09", login: "2026-10-07 08:16", lockUntil: 0, limits: [500, 2000, 6000], cool: "7 天 · 至 2026-10-14 08:00", excl: "" },
+  { id: "PL-102110", name: "Carlo Mendoza", mobile: "+63 921 *** 6602", email: "carlo.m@mail.com", kyc: "pending", status: "normal", cash: 0, prize: 0, reg: "2026-10-09", login: "2026-10-09 16:48", lockUntil: 0, limits: [5000, 20000, 60000], cool: "", excl: "" },
+  { id: "PL-102440", name: "Hannah Uy", mobile: "+63 922 *** 1003", email: "hannah.uy@mail.com", kyc: "verified", status: "frozen", cash: 40, prize: 0, reg: "2024-01-20", login: "2026-04-02 12:00", lockUntil: 0, limits: [0, 0, 0], cool: "", excl: "6 个月 · 至 2026-10-18" },
+  { id: "PL-102901", name: "Diego Ramos", mobile: "+63 923 *** 8821", email: "diego.r@mail.com", kyc: "verified", status: "normal", cash: 9100, prize: 420, reg: "2025-12-12", login: "2026-10-10 00:41", lockUntil: 0, limits: [8000, 20000, 60000], cool: "", excl: "" },
+  { id: "PL-103300", name: "Patricia Tan", mobile: "+63 925 *** 2290", email: "p.tan@mail.com", kyc: "verified", status: "normal", cash: 15020, prize: 0, reg: "2026-01-08", login: "2026-10-09 21:13", lockUntil: 0, limits: [5000, 20000, 45000], cool: "", excl: "" },
+  { id: "PL-103774", name: "Noah Bautista", mobile: "+63 926 *** 7171", email: "noah.b@mail.com", kyc: "rejected", status: "frozen", cash: 0, prize: 0, reg: "2026-09-28", login: "2026-09-28 10:02", lockUntil: 0, limits: [5000, 20000, 60000], cool: "", excl: "", reason: "证件审核拒绝后冻结开户" },
+  { id: "PL-104010", name: "Camille Ong", mobile: "+63 927 *** 4545", email: "c.ong@mail.com", kyc: "verified", status: "limited", cash: 2600, prize: 120, reg: "2026-03-03", login: "2026-10-08 18:22", lockUntil: 0, limits: [1500, 6000, 18000], cool: "24 小时 · 至 2026-10-10 18:22", excl: "" },
+  { id: "PL-104266", name: "Enzo Villanueva", mobile: "+63 928 *** 3030", email: "enzo.v@mail.com", kyc: "verified", status: "normal", cash: 760, prize: 6400, reg: "2024-05-17", login: "2026-10-09 23:55", lockUntil: 0, limits: [20000, 20000, 60000], cool: "", excl: "" }
+];
+
+S.draws = [
+  { date: "2026-10-09 21:00", issue: "2026-1009-3", game: "u658", nums: "04 11 23 29 41 58", winners: "6中 0 · 5中 12 · 4中 640 · 3中 9,020", payout: 4821600, rollZh: "头奖未中出，滚存至 ₱128,450,000", rollEn: "Jackpot not won. Rolls to ₱128,450,000" },
+  { date: "2026-10-09 21:00", issue: "2026-1009-3", game: "g655", nums: "02 09 18 27 40 55", winners: "6中 0 · 5中 8 · 4中 410 · 3中 6,440", payout: 2144800, rollZh: "头奖未中出，滚存至 ₱86,420,000", rollEn: "Jackpot not won. Rolls to ₱86,420,000" },
+  { date: "2026-10-08 21:00", issue: "2026-1008-2", game: "s649", nums: "05 14 22 31 36 49", winners: "6中 1 · 5中 6 · 4中 280 · 3中 4,110", payout: 4988200, rollZh: "头奖已中出，滚存结束", rollEn: "Jackpot won. Rollover ends" },
+  { date: "2026-10-10 14:00", issue: "2026-1010-B", game: "ez2", nums: "14 27", winners: "Straight 6 · Rambolito 19", payout: 62000, rollZh: "—", rollEn: "—" },
+  { date: "2026-10-10 17:00", issue: "2026-1010-E", game: "sw3", nums: "4 8 2", winners: "Straight 2 · R6 11 · R3 4", payout: 23100, rollZh: "—", rollEn: "—" },
+  { date: "2026-10-08 21:00", issue: "2026-1008-2", game: "d4", nums: "3 9 4 1", winners: "1st 0 · 2nd 4 · 3rd 86", payout: 11800, rollZh: "1st 未中出，奖池 ≥ ₱10,000 继续", rollEn: "1st not won. Pool stays ≥ ₱10,000" },
+  { date: "2026-10-07 21:00", issue: "2026-1007-1", game: "d6", nums: "1 2 0 9 8 4", winners: "1st 0 · 5th 640", payout: 41200, rollZh: "1st 未中出，奖池 ≥ ₱150,000 继续", rollEn: "1st not won. Pool stays ≥ ₱150,000" },
+  { date: "2026-10-07 21:00", issue: "2026-1007-2", game: "l642", nums: "01 08 19 24 33 42", winners: "6中 0 · 5中 4 · 4中 190 · 3中 2,860", payout: 612400, rollZh: "头奖未中出，滚存至 ₱9,200,000", rollEn: "Jackpot not won. Rolls to ₱9,200,000" },
+  { date: "2026-10-05 21:00", issue: "2026-1005-1", game: "m645", nums: "06 15 21 30 38 45", winners: "6中 0 · 5中 5 · 4中 150 · 3中 2,240", payout: 388600, rollZh: "头奖未中出，滚存至 ₱18,650,000", rollEn: "Jackpot not won. Rolls to ₱18,650,000" }
+];
+
+S.deposits = [
+  { time: "2026-10-10 00:42", player: "PL-104482", ch: "GCash", amt: 2000, st: "ok", ref: "DP-910221" },
+  { time: "2026-10-10 00:16", player: "PL-102901", ch: "Maya", amt: 5000, st: "ok", ref: "DP-910208" },
+  { time: "2026-10-09 23:48", player: "PL-103300", ch: "银行卡", amt: 10000, st: "pending", ref: "DP-910190" },
+  { time: "2026-10-09 22:11", player: "PL-101552", ch: "GCash", amt: 500, st: "fail", ref: "DP-910166" },
+  { time: "2026-10-09 21:02", player: "PL-104266", ch: "Maya", amt: 1500, st: "ok", ref: "DP-910140" },
+  { time: "2026-10-09 18:36", player: "PL-100903", ch: "银行卡", amt: 3000, st: "ok", ref: "DP-910102" },
+  { time: "2026-10-09 16:20", player: "PL-104010", ch: "GCash", amt: 800, st: "pending", ref: "DP-910088" },
+  { time: "2026-10-09 12:04", player: "PL-101774", ch: "Maya", amt: 200, st: "fail", ref: "DP-910041" },
+  { time: "2026-10-08 20:18", player: "PL-100218", ch: "GCash", amt: 2500, st: "ok", ref: "DP-909774" },
+  { time: "2026-10-08 11:47", player: "PL-104482", ch: "银行卡", amt: 8000, st: "ok", ref: "DP-909610" }
+];
+S.withdraws = [
+  { time: "2026-10-10 01:06", player: "PL-104482", ch: "GCash", amt: 1500, mfa: "fail", st: "pending", locked: true, ref: "WD-330912" },
+  { time: "2026-10-09 19:22", player: "PL-101552", ch: "Maya", amt: 8000, mfa: "ok", st: "paid", locked: false, ref: "WD-330844" },
+  { time: "2026-10-09 18:04", player: "PL-103300", ch: "银行卡", amt: 12000, mfa: "ok", st: "paid", locked: false, ref: "WD-330801" },
+  { time: "2026-10-09 17:41", player: "PL-104266", ch: "GCash", amt: 600, mfa: "fail", st: "rejected", locked: false, ref: "WD-330788" },
+  { time: "2026-10-09 15:16", player: "PL-102901", ch: "Maya", amt: 2200, mfa: "ok", st: "pending", locked: false, ref: "WD-330760" },
+  { time: "2026-10-09 11:02", player: "PL-100903", ch: "GCash", amt: 900, mfa: "ok", st: "paid", locked: false, ref: "WD-330701" },
+  { time: "2026-10-08 21:48", player: "PL-104010", ch: "银行卡", amt: 3000, mfa: "fail", st: "rejected", locked: false, ref: "WD-330640" },
+  { time: "2026-10-08 16:33", player: "PL-101774", ch: "Maya", amt: 400, mfa: "ok", st: "rejected", locked: false, ref: "WD-330588" },
+  { time: "2026-10-08 09:12", player: "PL-104482", ch: "GCash", amt: 500, mfa: "fail", st: "rejected", locked: false, ref: "WD-330502" },
+  { time: "2026-10-07 20:26", player: "PL-103300", ch: "GCash", amt: 4500, mfa: "ok", st: "paid", locked: false, ref: "WD-330440" }
+];
+S.orders = [
+  { time: "2026-10-10 00:58", player: "PL-104482", game: "u658", issue: "2026-1011-1", play: "标准", amt: 25, ticket: "IL-20261010-11021", receipt: "RC-8842101", st: "ok" },
+  { time: "2026-10-10 00:57", player: "PL-102901", game: "ez2", issue: "2026-1010-C", play: "Straight", amt: 10, ticket: "IL-20261010-11020", receipt: "RC-8842098", st: "ok" },
+  { time: "2026-10-09 21:16", player: "PL-104266", game: "sw3", issue: "2026-1009-E", play: "Rambolito 6", amt: 20, ticket: "IL-20261009-10902", receipt: "RC-8841004", st: "ok" },
+  { time: "2026-10-09 21:02", player: "PL-101552", game: "g655", issue: "2026-1011-1", play: "标准", amt: 50, ticket: "—", receipt: "—", st: "rollback" },
+  { time: "2026-10-09 20:44", player: "PL-103300", game: "s649", issue: "2026-1012-1", play: "标准", amt: 25, ticket: "IL-20261009-10877", receipt: "RC-8840881", st: "ok" },
+  { time: "2026-10-09 19:12", player: "PL-100903", game: "l642", issue: "2026-1013-1", play: "标准", amt: 25, ticket: "IL-20261009-10801", receipt: "RC-8840702", st: "ok" },
+  { time: "2026-10-09 18:40", player: "PL-104010", game: "d4", issue: "2026-1012-1", play: "Straight", amt: 12, ticket: "IL-20261009-10770", receipt: "RC-8840660", st: "ok" },
+  { time: "2026-10-08 17:05", player: "PL-101774", game: "ez2", issue: "2026-1008-A", play: "Rambolito", amt: 10, ticket: "—", receipt: "RC-DUP-19", st: "dup" },
+  { time: "2026-10-08 11:22", player: "PL-104482", game: "u658", issue: "2026-1009-3", play: "标准", amt: 75, ticket: "IL-20261008-10110", receipt: "RC-8834201", st: "ok" },
+  { time: "2026-10-07 20:18", player: "PL-102901", game: "d6", issue: "2026-1007-1", play: "Straight", amt: 12, ticket: "IL-20261007-09880", receipt: "RC-8833004", st: "ok" }
+];
+S.claims = [
+  { ticket: "IL-20260914-04410", code: "CLM-7K2Q-18", game: "u658", issue: "2026-0914-1", gross: 18400000, date: "2026-09-20", cheque: "PCSO-CHK-20911", by: "Liza Gomez", review: "Henrik Tan" },
+  { ticket: "IL-20260830-03102", code: "CLM-1M8P-04", game: "g655", issue: "2026-0830-2", gross: 11810000, date: "2026-09-06", cheque: "PCSO-CHK-20844", by: "Liza Gomez", review: "Henrik Tan" },
+  { ticket: "IL-20260718-01990", code: "CLM-9Q1A-22", game: "s649", issue: "2026-0718-1", gross: 860000, date: "2026-07-28", cheque: "PCSO-CHK-20102", by: "Liza Gomez", review: "Henrik Tan" },
+  { ticket: "IL-20260602-01120", code: "CLM-4C8N-71", game: "m645", issue: "2026-0602-3", gross: 540000, date: "2026-06-18", cheque: "PCSO-CHK-19660", by: "Liza Gomez", review: "Henrik Tan" },
+  { ticket: "IL-20260511-00814", code: "CLM-2B6D-15", game: "l642", issue: "2026-0511-2", gross: 420000, date: "2026-05-26", cheque: "PCSO-CHK-19018", by: "Liza Gomez", review: "Henrik Tan" },
+  { ticket: "IL-20260409-00440", code: "CLM-8H3K-90", game: "u658", issue: "2026-0409-1", gross: 2100000, date: "2026-04-22", cheque: "PCSO-CHK-18440", by: "Liza Gomez", review: "Henrik Tan" }
+];
+S.unclaimed = [
+  { game: "s649", issue: "2026-1008-2", amt: 3200000, draw: "2026-10-08", deadline: "2026-10-16", days: 6, player: "PL-104***66", ticket: "IL-20261005-08110", code: "CLM-3R9P-08" },
+  { game: "g655", issue: "2026-0927-1", amt: 600000, draw: "2026-09-27", deadline: "2026-11-01", days: 22, player: "PL-102***10", ticket: "IL-20260927-07002", code: "CLM-6T2L-33" },
+  { game: "u658", issue: "2026-0914-3", amt: 320000, draw: "2026-09-14", deadline: "2026-12-14", days: 65, player: "PL-100***18", ticket: "IL-20260914-06112", code: "CLM-5N1C-47" }
+];
+S.jackpots = [
+  { player: "PL-101***52", game: "u658", issue: "2026-0914-1", amt: 18400000, st: "paid", date: "2026-09-20" },
+  { player: "PL-103***00", game: "g655", issue: "2026-0830-2", amt: 11810000, st: "paid", date: "2026-09-06" },
+  { player: "PL-104***66", game: "s649", issue: "2026-1008-2", amt: 3200000, st: "pending", date: "—" },
+  { player: "PL-102***10", game: "g655", issue: "2026-0927-1", amt: 600000, st: "pending", date: "—" },
+  { player: "PL-100***18", game: "u658", issue: "2026-0914-3", amt: 320000, st: "pending", date: "—" }
+];
+S.etickets = [
+  { sn: "IL-20260914-04410", barcode: "QR-7K2Q18", game: "u658", issue: "2026-0914-1", pick: "03 12 19 28 44 57", win: "03 12 19 28 44 57", tier: "6 中", st: "柜台已兑付" },
+  { sn: "IL-20260830-03102", barcode: "QR-1M8P04", game: "g655", issue: "2026-0830-2", pick: "02 09 18 27 40 55", win: "02 09 18 27 40 55", tier: "6 中", st: "柜台已兑付" },
+  { sn: "IL-20261005-08110", barcode: "QR-3R9P08", game: "s649", issue: "2026-1008-2", pick: "05 14 22 31 36 49", win: "05 14 22 31 36 49", tier: "6 中", st: "待领取" },
+  { sn: "IL-20261009-10877", barcode: "QR-8K4412", game: "s649", issue: "2026-1012-1", pick: "07 16 22 30 41 48", win: "—", tier: "未开奖", st: "待开奖" },
+  { sn: "IL-20261010-11020", barcode: "QR-EZ2014", game: "ez2", issue: "2026-1010-C", pick: "14 27", win: "14 27", tier: "Straight", st: "已自动入账" },
+  { sn: "IL-20261007-09880", barcode: "QR-6D0988", game: "d6", issue: "2026-1007-1", pick: "1 2 0 9 8 4", win: "1 2 0 9 8 4", tier: "5th", st: "已自动入账" }
+];
+S.forfeits = [
+  { game: "m645", issue: "2026-0602-2", amt: 32400, draw: "2026-06-02", deadline: "2026-09-02", voided: "2026-09-03", toZh: "PCSO 公益基金", toEn: "PCSO charity fund" },
+  { game: "l642", issue: "2026-0609-1", amt: 54000, draw: "2026-06-09", deadline: "2026-09-09", voided: "2026-09-10", toZh: "PCSO 公益基金", toEn: "PCSO charity fund" }
+];
+S.pools = [
+  { id: "u658", bal: 128450000, add: 4200000, since: "2026-06-18", next: 132800000 },
+  { id: "g655", bal: 86420000, add: 2100000, since: "2026-07-02", next: 88600000 },
+  { id: "s649", bal: 42180000, add: 980000, since: "2026-08-11", next: 43100000 },
+  { id: "m645", bal: 18650000, add: 420000, since: "2026-09-01", next: 19080000 },
+  { id: "l642", bal: 9200000, add: 210000, since: "2026-09-15", next: 9420000 }
+];
+
+S.restores = [
+  { id: "RG-331", player: "PL-102440", name: "Hannah Uy", ended: "6 个月 · 2026-10-18", kyc: "pass", risk: true, st: "pending" },
+  { id: "RG-328", player: "PL-099120", name: "Marco Silva", ended: "3 个月 · 2026-10-11", kyc: "pass", risk: true, st: "pending" },
+  { id: "RG-319", player: "PL-088441", name: "Irene Chua", ended: "1 年 · 2026-10-09", kyc: "review", risk: false, st: "pending" },
+  { id: "RG-302", player: "PL-077210", name: "Felix Ong", ended: "6 个月 · 2026-10-12", kyc: "pass", risk: true, st: "pending" }
+];
+S.limitSoon = [
+  { player: "PL-103300", name: "Patricia Tan", whatZh: "每月充值 ₱45,000 → ₱60,000", whatEn: "Monthly deposit ₱45,000 → ₱60,000", when: "2026-10-12 00:00" },
+  { player: "PL-104266", name: "Enzo Villanueva", whatZh: "每日投注 ₱20,000 → ₱5,000", whatEn: "Daily stake ₱20,000 → ₱5,000", when: "2026-10-11 00:00" },
+  { player: "PL-101552", name: "Miguel Aquino", whatZh: "每周充值 ₱20,000 → ₱12,000", whatEn: "Weekly deposit ₱20,000 → ₱12,000", when: "2026-10-15 00:00" },
+  { player: "PL-102901", name: "Diego Ramos", whatZh: "每日充值 ₱8,000 → ₱5,000", whatEn: "Daily deposit ₱8,000 → ₱5,000", when: "2026-10-13 09:00" }
+];
+S.exclToday = [
+  { player: "PL-105001", name: "Rina Bautista", period: "3 个月", at: "2026-10-10 00:18" },
+  { player: "PL-105014", name: "Omar Santos", period: "永久", at: "2026-10-10 00:46" },
+  { player: "PL-105022", name: "Thea Lim", period: "6 个月", at: "2026-10-10 01:05" },
+  { player: "PL-105030", name: "Gino Cruz", period: "1 年", at: "2026-10-10 01:22" }
+];
+S.limits = {
+  depDay: 5000, depWeek: 20000, depMonth: 60000,
+  betDay: 5000, betWeek: 20000, betMonth: 60000,
+  betOnce: 2000, remind: 10
+};
+S.coolTiers = ["24 小时", "7 天", "30 天"];
+S.exclTiers = ["3 个月", "6 个月", "1 年", "永久"];
+
+S.audits = [
+  { time: "2026-10-10 01:06:12", who: "系统", role: "—", mod: "玩家档案", evt: "提现锁定", obj: "PL-104482", res: "成功", before: "mfaFails=2", after: "连续 3 次 MFA 失败，锁定提现 30 分钟" },
+  { time: "2026-10-09 22:18:44", who: "Mina Cruz", role: "运营专员", mod: "游戏管理", evt: "下架游戏", obj: "百万乐透 6/45", res: "成功", before: "在售", after: "已下架" },
+  { time: "2026-10-09 21:02:09", who: "投注网关", role: "—", mod: "交易流水", evt: "登记超时回滚", obj: "PL-101552 / 大乐透", res: "已回滚", before: "待出票", after: "未扣款" },
+  { time: "2026-10-09 18:40:21", who: "Paolo Santos", role: "身份审核员", mod: "身份审核", evt: "拒绝开户", obj: "KYC-88310", res: "成功", before: "待审", after: "拒绝 · 证件疑似翻拍" },
+  { time: "2026-10-09 16:12:03", who: "Amina Bautista", role: "合规审计", mod: "责任博彩", evt: "驳回恢复", obj: "RG-311", res: "成功", before: "待审批", after: "驳回 · 风险确认未勾选" },
+  { time: "2026-10-09 11:24:55", who: "Liza Gomez", role: "兑奖柜台", mod: "交易流水", evt: "登记兑付结果", obj: "CLM-7K2Q-18", res: "成功", before: "待登记", after: "支票 PCSO-CHK-20911" },
+  { time: "2026-10-09 11:40:18", who: "Henrik Tan", role: "财务复核", mod: "交易流水", evt: "复核兑付登记", obj: "CLM-7K2Q-18", res: "成功", before: "待复核", after: "金额与支票号一致" },
+  { time: "2026-10-08 15:06:40", who: "Mina Cruz", role: "运营专员", mod: "玩家档案", evt: "限制投注", obj: "PL-100903", res: "成功", before: "正常", after: "已限制投注" },
+  { time: "2026-10-08 09:33:27", who: "Noah Lim", role: "系统管理员", mod: "系统管理", evt: "发布公告", obj: "10 月头奖加奖周", res: "成功", before: "草稿", after: "生效中 · 两者都发" },
+  { time: "2026-10-07 19:14:02", who: "Amina Bautista", role: "合规审计", mod: "报表", evt: "导出销售报表", obj: "2026-09", res: "成功", before: "—", after: "CSV" },
+  { time: "2026-10-07 10:02:48", who: "Noah Lim", role: "系统管理员", mod: "系统管理", evt: "启用短信模板", obj: "OTP_RESET", res: "成功", before: "草稿", after: "已启用" },
+  { time: "2026-10-06 14:22:11", who: "Paolo Santos", role: "身份审核员", mod: "身份审核", evt: "通过开户", obj: "KYC-88201", res: "成功", before: "待审", after: "已核验" }
+];
+
+S.sms = [
+  { id: "OTP_LOGIN", zh: "登录验证码", en: "Sign-in code", bodyZh: "iLotto 登录验证码 {{code}}，5 分钟内有效。请勿告知他人。", bodyEn: "iLotto sign-in code {{code}}. Valid for 5 minutes." },
+  { id: "OTP_REGISTER", zh: "注册验证码", en: "Registration code", bodyZh: "iLotto 注册验证码 {{code}}。如非本人操作请忽略。", bodyEn: "iLotto registration code {{code}}." },
+  { id: "OTP_TXN", zh: "交易验证码", en: "Transaction code", bodyZh: "iLotto 交易验证码 {{code}}，用于提现或绑定支付账户。", bodyEn: "iLotto transaction code {{code}} for withdrawal or payout linking." },
+  { id: "OTP_RESET", zh: "找回密码", en: "Password reset", bodyZh: "iLotto 密码重置验证码 {{code}}。工作人员不会向您索取验证码。", bodyEn: "iLotto password reset code {{code}}." }
+];
+S.sms.forEach((s) => { s.on = true; });
+
+S.anns = [
+  { id: "AN-1044", titleZh: "10 月头奖加奖周", titleEn: "October jackpot week", scope: "both", start: "2026-10-10 09:00", end: "2026-10-16 23:59", st: "live", bodyZh: "终极乐透 6/58 与大乐透 6/55 的头奖估算每日 18:00（UTC+8）更新。", bodyEn: "Ultra 6/58 and Grand 6/55 jackpot estimates refresh daily at 18:00 UTC+8." },
+  { id: "AN-1031", titleZh: "支付通道维护", titleEn: "Payout rail maintenance", scope: "player", start: "2026-09-14 02:00", end: "2026-09-14 04:00", st: "off", bodyZh: "维护窗口已结束，公告已下线。", bodyEn: "Window ended. Notice is offline." },
+  { id: "AN-1022", titleZh: "理性娱乐提示", titleEn: "Play-safe note", scope: "player", start: "2026-10-01 00:00", end: "2026-10-31 23:59", st: "live", bodyZh: "限额、冷静期与自主排除可在玩家端设置。提醒间隔由后台固定为 10 分钟。", bodyEn: "Limits, cool-off, and self-exclusion are set by the player. The reminder interval is fixed at 10 minutes in admin." },
+  { id: "AN-1010", titleZh: "柜台班表调整", titleEn: "Counter roster change", scope: "admin", start: "2026-09-01 08:00", end: "2026-09-30 18:00", st: "ended", bodyZh: "9 月兑奖柜台早班提前至 08:00。", bodyEn: "September prize-counter morning shift starts at 08:00." }
+];
+S.tpls = [
+  { id: "KYC_RESULT", zh: "KYC 审核结果", en: "KYC result", bodyZh: "{{name}}，您的身份审核结果为 {{result}}。", bodyEn: "{{name}}, your identity review result is {{result}}." },
+  { id: "CREDIT_NOTICE", zh: "入账提醒", en: "Credit notice", bodyZh: "奖金 {{amount}} 已入账至奖金余额。", bodyEn: "Prize {{amount}} was credited to your prize balance." },
+  { id: "RG_REMIND", zh: "责任博彩提醒", en: "Responsible gaming", bodyZh: "您已连续娱乐 {{minutes}} 分钟。可在 PlaySafe 查看限额。", bodyEn: "You have been playing for {{minutes}} minutes. Review limits in PlaySafe." },
+  { id: "EXCLUSION_DECISION", zh: "自我排除恢复结果", en: "Exclusion decision", bodyZh: "您的恢复申请 {{id}} 结果为 {{result}}。", bodyEn: "Your restoration request {{id}} is {{result}}." }
+];
+S.sends = [
+  { time: "2026-10-09 18:41", player: "PL-100218", tpl: "KYC_RESULT", st: "已送达" },
+  { time: "2026-10-09 21:08", player: "PL-104482", tpl: "CREDIT_NOTICE", st: "已送达" },
+  { time: "2026-10-10 00:20", player: "PL-101774", tpl: "RG_REMIND", st: "已送达" },
+  { time: "2026-10-08 15:12", player: "PL-102901", tpl: "EXCLUSION_DECISION", st: "已送达" },
+  { time: "2026-10-07 11:03", player: "PL-103300", tpl: "RG_REMIND", st: "失败重试" }
+];
+S.staff = [
+  { id: "E-014", name: "Mina Cruz", roles: ["ops"] },
+  { id: "E-021", name: "Paolo Santos", roles: ["kyc"] },
+  { id: "E-033", name: "Liza Gomez", roles: ["counter"] },
+  { id: "E-034", name: "Henrik Tan", roles: ["finance"] },
+  { id: "E-040", name: "Amina Bautista", roles: ["compliance"] },
+  { id: "E-001", name: "Noah Lim", roles: ["admin"] },
+  { id: "E-052", name: "Carla Ong", roles: ["ops"] },
+  { id: "E-061", name: "Diego Flores", roles: ["kyc"] }
+];
+
+const COMPLIANCE = [
+  { zh: "审计日志完整性", en: "Audit log integrity", st: "ok", at: "2026-10-10 02:10", over: 0 },
+  { zh: "负责任博彩合规", en: "Responsible gaming", st: "warn", at: "2026-10-09 18:40", over: 2 },
+  { zh: "渗透测试 / 压力测试", en: "Pen test / stress test", st: "bad", at: "2026-09-22 11:00", over: 18 },
+  { zh: "数据隐私合规", en: "Data privacy", st: "ok", at: "2026-10-08 09:30", over: 0 },
+  { zh: "SLA 合规", en: "SLA", st: "warn", at: "2026-10-07 16:20", over: 3 }
+];
+
+function icon(d) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+}
+function tag(kind, text) { return `<span class="tag tag-${kind}">${text}</span>`; }
+function roleChip(zh, en) { return `<span class="role-chip">${esc(t(zh, en))}</span>`; }
+function delta(n) { return `<span class="delta ${n >= 0 ? "up" : "down"}">${n >= 0 ? "↑" : "↓"} ${t("较上月", "vs last month")} ${pct(n)}</span>`; }
+function clockStr() {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Manila", hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date()) + " UTC+8";
+}
+function taxOf(gross) {
+  const tax = Math.round(Math.max(0, gross - BILL.exempt) * BILL.wht);
+  return { tax, net: gross - tax };
+}
+function toast(msg) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.classList.add("on");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("on"), 2400);
+}
+function logAudit(partial) {
+  S.audits.unshift(Object.assign({ time: clockStr(), res: t("成功", "OK"), before: "—", after: "—" }, partial));
+}
+function lockLeft(p) {
+  if (!p || !p.lockUntil) return 0;
+  return Math.max(0, p.lockUntil - Date.now());
+}
+function fmtLeft(ms) {
+  const s = Math.ceil(ms / 1000);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+function statusTag(st) {
+  if (st === "frozen") return tag("rose", t("已冻结", "Frozen"));
+  if (st === "limited") return tag("warn", t("已限制投注", "Betting limited"));
+  return tag("ok", t("正常", "Active"));
+}
+function kycTag(st) {
+  if (st === "verified") return tag("ok", t("已核验", "Verified"));
+  if (st === "rejected") return tag("rose", t("已拒绝", "Rejected"));
+  return tag("warn", t("审核中", "In review"));
+}
+function checkTag(v) {
+  if (v === "ok") return tag("ok", t("通过", "Pass"));
+  if (v === "fail") return tag("rose", t("未通过", "Fail"));
+  return tag("warn", t("待看", "Review"));
+}
+function th(list) { return `<tr>${list.map((h) => `<th>${h}</th>`).join("")}</tr>`; }
+function table(heads, rows) {
+  const body = Array.isArray(rows) ? rows.join("") : String(rows || "");
+  return `<div class="table-wrap"><table><thead>${th(heads)}</thead><tbody>${body || `<tr><td colspan="${heads.length}" class="muted">${t("没有匹配记录", "No matching rows")}</td></tr>`}</tbody></table></div>`;
+}
+function langSwitch() {
+  return `<div class="lang" role="group">${["zh", "en"].map((l) => `<button type="button" data-act="lang" data-arg="${l}" class="${S.lang === l ? "on" : ""}">${l === "zh" ? "中文" : "EN"}</button>`).join("")}</div>`;
+}
+function periodFactor() {
+  return { "2026-07": 0.86, "2026-08": 0.93, "2026-09": 1, "2026-10": 0.34 }[S.period] || 1;
+}
+function salesOf(kind) {
+  const rows = GAME_SALES.filter((r) => kind === "all" || gameBy(r.id).kind === kind);
+  const sales = rows.reduce((s, r) => s + r.sales, 0) * periodFactor();
+  return { rows, sales, dst: sales * BILL.dst, net: sales * (1 - BILL.dst) };
+}
+function lineChart(values, labels) {
+  const w = 680, h = 200, pad = 28;
+  const max = Math.max(...values) * 1.08;
+  const min = Math.min(...values) * 0.82;
+  const pts = values.map((v, i) => {
+    const x = pad + (i * (w - pad * 2)) / (values.length - 1);
+    const y = h - pad - ((v - min) / (max - min)) * (h - pad * 2);
+    return [x, y];
+  });
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  const fill = `${d} L${pts[pts.length - 1][0].toFixed(1)},${h - pad} L${pts[0][0].toFixed(1)},${h - pad} Z`;
+  const dots = pts.map((p) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#22d3ee"/>`).join("");
+  const labs = labels.map((lb, i) => `<text x="${pts[i][0].toFixed(1)}" y="${h - 8}" text-anchor="middle" fill="#64748b" font-size="10">${esc(lb)}</text>`).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200" role="img"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".35"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs><path d="${fill}" fill="url(#cg)"/><path d="${d}" fill="none" stroke="#22d3ee" stroke-width="2.4"/>${dots}${labs}</svg>`;
+}
+function colChart(values) {
+  const w = 680, h = 200, pad = 24;
+  const max = 70;
+  const bw = (w - pad * 2) / values.length;
+  const y55 = h - pad - (55 / max) * (h - pad * 2);
+  const bars = values.map((v, i) => {
+    const bh = (v / max) * (h - pad * 2);
+    const x = pad + i * bw + 6;
+    const y = h - pad - bh;
+    const c = v > 60 || v < 50 ? "#f59e0b" : "#22d3ee";
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw - 12).toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="${c}"/>`;
+  }).join("");
+  const labs = values.map((_, i) => `<text x="${(pad + i * bw + bw / 2).toFixed(1)}" y="${h - 6}" text-anchor="middle" fill="#64748b" font-size="10">${esc(S.lang === "en" ? PRIZE_MONTHS_EN[i] : PRIZE_MONTHS[i])}</text>`).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200"><line x1="${pad}" y1="${y55.toFixed(1)}" x2="${w - pad}" y2="${y55.toFixed(1)}" stroke="#34d399" stroke-dasharray="4 4"/>${bars}${labs}</svg>`;
+}
+function download(name, text, mime) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(t("已开始下载 ", "Download started: ") + name);
+  logAudit({ who: S.login.user || "Mina Cruz", role: t("运营专员", "Operations"), mod: t("报表", "Reports"), evt: t("导出", "Export"), obj: name, before: "—", after: name });
+}
+
+function viewLogin() {
+  const otp = S.step === "otp";
+  return `<div class="login">
+    <div style="position:absolute;top:18px;right:18px;z-index:2">${langSwitch()}</div>
+    <section class="login-hero">
+      <div class="brand">i<em>Lotto</em></div>
+      <h1>${t("管理中心", "Admin center")}<span>${t("渠道自己的事，在这里办。", "This channel, in one place.")}</span></h1>
+      <p class="lede">${t("游戏与开奖来自上游。这里管理上下架、玩家、合规、交易和报表。", "Games and draws come from upstream. This desk runs listing, players, compliance, money, and reports.")}</p>
+      <div class="hero-metrics">
+        <div><span>${t("回执 p95", "Receipt p95")}</span><b class="mono">1.84s</b></div>
+        <div><span>${t("近 30 天可用性", "30-day uptime")}</span><b class="mono">99.95%</b></div>
+        <div><span>${t("在售游戏", "Games on sale")}</span><b class="mono">${GAMES.filter((g) => g.on).length} / 9</b></div>
+      </div>
+    </section>
+    <section class="login-panel"><div class="panel">
+      <h2>${otp ? t("短信验证", "SMS verification") : t("登录", "Sign in")}</h2>
+      <p class="sub">${otp ? t("验证码已发到绑定手机 +63 9** *** 2184。每次登录都要验证。", "Code sent to +63 9** *** 2184. Every sign-in asks again.") : t("使用员工账号登录 iLotto管理中心。", "Sign in to iLotto Admin with your staff account.")}</p>
+      ${otp ? "" : `<label class="f">${t("账号", "Account")}</label><input data-field="user" value="${esc(S.login.user)}" autocomplete="username" />
+        <label class="f">${t("密码", "Password")}</label>
+        <div class="pw"><input data-field="pass" type="${S.showPw ? "text" : "password"}" value="${esc(S.login.pass)}" autocomplete="current-password" />
+        <button type="button" class="link" data-act="toggle-pw">${S.showPw ? t("隐藏", "Hide") : t("显示", "Show")}</button></div>`}
+      ${otp ? `<label class="f">${t("6 位短信验证码", "6-digit SMS code")}</label><div class="otp">${S.login.otp.map((v, i) => `<input data-otp="${i}" inputmode="numeric" maxlength="1" value="${esc(v)}" />`).join("")}</div>
+        <div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-ghost btn-sm" data-act="resend">${t("重新发送", "Resend")}</button><button type="button" class="link" data-act="back-creds">${t("返回修改账号", "Back")}</button></div>` : ""}
+      <div class="err">${esc(S.login.err)}</div>
+      <button type="button" class="btn btn-primary" data-act="${otp ? "verify" : "next"}">${otp ? t("验证并进入", "Verify and enter") : t("继续", "Continue")}</button>
+      <div class="note">${t("后台每次登录都强制短信 OTP，不提供记住此设备。", "Admin sign-in always requires an SMS OTP. This device is never remembered.")}</div>
+    </div></section>
+  </div>`;
+}
+
+function shell(body) {
+  const nav = NAV.map((n) => `<button type="button" class="nav-btn ${S.page === n[0] ? "on" : ""}" data-act="nav" data-arg="${n[0]}">${icon(n[3])}<span>${t(n[1], n[2])}</span></button>`).join("");
+  const title = NAV.find((n) => n[0] === S.page);
+  return `<div class="shell">
+    <aside class="side">
+      <div class="side-brand"><div><div class="brand">i<em>Lotto</em></div><small>${t("管理中心", "Admin")}</small></div></div>
+      ${nav}
+    </aside>
+    <section class="main">
+      <header class="top">
+        <div><div class="crumb">iLotto · ${t(title[1], title[2])}</div><h2>${t(title[1], title[2])}</h2></div>
+        <div class="clock mono" data-clock>${clockStr()}</div>
+        <div class="userchip"><span class="avatar">${esc((S.login.user || "MC").slice(0, 2).toUpperCase())}</span><span>${esc(S.login.user || "mina.cruz")}</span></div>
+        ${langSwitch()}
+        <button type="button" class="btn btn-sm" data-act="logout">${t("退出", "Sign out")}</button>
+      </header>
+      <div class="view">${body}</div>
+    </section>
+  </div>`;
+}
+
+function tabs(group, items) {
+  return `<div class="tabs">${items.map(([id, zh, en]) => `<button type="button" data-act="tab" data-group="${group}" data-arg="${id}" class="${S.tab[group] === id ? "on" : ""}">${t(zh, en)}</button>`).join("")}</div>`;
+}
+
+function viewDash() {
+  const head = `<div class="page-h"><div><h3>${t("仪表盘", "Dashboard")}</h3><p class="muted">${t("业务总览是登录后的默认页。", "Business overview is the landing view.")}</p></div>${tabs("dash", [["biz", "业务总览", "Business"], ["exec", "高管摘要", "Executive"], ["comp", "监管合规监控", "Compliance"]])}</div>`;
+  if (S.tab.dash === "exec") return head + viewExec();
+  if (S.tab.dash === "comp") return head + viewComp();
+  const p = S.players.find((x) => x.id === "PL-104482");
+  const left = lockLeft(p);
+  return head + `<div class="kpis k3">
+      <article class="kpi ok"><div class="lbl">${t("投注登记网关", "Bet registration gateway")}</div><div class="num">${t("正常", "Up")}</div><div class="subl"><i class="dot"></i> ${t("先登记再出票。超时自动回滚，不扣款。", "Register before a ticket is issued. Timeout rolls back with no debit.")}</div></article>
+      <article class="kpi ok"><div class="lbl">${t("回执 p95 延迟", "Receipt p95")}</div><div class="num mono">1.84s</div><div class="subl">${t("阈值 3 秒 · 近 15 分钟样本 48,220", "Threshold 3s · 48,220 samples / 15 min")}</div></article>
+      <article class="kpi ok"><div class="lbl">${t("上游游戏数据同步", "Upstream game sync")}</div><div class="num">${t("正常", "Healthy")}</div><div class="subl">${t("最近同步 2026-10-10 01:38 UTC+8", "Last sync 2026-10-10 01:38 UTC+8")}</div></article>
+    </div>
+    <div class="kpis">
+      <article class="kpi"><div class="lbl">${t("今日销售额", "Sales today")}</div><div class="num mono">₱4.82M</div><div class="subl">${delta(9.1)}</div></article>
+      <article class="kpi"><div class="lbl">${t("今日交易笔数", "Transactions today")}</div><div class="num mono">186,420</div><div class="subl">${t("按 ₱25 折算的当量见报表", "₱25 equivalent is on Reports")}</div></article>
+      <article class="kpi warn"><div class="lbl">${t("提现锁定", "Withdrawal locks")}</div><div class="num mono">1</div><div class="subl">${t("PL-104482 剩余", "PL-104482 left")} <b data-countdown="${p.id}">${fmtLeft(left)}</b></div></article>
+      <article class="kpi warn"><div class="lbl">${t("责任博彩告警", "RG alerts")}</div><div class="num mono">4</div><div class="subl">${t("待审批恢复申请", "Restoration requests waiting")}</div></article>
+    </div>
+    <div class="card"><h4>${t("需要关注", "Needs attention")}</h4>
+      ${table([t("时间", "Time"), t("等级", "Level"), t("告警", "Alert"), ""], [
+        `<tr><td class="mono">01:06</td><td>${tag("rose", t("高", "High"))}</td><td>${t("PL-104482 连续 3 次 MFA 失败，提现锁定 30 分钟，到点自动解锁。", "PL-104482 hit 3 MFA failures. Withdrawals lock for 30 minutes and unlock on their own.")}</td><td><button class="link" data-act="open-player" data-id="PL-104482">${t("玩家档案", "Player")}</button></td></tr>`,
+        `<tr><td class="mono">00:46</td><td>${tag("warn", t("中", "Med"))}</td><td>${t("今日新增自主排除 4 人，其中 1 人为永久排除。", "4 new self-exclusions today, including 1 permanent.")}</td><td><button class="link" data-act="goto-rg">${t("责任博彩", "RG")}</button></td></tr>`,
+        `<tr><td class="mono">21:02</td><td>${tag("warn", t("中", "Med"))}</td><td>${t("出票与登记回执相差 16 笔，其中 14 笔已超时回滚。", "16 tickets differ from registration receipts. 14 already rolled back.")}</td><td><button class="link" data-act="goto-orders">${t("下单流水", "Orders")}</button></td></tr>`,
+        `<tr><td class="mono">18:40</td><td>${tag("cyan", t("低", "Low"))}</td><td>${t("身份审核队列 10 单待处理，含 1 条证件号硬命中。", "10 identity cases are waiting, including 1 hard ID-number hit.")}</td><td><button class="link" data-act="nav" data-arg="kyc">${t("去审核", "Review")}</button></td></tr>`,
+        `<tr><td class="mono">16:20</td><td>${tag("warn", t("中", "Med"))}</td><td>${t("超级乐透头奖 ₱3.20M 距申领截止还剩 6 天。", "Super Lotto jackpot ₱3.20M has 6 days left to claim.")}</td><td><button class="link" data-act="goto-unclaimed">${t("未申领", "Unclaimed")}</button></td></tr>`
+      ])}
+    </div>`;
+}
+function viewExec() {
+  return `<div style="margin-bottom:12px">${roleChip("可见角色：合规审计、系统管理员", "Visible to: Compliance audit, System admin")}</div>
+    <div class="kpis">
+      <article class="kpi"><div class="lbl">${t("营收 vs 目标", "Revenue vs target")}</div><div class="num mono">94.2%</div><div class="subl">${t("9 月销售额 ₱148.26M / 目标 ₱157.40M", "Sep sales ₱148.26M / target ₱157.40M")}</div></article>
+      <article class="kpi ok"><div class="lbl">${t("近 30 天可用性", "30-day uptime")}</div><div class="num mono">99.95%</div><div class="subl">${t("计划内维护 42 分钟", "42 minutes of planned maintenance")}</div></article>
+      <article class="kpi warn"><div class="lbl">${t("当前告警", "Open alerts")}</div><div class="num mono">7</div><div class="subl">${t("含提现锁定与责任博彩", "Includes withdrawal locks and RG")}</div></article>
+      <article class="kpi"><div class="lbl">${t("本月自我排除新增", "New self-exclusions")}</div><div class="num mono">128</div><div class="subl">${t("永久 9 · 定期 119", "Permanent 9 · fixed term 119")}</div></article>
+    </div>
+    <div class="card"><h4>${t("关键告警", "Key alerts")}</h4>
+      ${table([t("等级", "Severity"), t("事项", "Item"), t("负责人", "Owner")], [
+        [t("严重", "Critical"), "rose", t("渗透测试报告逾期 18 天", "Pen-test report is 18 days overdue"), t("合规审计", "Compliance")],
+        [t("高", "High"), "rose", t("PL-104482 提现锁定中", "PL-104482 withdrawal lock"), t("系统", "System")],
+        [t("高", "High"), "warn", t("4 笔自我排除恢复待审批", "4 restoration requests waiting"), t("合规审计", "Compliance")],
+        [t("中", "Medium"), "warn", t("SLA 预警，逾期 3 天", "SLA warning, 3 days overdue"), t("系统管理员", "System admin")],
+        [t("中", "Medium"), "warn", t("未申领头奖临近截止", "Unclaimed jackpot nearing deadline"), t("兑奖柜台", "Prize counter")]
+      ].map((r) => `<tr><td>${tag(r[1], r[0])}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join(""))}
+    </div>`;
+}
+function viewComp() {
+  const label = { ok: [t("合规", "Compliant"), "ok"], warn: [t("预警", "Warning"), "warn"], bad: [t("不合规", "Non-compliant"), "rose"] };
+  return `<div style="margin-bottom:12px">${roleChip("可见角色：合规审计、系统管理员", "Visible to: Compliance audit, System admin")}</div>
+    <div class="card"><h4>${t("合规维度", "Compliance dimensions")}</h4>
+      ${table([t("维度", "Dimension"), t("状态", "Status"), t("最近检查", "Last check"), t("逾期", "Overdue")], COMPLIANCE.map((c) => `<tr>
+        <td>${t(c.zh, c.en)}</td><td>${tag(label[c.st][1], label[c.st][0])}</td><td class="mono">${c.at} UTC+8</td>
+        <td>${c.over ? tag(c.st === "bad" ? "rose" : "warn", c.over + t(" 天", " days")) : "—"}</td></tr>`).join(""))}
+    </div>`;
+}
+
+function viewGames() {
+  const cards = GAMES.map((g) => `<article class="card gcard ${g.on ? "" : "off"}">
+      <div class="gtop"><div><h4>${gname(g)}</h4><p class="tiny">${t(g.kind === "lotto" ? "乐透类" : "数字类", g.kind === "lotto" ? "Lotto" : "Digits")} · ${peso(g.price)} · ${t(g.freqZh, g.freqEn)}</p></div>
+        <button type="button" class="switch ${g.on ? "on" : ""}" data-act="game-toggle" data-id="${g.id}" aria-pressed="${g.on}"><i></i></button>
+      </div>
+      <div style="margin:10px 0">${g.on ? tag("ok", t("在售", "On sale")) : tag("rose", t("已下架", "Delisted"))} ${tag("muted", t("上游只读", "Upstream"))}</div>
+      <button type="button" class="btn btn-sm" data-act="rules" data-id="${g.id}">${t("查看规则", "View rules")}</button>
+    </article>`).join("");
+  const tiles = [
+    [t("印花税 DST", "DST"), "20%", t("含在票价里", "Included in the ticket price")],
+    [t("奖金预扣税", "Prize withholding"), "20%", t("只扣超过免税额的部分", "Only the amount above the exemption")],
+    [t("奖金免税额", "Tax-free allowance"), peso(BILL.exempt), t("以下不预扣", "No withholding at or below this")],
+    [t("自动入账上限", "Auto-credit cap"), peso(BILL.autoCap), t("超过走线下兑奖", "Above this, claim offline")],
+    [t("资金分配", "Allocation"), t("奖金 55% / 公益 30% / 运营 15%", "Prize 55% / charity 30% / ops 15%"), t("按净销售", "On net sales")],
+    [t("交易单元价值", "Transaction unit"), peso(BILL.unit), t("投注金额 ÷ 25 = 交易笔数", "Stake ÷ 25 = transaction count")]
+  ].map(([a, b, c]) => `<div><span class="tiny">${a}</span><b class="mono">${b}</b><span class="tiny">${c}</span></div>`).join("");
+  return `<div class="page-h"><div><h3>${t("游戏管理", "Games")}</h3><p class="muted">${t("每个游戏只有上架开关。规则来自上游，不能在这里改。", "Each game has one listing switch. Rules come from upstream and cannot be edited here.")}</p></div></div>
+    <div class="banner">${t("数据来自上游系统，不可编辑。本渠道只决定是否销售。", "Data comes from the upstream system and is not editable. This channel only decides whether to sell.")}</div>
+    <div class="games">${cards}</div>
+    <div class="card" style="margin-top:14px"><h4>${t("计费与分成参数", "Billing and share parameters")}</h4>
+      <p class="tiny" style="margin-top:0">${t("数据来自上游系统。报表和兑奖使用同一组数字。", "From the upstream system. Reports and prize claims use these same figures.")}</p>
+      <div class="bill">${tiles}</div>
+    </div>`;
+}
+function rulesModal(id) {
+  const g = gameBy(id);
+  const rows = g.prizes.map((p) => `<tr><td>${t(p[0], p[1])}</td><td>${t(g.playZh, g.playEn)}</td><td class="mono">${t(p[2], p[3])}</td></tr>`);
+  return `<div class="modal-back" data-act="close"><div class="modal" data-stop="1">
+    <div class="page-h"><div><h3>${gname(g)}</h3><p class="sub">${t("只读规则。数据来自上游系统，不可编辑。", "Read-only rules. Data comes from upstream and cannot be edited.")}</p></div>
+      <button type="button" class="btn btn-sm" data-act="close">${t("关闭", "Close")}</button></div>
+    ${g.v41 ? `<div style="margin-bottom:10px">${tag("ok", t("规则包 v41 已确认", "Rule pack v41 confirmed"))}</div>` : ""}
+    <div class="kpis k3">
+      <article class="kpi"><div class="lbl">${t("选号", "Selection")}</div><div class="num" style="font-size:18px">${t(g.pickZh, g.pickEn)}</div></article>
+      <article class="kpi"><div class="lbl">${t("单注 / 频次", "Price / cadence")}</div><div class="num" style="font-size:18px">${peso(g.price)} · ${t(g.freqZh, g.freqEn)}</div></article>
+      <article class="kpi"><div class="lbl">${t("预购", "Advance buy")}</div><div class="num" style="font-size:18px">${g.advance} ${t("期", "draws")}</div></article>
+    </div>
+    ${table([t("奖级", "Tier"), t("玩法", "Play"), t("奖金", "Prize")], rows)}
+    <p class="tiny">${g.id === "d6" ? t("6D 共 5 个奖级：1st 为奖池制，下限 ₱150,000；5th 为 ₱40；2nd 至 4th 为介于两者之间的次级奖。单价 ₱12。", "6D has 5 tiers: 1st is a pool with a ₱150,000 floor; 5th is ₱40; 2nd–4th sit between them. Price ₱12.") : t("头奖为奖池滚存，其余奖级为固定奖金。", "The jackpot rolls over. Other tiers are fixed prizes.")}</p>
+  </div></div>`;
+}
+
+function viewDraws() {
+  const opts = [`<option value="all">${t("全部游戏", "All games")}</option>`].concat(GAMES.map((g) => `<option value="${g.id}" ${S.drawQ.game === g.id ? "selected" : ""}>${gname(g)}</option>`)).join("");
+  const q = S.drawQ.issue.trim().toLowerCase();
+  const rows = S.draws.filter((d) => (S.drawQ.game === "all" || d.game === S.drawQ.game) && (!q || d.issue.toLowerCase().includes(q)));
+  return `<div class="page-h"><div><h3>${t("开奖记录", "Draw results")}</h3><p class="muted">${t("给兑奖柜台核对、客服处理投诉、合规审计取证。和玩家端开奖结果同源。", "For the prize counter, complaint handling, and compliance evidence. Same source as the player results.")}</p></div></div>
+    <div class="banner">${t("数据来自上游系统，仅供查询核对，不支持人工录入或修改。", "Data comes from the upstream system for lookup only. Manual entry or edits are not supported.")}</div>
+    <div class="card"><div class="tools">
+      <label class="f">${t("游戏", "Game")}<select data-field="drawGame">${opts}</select></label>
+      <label class="f">${t("期号", "Draw no.")}<input data-field="drawIssue" value="${esc(S.drawQ.issue)}" placeholder="2026-1009-3" /></label>
+    </div></div>
+    ${table([t("开奖日期", "Draw date"), t("期号", "Draw no."), t("游戏", "Game"), t("中奖号码", "Winning numbers"), t("各奖级人数", "Winners by tier"), t("派奖总额", "Paid out"), t("头奖滚存", "Jackpot rollover")],
+      rows.map((d) => `<tr><td class="mono">${d.date}</td><td class="mono">${d.issue}</td><td>${gname(gameBy(d.game))}</td><td class="mono">${d.nums}</td><td>${d.winners}</td><td class="mono">${peso(d.payout)}</td><td>${t(d.rollZh, d.rollEn)}</td></tr>`))}
+  `;
+}
+
+function kycCounts() {
+  const pend = S.kyc.filter((k) => k.status === "pending");
+  return {
+    all: pend.length,
+    doc: pend.filter((k) => k.kind === "doc").length,
+    live: pend.filter((k) => k.kind === "live").length,
+    multi: pend.filter((k) => k.kind === "multi").length
+  };
+}
+function viewKyc() {
+  const c = kycCounts();
+  const cards = [
+    ["all", t("全部待审", "All waiting"), c.all],
+    ["doc", t("证件疑似问题", "Document issues"), c.doc],
+    ["live", t("活体检测失败", "Liveness failed"), c.live],
+    ["multi", t("疑似一人多号", "Possible multi-account"), c.multi]
+  ].map(([id, label, n]) => `<button type="button" class="fcard ${S.kycFilter === id ? "on" : ""}" data-act="kyc-filter" data-arg="${id}"><span>${label}</span><b class="mono">${n}</b></button>`).join("");
+  const list = S.kyc.filter((k) => k.status === "pending" && (S.kycFilter === "all" || k.kind === S.kycFilter || (S.kycFilter === "multi" && k.kind === "multi")));
+  const blocks = list.map((k) => {
+    const checks = k.checks.map((v, i) => `<div class="check"><span class="tiny">${t(CHECK_LABELS[i][0], CHECK_LABELS[i][1])}</span>${checkTag(v)}</div>`).join("");
+    const hard = k.hard ? `<div class="banner rose" style="margin-top:10px">${t("证件号重复是硬命中，直接拒绝开户。", "A duplicate ID number is a hard hit. Decline the account.")}</div>` : "";
+    const soft = k.soft ? `<div class="banner amber" style="margin-top:10px">${t(k.noteZh, k.noteEn)}</div>` : "";
+    return `<article class="card"><div class="page-h"><div><h4 style="margin:0">${esc(k.name)} · <span class="mono">${k.id}</span></h4><p class="tiny">${esc(k.mobile)} · ${t("证件", "ID")} ${k.idno}</p></div>
+      <div class="row-actions">${k.hard ? "" : `<button type="button" class="btn btn-ok btn-sm" data-act="kyc-pass" data-id="${k.id}">${t("通过", "Approve")}</button>`}<button type="button" class="btn btn-rose btn-sm" data-act="kyc-reject" data-id="${k.id}">${t("拒绝", "Decline")}</button></div></div>
+      <div class="checks">${checks}</div>
+      ${hard}${k.hard ? "" : (k.soft ? soft : `<p class="muted">${t(k.noteZh, k.noteEn)}</p>`)}
+    </article>`;
+  }).join("") || `<div class="card"><p class="muted">${t("这个筛选下没有待审案件。", "Nothing waiting in this filter.")}</p></div>`;
+  return `<div class="page-h"><div><h3>${t("身份审核", "Identity review")}</h3><p class="muted">${t("eKYC 自动校验 7 项，人工做最后决定。", "Seven automatic eKYC checks, then a human decision.")}</p></div></div>
+    <div class="filters">${cards}</div>${blocks}`;
+}
+
+function viewPlayers() {
+  if (S.playerId) return viewPlayer(S.players.find((p) => p.id === S.playerId));
+  const q = S.playerQ.trim().toLowerCase();
+  const rows = S.players.filter((p) => !q || (p.id + p.name + p.mobile).toLowerCase().includes(q));
+  return `<div class="page-h"><div><h3>${t("玩家档案", "Players")}</h3><p class="muted">${t("注册玩家数量在这里看，不用另开报表。", "Registered-player counts live here.")}</p></div>
+    <input data-field="playerQ" value="${esc(S.playerQ)}" placeholder="${t("搜索玩家 ID / 姓名", "Search ID or name")}" style="max-width:260px" /></div>
+    <div class="kpis">
+      <article class="kpi"><div class="lbl">${t("注册玩家", "Registered players")}</div><div class="num mono">1,284,066</div></article>
+      <article class="kpi"><div class="lbl">${t("本月新增", "New this month")}</div><div class="num mono">47,820</div><div class="subl">${delta(12.4)}</div></article>
+      <article class="kpi ok"><div class="lbl">${t("已核验", "Verified")}</div><div class="num mono">1,198,420</div><div class="subl">${t("占 93.3%", "93.3% of players")}</div></article>
+      <article class="kpi warn"><div class="lbl">${t("账户受限", "Restricted accounts")}</div><div class="num mono">1,042</div><div class="subl">${t("冻结或限制投注", "Frozen or betting limited")}</div></article>
+    </div>
+    ${table([t("玩家", "Player"), t("手机", "Mobile"), t("实名", "Identity"), t("账号状态", "Account"), t("本金", "Cash"), t("奖金", "Prize"), t("最近登录", "Last sign-in")],
+      rows.map((p) => `<tr class="click" data-act="open-player" data-id="${p.id}"><td><b>${esc(p.name)}</b><div class="tiny mono">${p.id}</div></td><td class="mono">${esc(p.mobile)}</td><td>${kycTag(p.kyc)}</td><td>${statusTag(p.status)}</td><td class="mono">${peso2(p.cash)}</td><td class="mono">${peso2(p.prize)}</td><td class="mono">${p.login}</td></tr>`))}`;
+}
+function viewPlayer(p) {
+  if (!p) return `<div class="card">${t("找不到该玩家", "Player not found")}</div>`;
+  const left = lockLeft(p);
+  const lock = left ? `<div class="banner rose">${t("提现已锁定。连续 3 次 MFA 失败后锁定 30 分钟，到点自动解锁，不需要人工干预。剩余 ", "Withdrawals are locked after 3 MFA failures for 30 minutes, then unlock on their own. Left: ")}<b class="mono" data-countdown="${p.id}">${fmtLeft(left)}</b></div>` : `<div class="banner">${t("提现未锁定。", "Withdrawals are not locked.")}</div>`;
+  const rg = `<div class="grid3">
+    <div class="card"><h4>${t("限额", "Limits")}</h4><p class="muted">${t("日", "Day")} ${peso(p.limits[0])} · ${t("周", "Week")} ${peso(p.limits[1])} · ${t("月", "Month")} ${peso(p.limits[2])}</p></div>
+    <div class="card"><h4>${t("冷静期", "Cool-off")}</h4><p class="muted">${p.cool || t("未设置", "None")}</p></div>
+    <div class="card"><h4>${t("自主排除", "Self-exclusion")}</h4><p class="muted">${p.excl || t("未设置", "None")}</p></div>
+  </div>`;
+  return `<div class="page-h"><div><button type="button" class="link" data-act="player-back">${t("← 返回列表", "← Back to list")}</button><h3>${esc(p.name)}</h3><p class="mono tiny">${p.id}</p></div><div>${statusTag(p.status)}</div></div>
+    <div class="row-actions" style="margin-bottom:12px">
+      <button type="button" class="btn btn-sm" data-act="reset-pw" data-id="${p.id}">${t("重置密码", "Reset password")}</button>
+      <button type="button" class="btn btn-rose btn-sm" data-act="freeze-open" data-id="${p.id}">${t("冻结账号", "Freeze account")}</button>
+      <button type="button" class="btn btn-sm" data-act="limit-open" data-id="${p.id}">${t("限制投注", "Limit betting")}</button>
+    </div>
+    ${lock}
+    <div class="grid2">
+      <div class="card"><h4>${t("基本信息", "Profile")}</h4>
+        <p class="muted">${t("手机", "Mobile")} ${esc(p.mobile)}<br>${t("邮箱", "Email")} ${esc(p.email)}<br>${t("注册", "Registered")} ${p.reg} UTC+8<br>${t("最近登录", "Last sign-in")} ${p.login} UTC+8</p>
+        ${p.reason ? `<p class="tiny">${t("原因", "Reason")}: ${esc(p.reason)}</p>` : ""}</div>
+      <div class="card"><h4>${t("钱包", "Wallet")}</h4>
+        <div class="kpis" style="grid-template-columns:1fr 1fr;margin:0">
+          <article class="kpi"><div class="lbl">${t("本金", "Cash")}</div><div class="num" style="font-size:22px">${peso2(p.cash)}</div></article>
+          <article class="kpi"><div class="lbl">${t("奖金", "Prize")}</div><div class="num" style="font-size:22px">${peso2(p.prize)}</div></article>
+        </div>
+        <p class="tiny">${t("实名状态", "Identity")} ${p.kyc === "verified" ? t("已核验", "Verified") : p.kyc === "rejected" ? t("已拒绝", "Rejected") : t("审核中", "In review")}</p>
+      </div>
+    </div>
+    <h4 style="color:#fff">${t("责任博彩状态", "Responsible gaming")}</h4>
+    ${rg}`;
+}
+
+function viewRg() {
+  const cards = [
+    ["restore", t("待审批恢复申请", "Restorations to approve"), S.restores.filter((r) => r.st === "pending").length],
+    ["limit", t("即将到期限额调整", "Limit changes due"), S.limitSoon.length],
+    ["excl", t("今日新增自主排除", "New exclusions today"), S.exclToday.length]
+  ].map(([id, label, n]) => `<button type="button" class="fcard ${S.rgFilter === id ? "on" : ""}" data-act="rg-filter" data-arg="${id}"><span>${label}</span><b class="mono">${n}</b></button>`).join("");
+  const show = (id) => S.rgFilter === "all" || S.rgFilter === id;
+  const limitRow = (key, zh, en, hint) => `<tr><td>${t(zh, en)}</td><td><input data-limit="${key}" type="number" value="${S.limits[key]}" style="max-width:140px" /></td><td class="tiny">${hint || t("后台可调", "Admin adjustable")}</td></tr>`;
+  const cool = S.coolTiers.map((x, i) => `<span class="tag tag-cyan">${esc(x)} <button type="button" class="link" data-act="tier-del" data-list="cool" data-i="${i}">×</button></span>`).join(" ");
+  const excl = S.exclTiers.map((x, i) => `<span class="tag tag-warn">${esc(x)} <button type="button" class="link" data-act="tier-del" data-list="excl" data-i="${i}">×</button></span>`).join(" ");
+  const restores = S.restores.filter((r) => r.st === "pending").map((r) => `<tr><td class="mono">${r.id}<div class="tiny">${r.player} · ${esc(r.name)}</div></td><td>${esc(r.ended)}</td><td>${r.kyc === "pass" ? tag("ok", t("身份核验通过", "Identity passed")) : tag("warn", t("身份核验待补", "Identity to confirm"))}</td><td>${r.risk ? tag("ok", t("已勾选风险确认", "Risk confirmed")) : tag("rose", t("未勾选风险确认", "Risk not confirmed"))}</td><td class="row-actions"><button type="button" class="btn btn-ok btn-sm" data-act="rg-approve" data-id="${r.id}">${t("通过", "Approve")}</button><button type="button" class="btn btn-rose btn-sm" data-act="rg-reject" data-id="${r.id}">${t("驳回", "Reject")}</button></td></tr>`).join("");
+  return `<div class="page-h"><div><h3>${t("责任博彩", "Responsible gaming")}</h3><p class="muted">${t("日 / 周 / 月限额、冷静期和自主排除都是后台参数。", "Daily, weekly, and monthly limits, cool-off, and self-exclusion are admin parameters.")} ${tag("cyan", t("[以 PCSO 规定为准，已做成后台参数]", "[Per PCSO rules, exposed as admin parameters]"))}</p></div></div>
+    <div class="filters f3">${cards}</div>
+    ${show("restore") ? `<div class="card"><h4>${t("自我排除恢复审批", "Self-exclusion restoration")}</h4><p class="tiny">${t("只列出定期排除到期并提交了恢复申请的玩家。永久排除不会出现在这里。合规审计或系统管理员审批。", "Only expired fixed-term exclusions with a restoration request. Permanent exclusions never appear. Compliance audit or system admin decides.")}</p>${table([t("申请", "Request"), t("排除周期", "Term"), t("身份核验", "Identity"), t("风险确认", "Risk check"), ""], restores)}</div>` : ""}
+    ${show("limit") ? `<div class="card"><h4>${t("即将到期限额调整", "Limit changes coming due")}</h4>${table([t("玩家", "Player"), t("调整", "Change"), t("生效时间", "Effective")], S.limitSoon.map((r) => `<tr><td class="mono">${r.player}<div class="tiny">${esc(r.name)}</div></td><td>${t(r.whatZh, r.whatEn)}</td><td class="mono">${r.when} UTC+8</td></tr>`))}</div>` : ""}
+    ${show("excl") ? `<div class="card"><h4>${t("今日新增自主排除", "New self-exclusions today")}</h4>${table([t("玩家", "Player"), t("周期", "Term"), t("时间", "Time")], S.exclToday.map((r) => `<tr><td class="mono">${r.player}<div class="tiny">${esc(r.name)}</div></td><td>${esc(r.period)}</td><td class="mono">${r.at} UTC+8</td></tr>`))}</div>` : ""}
+    <div class="card"><h4>${t("限额配置", "Limit settings")}</h4>
+      ${table([t("参数", "Parameter"), t("当前值", "Value"), t("说明", "Note")], [
+        limitRow("depDay", "每日充值", "Daily deposit", t("默认 ₱5,000，范围 ₱500–20,000", "Default ₱5,000, range ₱500–20,000")),
+        limitRow("depWeek", "每周充值", "Weekly deposit", t("默认 ₱20,000", "Default ₱20,000")),
+        limitRow("depMonth", "每月充值", "Monthly deposit", t("默认 ₱60,000", "Default ₱60,000")),
+        limitRow("betDay", "每日投注", "Daily stake", t("默认 ₱5,000，范围 ₱500–20,000", "Default ₱5,000, range ₱500–20,000")),
+        limitRow("betWeek", "每周投注", "Weekly stake", t("默认 ₱20,000", "Default ₱20,000")),
+        limitRow("betMonth", "每月投注", "Monthly stake", t("默认 ₱60,000", "Default ₱60,000")),
+        limitRow("betOnce", "单笔投注上限", "Per-bet cap", t("默认 ₱2,000", "Default ₱2,000")),
+        limitRow("remind", "理性娱乐提醒间隔", "Rational-play reminder", t("默认 10 分钟 · 后台参数（非玩家可调）", "Default 10 minutes · admin parameter (players cannot change it)"))
+      ].join(""))}
+      <div class="split" style="margin-top:12px">
+        <div><h4 style="color:#fff">${t("冷静期档位", "Cool-off tiers")}</h4><p class="tiny">${t("玩家端下拉从这里取值。", "The player app reads this list.")}</p><div class="row-actions">${cool}</div><div class="tools" style="margin-top:8px"><input id="cool-new" placeholder="${t("新增档位", "Add a tier")}" /><button type="button" class="btn btn-sm" data-act="tier-add" data-list="cool">${t("添加", "Add")}</button></div></div>
+        <div><h4 style="color:#fff">${t("自主排除周期", "Self-exclusion terms")}</h4><p class="tiny">${t("可增减档位。永久排除不能申请恢复。", "Add or remove tiers. Permanent exclusion cannot be restored.")}</p><div class="row-actions">${excl}</div><div class="tools" style="margin-top:8px"><input id="excl-new" placeholder="${t("新增档位", "Add a tier")}" /><button type="button" class="btn btn-sm" data-act="tier-add" data-list="excl">${t("添加", "Add")}</button></div></div>
+      </div>
+    </div>`;
+}
+function actor() {
+  return { who: S.login.user || "mina.cruz", role: t("评审会话", "Review session") };
+}
+function dayTag(days) {
+  const text = days + t(" 天", " days");
+  if (days <= 7) return tag("rose", text);
+  if (days <= 30) return tag("warn", text);
+  return tag("ok", text);
+}
+function sumAt(rows, i) { return rows.reduce((s, r) => s + r[i], 0); }
+function scopeLabel(scope) {
+  if (scope === "player") return t("玩家端首页公告栏", "Player home notice");
+  if (scope === "admin") return t("管理端内部通知", "Admin notice");
+  return t("两者都发", "Both");
+}
+function annStatus(st) {
+  if (st === "live") return tag("ok", t("生效中", "Live"));
+  if (st === "off") return tag("muted", t("已下线", "Offline"));
+  return tag("warn", t("已结束", "Ended"));
+}
+function txnChip(group, id, zh, en) {
+  const on = S.txnQ[group] === id;
+  return `<button type="button" data-act="chip" data-group="${group}" data-arg="${id}" class="${on ? "on" : ""}">${t(zh, en)}</button>`;
+}
+function depTag(st) {
+  if (st === "ok") return tag("ok", t("成功", "Success"));
+  if (st === "pending") return tag("warn", t("处理中", "Processing"));
+  return tag("rose", t("失败", "Failed"));
+}
+function wdTag(st) {
+  if (st === "paid") return tag("ok", t("已到账", "Paid"));
+  if (st === "pending") return tag("warn", t("处理中", "Processing"));
+  return tag("rose", t("已拒绝", "Rejected"));
+}
+
+function viewTxn() {
+  const head = `<div class="page-h"><div><h3>${t("交易流水", "Transactions")}</h3><p class="muted">${t("按充值、提现、下单、兑奖分开看。", "Deposits, withdrawals, bets, and prize claims are separate.")}</p></div>${tabs("txn", [["dep", "充值", "Deposits"], ["wd", "提现", "Withdrawals"], ["order", "下单", "Bets"], ["claim", "兑奖", "Prize claims"]])}</div>`;
+  if (S.tab.txn === "wd") return head + viewWd();
+  if (S.tab.txn === "order") return head + viewOrders();
+  if (S.tab.txn === "claim") return head + viewClaims();
+  const rows = S.deposits.filter((d) => S.txnQ.dep === "all" || d.st === S.txnQ.dep);
+  return head + `<div class="tabs" style="margin-bottom:12px">${txnChip("dep", "all", "全部", "All")}${txnChip("dep", "ok", "成功", "Success")}${txnChip("dep", "pending", "处理中", "Processing")}${txnChip("dep", "fail", "失败", "Failed")}</div>
+    ${table([t("时间", "Time"), t("玩家", "Player"), t("渠道", "Channel"), t("金额", "Amount"), t("状态", "Status"), t("参考号", "Reference")],
+      rows.map((d) => `<tr><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono">${peso2(d.amt)}</td><td>${depTag(d.st)}</td><td class="mono">${d.ref}</td></tr>`))}`;
+}
+function viewWd() {
+  const rows = S.withdraws.filter((d) => S.txnQ.wd === "all" || d.st === S.txnQ.wd);
+  return `<div class="banner">${t("提现记录只有处理中、已到账、已拒绝。锁定是账号上的提现功能锁，不是第四种记录状态。MFA 失败会落一笔已拒绝。", "A withdrawal is processing, paid, or rejected. A lock sits on the account, not as a fourth status. A failed MFA is recorded as rejected.")}</div>
+    <div class="tabs" style="margin-bottom:12px">${txnChip("wd", "all", "全部", "All")}${txnChip("wd", "pending", "处理中", "Processing")}${txnChip("wd", "paid", "已到账", "Paid")}${txnChip("wd", "rejected", "已拒绝", "Rejected")}</div>
+    ${table([t("时间", "Time"), t("玩家", "Player"), t("渠道", "Channel"), t("金额", "Amount"), "MFA", t("状态", "Status"), t("说明", "Note")],
+      rows.map((d) => `<tr class="${d.locked ? "alert" : ""}"><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono">${peso2(d.amt)}</td><td>${d.mfa === "ok" ? tag("ok", t("通过", "Passed")) : tag("rose", t("失败", "Failed"))}</td><td>${wdTag(d.st)}</td><td>${d.locked ? `<button type="button" class="link" data-act="open-player" data-id="${d.player}">${t("账号提现锁定中，查看倒计时", "Account withdrawal lock, view countdown")}</button>` : (d.st === "rejected" && d.mfa === "fail" ? t("MFA 验证失败", "MFA failed") : "—")}</td></tr>`))}`;
+}
+function viewOrders() {
+  const bad = S.orders.filter((o) => o.st !== "ok");
+  return `<div class="card"><h4>${t("出票数 ↔ 登记回执数", "Tickets issued ↔ registration receipts")}</h4>
+      <p class="tiny">${t("复用 BingoPlus 对账引擎，渠道侧保留这一处适配。差异要能点开看原因。", "Reuses the BingoPlus reconciliation engine. This channel keeps the adapter. Differences stay explainable.")}</p>
+      <div class="kpis k3">
+        <article class="kpi"><div class="lbl">${t("出票数", "Tickets issued")}</div><div class="num" style="font-size:22px">7,223,467</div></article>
+        <article class="kpi"><div class="lbl">${t("登记回执数", "Registration receipts")}</div><div class="num" style="font-size:22px">7,223,451</div></article>
+        <article class="kpi bad"><div class="lbl">${t("差异", "Difference")}</div><div class="num" style="font-size:22px">16</div><div class="subl">${t("超时回滚 14 · 重复回执 2", "14 timeouts rolled back · 2 duplicate receipts")}</div></article>
+      </div>
+      ${table([t("时间", "Time"), t("玩家", "Player"), t("游戏", "Game"), t("原因", "Reason")], bad.map((o) => `<tr class="alert"><td class="mono">${o.time}</td><td class="mono">${o.player}</td><td>${gname(gameBy(o.game))}</td><td>${o.st === "rollback" ? t("回执超时已回滚，未扣款", "Receipt timed out and rolled back. No debit.") : t("重复回执，未重复出票", "Duplicate receipt. No second ticket.")}</td></tr>`))}
+    </div>
+    ${table([t("时间", "Time"), t("玩家", "Player"), t("游戏", "Game"), t("期号", "Draw"), t("玩法", "Play"), t("金额", "Amount"), t("出票号", "Ticket"), t("登记回执", "Receipt"), t("状态", "Status")],
+      S.orders.map((o) => `<tr class="${o.st === "ok" ? "" : "alert"}"><td class="mono">${o.time} UTC+8</td><td class="mono">${o.player}</td><td>${gname(gameBy(o.game))}</td><td class="mono">${o.issue}</td><td>${o.play}</td><td class="mono">${peso2(o.amt)}</td><td class="mono">${o.ticket}</td><td class="mono">${o.receipt}</td><td>${o.st === "ok" ? tag("ok", t("已出票", "Issued")) : tag("rose", t("未出票", "Not issued"))}</td></tr>`))}`;
+}
+function viewClaims() {
+  const rows = S.claims.map((c) => {
+    const tax = taxOf(c.gross);
+    return `<tr><td class="mono">${c.ticket}</td><td class="mono">${c.code}</td><td>${gname(gameBy(c.game))}</td><td class="mono">${c.issue}</td><td class="mono">${peso(c.gross)}</td><td class="mono">${peso(tax.tax)}</td><td class="mono">${peso(tax.net)}</td><td class="mono">${c.date}</td><td class="mono">${c.cheque}</td><td>${esc(c.by)}</td><td>${esc(c.review)}</td></tr>`;
+  });
+  return `<div class="banner">${t("大奖在 PCSO 总部线下兑付，玩家凭申领码现场办理。这里只登记已办完的结果。兑奖柜台登记，财务复核核对登记是否准确。身份核验在 PCSO 现场完成。", "Large prizes are paid offline at PCSO headquarters with a claim code. This list records completed payouts. The counter registers the result. Finance checks that the entry is accurate. Identity is checked on site at PCSO.")}</div>
+    <p class="tiny">${t("代扣税款 20%（超过免税额 ₱10,000 的部分）。自动入账上限 ₱300,000，与游戏管理里的计费参数一致。", "Withholding tax is 20% of the amount above the ₱10,000 exemption. The auto-credit cap is ₱300,000, the same figure as in Games.")}</p>
+    ${table([t("彩票号", "Ticket"), t("申领码", "Claim code"), t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("代扣税款", "Tax withheld"), t("实付", "Paid out"), t("兑付日期", "Paid on"), t("支票号", "Cheque"), t("登记", "Entered by"), t("复核", "Reviewed by")], rows)}`;
+}
+
+function viewReports() {
+  const head = `<div class="page-h"><div><h3>${t("报表", "Reports")}</h3></div>${tabs("report", [["sales", "销售报表", "Sales"], ["share", "业绩与分成", "Performance"], ["prize", "奖金与派彩", "Prizes"]])}</div>`;
+  if (S.tab.report === "share") return head + viewShare();
+  if (S.tab.report === "prize") return head + viewPrize();
+  return head + viewSales();
+}
+function viewSales() {
+  const f = periodFactor();
+  const lotto = 118420000 * f;
+  const digit = 29840000 * f;
+  const total = lotto + digit;
+  const labels = S.salesGrain === "day"
+    ? ["09-27", "09-28", "09-29", "09-30", "10-01", "10-02", "10-03", "10-04", "10-05", "10-06", "10-07", "10-08", "10-09", "10-10"]
+    : S.salesGrain === "week" ? ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"] : ["4", "5", "6", "7", "8", "9"];
+  const games = GAME_SALES.map((r) => {
+    const share = (r.sales / 148260000 * 100).toFixed(1) + "%";
+    return `<tr><td>${gname(gameBy(r.id))}</td><td class="mono">${peso(Math.round(r.sales * f))}</td><td>${share}</td><td class="mono">${Math.round(r.tickets * f).toLocaleString("en-US")}</td><td class="mono">${Math.round(r.players * f).toLocaleString("en-US")}</td><td class="${r.mom >= 0 ? "delta up" : "delta down"}">${pct(r.mom)}</td></tr>`;
+  });
+  const plays = PLAY_SALES.map((r) => `<tr><td>${t(r.zh, r.en)}</td><td class="mono">${peso(Math.round(r.sales * f))}</td><td>${(r.sales / 148260000 * 100).toFixed(1)}%</td><td class="mono">${peso(r.avg)}</td><td>${t(r.nz, r.ne)}</td></tr>`);
+  return `<div class="page-h"><div class="tabs">${["day", "week", "month"].map((g) => `<button type="button" data-act="grain" data-arg="${g}" class="${S.salesGrain === g ? "on" : ""}">${t(g === "day" ? "按日" : g === "week" ? "按周" : "按月", g === "day" ? "Day" : g === "week" ? "Week" : "Month")}</button>`).join("")}</div>
+    <button type="button" class="btn btn-sm" data-act="export-sales">${t("导出", "Export")}</button></div>
+    <div class="kpis k5">
+      <article class="kpi"><div class="lbl">${t("销售额", "Sales")}</div><div class="num" style="font-size:22px">${pesoM(total)}</div><div class="subl">${delta(9.1)}<br>${t("乐透类", "Lotto")} ${pesoM(lotto)} / ${(lotto / total * 100).toFixed(1)}%<br>${t("数字类", "Digits")} ${pesoM(digit)} / ${(digit / total * 100).toFixed(1)}%</div></article>
+      <article class="kpi"><div class="lbl">${t("交易当量", "Transaction equivalent")}</div><div class="num" style="font-size:22px">${Math.round(5309840 * f).toLocaleString("en-US")}</div><div class="subl">${t("按 ₱25 折算", "Converted at ₱25")}</div></article>
+      <article class="kpi"><div class="lbl">${t("出票张数", "Tickets")}</div><div class="num" style="font-size:22px">${Math.round(7223467 * f).toLocaleString("en-US")}</div></article>
+      <article class="kpi"><div class="lbl">${t("投注玩家", "Betting players")}</div><div class="num" style="font-size:22px">${Math.round(389610 * f).toLocaleString("en-US")}</div><div class="subl">${delta(12.4)}</div></article>
+      <article class="kpi"><div class="lbl">${t("人均投注", "Stake per player")}</div><div class="num" style="font-size:22px">₱380.53</div><div class="subl">${delta(1.8)}</div></article>
+    </div>
+    <div class="card"><h4>${t("销售趋势", "Sales trend")}</h4>${lineChart(TREND[S.salesGrain], labels)}<p class="tiny">${t("金额单位：百万比索。", "Amounts in millions of pesos.")}</p></div>
+    <div class="card"><h4>${t("按游戏", "By game")}</h4>${table([t("游戏", "Game"), t("销售额", "Sales"), t("占比", "Share"), t("出票数", "Tickets"), t("投注玩家", "Players"), t("环比", "Change")], games)}</div>
+    <div class="card"><h4>${t("按玩法", "By play type")}</h4><p class="tiny">${t("玩法指 Straight / Rambolito 这类数字类投注方式。不按渠道。地域细分一期不做。", "Play type means Straight / Rambolito and the other digit bets. There is no channel split.")} ${tag("muted", "[二期]")}</p>${table([t("玩法", "Play"), t("销售额", "Sales"), t("占比", "Share"), t("平均每单", "Average slip"), t("说明", "Note")], plays)}</div>`;
+}
+function catRow(kind, labelZh, labelEn) {
+  const s = salesOf(kind);
+  const prizes = s.net * BILL.prize;
+  const dist = s.net - prizes;
+  const ops = s.net * BILL.ops;
+  return `<tr><td>${t(labelZh, labelEn)}</td><td class="mono">${peso(Math.round(s.sales))}</td><td class="mono">${peso(Math.round(s.dst))}</td><td class="mono">${peso(Math.round(s.net))}</td><td class="mono">${peso(Math.round(prizes))}</td><td class="mono">${peso(Math.round(dist))}</td><td class="mono">${peso(Math.round(ops))}</td></tr>`;
+}
+function viewShare() {
+  const s = salesOf(S.kind);
+  const prizes = s.net * BILL.prize;
+  const dist = s.net - prizes;
+  const months = ["2026-07", "2026-08", "2026-09", "2026-10"];
+  const monthOpts = months.map((m) => `<option value="${m}" ${S.period === m ? "selected" : ""}>${m === "2026-09" ? t("2026 年 9 月", "September 2026") : m}</option>`).join("");
+  const steps = [
+    [t("销售额", "Sales"), peso(Math.round(s.sales)), t("乐透类 + 数字类合计", "Lotto plus digits")],
+    [t("减：印花税 DST 20%", "Less: DST 20%"), peso(Math.round(s.dst)), t("含在票面价格内，法定代扣", "Included in the ticket price, withheld by law")],
+    [t("计税后净销售", "Net sales after tax"), peso(Math.round(s.net)), t("分成的计算基数", "The base for the share")],
+    [t("减：已派奖金 55%", "Less: prizes paid 55%"), peso(Math.round(prizes)), t("含已入账小奖与已兑付大奖", "Includes credited small prizes and paid jackpots")],
+    [t("可分配净额", "Distributable net"), peso(Math.round(dist)), ""],
+    [t("PCSO 公益基金", "PCSO charity fund"), peso(Math.round(s.net * BILL.charity)), t("净销售 30%", "30% of net sales")],
+    [t("运营分成", "Operations share"), peso(Math.round(s.net * BILL.ops)), t("净销售 15%", "15% of net sales")]
+  ];
+  const kinds = S.kind === "all" ? [["lotto", "乐透类", "Lotto"], ["digit", "数字类", "Digits"], ["all", "合计", "Total"]] : [[S.kind, S.kind === "lotto" ? "乐透类" : "数字类", S.kind === "lotto" ? "Lotto" : "Digits"], ["all-same", "合计", "Total"]];
+  const splitRows = (S.kind === "all"
+    ? [["lotto", "乐透类", "Lotto"], ["digit", "数字类", "Digits"]]
+    : [[S.kind, S.kind === "lotto" ? "乐透类" : "数字类", S.kind === "lotto" ? "Lotto" : "Digits"]]
+  ).map(([k, zh, en]) => catRow(k, zh, en));
+  const totalForSplit = S.kind === "all" ? catRow("all", "合计", "Total") : catRow(S.kind, "合计", "Total");
+  const unclaimed = S.unclaimed.reduce((n, r) => n + r.amt, 0);
+  return `<div class="card"><div class="tools">
+      <label class="f">${t("期间", "Period")}<select data-field="period">${monthOpts}</select></label>
+      <label class="f">${t("游戏类别", "Game class")}<select data-field="kind">
+        <option value="all" ${S.kind === "all" ? "selected" : ""}>${t("全部", "All")}</option>
+        <option value="lotto" ${S.kind === "lotto" ? "selected" : ""}>${t("乐透类", "Lotto")}</option>
+        <option value="digit" ${S.kind === "digit" ? "selected" : ""}>${t("数字类", "Digits")}</option>
+      </select></label>
+      <label class="f">${t("口径", "Basis")}<select data-field="basis"><option value="drawn" selected>${t("已开奖期次", "Drawn issues")}</option></select></label>
+      <button type="button" class="btn btn-sm" data-act="export-share">${t("导出", "Export")}</button>
+    </div></div>
+    <div class="card"><h4>${t("分成测算", "Share calculation")}</h4><div class="flow">${steps.map((st) => `<div class="step"><div><b>${st[0]}</b><div class="tiny">${st[2]}</div></div><div class="mono" style="color:#fff;font-size:18px">${st[1]}</div></div>`).join("")}</div></div>
+    <div class="card"><h4>${t("按游戏类别拆分", "Split by game class")}</h4>${table([t("类别", "Class"), t("销售额", "Sales"), t("印花税", "DST"), t("净销售", "Net sales"), t("已派奖金", "Prizes paid"), t("可分配", "Distributable"), t("运营分成", "Ops share")], splitRows.concat(totalForSplit))}</div>
+    <div class="card" id="pools"><h4>${t("奖池汇总", "Jackpot pools")}</h4><p class="tiny">${t("只列乐透类 5 个游戏。", "Lotto games only.")}</p>
+      ${table([t("游戏", "Game"), t("当前奖池余额", "Pool balance"), t("本期新增投入", "Added this issue"), t("滚存起始日期", "Rollover since"), t("预计下期开奖前奖池", "Est. before next draw")],
+        S.pools.map((p) => `<tr><td>${gname(gameBy(p.id))}</td><td class="mono">${peso(p.bal)}</td><td class="mono">${peso(p.add)}</td><td class="mono">${p.since}</td><td class="mono">${peso(p.next)}</td></tr>`))}
+    </div>
+    <div class="card" id="unclaimed"><h4>${t("损益报表 / 未申领待兑付奖金", "Unclaimed prizes")}</h4>
+      <article class="kpi warn" style="margin-bottom:12px"><div class="lbl">${t("未申领待兑付总金额", "Unclaimed total")}</div><div class="num">${peso(unclaimed)}</div></article>
+      ${table([t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("开奖日期", "Draw date"), t("申领截止日期", "Claim deadline"), t("剩余天数", "Days left")],
+        S.unclaimed.map((r) => `<tr><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${peso(r.amt)}</td><td class="mono">${r.draw}</td><td class="mono">${r.deadline}</td><td>${dayTag(r.days)}</td></tr>`))}
+    </div>`;
+}
+function tierRows(rows, total) {
+  const head = `<tr><td colspan="6"><b>${t(rows === TIER_LOTTO ? "乐透类" : "数字类", rows === TIER_LOTTO ? "Lotto" : "Digits")} · ${peso(total)}</b></td></tr>`;
+  const body = rows.map((r) => `<tr><td>${t(r[0], r[1])}</td><td class="mono">${r[2].toLocaleString("en-US")}</td><td>${t(r[3], r[4])}</td><td class="mono">${peso(r[5])}</td><td>${(r[5] / total * 100).toFixed(1)}%</td><td>${t(r[6], r[7])}</td></tr>`).join("");
+  return head + body;
+}
+function viewPrize() {
+  const lottoN = sumAt(TIER_LOTTO, 2);
+  const digitN = sumAt(TIER_DIGIT, 2);
+  const wins = lottoN + digitN;
+  const autoN = wins - 5;
+  const months = ["2026-07", "2026-08", "2026-09", "2026-10"].map((m) => `<option value="${m}" ${S.prizeMonth === m ? "selected" : ""}>${m}</option>`).join("");
+  const showForfeit = S.prizeMonth === "2026-09";
+  const forfeitSum = showForfeit ? S.forfeits.reduce((n, r) => n + r.amt, 0) : 0;
+  const parts = [[t("自动入账", "Auto credit"), 30904400, ""], [t("柜台已付", "Paid at counter"), 30210000, "amber"], [t("待领取", "Unclaimed"), 4120000, "rose"]];
+  const barMax = 30904400;
+  return `<div class="page-h"><div><h3 style="font-size:22px">${t("奖金与派彩", "Prizes paid")}</h3><p class="muted">${t("钱发出去多少、还欠多少、什么时候过期", "How much went out, how much is still owed, and when it expires")}</p></div>
+    <div class="tools"><label class="f">${t("月份", "Month")}<select data-field="prizeMonth">${months}</select></label><button type="button" class="btn btn-sm" data-act="export-prize">${t("导出", "Export")}</button></div></div>
+    <div class="kpis k6">
+      <article class="kpi"><div class="lbl">${t("派奖总额", "Prizes awarded")}</div><div class="num" style="font-size:20px">₱65.23M</div><div class="subl">${t("占净销售 55%", "55% of net sales")}</div></article>
+      <article class="kpi"><div class="lbl">${t("中奖注数", "Winning bets")}</div><div class="num" style="font-size:20px">${wins.toLocaleString("en-US")}</div><div class="subl">${t("数字类占", "Digits")} ${(digitN / wins * 100).toFixed(1)}%</div></article>
+      <article class="kpi"><div class="lbl">${t("自动入账", "Auto credit")}</div><div class="num" style="font-size:20px">₱30.90M</div><div class="subl">${autoN.toLocaleString("en-US")} ${t("笔", "bets")}</div></article>
+      <article class="kpi"><div class="lbl">${t("柜台兑付", "Counter paid")}</div><div class="num" style="font-size:20px">₱30.21M</div><div class="subl">2 ${t("笔", "bets")}</div></article>
+      <article class="kpi warn"><div class="lbl">${t("待领取", "Unclaimed")}</div><div class="num" style="font-size:20px">₱4.12M</div><div class="subl">3 ${t("笔", "bets")}</div></article>
+      <article class="kpi"><div class="lbl">${t("逾期作废", "Forfeited")}</div><div class="num" style="font-size:20px">${showForfeit ? peso(forfeitSum) : "₱0"}</div><div class="subl">${showForfeit ? t("不计入已派奖金", "Not included in prizes paid") : t("本期无", "None this period")}</div></article>
+    </div>
+    <div class="split">
+      <div class="card"><h4>${t("按奖级分布", "By prize tier")}</h4>${table([t("奖级", "Tier"), t("中奖注数", "Winning bets"), t("单注奖金", "Prize per bet"), t("合计", "Total"), t("占比", "Share"), t("兑付方式", "How paid")], [tierRows(TIER_LOTTO, sumAt(TIER_LOTTO, 5)), tierRows(TIER_DIGIT, sumAt(TIER_DIGIT, 5))])}</div>
+      <div class="card"><h4>${t("兑付方式构成", "How prizes are paid")}</h4><div class="bars">${parts.map((p) => `<div class="bar-row"><span>${p[0]}</span><div class="track ${p[2]}"><span style="width:${(p[1] / barMax * 100).toFixed(1)}%"></span></div><b class="mono">${pesoM(p[1])}</b></div>`).join("")}</div>
+        <p class="muted">${t("₱300,000 是分界线。以内自动进钱包，超过的必须本人到 PCSO 总部凭领奖码领支票。这条线是后台参数，PCSO 可调。", "₱300,000 is the line. At or below it, the prize goes to the wallet. Above it, the player collects a cheque in person at PCSO headquarters with a claim code. PCSO can change this admin parameter.")}</p></div>
+    </div>
+    <div class="card"><h4>${t("奖金率走势", "Prize-rate trend")}</h4>${colChart(PRIZE_RATE)}<p class="tiny">${t("按月 · 理论值 55%，单月波动由头奖是否中出决定。绿线是 55%。", "Monthly. The theoretical rate is 55%. A month moves when a jackpot is or is not won. The green line is 55%.")}</p>
+      <div class="banner amber">${t("奖金率长期偏离 55% 需要核查：持续偏低说明奖金没发出去，持续偏高说明奖级结构或算奖逻辑有问题。", "A prize rate that stays off 55% needs a check: too low means prizes are not going out, too high means the tier structure or the prize math is wrong.")}</div></div>
+    <div class="card"><div class="page-h"><h4>${t("头奖中奖人清单", "Jackpot winners")}</h4>${roleChip("可见角色：合规审计、财务复核", "Visible to: Compliance audit, Finance review")}</div>
+      ${table([t("玩家 ID", "Player ID"), t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("兑奖状态", "Claim status"), t("兑奖日期", "Claim date")],
+        S.jackpots.map((r) => `<tr><td class="mono">${r.player}</td><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${peso(r.amt)}</td><td>${r.st === "paid" ? tag("ok", t("已兑付", "Paid")) : tag("warn", t("待领取", "Unclaimed"))}</td><td class="mono">${r.date}</td></tr>`))}
+    </div>
+    <div class="card"><h4>${t("中奖电子彩票信息", "Winning e-tickets")}</h4><p class="tiny">${t("和交易流水里的兑奖记录是同一套彩票号。", "Same ticket numbers as the prize-claim ledger.")}</p>
+      ${table([t("彩票序列号", "Serial"), t("条码 / 二维码", "Barcode / QR"), t("游戏", "Game"), t("期号", "Draw"), t("投注组合", "Selection"), t("中奖号码", "Winning numbers"), t("奖级", "Tier"), t("当前状态", "Status")],
+        S.etickets.map((r) => `<tr><td class="mono">${r.sn}</td><td class="mono">${r.barcode}</td><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${r.pick}</td><td class="mono">${r.win}</td><td>${r.tier}</td><td>${esc(r.st)}</td></tr>`))}
+    </div>
+    <div class="card"><h4>${t("奖金作废没收报表", "Forfeited prizes")}</h4>
+      <article class="kpi ${showForfeit ? "bad" : ""}"><div class="lbl">${t("本期作废没收总金额", "Forfeited this period")}</div><div class="num">${showForfeit ? peso(forfeitSum) : "₱0"}</div><div class="subl">${showForfeit ? "" : t("本期无", "None this period")}</div></article>
+      ${table([t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("开奖日期", "Draw date"), t("申领截止日期", "Claim deadline"), t("作废日期", "Void date"), t("没收去向", "Destination")],
+        (showForfeit ? S.forfeits : []).map((r) => `<tr><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${peso(r.amt)}</td><td>${r.draw}</td><td>${r.deadline}</td><td>${r.voided}</td><td>${t(r.toZh, r.toEn)}</td></tr>`))}
+    </div>`;
+}
+
+function viewAudit() {
+  const rows = S.audits.map((a, i) => `<tr class="click" data-act="audit-open" data-i="${i}"><td class="mono">${esc(a.time)}</td><td>${esc(a.who)}</td><td>${esc(a.role)}</td><td>${esc(a.mod)}</td><td>${esc(a.evt)}</td><td class="mono">${esc(a.obj)}</td><td>${tag(a.res.indexOf("回滚") >= 0 || a.res.indexOf("驳回") >= 0 ? "warn" : "ok", esc(a.res))}</td></tr>${S.auditOpen === i ? `<tr><td colspan="7"><div class="split"><div><span class="tiny">${t("变更前", "Before")}</span><p class="muted">${esc(a.before)}</p></div><div><span class="tiny">${t("变更后", "After")}</span><p class="muted">${esc(a.after)}</p></div></div></td></tr>` : ""}`).join("");
+  return `<div class="page-h"><div><h3>${t("审计日志", "Audit log")}</h3><p class="muted">${t("不可篡改，保存 5 年。时间均为 UTC+8。", "Immutable, retained for 5 years. Times are UTC+8.")}</p></div>
+    <div class="row-actions"><button type="button" class="btn btn-sm" data-act="export-audit" data-fmt="csv">CSV</button><button type="button" class="btn btn-sm" data-act="export-audit" data-fmt="json">JSON</button><button type="button" class="btn btn-sm" data-act="export-audit" data-fmt="xml">XML</button></div></div>
+    <div class="banner rose">${t("日志只追加、不提供修改或删除。点击一行查看变更前后。", "The log is append-only. Open a row to see the before and after values.")}</div>
+    ${table([t("时间", "Time"), t("操作人", "Operator"), t("角色", "Role"), t("模块", "Module"), t("事件", "Event"), t("对象", "Object"), t("结果", "Result")], rows)}`;
+}
+
+function viewSys() {
+  const head = `<div class="page-h"><div><h3>${t("系统管理", "System")}</h3></div>${tabs("sys", [["sms", "短信", "SMS"], ["ann", "公告", "Notices"], ["inbox", "站内信", "Direct messages"], ["roles", "用户角色", "Users & roles"]])}</div>`;
+  if (S.tab.sys === "ann") return head + viewAnn();
+  if (S.tab.sys === "inbox") return head + viewInbox();
+  if (S.tab.sys === "roles") return head + viewRoles();
+  const cards = S.sms.map((s) => `<article class="card"><div class="page-h"><div><h4 style="margin:0">${s.id}</h4><p class="tiny">${t(s.zh, s.en)}</p></div>${s.on ? tag("ok", t("已启用", "Enabled")) : tag("muted", t("已停用", "Disabled"))}</div><p class="muted">${t(s.bodyZh, s.bodyEn)}</p></article>`).join("");
+  return head + cards + `<p class="tiny">${t("模板引擎为自建能力（ReachHub 现有 c66-sms-api 仅提供发送接口），非直接复用。", "The template engine is built for iLotto. ReachHub c66-sms-api only sends messages.")}</p>`;
+}
+function viewAnn() {
+  const scopes = [["player", "玩家端首页公告栏", "Player home notice"], ["admin", "管理端内部通知", "Admin notice"], ["both", "两者都发", "Both"]];
+  const list = S.anns.map((a) => `<tr><td>${t(a.titleZh, a.titleEn)}<div class="tiny">${a.id}</div></td><td>${scopeLabel(a.scope)}</td><td class="mono">${a.start}<br>${a.end}</td><td>${annStatus(a.st)}</td><td>${a.st === "live" ? `<button type="button" class="btn btn-sm" data-act="ann-off" data-id="${a.id}">${t("下线", "Take offline")}</button>` : "—"}</td></tr>`).join("");
+  return `<div class="banner">${t("公告是面向全体玩家或内部同事的广播。和玩家端首页公告栏是同一份数据。", "A notice is a broadcast to players or to staff. The player home reads this same list.")}</div>
+    <div class="card"><h4>${t("撰写公告", "Write a notice")}</h4>
+      <label class="f">${t("标题", "Title")}</label><input data-field="annTitle" value="${esc(S.ann.title)}" />
+      <label class="f">${t("正文", "Body")}</label>
+      <div class="row-actions" style="margin-bottom:8px"><button type="button" class="btn btn-sm" data-act="rte" data-cmd="bold">B</button><button type="button" class="btn btn-sm" data-act="rte" data-cmd="italic"><i>I</i></button><button type="button" class="btn btn-sm" data-act="rte" data-cmd="insertUnorderedList">${t("列表", "List")}</button></div>
+      <div class="rte" id="ann-body" contenteditable="true">${S.ann.html || ""}</div>
+      <div class="tools" style="margin-top:10px">
+        <label class="f">${t("开始", "Start")}<input data-field="annStart" type="datetime-local" value="${esc(S.ann.start)}" /></label>
+        <label class="f">${t("结束", "End")}<input data-field="annEnd" type="datetime-local" value="${esc(S.ann.end)}" /></label>
+      </div>
+      <label class="f">${t("推送范围", "Audience")}</label>
+      <div class="tabs">${scopes.map(([id, zh, en]) => `<button type="button" data-act="ann-scope" data-arg="${id}" class="${S.ann.scope === id ? "on" : ""}">${t(zh, en)}</button>`).join("")}</div>
+      <button type="button" class="btn btn-primary" style="max-width:220px" data-act="ann-pub">${t("发布", "Publish")}</button>
+    </div>
+    <div class="card"><h4>${t("历史公告", "Notice history")}</h4>${table([t("标题", "Title"), t("范围", "Audience"), t("生效时间", "Window"), t("状态", "Status"), ""], list)}</div>`;
+}
+function viewInbox() {
+  const q = S.inboxQ.player.trim().toLowerCase();
+  const sends = S.sends.filter((s) => (!q || s.player.toLowerCase().includes(q)) && (S.inboxQ.tpl === "all" || s.tpl === S.inboxQ.tpl));
+  const tplOpts = [`<option value="all">${t("全部模板", "All templates")}</option>`].concat(S.tpls.map((tp) => `<option value="${tp.id}" ${S.inboxQ.tpl === tp.id ? "selected" : ""}>${tp.id}</option>`)).join("");
+  const tpls = S.tpls.map((tp) => `<article class="card"><div class="page-h"><div><h4 style="margin:0">${tp.id}</h4><p class="tiny">${t(tp.zh, tp.en)}</p></div><button type="button" class="btn btn-sm" data-act="tpl-edit" data-id="${tp.id}">${t("编辑文案", "Edit copy")}</button></div>
+    ${S.tplEdit === tp.id ? `<textarea data-field="tplBody" data-id="${tp.id}">${esc(t(tp.bodyZh, tp.bodyEn))}</textarea><button type="button" class="btn btn-sm" data-act="tpl-save" data-id="${tp.id}" style="margin-top:8px">${t("保存", "Save")}</button>` : `<p class="muted">${t(tp.bodyZh, tp.bodyEn)}</p>`}
+  </article>`).join("");
+  return `<div class="banner">${t("公告是面向全体的广播。站内信是发给一个或一批特定玩家的单向系统通知，例如 KYC 结果、入账、责任博彩提醒、恢复审批结果。这里不是即时聊天。", "Notices are broadcasts. A direct message goes to one player or a specific batch: KYC results, credits, responsible-gaming reminders, restoration decisions. This is not a chat.")}</div>
+    ${tpls}
+    <div class="card"><h4>${t("发送记录", "Send log")}</h4>
+      <div class="tools"><label class="f">${t("玩家", "Player")}<input data-field="inboxPlayer" value="${esc(S.inboxQ.player)}" placeholder="PL-" /></label>
+        <label class="f">${t("模板", "Template")}<select data-field="inboxTpl">${tplOpts}</select></label></div>
+      ${table([t("时间", "Time"), t("玩家", "Player"), t("模板", "Template"), t("状态", "Status")], sends.map((s) => `<tr><td class="mono">${s.time} UTC+8</td><td class="mono">${s.player}</td><td class="mono">${s.tpl}</td><td>${s.st === "已送达" ? tag("ok", t("已送达", "Delivered")) : tag("warn", t("失败重试", "Retrying"))}</td></tr>`))}
+    </div>`;
+}
+function viewRoles() {
+  const cell = { rw: [t("可操作", "Operate"), "cell-rw"], ro: [t("只读", "Read"), "cell-ro"], hide: [t("不可见", "Hidden"), "cell-hide"] };
+  const head = MENUS.map((m) => `<th>${t(m[1], m[2])}</th>`).join("");
+  const body = ROLES.map((r) => `<tr><td>${t(r[1], r[2])}</td>${MATRIX[r[0]].map((c) => `<td class="${cell[c][1]}">${cell[c][0]}</td>`).join("")}</tr>`).join("");
+  const people = S.staff.map((s) => `<tr><td class="mono">${s.id}</td><td>${esc(s.name)}</td><td class="row-actions">${ROLES.map((r) => `<button type="button" class="btn btn-sm ${s.roles.includes(r[0]) ? "btn-ok" : ""}" data-act="role" data-id="${s.id}" data-role="${r[0]}">${t(r[1], r[2])}</button>`).join("")}</td></tr>`).join("");
+  return `<div class="banner rose">${t("职责互斥：兑奖柜台 ✕ 财务复核，系统管理员 ✕ 任何业务角色。矩阵是静态说明，不会因为这里的勾选去隐藏菜单。", "Separation of duties: prize counter excludes finance review, and system admin excludes every business role. This matrix is a static legend. It does not hide menus.")}</div>
+    <div class="card"><h4>${t("员工账号", "Staff accounts")}</h4><p class="tiny">${t("角色可多选。互斥组合会被拒绝并写入审计日志。", "A person can hold more than one role. A forbidden pair is rejected and written to the audit log.")}</p>
+      ${table([t("工号", "ID"), t("姓名", "Name"), t("角色", "Roles")], people)}</div>
+    <div class="card"><h4>${t("菜单权限", "Menu access")}</h4>
+      <div class="table-wrap"><table class="matrix"><thead><tr><th>${t("岗位", "Role")}</th>${head}</tr></thead><tbody>${body}</tbody></table></div>
+    </div>`;
+}
+
+function dialog(title, body, buttons) {
+  return `<div class="modal-back" data-act="close"><div class="modal" data-stop="1"><h3>${title}</h3>${body}<div class="row-actions" style="margin-top:14px">${buttons}</div></div></div>`;
+}
+function renderModal() {
+  if (!S.modal) return "";
+  if (S.modal.type === "rules") return rulesModal(S.modal.id);
+  const p = S.players.find((x) => x.id === S.modal.id);
+  if (!p) return "";
+  if (S.modal.type === "freeze") {
+    return dialog(t("冻结账号", "Freeze account"), `<p class="muted">${esc(p.name)} · ${p.id}</p><p class="muted">${t("冻结后不能登录、投注、充值或提现。", "A frozen account cannot sign in, bet, deposit, or withdraw.")}</p><label class="f">${t("冻结原因", "Reason")}</label><textarea data-field="freezeReason">${esc(S.freezeReason)}</textarea>`, `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-rose" data-act="freeze-confirm" data-id="${p.id}">${t("确认冻结", "Confirm freeze")}</button>`);
+  }
+  if (S.modal.type === "limit") {
+    return dialog(t("限制投注", "Limit betting"), `<p class="muted">${esc(p.name)} ${t("仍可登录查看，但不能投注。", "can still sign in and look, but cannot bet.")}</p>`, `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-primary" style="max-width:200px;margin-top:0" data-act="limit-confirm" data-id="${p.id}">${t("确认限制", "Confirm limit")}</button>`);
+  }
+  return dialog(t("重置密码", "Reset password"), `<p class="muted">${t("已生成临时密码，并通过 OTP_RESET 发到", "A temporary password was generated and sent with OTP_RESET to")} ${esc(p.mobile)}</p><p class="mono" style="color:#fff;font-size:22px">${esc(S.modal.temp)}</p>`, `<button type="button" class="btn btn-primary" style="max-width:160px;margin-top:0" data-act="close">${t("完成", "Done")}</button>`);
+}
+
+function render() {
+  document.documentElement.lang = S.lang === "en" ? "en" : "zh-CN";
+  const pages = { dash: viewDash, games: viewGames, draws: viewDraws, kyc: viewKyc, players: viewPlayers, rg: viewRg, txn: viewTxn, reports: viewReports, audit: viewAudit, sys: viewSys };
+  $("app").innerHTML = S.authed ? shell(pages[S.page]()) : viewLogin();
+  let host = $("modal-host");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "modal-host";
+    document.body.appendChild(host);
+  }
+  host.innerHTML = renderModal();
+}
+function focusField(sel) {
+  const el = document.querySelector(sel);
+  if (!el) return;
+  el.focus();
+  const n = el.value.length;
+  if (el.setSelectionRange) el.setSelectionRange(n, n);
+}
+function captureAnn() {
+  const ed = $("ann-body");
+  if (ed) S.ann.html = ed.innerHTML;
+  const title = document.querySelector("[data-field=annTitle]");
+  if (title) S.ann.title = title.value;
+  const start = document.querySelector("[data-field=annStart]");
+  if (start) S.ann.start = start.value;
+  const end = document.querySelector("[data-field=annEnd]");
+  if (end) S.ann.end = end.value;
+  const tpl = document.querySelector("[data-field=tplBody]");
+  if (tpl) S.tplDraft = tpl.value;
+}
+function auditExport(fmt) {
+  if (fmt === "json") download("ilotto-audit.json", JSON.stringify(S.audits, null, 2), "application/json");
+  else if (fmt === "xml") {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<audit>${S.audits.map((a) => `<event time="${esc(a.time)}" operator="${esc(a.who)}" role="${esc(a.role)}" module="${esc(a.mod)}" name="${esc(a.evt)}" object="${esc(a.obj)}" result="${esc(a.res)}"><before>${esc(a.before)}</before><after>${esc(a.after)}</after></event>`).join("")}</audit>`;
+    download("ilotto-audit.xml", xml, "application/xml");
+  } else {
+    const lines = [["time", "operator", "role", "module", "event", "object", "result", "before", "after"]].concat(S.audits.map((a) => [a.time, a.who, a.role, a.mod, a.evt, a.obj, a.res, a.before, a.after]));
+    download("ilotto-audit.csv", lines.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
+  }
+}
+function onClick(e) {
+  const actEl = e.target.closest("[data-act]");
+  if (!actEl) return;
+  if (actEl.classList.contains("modal-back") && e.target.closest(".modal")) return;
+  captureAnn();
+  const act = actEl.dataset.act;
+  const arg = actEl.dataset.arg;
+  const id = actEl.dataset.id;
+  if (act === "lang") { S.lang = arg; render(); return; }
+  if (act === "toggle-pw") { S.showPw = !S.showPw; render(); return; }
+  if (act === "next") {
+    if (!S.login.user.trim() || !S.login.pass) { S.login.err = t("请填写账号和密码。", "Enter the account and password."); render(); return; }
+    S.login.err = "";
+    S.step = "otp";
+    render();
+    const first = document.querySelector("[data-otp='0']");
+    if (first) first.focus();
+    return;
+  }
+  if (act === "back-creds") { S.step = "creds"; S.login.err = ""; render(); return; }
+  if (act === "resend") { toast(t("验证码已重新发送。", "A new code was sent.")); return; }
+  if (act === "verify") {
+    if (S.login.otp.join("").length < 6) { S.login.err = t("请输入 6 位短信验证码。", "Enter the 6-digit SMS code."); render(); return; }
+    S.authed = true;
+    S.page = "dash";
+    S.tab.dash = "biz";
+    S.login.err = "";
+    logAudit({ who: S.login.user, role: actor().role, mod: t("系统管理", "System"), evt: t("登录", "Sign in"), obj: S.login.user, before: "—", after: "OTP" });
+    render();
+    return;
+  }
+  if (act === "logout") {
+    S.authed = false;
+    S.step = "creds";
+    S.login.otp = ["", "", "", "", "", ""];
+    S.login.pass = "";
+    S.modal = null;
+    render();
+    return;
+  }
+  if (act === "nav") { S.page = arg; S.playerId = null; S.modal = null; render(); return; }
+  if (act === "tab") { S.tab[actEl.dataset.group] = arg; render(); return; }
+  if (act === "close") { S.modal = null; render(); return; }
+  if (act === "game-toggle") {
+    const g = gameBy(id);
+    g.on = !g.on;
+    logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), evt: g.on ? t("上架游戏", "List game") : t("下架游戏", "Delist game"), obj: g.zh, before: g.on ? t("已下架", "Delisted") : t("在售", "On sale"), after: g.on ? t("在售", "On sale") : t("已下架", "Delisted") });
+    toast(gname(g) + (g.on ? t(" 已上架", " is on sale") : t(" 已下架", " is delisted")));
+    render();
+    return;
+  }
+  if (act === "rules") { S.modal = { type: "rules", id }; render(); return; }
+  if (act === "kyc-filter") { S.kycFilter = arg; render(); return; }
+  if (act === "kyc-pass" || act === "kyc-reject") {
+    const k = S.kyc.find((x) => x.id === id);
+    k.status = act === "kyc-pass" ? "pass" : "reject";
+    logAudit({ who: actor().who, role: actor().role, mod: t("身份审核", "Identity review"), evt: act === "kyc-pass" ? t("通过开户", "Approve account") : t("拒绝开户", "Decline account"), obj: k.id, before: t("待审", "Waiting"), after: k.status });
+    toast(act === "kyc-pass" ? t("已通过开户。", "Account approved.") : t("已拒绝开户。", "Account declined."));
+    render();
+    return;
+  }
+  if (act === "open-player") { S.page = "players"; S.playerId = id; S.modal = null; render(); return; }
+  if (act === "player-back") { S.playerId = null; render(); return; }
+  if (act === "reset-pw") {
+    const p = S.players.find((x) => x.id === id);
+    const temp = "IL-" + Math.random().toString(36).slice(2, 6).toUpperCase() + "-19";
+    S.modal = { type: "reset", id, temp };
+    logAudit({ who: actor().who, role: actor().role, mod: t("玩家档案", "Players"), evt: t("重置密码", "Reset password"), obj: p.id, before: "—", after: "OTP_RESET" });
+    render();
+    return;
+  }
+  if (act === "freeze-open") { S.freezeReason = ""; S.modal = { type: "freeze", id }; render(); return; }
+  if (act === "freeze-confirm") {
+    if (!S.freezeReason.trim()) { toast(t("请填写冻结原因。", "Enter a reason.")); return; }
+    const p = S.players.find((x) => x.id === id);
+    const before = p.status;
+    p.status = "frozen";
+    p.reason = S.freezeReason.trim();
+    S.modal = null;
+    logAudit({ who: actor().who, role: actor().role, mod: t("玩家档案", "Players"), evt: t("冻结账号", "Freeze account"), obj: p.id, before, after: p.reason });
+    toast(t("账号已冻结。", "Account frozen."));
+    render();
+    return;
+  }
+  if (act === "limit-open") { S.modal = { type: "limit", id }; render(); return; }
+  if (act === "limit-confirm") {
+    const p = S.players.find((x) => x.id === id);
+    const before = p.status;
+    p.status = "limited";
+    p.reason = t("限制投注，保留登录", "Betting limited, sign-in kept");
+    S.modal = null;
+    logAudit({ who: actor().who, role: actor().role, mod: t("玩家档案", "Players"), evt: t("限制投注", "Limit betting"), obj: p.id, before, after: p.reason });
+    toast(t("已限制投注。", "Betting is now limited."));
+    render();
+    return;
+  }
+  if (act === "rg-filter") { S.rgFilter = S.rgFilter === arg ? "all" : arg; render(); return; }
+  if (act === "tier-add") {
+    const input = $(arg === "cool" ? "cool-new" : "excl-new");
+    const val = (input && input.value || "").trim();
+    if (!val) return;
+    (arg === "cool" ? S.coolTiers : S.exclTiers).push(val);
+    logAudit({ who: actor().who, role: actor().role, mod: t("责任博彩", "Responsible gaming"), evt: t("新增档位", "Add tier"), obj: val, before: "—", after: val });
+    render();
+    return;
+  }
+  if (act === "tier-del") {
+    const list = actEl.dataset.list === "cool" ? S.coolTiers : S.exclTiers;
+    const removed = list.splice(Number(actEl.dataset.i), 1)[0];
+    logAudit({ who: actor().who, role: actor().role, mod: t("责任博彩", "Responsible gaming"), evt: t("删除档位", "Remove tier"), obj: removed, before: removed, after: "—" });
+    render();
+    return;
+  }
+  if (act === "rg-approve" || act === "rg-reject") {
+    const r = S.restores.find((x) => x.id === id);
+    r.st = act === "rg-approve" ? "pass" : "reject";
+    logAudit({ who: actor().who, role: actor().role, mod: t("责任博彩", "Responsible gaming"), evt: act === "rg-approve" ? t("通过恢复", "Approve restoration") : t("驳回恢复", "Reject restoration"), obj: r.id, before: t("待审批", "Waiting"), after: r.st });
+    toast(act === "rg-approve" ? t("已通过恢复申请。", "Restoration approved.") : t("已驳回恢复申请。", "Restoration rejected."));
+    render();
+    return;
+  }
+  if (act === "chip") { S.txnQ[actEl.dataset.group] = arg; render(); return; }
+  if (act === "grain") { S.salesGrain = arg; render(); return; }
+  if (act === "goto-rg") { S.page = "rg"; S.rgFilter = "excl"; render(); return; }
+  if (act === "goto-orders") { S.page = "txn"; S.tab.txn = "order"; render(); return; }
+  if (act === "goto-unclaimed") { S.page = "reports"; S.tab.report = "share"; render(); return; }
+  if (act === "export-sales") {
+    const lines = [["game", "sales"]].concat(GAME_SALES.map((r) => [gameBy(r.id).zh, r.sales]));
+    download("ilotto-sales.csv", lines.map((r) => r.join(",")).join("\n"), "text/csv");
+    return;
+  }
+  if (act === "export-share" || act === "export-prize") { download(act === "export-share" ? "ilotto-share.csv" : "ilotto-prize.csv", "report,period\nshare," + S.period, "text/csv"); return; }
+  if (act === "audit-open") { S.auditOpen = S.auditOpen === Number(actEl.dataset.i) ? null : Number(actEl.dataset.i); render(); return; }
+  if (act === "export-audit") { auditExport(actEl.dataset.fmt); return; }
+  if (act === "rte") { document.execCommand(actEl.dataset.cmd, false, null); return; }
+  if (act === "ann-scope") { S.ann.scope = arg; render(); return; }
+  if (act === "ann-pub") {
+    if (!S.ann.title.trim()) { toast(t("请填写公告标题。", "Enter a title.")); return; }
+    S.anns.unshift({ id: "AN-" + (1100 + S.anns.length), titleZh: S.ann.title, titleEn: S.ann.title, scope: S.ann.scope, start: (S.ann.start || "").replace("T", " "), end: (S.ann.end || "").replace("T", " "), st: "live", bodyZh: S.ann.html, bodyEn: S.ann.html });
+    logAudit({ who: actor().who, role: actor().role, mod: t("系统管理", "System"), evt: t("发布公告", "Publish notice"), obj: S.ann.title, before: t("草稿", "Draft"), after: scopeLabel(S.ann.scope) });
+    S.ann.title = "";
+    S.ann.html = "";
+    toast(t("公告已发布。", "Notice published."));
+    render();
+    return;
+  }
+  if (act === "ann-off") {
+    const a = S.anns.find((x) => x.id === id);
+    a.st = "off";
+    logAudit({ who: actor().who, role: actor().role, mod: t("系统管理", "System"), evt: t("下线公告", "Take notice offline"), obj: a.titleZh, before: t("生效中", "Live"), after: t("已下线", "Offline") });
+    render();
+    return;
+  }
+  if (act === "tpl-edit") { S.tplEdit = S.tplEdit === id ? null : id; render(); return; }
+  if (act === "tpl-save") {
+    const tp = S.tpls.find((x) => x.id === id);
+    const val = S.tplDraft || "";
+    if (!val.trim()) { toast(t("文案不能为空。", "Copy cannot be empty.")); return; }
+    const before = tp.bodyZh;
+    tp.bodyZh = val;
+    tp.bodyEn = val;
+    S.tplEdit = null;
+    logAudit({ who: actor().who, role: actor().role, mod: t("系统管理", "System"), evt: t("编辑站内信模板", "Edit message template"), obj: tp.id, before, after: val });
+    toast(t("模板已保存。", "Template saved."));
+    render();
+    return;
+  }
+  if (act === "role") {
+    const s = S.staff.find((x) => x.id === id);
+    const role = actEl.dataset.role;
+    const has = s.roles.includes(role);
+    if (has) s.roles = s.roles.filter((r) => r !== role);
+    else if (role === "admin" || s.roles.includes("admin")) { toast(t("系统管理员不能兼任任何业务角色。", "System admin cannot hold a business role.")); return; }
+    else if ((role === "counter" && s.roles.includes("finance")) || (role === "finance" && s.roles.includes("counter"))) { toast(t("兑奖柜台与财务复核不能由同一人担任。", "Prize counter and finance review cannot be the same person.")); return; }
+    else s.roles.push(role);
+    logAudit({ who: actor().who, role: actor().role, mod: t("系统管理", "System"), evt: t("调整角色", "Change roles"), obj: s.name, before: "—", after: s.roles.join(",") || t("无角色", "No role") });
+    render();
+  }
+}
+document.body.addEventListener("click", onClick);
+document.body.addEventListener("input", (e) => {
+  const el = e.target;
+  if (el.dataset.field === "user") S.login.user = el.value;
+  if (el.dataset.field === "pass") S.login.pass = el.value;
+  if (el.dataset.field === "freezeReason") S.freezeReason = el.value;
+  if (el.dataset.field === "annTitle") S.ann.title = el.value;
+  if (el.dataset.field === "playerQ") { S.playerQ = el.value; render(); focusField("[data-field=playerQ]"); }
+  if (el.dataset.field === "drawIssue") { S.drawQ.issue = el.value; render(); focusField("[data-field=drawIssue]"); }
+  if (el.dataset.field === "inboxPlayer") { S.inboxQ.player = el.value; render(); focusField("[data-field=inboxPlayer]"); }
+  if (el.dataset.otp != null) {
+    const i = Number(el.dataset.otp);
+    const v = el.value.replace(/\D/g, "").slice(-1);
+    el.value = v;
+    S.login.otp[i] = v;
+    if (v && el.nextElementSibling) el.nextElementSibling.focus();
+  }
+  if (el.id === "ann-body") S.ann.html = el.innerHTML;
+  if (el.dataset.field === "tplBody") S.tplDraft = el.value;
+});
+document.body.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.dataset.field === "drawGame") { S.drawQ.game = el.value; render(); }
+  if (el.dataset.field === "period") { S.period = el.value; render(); }
+  if (el.dataset.field === "kind") { S.kind = el.value; render(); }
+  if (el.dataset.field === "prizeMonth") { S.prizeMonth = el.value; render(); }
+  if (el.dataset.field === "inboxTpl") { S.inboxQ.tpl = el.value; render(); }
+  if (el.dataset.field === "annStart") S.ann.start = el.value;
+  if (el.dataset.field === "annEnd") S.ann.end = el.value;
+  if (el.dataset.limit) {
+    const before = S.limits[el.dataset.limit];
+    S.limits[el.dataset.limit] = Number(el.value);
+    logAudit({ who: actor().who, role: actor().role, mod: t("责任博彩", "Responsible gaming"), evt: t("调整限额参数", "Change limit"), obj: el.dataset.limit, before: String(before), after: el.value });
+    toast(t("已保存为后台参数。", "Saved as an admin parameter."));
+  }
+});
+document.body.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || S.authed) return;
+  if (e.target.dataset && e.target.dataset.otp != null) return;
+  onClick({ target: { closest: (sel) => document.querySelector(S.step === "otp" ? "[data-act=verify]" : "[data-act=next]") } });
+});
+setInterval(() => {
+  document.querySelectorAll("[data-clock]").forEach((el) => { el.textContent = clockStr(); });
+  let expired = false;
+  S.players.forEach((p) => {
+    if (p.lockUntil && lockLeft(p) === 0) {
+      p.lockUntil = 0;
+      expired = true;
+      logAudit({ who: t("系统", "System"), role: "—", mod: t("玩家档案", "Players"), evt: t("提现自动解锁", "Withdrawal auto-unlock"), obj: p.id, before: t("锁定", "Locked"), after: t("已解锁", "Unlocked") });
+    }
+  });
+  document.querySelectorAll("[data-countdown]").forEach((el) => {
+    const p = S.players.find((x) => x.id === el.dataset.countdown);
+    if (p) el.textContent = fmtLeft(lockLeft(p));
+  });
+  if (expired) { toast(t("提现锁定已到点，自动解锁。", "The withdrawal lock expired and unlocked.")); render(); }
+}, 1000);
+render();
+</script>
+</body>
+</html>

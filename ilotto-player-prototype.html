@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iLotto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#0b1220;--card:#111827;--card2:#0f172a;--line:#1f2937;
+  --cyan:#22d3ee;--amber:#f59e0b;--rose:#fb7184;--ok:#34d399;
+  --gold:#f6c945;--gold2:#e8a317;--gold-ink:#3a2a04;
+  --text:#cbd5e1;--muted:#64748b;--ink:#04232a;--white:#f8fafc;
+  --glow:0 10px 28px rgba(232,163,23,.35);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:Outfit,system-ui,sans-serif;
+  background:
+    radial-gradient(900px 420px at 8% -10%, rgba(34,211,238,.16), transparent 55%),
+    radial-gradient(700px 380px at 100% 0%, rgba(124,58,237,.2), transparent 50%),
+    var(--bg);
+  color:var(--text);
+  letter-spacing:-.01em;
+}
+button,input,select,textarea{font-family:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+#proto{
+  height:54px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  background:rgba(8,12,22,.92);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:50;backdrop-filter:blur(16px);
+}
+#proto .btn,.seg,.seg button,.word{white-space:nowrap}
+.seg,.hamb,.iconbtn{flex-shrink:0}
+.word{font-weight:800;color:#fff;letter-spacing:.02em;font-size:18px}
+.word em{font-style:italic;color:var(--gold);font-weight:800}
+.mono,.jack-amt,.otp input{font-family:"JetBrains Mono",ui-monospace,monospace}
+.proto-tag{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:3px 8px}
+#layout{height:calc(100vh - 54px);display:flex;min-height:0}
+#sidenav{
+  width:252px;flex:none;overflow:auto;padding:12px 10px 24px;
+  background:rgba(15,23,42,.72);border-right:1px solid var(--line);
+}
+.nav-h{
+  width:100%;display:flex;justify-content:space-between;align-items:center;
+  background:transparent;border:0;color:var(--muted);font-size:10px;letter-spacing:.14em;
+  padding:10px 8px 6px;text-transform:uppercase;
+}
+.nav-item{
+  width:100%;text-align:left;background:transparent;border:0;color:var(--text);
+  border-radius:10px;padding:8px 10px;font-size:12px;font-weight:500;margin:1px 0;
+}
+.nav-item:hover{background:rgba(34,211,238,.06);color:#fff}
+.nav-item.on{background:rgba(34,211,238,.12);color:var(--cyan);box-shadow:inset 2px 0 0 var(--cyan)}
+#backdrop{display:none;position:fixed;inset:54px 0 0;background:rgba(0,0,0,.45);z-index:55}
+#stage{flex:1;min-width:0;min-height:0;height:100%;display:flex;align-items:center;justify-content:center;padding:16px 8px}
+#phone{
+  width:390px;height:min(844px,100%);display:flex;min-height:0;
+  border-radius:32px;border:1px solid #243044;background:#0b1220;
+  box-shadow:0 30px 80px rgba(0,0,0,.5);overflow:hidden;
+}
+#main{flex:1;min-width:0;width:100%;display:flex;flex-direction:column;position:relative;min-height:0}
+#statusbar{
+  flex:none;display:flex;align-items:center;gap:8px;padding:10px 14px;
+  background:rgba(11,18,32,.88);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:6;backdrop-filter:blur(16px);
+}
+#screen{flex:1;overflow:auto;padding:16px 16px 40px}
+#main.nochrome #statusbar,#main.nochrome #tabbar{display:none}
+#main.flow-auth #statusbar{display:none}
+#main.flow-auth #tabbar{display:grid}
+#tabbar{
+  flex:none;display:grid;grid-template-columns:repeat(5,1fr);
+  background:rgba(8,12,22,.94);border-top:1px solid var(--line);
+  padding:8px 6px calc(8px + env(safe-area-inset-bottom));
+}
+#tabbar button{
+  border:0;background:transparent;color:var(--muted);font-size:10px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0 2px;
+}
+#tabbar button.on{color:var(--cyan)}
+#tabbar button svg{width:20px;height:20px}
+#tabbar button.play{position:relative}
+#tabbar button.play .bubble{
+  width:52px;height:52px;border-radius:50%;display:grid;place-items:center;margin-top:-22px;
+  background:linear-gradient(180deg,var(--gold),var(--gold2));color:var(--gold-ink);
+  box-shadow:0 10px 28px rgba(232,163,23,.45), inset 0 1px 0 rgba(255,255,255,.55);
+}
+#tabbar button.play.on .bubble{box-shadow:0 0 0 4px rgba(246,201,69,.28), 0 10px 28px rgba(232,163,23,.5)}
+#rail{
+  width:300px;flex:none;overflow:auto;padding:14px;border-left:1px solid var(--line);
+  background:rgba(8,12,22,.55);
+}
+.statebox{border-radius:14px;padding:12px;margin-bottom:12px;background:var(--card);border:1px solid var(--line)}
+.statebox h4{display:block;margin:0 0 8px;font-size:11px;letter-spacing:.08em;color:#fff}
+.statebox p{color:#94a3b8;font-size:11px;line-height:1.55}
+#rail:empty{display:none;width:0;padding:0;border:0}
+.st-btn{
+  display:block;width:100%;text-align:left;margin:4px 0;padding:7px 8px;border-radius:8px;
+  border:1px solid var(--line);background:#0b1220;color:var(--text);font-size:11px;
+}
+.st-btn.on{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,.25)}
+#statefab{
+  display:none;position:fixed;right:14px;z-index:35;border:0;border-radius:999px;
+  padding:10px 14px;background:linear-gradient(135deg,#22d3ee,#0891b2);color:var(--ink);font-weight:800;font-size:12px;
+  box-shadow:var(--glow);
+}
+.iconbtn,.hamb{
+  width:36px;height:36px;border-radius:12px;border:1px solid var(--line);background:var(--card2);
+  color:var(--text);display:grid;place-items:center;position:relative;flex:none;
+}
+.iconbtn:hover,.hamb:hover,.btn:not(.btn-primary):not(.btn-danger):hover{border-color:var(--cyan);color:var(--cyan)}
+.hamb{display:none}
+.badge{
+  position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;
+  background:var(--rose);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;
+}
+.balpill{
+  margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:6px 8px 6px 10px;position:relative;
+}
+.balpill .fig{font-size:10px;line-height:1.35;color:var(--text);text-align:right}
+.balpill .fig span{color:var(--muted);margin-right:4px}
+.popover{
+  position:absolute;right:0;top:calc(100% + 8px);width:240px;background:#0f172a;border:1px solid var(--line);
+  border-radius:14px;padding:12px;box-shadow:0 16px 40px rgba(0,0,0,.4);z-index:8;
+}
+.logo-btn{border:0;background:transparent;padding:0}
+.card{
+  background:linear-gradient(180deg, rgba(17,24,39,.94), rgba(15,23,42,.94));
+  border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.card h3,.card h4{margin:0 0 8px;color:#fff}
+h3.screen-title{margin:0 0 8px;color:#fff;font-size:18px}
+.muted{color:var(--muted);font-size:12px;line-height:1.5}
+.tiny{color:var(--muted);font-size:11px;line-height:1.5}
+.row{display:flex;gap:8px;align-items:center}
+.grow{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label.f{display:block;font-size:11px;color:var(--muted);margin:8px 0 6px}
+input,select,textarea{
+  width:100%;background:#0b1220;border:1px solid var(--line);border-radius:12px;
+  padding:11px 12px;font-size:13px;outline:none;
+}
+textarea{min-height:72px;resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.15)}
+.btn{
+  border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:12px;
+  padding:10px 12px;font-size:12px;font-weight:700;transition:.15s transform,.15s filter,.15s border-color;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{
+  background:linear-gradient(180deg,var(--gold),var(--gold2));color:var(--gold-ink);border:0;
+  box-shadow:var(--glow);font-weight:800;border-radius:999px;
+}
+.btn-primary:hover{filter:brightness(1.06);color:var(--gold-ink)}
+.btn-ghost{background:transparent;border:1px solid #334155;color:#fff;border-radius:999px;width:100%}
+.btn.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-danger{background:linear-gradient(135deg,#fb7184,#e11d48);color:#fff;border:0;font-weight:800}
+.btn-danger:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none}
+.link{background:none;border:0;color:var(--cyan);font-weight:700;font-size:12px;padding:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{
+  border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;
+  padding:6px 10px;font-size:11px;
+}
+.chip.on{background:var(--cyan);color:var(--ink);border-color:var(--cyan);font-weight:800}
+.tag{display:inline-flex;align-items:center;width:max-content;max-width:100%;font-size:10px;font-weight:700;padding:3px 7px;border-radius:999px;border:1px solid transparent}
+.tag-ok{color:var(--ok);background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.35)}
+.tag-warn{color:var(--amber);background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35)}
+.tag-rose{color:var(--rose);background:rgba(251,113,132,.12);border-color:rgba(251,113,132,.35)}
+.tag-cyan{color:var(--cyan);background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.35)}
+.tag-muted{color:var(--muted);background:#0b1220;border-color:var(--line)}
+.hero{
+  position:relative;overflow:hidden;border-radius:22px;padding:22px 18px;margin-bottom:12px;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;
+  background:linear-gradient(160deg,#4c1d95 0%,#312e81 48%,#1e1b4b 100%);
+  box-shadow:0 20px 50px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12);
+  min-height:200px;
+}
+.hero-jack{padding-right:132px}
+.hero h2{margin:8px 0 0;font-size:28px;color:#fff}
+.jack-amt{
+  font-weight:800;font-size:clamp(26px,7vw,34px);line-height:1.1;margin:8px 0;
+  color:#f6c945;text-shadow:0 0 18px rgba(246,201,69,.35);
+}
+.splash{text-align:center;padding:8px 2px 12px}
+.brand{margin:8px 0 0;font-size:42px;font-weight:800;letter-spacing:-.03em;color:#fff}
+.brand em{font-style:italic;color:var(--gold)}
+.splash-sub{color:#94a3b8;margin:6px 0 14px;font-size:13px}
+.jack-card{
+  position:relative;overflow:hidden;text-align:left;border-radius:22px;padding:16px 14px 14px;margin-bottom:12px;min-height:210px;
+  background:linear-gradient(160deg,#4c1d95 0%,#312e81 42%,#1e1b4b 100%);
+  box-shadow:0 16px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.16);
+}
+.pill-gold{display:inline-flex;background:linear-gradient(180deg,#fb923c,#f97316);color:#fff;font-weight:800;font-size:12px;border-radius:999px;padding:4px 10px}
+.ball-cluster{position:absolute;right:6px;top:18px;width:168px;height:132px;pointer-events:none}
+.lball{
+  position:absolute;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+  font-weight:800;font-size:13px;color:#fff;border:3px solid rgba(255,255,255,.9);
+  box-shadow:inset 0 -5px 0 rgba(0,0,0,.15), 0 6px 10px rgba(0,0,0,.25);
+}
+.lball.c1{left:46px;top:0;background:radial-gradient(circle at 32% 30%, #fff, #93c5fd 36%, #2563eb)}
+.lball.c2{left:96px;top:8px;background:radial-gradient(circle at 32% 30%, #fff, #fda4af 36%, #e11d48)}
+.lball.c3{left:128px;top:48px;background:radial-gradient(circle at 32% 30%, #fff, #86efac 36%, #16a34a)}
+.lball.c4{left:18px;top:62px;background:radial-gradient(circle at 32% 30%, #fff, #fde68a 40%, #d97706);color:#3a2a04}
+.lball.c5{left:72px;top:70px;background:radial-gradient(circle at 32% 30%, #fff, #d8b4fe 36%, #7c3aed)}
+.coins{position:absolute;left:16px;bottom:16px;display:flex;gap:4px}
+.hero .coins{display:none}
+.hero .ball-cluster{right:-6px;top:10px;transform:scale(.78);transform-origin:top right}
+.coins i{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 32% 30%, #fff7d6, #f6c945 42%, #b45309);box-shadow:0 4px 0 #92400e}
+.jack-foot{position:absolute;right:12px;bottom:10px;margin:0}
+.slider{overflow:hidden;border-radius:18px}
+.track{display:flex;transition:transform .45s ease}
+.slide{min-width:100%}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:8px}
+.dots button{width:7px;height:7px;border-radius:99px;border:0;background:#334155;padding:0}
+.dots button.on{width:18px;background:var(--cyan)}
+.games{display:grid;grid-template-columns:1fr;gap:10px}
+.game{display:flex;gap:12px;align-items:center;text-align:left;width:100%;color:inherit}
+.game:hover{border-color:rgba(34,211,238,.55);transform:translateY(-2px)}
+.ball{
+  width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;flex:none;
+  background:radial-gradient(circle at 32% 30%, #fff, #93c5fd 36%, #2563eb);
+  border:2px solid rgba(255,255,255,.85);
+  box-shadow:inset 0 -4px 0 rgba(0,0,0,.12), 0 6px 10px rgba(0,0,0,.25);
+}
+.ball.c2{background:radial-gradient(circle at 32% 30%, #fff, #fda4af 36%, #e11d48)}
+.ball.c3{background:radial-gradient(circle at 32% 30%, #fff, #86efac 36%, #16a34a)}
+.ball.c4{background:radial-gradient(circle at 32% 30%, #fff, #fde68a 40%, #d97706);color:#3a2a04}
+.ball.c5{background:radial-gradient(circle at 32% 30%, #fff, #d8b4fe 36%, #7c3aed)}
+.ball.sm{width:32px;height:32px;font-size:12px}
+.nums{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.nbtn{
+  height:36px;border-radius:10px;border:1px solid var(--line);background:#0b1220;color:var(--text);font-weight:700;
+}
+.nbtn.on{background:var(--cyan);color:var(--ink);box-shadow:0 0 16px rgba(34,211,238,.35)}
+.steps{display:flex;gap:6px;margin:8px 0 12px}
+.step{flex:1;height:6px;border-radius:99px;background:#1f2937}
+.step.on{background:linear-gradient(90deg,#22d3ee,#67e8f9)}
+.otp{display:flex;gap:8px;justify-content:space-between;margin:12px 0}
+.otp input{
+  width:44px;height:54px;text-align:center;font-size:22px;font-weight:800;padding:0;border-radius:12px;
+}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.pos{color:var(--ok)} .neg{color:var(--rose)}
+.avatar{
+  width:56px;height:56px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;flex:none;
+  box-shadow:0 0 0 3px rgba(34,211,238,.25);
+}
+.menu-row{
+  width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:12px 2px;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;text-align:left;
+}
+.menu-row:hover{color:#fff}
+.spin{width:46px;height:46px;border-radius:50%;border:4px solid #1f2937;border-top-color:var(--cyan);animation:spin 1s linear infinite;margin:8px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sk{height:14px;border-radius:8px;margin:8px 0;background:linear-gradient(90deg,#1f2937,#334155,#1f2937);background-size:200% 100%;animation:sk 1.2s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+.empty{text-align:center;padding:28px 10px}
+.empty-orb{width:64px;height:64px;margin:0 auto 10px;border-radius:50%;background:radial-gradient(circle at 30% 30%, rgba(34,211,238,.7), rgba(15,23,42,.2));box-shadow:var(--glow)}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.quick button{min-height:72px}
+.phase2{margin-top:8px;opacity:.7}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bar{height:8px;border-radius:99px;background:#1f2937;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#22d3ee,#f59e0b);border-radius:99px}
+.check{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}
+.shot{
+  border:1px dashed #334155;border-radius:14px;min-height:96px;display:grid;place-items:center;
+  background:repeating-linear-gradient(135deg, rgba(34,211,238,.05) 0 8px, transparent 8px 16px);
+  margin-bottom:8px;
+}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:80;padding:18px}
+#modal.on{display:flex}
+.modal-card{
+  width:min(460px,100%);background:linear-gradient(180deg,#111827,#0f172a);border:1px solid var(--line);
+  border-radius:18px;padding:18px;box-shadow:0 24px 60px rgba(0,0,0,.45);
+}
+.modal-card.danger{border-color:rgba(251,113,132,.6)}
+#toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(12px);z-index:90;
+  background:#0f172a;border:1px solid var(--cyan);color:#fff;padding:10px 14px;border-radius:12px;
+  font-size:12px;opacity:0;pointer-events:none;transition:.2s;max-width:min(520px,calc(100% - 24px));
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.seg{display:flex;background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700}
+.seg button.on{background:var(--cyan);color:var(--ink)}
+.hide{display:none!important}
+@media (min-width:820px){
+  .games{grid-template-columns:1fr 1fr}
+  .nums{grid-template-columns:repeat(10,1fr)}
+  .quick{grid-template-columns:repeat(3,1fr)}
+}
+@media (min-width:1500px){
+  .games{grid-template-columns:1fr 1fr 1fr}
+}
+#phone .games{grid-template-columns:1fr}
+#phone .nums{grid-template-columns:repeat(7,1fr)}
+#phone .quick{grid-template-columns:1fr}
+@media (max-width:900px){
+  .hamb{display:grid}
+  #sidenav{position:fixed;z-index:60;top:54px;bottom:0;left:0;transform:translateX(-105%);transition:transform .2s}
+  #sidenav.open{transform:none}
+  #backdrop.show{display:block}
+  #rail{position:fixed;z-index:60;top:auto;bottom:0;left:0;right:0;width:auto;max-height:70vh;border-left:0;border-top:1px solid var(--line);border-radius:18px 18px 0 0;transform:translateY(110%);transition:transform .2s}
+  #rail.open{transform:none}
+  #statefab.has{display:inline-flex}
+}
+@media (max-width:820px){
+  .grid2{grid-template-columns:1fr}
+  .games{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  #stage{padding:0}
+  #phone{width:100%;height:100%;border:0;border-radius:0;box-shadow:none}
+}
+@media (max-width:430px){
+  #proto{gap:6px;padding:0 8px}
+  #proto .btn{font-size:10px;padding:6px 8px}
+  .hide-sm{display:none}
+  #screen{padding:12px 12px 28px}
+  .balpill .fig span{display:none}
+  .quick{grid-template-columns:1fr}
+  .hero h2{font-size:24px}
+  .otp input{width:40px;height:48px}
+  .proto-tag{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<header id="proto"></header>
+<div id="layout">
+  <nav id="sidenav"></nav>
+  <div id="backdrop" data-act="backdrop"></div>
+  <div id="stage">
+    <div id="phone">
+      <main id="main">
+        <header id="statusbar"></header>
+        <div id="screen"></div>
+        <nav id="tabbar"></nav>
+      </main>
+    </div>
+  </div>
+  <aside id="rail"></aside>
+</div>
+<button id="statefab" type="button" data-act="rail">States</button>
+<div id="modal"></div>
+<div id="toast" role="status"></div>
+<script>
+const t = (zh, en) => (S.lang === "en" ? en : zh);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = (id) => document.getElementById(id);
+const peso = (n) => "₱" + Math.abs(Number(n)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n) => (S.reveal ? peso(n) : "₱***,***.**");
+const signed = (n) => { const pos = n > 0; return `<b class="${pos ? "pos" : "neg"}">${pos ? "+" : "-"}₱${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`; };
+
+const ICON = {
+  eye: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l18 18"/><path d="M10.6 6.2A10 10 0 0 1 12 6c6 0 10 6 10 6a18 18 0 0 1-3.2 3.8"/><path d="M6.1 6.1C3.6 7.8 2 12 2 12s4 6 10 6c1.4 0 2.7-.3 3.8-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+  plus: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>',
+  bell: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg>',
+  result: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg>',
+  play: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9 7.5v9l8-4.5-8-4.5z"/></svg>',
+  ticket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3"/><path d="M5 19c1.5-3 3.8-4.5 7-4.5S17.5 16 19 19"/></svg>',
+  menu: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>'
+};
+
+const NAV = [
+  { id: "a", zh: "账号与认证", en: "Account & sign-in", items: [
+    ["splash", "启动页", "Splash"], ["login", "登录", "Sign in"], ["otp", "第二因子", "Second factor"],
+    ["forgot", "忘记密码", "Forgot password"], ["register", "注册", "Register"], ["security", "登录与安全", "Sign-in & security"]
+  ]},
+  { id: "b", zh: "实名与合规", en: "Identity & compliance", items: [
+    ["kyc", "eKYC 五步", "eKYC"], ["kycstatus", "实名状态", "Identity status"],
+    ["rg", "责任博彩", "Responsible gaming"], ["helpplay", "问题赌博帮助", "Problem gambling help"]
+  ]},
+  { id: "c", zh: "核心玩法", en: "Play", items: [
+    ["home", "首页", "Home"], ["bet", "投注", "Play"], ["results", "开奖结果", "Results"]
+  ]},
+  { id: "d", zh: "资金与票据", en: "Funds & tickets", items: [
+    ["tickets", "我的彩票", "My tickets"], ["wallet", "钱包", "Wallet"],
+    ["paybind", "绑定支付账户", "Link payout"], ["ledger", "交易流水", "Transactions"]
+  ]},
+  { id: "e", zh: "账户与服务", en: "Account & support", items: [
+    ["account", "账户", "Account"], ["profile", "资料修改", "Edit profile"],
+    ["notice", "通知", "Notifications"], ["help", "帮助", "Help"]
+  ]}
+];
+const AUTH = new Set(["splash", "login", "otp", "forgot", "register", "kyc"]);
+const GATED = new Set(["home", "bet", "wallet"]);
+const TABS = [["home", "Home", "home"], ["results", "Result", "result"], ["bet", "Play", "play"], ["tickets", "Ticket", "ticket"], ["account", "Account", "user"]];
+
+const GAMES = [
+  { id: "u658", zh: "终极乐透 6/58", en: "Ultra Lotto 6/58", kind: "lotto", price: 25, pool: 128450000, draw: "2026-10-11 21:00", pick: 6, max: 58, freqZh: "每周 3 场", freqEn: "3 draws / week" },
+  { id: "g655", zh: "大乐透 6/55", en: "Grand Lotto 6/55", kind: "lotto", price: 25, pool: 86420000, draw: "2026-10-11 21:00", pick: 6, max: 55, freqZh: "每周 3 场", freqEn: "3 draws / week" },
+  { id: "s649", zh: "超级乐透 6/49", en: "Super Lotto 6/49", kind: "lotto", price: 25, pool: 42180000, draw: "2026-10-12 21:00", pick: 6, max: 49, freqZh: "每周 3 场", freqEn: "3 draws / week" },
+  { id: "m645", zh: "百万乐透 6/45", en: "Mega Lotto 6/45", kind: "lotto", price: 25, pool: 18650000, draw: "2026-10-12 21:00", pick: 6, max: 45, freqZh: "每周 3 场", freqEn: "3 draws / week" },
+  { id: "l642", zh: "乐透 6/42", en: "Lotto 6/42", kind: "lotto", price: 25, pool: 9200000, draw: "2026-10-13 21:00", pick: 6, max: 42, freqZh: "每周 3 场", freqEn: "3 draws / week" },
+  { id: "ez2", zh: "EZ2", en: "EZ2", kind: "digit", price: 10, draw: "2026-10-10 14:00", digits: 2, freqZh: "每日开奖", freqEn: "Daily draws" },
+  { id: "sw3", zh: "Swertres", en: "Swertres", kind: "digit", price: 10, draw: "2026-10-10 17:00", digits: 3, freqZh: "每日开奖", freqEn: "Daily draws" },
+  { id: "d4", zh: "4D", en: "4D", kind: "digit", price: 12, draw: "2026-10-12 21:00", digits: 4, freqZh: "每周开奖", freqEn: "Weekly draws" },
+  { id: "d6", zh: "6D", en: "6D", kind: "digit", price: 12, draw: "2026-10-13 21:00", digits: 6, freqZh: "每周开奖", freqEn: "Weekly draws" }
+];
+const gname = (g) => (S.lang === "en" ? g.en : g.zh);
+const gameBy = (id) => GAMES.find((g) => g.id === id) || GAMES[0];
+const top3 = () => GAMES.filter((g) => g.kind === "lotto").slice().sort((a, b) => b.pool - a.pool).slice(0, 3);
+
+const ANNS = [
+  { zt: "10 月头奖加奖周", et: "October jackpot week", zs: "终极乐透与大乐透奖池同步上调，下一期开奖见首页头奖。", es: "Ultra and Grand pools are up. Next draw is on the home jackpot.", zb: "管理端公告：10 月 10 日至 10 月 16 日，终极乐透 6/58 与大乐透 6/55 的头奖估算每日 18:00（UTC+8）更新。线上购票截止为开奖前 30 分钟。本条由公告管理推送，不是写死文案。", eb: "Admin notice: from 2026-10-10 to 2026-10-16, Ultra 6/58 and Grand 6/55 jackpot estimates refresh daily at 18:00 UTC+8. Sales close 30 minutes before the draw. Pushed from announcement admin, not hard-coded." },
+  { zt: "系统维护窗口", et: "Maintenance window", zs: "2026-10-14 02:00–04:00 UTC+8 暂停充值，投注与开奖查询不受影响。", es: "Top-up pauses 2026-10-14 02:00–04:00 UTC+8. Play and results stay up.", zb: "支付通道例行维护。已受理的提现按原预计时间到账。维护结束后无需重新登录。", eb: "Scheduled payout-rail maintenance. Withdrawals already accepted keep their original arrival window. No re-login is required afterwards." },
+  { zt: "理性娱乐提示", et: "Play-safe note", zs: "限额、冷静期与自主排除可在 PlaySafe 中设置。提醒间隔由后台固定。", es: "Limits, cool-off, and self-exclusion live in PlaySafe. The reminder interval is fixed in admin.", zb: "理性娱乐提醒每 10 分钟出现一次，玩家不能自行调整。如需帮助，请打开问题赌博帮助查看热线。", eb: "The rational-play reminder appears every 10 minutes and players cannot change it. For help, open problem-gambling support." },
+  { zt: "网点营业时间调整", et: "Branch hours change", zs: "Mandaluyong 主办公室本周六缩短至 15:00。", es: "The Mandaluyong head office closes at 15:00 this Saturday.", zb: "PCSO Shaw 网点 2026-10-11 营业时间为 08:00–15:00 UTC+8。其他网点维持 08:00–17:00。大奖申领请携带申领码到柜台核验。", eb: "PCSO Shaw branch hours on 2026-10-11 are 08:00–15:00 UTC+8. Other branches stay 08:00–17:00. Bring the claim code to the counter." }
+];
+
+const TICKETS = [
+  { id: "IL-20261009-10421", game: "u658", issue: "2026-1011-1", status: "pre", nums: "04 11 23 29 41 58", amt: 25, time: "2026-10-09 19:12" },
+  { id: "IL-20261009-10488", game: "g655", issue: "2026-1011-1", status: "pre", nums: "02 09 18 27 40 55", amt: 50, time: "2026-10-09 19:40" },
+  { id: "IL-20261008-09812", game: "s649", issue: "2026-1010-2", status: "wait", nums: "05 14 22 31 36 49", amt: 25, time: "2026-10-08 20:01" },
+  { id: "IL-20261008-09770", game: "ez2", issue: "2026-1010-D", status: "wait", nums: "17", amt: 10, time: "2026-10-08 13:22" },
+  { id: "IL-20261007-09102", game: "l642", issue: "2026-1007-2", status: "lost", nums: "01 08 19 24 33 42", amt: 25, time: "2026-10-07 18:16" },
+  { id: "IL-20261006-08820", game: "sw3", issue: "2026-1006-E", status: "lost", nums: "482", amt: 20, time: "2026-10-06 16:05" },
+  { id: "IL-20261005-08110", game: "m645", issue: "2026-1005-1", status: "claim", nums: "06 15 21 30 38 45", amt: 25, prize: 8500, code: "CLM-7K2Q-18", time: "2026-10-05 21:40" },
+  { id: "IL-20261004-07990", game: "d4", issue: "2026-1003-1", status: "claim", nums: "3941", amt: 12, prize: 4000, code: "CLM-1M8P-04", time: "2026-10-04 21:10" },
+  { id: "IL-20260928-06112", game: "u658", issue: "2026-0928-3", status: "claimed", nums: "03 12 19 28 44 57", amt: 25, prize: 1200, time: "2026-09-28 21:05" },
+  { id: "IL-20260920-04410", game: "ez2", issue: "2026-0920-A", status: "claimed", nums: "08", amt: 10, prize: 400, time: "2026-09-20 14:02" },
+  { id: "IL-20261002-07002", game: "d6", issue: "2026-1002-1", status: "void", nums: "120984", amt: 12, time: "2026-10-02 09:18" },
+  { id: "IL-20261001-06940", game: "ez2", issue: "2026-1001-C", status: "void", nums: "63", amt: 10, time: "2026-10-01 11:47" }
+];
+const TICKET_TABS = [
+  ["pre", "预购", "Upcoming"], ["wait", "待开奖", "Awaiting draw"], ["lost", "未中奖", "No win"],
+  ["claim", "中奖待申领", "Prize to claim"], ["claimed", "中奖已申领", "Prize claimed"], ["void", "已作废", "Voided"]
+];
+const LEDGER = [
+  { type: "deposit", amt: 2000, statusZh: "成功", statusEn: "Success", time: "2026-10-09 18:02:11", ref: "DP-883211" },
+  { type: "deposit", amt: 500, statusZh: "处理中", statusEn: "Processing", time: "2026-10-09 12:14:02", ref: "DP-883102" },
+  { type: "deposit", amt: 3000, statusZh: "成功", statusEn: "Success", time: "2026-10-04 08:11:27", ref: "DP-880014" },
+  { type: "withdraw", amt: -800, statusZh: "成功", statusEn: "Success", time: "2026-10-08 16:40:33", ref: "WD-220191" },
+  { type: "withdraw", amt: -1500, statusZh: "失败", statusEn: "Failed", time: "2026-10-07 11:02:18", ref: "WD-219877" },
+  { type: "order", amt: -75, statusZh: "已登记", statusEn: "Registered", time: "2026-10-09 19:12:44", ref: "IL-20261009-10421" },
+  { type: "order", amt: -120, statusZh: "已登记", statusEn: "Registered", time: "2026-10-08 20:01:09", ref: "IL-20261008-09812" },
+  { type: "order", amt: -25, statusZh: "已退款", statusEn: "Refunded", time: "2026-10-02 09:18:55", ref: "IL-20261002-07002" },
+  { type: "redeem", amt: 1200, statusZh: "已入账", statusEn: "Credited", time: "2026-10-06 15:22:40", ref: "CLM-9F2K-03" },
+  { type: "redeem", amt: 8500, statusZh: "待申领", statusEn: "To claim", time: "2026-10-05 21:40:00", ref: "CLM-7K2Q-18" }
+];
+const LEDGER_TABS = [["deposit", "充值", "Top-up"], ["withdraw", "提现", "Withdrawal"], ["order", "下单", "Order"], ["redeem", "兑奖", "Prize claim"]];
+const NOTICES = [
+  { kind: "draw", unread: true, zt: "开奖提醒", et: "Draw reminder", zd: "终极乐透 6/58 下一期 2026-10-11 21:00 UTC+8。", ed: "Ultra Lotto 6/58 draws 2026-10-11 21:00 UTC+8." },
+  { kind: "credit", unread: true, zt: "入账提醒", et: "Credit alert", zd: "兑奖 ₱1,200.00 已进入奖金余额。2026-10-06 15:22 UTC+8。", ed: "₱1,200.00 prize credit posted to the prize balance at 2026-10-06 15:22 UTC+8." },
+  { kind: "kyc", unread: true, zt: "实名状态变化", et: "Identity update", zd: "eKYC 已通过。2026-10-07 15:02 UTC+8。", ed: "eKYC approved at 2026-10-07 15:02 UTC+8." },
+  { kind: "safe", unread: false, zt: "理性娱乐提醒", et: "Rational play reminder", zd: "间隔固定 10 分钟，后台只读，玩家不可调。", ed: "Fixed at 10 minutes. Admin-only. Players cannot change it." },
+  { kind: "void", unread: false, zt: "作废退款", et: "Void refund", zd: "6D 票据 IL-20261002-07002 因不开奖日调整作废，已退回投注余额。", ed: "6D ticket IL-20261002-07002 was voided after a non-draw day change and refunded." },
+  { kind: "ann", unread: false, zt: "公告推送", et: "Announcement", zd: "10 月头奖加奖周已发布，来源为管理端公告管理。", ed: "October jackpot week was published from announcement admin." },
+  { kind: "limit", unread: false, zt: "限额生效", et: "Limit applied", zd: "每日投注限额调低已即时生效。", ed: "Your lower daily play limit is already in effect." }
+];
+const OUTLETS = [
+  ["PCSO Shaw Boulevard", "Sun Plaza, Mandaluyong", "1.2 km", "08:00–17:00"],
+  ["PCSO Robinsons Galleria", "Ortigas, Quezon City", "3.4 km", "10:00–21:00"],
+  ["PCSO SM Megamall", "EDSA, Mandaluyong", "2.1 km", "10:00–21:00"],
+  ["PCSO Ayala Center Cebu", "Cebu Business Park", "8.6 km", "10:00–20:00"],
+  ["PCSO SM City Davao", "Quimpo Blvd, Davao", "6.2 km", "10:00–20:00"],
+  ["PCSO Gateway Cubao", "Araneta, Quezon City", "5.0 km", "10:00–21:00"]
+];
+const DEVICES = [
+  ["Safari · iPhone", "Manila", "2026-10-09 18:40 UTC+8"],
+  ["Chrome · Windows", "Quezon City", "2026-10-07 09:12 UTC+8"],
+  ["Samsung Internet", "Cebu City", "2026-09-30 21:05 UTC+8"],
+  ["Edge · macOS", "Davao City", "2026-09-18 11:26 UTC+8"]
+];
+const ADDR = {
+  NCR: { "Quezon City": ["Bagong Pag-asa", "Project 6", "South Triangle"], Manila: ["Ermita", "Malate", "Sampaloc"], Makati: ["Bel-Air", "Poblacion", "San Lorenzo"] },
+  "Central Visayas": { "Cebu City": ["Lahug", "Mabolo", "Talamban"], Mandaue: ["Centro", "Subangdaku", "Banilad"] },
+  "Davao Region": { "Davao City": ["Buhangin", "Talomo", "Poblacion"] }
+};
+const INCOME_SRC = ["Employment", "Business", "Remittance", "Pension", "Investments"];
+const INCOME_BAND = ["Below ₱15,000", "₱15,000–30,000", "₱30,000–50,000", "₱50,000–100,000", "Above ₱100,000"];
+const DESTS = [
+  { id: "gcash", name: "GCash", mask: "09** *** 2186", zh: "预计 10 分钟内到账", en: "Usually within 10 minutes" },
+  { id: "maya", name: "Maya", mask: "09** *** 7741", zh: "预计 10 分钟内到账", en: "Usually within 10 minutes" },
+  { id: "bdo", name: "BDO", mask: "**** 3391", zh: "预计 1–2 个工作日", en: "Usually 1–2 business days" }
+];
+const KYC_CHECKS = [["证件真伪", "Document authenticity"], ["人脸比对", "Face match"], ["活体检测", "Liveness"], ["证件篡改", "Tamper check"], ["年龄校验（18+）", "Age check (18+)"], ["排除名单", "Exclusion list"], ["一人多号线索", "Multi-account lead"]];
+const ID_TYPES = [["philsys", "菲律宾身份证 PhilSys", "PhilSys National ID", true], ["dl", "驾照", "Driver license", true], ["passport", "护照", "Passport", false], ["umid", "UMID", "UMID", true]];
+const HOT = { u658: [[7, 18], [11, 16], [23, 15], [28, 14], [42, 13], [58, 12]], cold: [[3, 4], [9, 4], [16, 5], [31, 5], [44, 6], [50, 6]] };
+const DRAWS = {
+  u658: { issue: "2026-1009-3", nums: [4, 11, 19, 28, 41, 56], roll: "₱128,450,000" },
+  g655: { issue: "2026-1008-2", nums: [2, 9, 18, 27, 40, 51], roll: "₱86,420,000" },
+  s649: { issue: "2026-1007-2", nums: [5, 14, 22, 31, 36, 48], roll: "₱42,180,000" },
+  m645: { issue: "2026-1006-1", nums: [6, 12, 21, 30, 38, 44], roll: "₱18,650,000" },
+  l642: { issue: "2026-1004-2", nums: [1, 8, 19, 24, 33, 40], roll: "₱9,200,000" },
+  ez2: { issue: "2026-1009-E", nums: ["17"] },
+  sw3: { issue: "2026-1009-E", nums: ["4", "8", "2"] },
+  d4: { issue: "2026-1008-1", nums: ["3", "9", "4", "1"] },
+  d6: { issue: "2026-1007-1", nums: ["1", "2", "0", "9", "8", "4"] }
+};
+
+const S = {
+  lang: "zh", persona: 2, screen: "splash", loggedIn: false, splashReady: false,
+  navOpen: false, railOpen: false, groups: { a: true, b: true, c: true, d: true, e: true },
+  sessionKyc: null, reveal: false, revealTimer: null, modal: null, pop: false,
+  form: {}, income: { Employment: false, Business: false, Remittance: false, Pension: false, Investments: false },
+  picks: [], gameId: "u658", pickMode: "manual", issued: [], ledgerExtra: [],
+  journey: false, flowKyc: null, flowOffer: false, flowTicket: null,
+  nick: "LuckyFox", avatar: 0, profileOtpSent: false, unreadCleared: false,
+  sessionStart: Date.now(), sessionStake: 350, sessionPnl: -80,
+  bal: { bet: 12750.5, prize: 8420 }, lockUntil: 0, wdFails: 0,
+  otpScope: null, otpUntil: 0, otpDigits: "",
+  jackIndex: 0, annIndex: 0, kycShots: { front: false, back: false, live: false },
+  idType: "philsys", payChannel: "GCash", dest: "gcash",
+  resGame: "u658", resIssue: "2026-1009-3", betToken: 0, bound: DESTS.map((d) => d.id),
+  limits: { depD: 5000, depW: 20000, depM: 60000, betD: 5000, betW: 20000, betM: 60000, single: 2000 },
+  saved: null, excludeTerm: "6m", faq: null, self: [], selfDone: false,
+  page: { home: "main", bet: "pick", results: "data", resultsMode: "query", tickets: "wait", wallet: "main", ledger: "data", ledgerTab: "deposit", notice: "data", kyc: "flow", kycView: null, kycStep: 1, rg: "normal", paybind: "bound", forgotStep: 1, regStep: "form", depStep: 1, wdStep: 1 }
+};
+S.saved = { ...S.limits };
+
+function sessionKyc() { return S.sessionKyc || ["none", "pending", "approved"][S.persona]; }
+function kycOk() { return S.journey ? S.flowKyc === "approved" : sessionKyc() === "approved"; }
+function kycView() { return S.page.kycView || sessionKyc(); }
+function unreadCount() { return S.unreadCleared ? 0 : NOTICES.filter((n) => n.unread).length; }
+function fmtLeft(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); const m = Math.floor(s / 60); return String(m).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); }
+function fmtSession() { const s = Math.floor((Date.now() - S.sessionStart) / 1000); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); return (h ? h + "h " : "") + m + "m " + (s % 60) + "s"; }
+function toast(msg) { const el = $("toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("on"), 2600); }
+function ensureOtp(scope) { if (S.otpScope !== scope) { S.otpScope = scope; S.otpUntil = Date.now() + 60000; S.otpDigits = ""; } }
+function applyPersona(jump) {
+  S.journey = false; S.flowKyc = null; S.flowOffer = false; S.flowTicket = null;
+  S.sessionKyc = null; S.reveal = false; S.lockUntil = 0; S.wdFails = 0; S.ledgerExtra = []; S.unreadCleared = false; S.pop = false;
+  if (S.persona === 2) { S.bal = { bet: 12750.5, prize: 8420 }; S.nick = "LuckyFox"; S.sessionStake = 350; S.sessionPnl = -80; S.bound = DESTS.map((d) => d.id); }
+  else { S.bal = { bet: 0, prize: 0 }; S.nick = S.persona === 1 ? "AwaitingKYC" : "NewPlayer"; S.sessionStake = 0; S.sessionPnl = 0; S.bound = []; }
+  S.page = { home: "main", bet: "pick", results: "data", resultsMode: "query", tickets: S.persona === 2 ? "wait" : "empty", wallet: "main", ledger: S.persona === 2 ? "data" : "empty", ledgerTab: "deposit", notice: "data", kyc: "flow", kycView: null, kycStep: 1, rg: "normal", paybind: S.persona === 2 ? "bound" : "form", forgotStep: 1, regStep: "form", depStep: 1, wdStep: 1 };
+  if (jump && !kycOk() && !AUTH.has(S.screen)) { S.screen = "kycstatus"; S.loggedIn = true; }
+}
+function resetFlow() {
+  S.flowKyc = null; S.flowOffer = false; S.flowTicket = null; S.loggedIn = false;
+  S.page.regStep = "form"; S.page.kyc = "flow"; S.page.kycStep = 1; S.page.kycView = "none"; S.page.bet = "pick";
+  S.kycShots = { front: false, back: false, live: false };
+}
+function go(id, from) {
+  if (id === "journey") {
+    S.journey = true; resetFlow(); id = "splash"; from = "review";
+  } else if (from === "review" && S.journey) {
+    S.journey = false; S.flowKyc = null; S.flowOffer = false; S.flowTicket = null; S.page.kycView = null;
+  }
+  if (S.journey && id === "results" && S.flowTicket && S.flowTicket.status === "wait") {
+    S.flowTicket.status = "claim"; S.flowTicket.code = "CLM-4F8K-21"; S.flowTicket.prize = 8500; S.page.tickets = "claim";
+  }
+  if (from !== "review" && GATED.has(id) && !kycOk()) {
+    toast(t("审核通过前不能进入首页、钱包或投注", "Home, wallet, and play stay locked until verification is approved"));
+    id = "kycstatus";
+  }
+  if (S.screen !== id) S.otpScope = null;
+  S.screen = id; S.navOpen = false; S.railOpen = false; S.pop = false;
+  if (id === "notice") S.unreadCleared = true;
+  render();
+}
+function gateBounce() {
+  toast(t("审核通过前不能进入首页、钱包或投注", "Home, wallet, and play stay locked until verification is approved"));
+  S.screen = "kycstatus"; render();
+}
+function eyeBtn() { return `<button type="button" class="iconbtn" data-act="reveal" aria-label="mask">${S.reveal ? ICON.eyeOff : ICON.eye}</button>`; }
+function card(html) { return `<div class="card">${html}</div>`; }
+function colorBall(n, i) {
+  const c = ["c1", "c2", "c3", "c4", "c5"][i % 5];
+  return `<span class="ball sm ${c}">${esc(String(n))}</span>`;
+}
+function decoBalls() {
+  return `<div class="ball-cluster"><span class="lball c1">07</span><span class="lball c2">16</span><span class="lball c3">23</span><span class="lball c4">31</span><span class="lball c5">45</span></div><div class="coins"><i></i><i></i><i></i></div>`;
+}
+function b(cls, act, arg, label, extra) { return `<button type="button" class="${cls}" data-act="${act}" data-arg="${esc(arg ?? "")}" ${extra || ""}>${label}</button>`; }
+function steps(n, cur) { return `<div class="steps">${Array.from({ length: n }, (_, i) => `<div class="step ${i < cur ? "on" : ""}"></div>`).join("")}</div>`; }
+function otpBoxes(scope) {
+  ensureOtp(scope || S.screen);
+  return `<div class="otp">${[0, 1, 2, 3, 4, 5].map((i) => `<input class="otp-i" inputmode="numeric" maxlength="1" data-otp="1" data-i="${i}" value="${esc(S.otpDigits[i] || "")}" />`).join("")}</div>`;
+}
+function resendRow() {
+  const left = Math.max(0, S.otpUntil - Date.now());
+  const label = left > 0 ? Math.ceil(left / 1000) + "s" : t("重新发送", "Resend");
+  return `<p class="muted">${t("短信验证码", "SMS code")} · <button type="button" class="link" data-act="resend" ${left > 0 ? "disabled" : ""}>${label}</button></p>`;
+}
+function kycBadge(st) {
+  const map = { none: ["未认证", "Unverified", "tag-muted"], pending: ["审核中", "In review", "tag-warn"], approved: ["已通过", "Approved", "tag-ok"], rejected: ["被拒绝", "Rejected", "tag-rose"] };
+  const m = map[st] || map.none;
+  return `<span class="tag ${m[2]}">${t(m[0], m[1])}</span>`;
+}
+function comboCount(g) {
+  if (g.kind === "digit") return S.picks.length === g.digits ? 1 : 0;
+  const n = S.picks.length, k = g.pick;
+  if (n < k) return 0;
+  let c = 1; for (let i = 1; i <= k; i++) c = c * (n - k + i) / i;
+  return Math.round(c);
+}
+function settleHtml() {
+  const g = gameBy(S.gameId);
+  const combos = comboCount(g);
+  const periods = Math.max(1, Math.min(g.kind === "lotto" ? 12 : 90, Number(S.form.periods) || 1));
+  const mult = Math.max(1, Number(S.form.mult) || 1);
+  const outs = combos * periods;
+  const total = g.price * mult * outs;
+  const play = gname(g) + (g.kind === "lotto" && S.picks.length > g.pick ? t(" · 复式", " · system") : t(" · 单式", " · straight"));
+  return `<table><thead><tr><th>${t("玩法", "Play")}</th><th>${t("组合数", "Combos")}</th><th>${t("期数", "Draws")}</th><th>${t("出票数", "Tickets")}</th><th>${t("合计", "Total")}</th></tr></thead><tbody><tr><td>${esc(play)}</td><td>${combos}</td><td>${periods}</td><td>${outs}</td><td>${peso(total)}</td></tr></tbody></table><p class="tiny">${t("倍数", "Multiple")} ${mult} · ${t("单价", "Price")} ₱${g.price}</p>`;
+}
+function stateOptions() {
+  const o = {
+    home: [["main", "默认", "Default"], ["loading", "加载", "Loading"], ["empty", "空状态", "Empty"], ["lucky", "幸运选号", "Lucky pick"], ["outlets", "网点列表", "Branches"], ["outletsLoading", "网点加载", "Branches loading"], ["outletsEmpty", "网点空", "Branches empty"]],
+    bet: [["pick", "选号", "Pick"], ["processing", "处理中", "Processing"], ["done", "出票成功", "Tickets issued"]],
+    results: [["data", "有数据", "Data"], ["loading", "加载", "Loading"], ["empty", "空状态", "Empty"]],
+    tickets: [["pre", "预购", "Upcoming"], ["wait", "待开奖", "Awaiting"], ["lost", "未中奖", "No win"], ["claim", "中奖待申领", "To claim"], ["claimed", "中奖已申领", "Claimed"], ["void", "已作废", "Voided"], ["empty", "空状态", "Empty"], ["loading", "加载", "Loading"]],
+    wallet: [["main", "余额", "Balances"], ["deposit", "充值", "Top-up"], ["withdraw", "提现流程", "Withdrawal"], ["locked", "MFA 锁定", "MFA lock"]],
+    ledger: [["data", "有数据", "Data"], ["loading", "加载", "Loading"], ["empty", "空状态", "Empty"]],
+    notice: [["data", "有数据", "Data"], ["loading", "加载", "Loading"], ["empty", "空状态", "Empty"], ["reality", "现实状态弹窗", "Reality check"]],
+    kyc: [["flow", "填写中", "In progress"], ["pending", "审核中", "In review"], ["rejected", "被拒绝", "Rejected"]],
+    kycstatus: [["none", "未认证", "Unverified"], ["pending", "审核中", "In review"], ["approved", "已通过", "Approved"], ["rejected", "被拒绝", "Rejected"]],
+    rg: [["normal", "默认", "Default"], ["cooloff", "冷静期中", "Cool-off"], ["excluded", "定期排除", "Timed exclusion"], ["permanent", "永久排除", "Permanent"]],
+    paybind: [["form", "绑定表单", "Form"], ["checking", "户名核验中", "Name check"], ["bound", "已绑定", "Linked"]]
+  };
+  return o[S.screen] || null;
+}
+function currentKey() {
+  if (S.screen === "wallet") {
+    if (S.lockUntil > Date.now() && S.page.wallet === "main") return "locked";
+    if (S.page.wallet === "deposit") return "deposit";
+    if (S.page.wallet === "withdraw") return "withdraw";
+    return "main";
+  }
+  if (S.screen === "kycstatus") return kycView();
+  if (S.screen === "kyc") return S.page.kyc;
+  return S.page[S.screen] || "data";
+}
+function applyPageState(key) {
+  const id = S.screen;
+  if (id === "home") S.page.home = key;
+  else if (id === "bet") { S.page.bet = key; if (key === "done" && !S.issued.length) S.issued = ["IL-20261010-11001", "IL-20261010-11002"]; }
+  else if (id === "results") S.page.results = key;
+  else if (id === "tickets") S.page.tickets = key;
+  else if (id === "ledger") S.page.ledger = key;
+  else if (id === "kyc") { S.page.kyc = key; if (key === "flow") S.page.kycStep = 1; }
+  else if (id === "kycstatus") S.page.kycView = key;
+  else if (id === "rg") S.page.rg = key;
+  else if (id === "paybind") S.page.paybind = key;
+  else if (id === "notice") { S.page.notice = key === "reality" ? "data" : key; if (key === "reality") S.modal = "reality"; }
+  else if (id === "wallet") {
+    if (key === "locked") { S.lockUntil = Date.now() + 30 * 60 * 1000; S.page.wallet = "main"; S.wdFails = 3; }
+    else if (key === "withdraw") { S.lockUntil = 0; S.wdFails = 0; S.page.wallet = "withdraw"; S.page.wdStep = 1; }
+    else if (key === "deposit") { S.page.wallet = "deposit"; S.page.depStep = 1; }
+    else { S.lockUntil = 0; S.page.wallet = "main"; }
+  }
+  render();
+}
+
+function renderProto() {
+  const names = [t("全新未实名", "New, unverified"), t("KYC 审核中", "KYC in review"), t("已实名", "Verified")];
+  $("proto").innerHTML = `
+    <button type="button" class="hamb" data-act="nav" aria-label="menu">${ICON.menu}</button>
+    <div class="word">i<em>Lotto</em></div>
+    <span class="proto-tag">${t("内部评审", "Internal review")}</span>
+    <div class="grow"></div>
+    <button type="button" class="btn" data-act="persona"><span class="hide-sm">${t("切换示例数据", "Sample data")} · </span>${names[S.persona]}</button>
+    <div class="seg" aria-label="language">
+      <button type="button" data-act="lang" data-arg="zh" class="${S.lang === "zh" ? "on" : ""}">中文</button>
+      <button type="button" data-act="lang" data-arg="en" class="${S.lang === "en" ? "on" : ""}">EN</button>
+    </div>`;
+}
+function renderNav() {
+  $("sidenav").classList.toggle("open", S.navOpen);
+  $("backdrop").classList.toggle("show", S.navOpen || S.railOpen);
+  $("sidenav").innerHTML = `<button type="button" class="nav-item ${S.journey ? "on" : ""}" data-act="go" data-arg="journey" data-from="review" style="font-weight:800">${t("全流程", "Full journey")}</button>` + NAV.map((g) => `
+    <button type="button" class="nav-h" data-act="group" data-arg="${g.id}">${t(g.zh, g.en)} <span>${S.groups[g.id] ? "–" : "+"}</span></button>
+    ${S.groups[g.id] ? g.items.map(([id, zh, en]) => `<button type="button" class="nav-item ${!S.journey && S.screen === id ? "on" : ""}" data-act="go" data-arg="${id}" data-from="review">${t(zh, en)}</button>`).join("") : ""}
+  `).join("");
+}
+function renderStatus() {
+  if (AUTH.has(S.screen)) { $("statusbar").innerHTML = ""; return; }
+  const n = unreadCount();
+  $("statusbar").innerHTML = `
+    <button type="button" class="logo-btn word" data-act="go" data-arg="home" data-from="product">i<em>Lotto</em></button>
+    <div class="balpill">
+      <button type="button" class="fig" data-act="pop" style="border:0;background:transparent;color:inherit">
+        <div><span>${t("投注", "Stake")}</span>${money(S.bal.bet)}</div>
+        <div><span>${t("奖金", "Prize")}</span>${money(S.bal.prize)}</div>
+      </button>
+      ${eyeBtn()}
+      ${S.pop ? `<div class="popover">
+        <p class="tiny">${t("投注余额", "Stake balance")}</p><div>${money(S.bal.bet)}</div>
+        <p class="tiny" style="margin-top:8px">${t("奖金余额", "Prize balance")}</p><div>${money(S.bal.prize)}</div>
+        ${S.reveal ? `<p class="tiny">${t("30 秒后自动隐藏", "Hides again after 30 seconds")}</p>` : ""}
+        <button type="button" class="btn" style="width:100%;margin-top:8px" data-act="go" data-arg="wallet" data-from="product">${t("查看钱包", "Open wallet")}</button>
+      </div>` : ""}
+    </div>
+    <button type="button" class="iconbtn" data-act="deposit" aria-label="topup">${ICON.plus}</button>
+    <button type="button" class="iconbtn" data-act="go" data-arg="notice" data-from="product" aria-label="notices">${ICON.bell}${n ? `<i class="badge">${n}</i>` : ""}</button>`;
+}
+function renderTabs() {
+  $("tabbar").innerHTML = TABS.map(([id, label, icon]) => {
+    const on = S.screen === id ? "on" : "";
+    const bubble = id === "bet" ? `<span class="bubble">${ICON[icon]}</span>` : ICON[icon];
+    return `<button type="button" class="${on} ${id === "bet" ? "play" : ""}" data-act="go" data-arg="${id}" data-from="product">${bubble}<span>${label}</span></button>`;
+  }).join("");
+}
+function renderRail() {
+  $("rail").classList.toggle("open", S.railOpen);
+  const opts = stateOptions();
+  const cur = currentKey();
+  $("rail").innerHTML = opts ? `<div class="statebox"><h4>${t("本屏状态", "This screen")}</h4><p>${t("只改变本屏展示，不改变顶部示例玩家。", "Visual only. Does not change the sample player.")}</p>
+      ${opts.map(([k, zh, en]) => `<button type="button" class="st-btn ${cur === k ? "on" : ""}" data-act="state" data-arg="${k}">${t(zh, en)}</button>`).join("")}
+    </div>` : "";
+  const fab = $("statefab");
+  fab.classList.toggle("has", !!opts);
+  fab.textContent = t("状态", "States");
+  fab.style.bottom = AUTH.has(S.screen) && !(S.journey && S.loggedIn) ? "18px" : "90px";
+}
+function renderModal() {
+  const m = $("modal");
+  if (!S.modal) { m.classList.remove("on"); m.innerHTML = ""; return; }
+  let html = "";
+  if (S.modal === "reality") {
+    const pnl = S.sessionPnl;
+    html = `<h3 style="color:#fff;margin:0 0 8px">${t("现实状态提醒", "Reality check")}</h3>
+      <p class="tiny">${t("间隔固定 10 分钟。关掉只对这一次有效，不能选择不再提醒。", "Fixed 10-minute interval. Closing applies to this time only.")}</p>
+      <div class="check"><span>${t("本次会话时长", "Session time")}</span><b id="sessDur">${fmtSession()}</b></div>
+      <div class="check"><span>${t("本次会话投注金额", "Session stake")}</span><b>${peso(S.sessionStake)}</b></div>
+      <div class="check"><span>${t("本次会话盈亏汇总", "Session result")}</span><b class="${pnl >= 0 ? "pos" : "neg"}">${pnl > 0 ? "+" : pnl < 0 ? "-" : ""}${peso(pnl)}</b></div>
+      <div class="check"><span>${t("钱包当前余额", "Wallet balance")}</span><b>${t("投注", "Stake")} ${peso(S.bal.bet)} · ${t("奖金", "Prize")} ${peso(S.bal.prize)}</b></div>
+      <button type="button" class="btn btn-primary" style="width:100%;margin-top:14px" data-act="reality-ok">${t("知道了", "Got it")}</button>`;
+  } else if (S.modal === "exclude") {
+    const term = { "3m": t("3 个月", "3 months"), "6m": t("6 个月", "6 months"), "1y": t("1 年", "1 year"), perm: t("永久", "Permanent") }[S.excludeTerm];
+    html = `<h3 style="color:var(--rose);margin:0 0 8px">${t("确认自主排除", "Confirm self-exclusion")} · ${term}</h3>
+      <p>${t("排除期内无法登录投注、充值，仅能查看余额、提取已到账的中奖奖金、访问帮助资源。", "During exclusion you cannot sign in to play or top up. You can only view the balance, withdraw prizes already credited, and open help.")}</p>
+      <p class="tiny">${S.excludeTerm === "perm" ? t("永久排除没有恢复入口。", "Permanent exclusion has no restore path.") : t("到期不会自动恢复，需要另行提交恢复申请。", "It does not lift automatically. A restore request is required.")}</p>
+      <div class="row" style="margin-top:12px">${b("btn grow", "modal-close", "", t("取消", "Cancel"))}${b("btn btn-danger grow", "exclude-ok", "", t("确认排除", "Confirm"))}</div>`;
+  } else if (S.modal === "ann") {
+    const a = ANNS[S.annIndex];
+    html = `<p class="tiny">${t("来自管理端公告管理推送", "Pushed from announcement admin")}</p><h3 style="color:#fff">${t(a.zt, a.et)}</h3><p>${t(a.zb, a.eb)}</p><button type="button" class="btn btn-primary" style="margin-top:8px" data-act="modal-close">${t("关闭", "Close")}</button>`;
+  } else if (S.modal === "rule") {
+    const g = gameBy(S.modalArg || "u658");
+    html = `<h3 style="color:#fff;margin:0 0 8px">${gname(g)}</h3><p class="muted">${g.kind === "lotto" ? t("从 1–" + g.max + " 选 " + g.pick + " 个号码。单注 ₱" + g.price + "。头奖未出则滚存。", "Pick " + g.pick + " numbers from 1–" + g.max + ". Stake ₱" + g.price + ". Unwon jackpots roll over.") : t("按位选 " + g.digits + " 位数字，顺序一致即中一奖。单注 ₱" + g.price + "。", "Pick " + g.digits + " digits in order. Stake ₱" + g.price + ".")}</p><p class="tiny">${t("规则由 PCSO 上游提供，只读。", "Rules are read-only from PCSO upstream.")}</p><button type="button" class="btn" data-act="modal-close">${t("关闭", "Close")}</button>`;
+  }
+  m.innerHTML = `<div class="modal-card ${S.modal === "exclude" ? "danger" : ""}">${html}</div>`;
+  m.classList.add("on");
+}
+
+function viewSplash() {
+  const ready = S.splashReady;
+  return `<div class="splash">
+      <h2 class="brand">i<em>Lotto</em></h2>
+      <p class="splash-sub">${t("PCSO 授权线上彩票", "PCSO authorized online lottery")}</p>
+      ${ready ? `<div class="jack-card">
+          <span class="pill-gold">${t("终极乐透 6/58", "Ultra Lotto 6/58")}</span>
+          <div class="jack-amt">₱49,500,000</div>
+          <p class="tiny">${t("开奖 周日 21:00", "Draw Sunday 21:00")} UTC+8</p>
+          ${decoBalls()}
+        </div>
+        ${b("btn btn-primary", "go", "login", t("登录", "Sign in"), "data-from=\"product\" style=\"width:100%\"")}
+        ${b("btn btn-ghost", "go", "register", t("注册账号", "Create account"), "data-from=\"product\" style=\"margin-top:8px\"")}`
+      : `<div class="card" style="text-align:center"><div class="spin"></div><p class="muted">${t("正在加载监管标识", "Loading regulatory mark")}</p></div>`}
+    </div>`;
+}
+function viewLogin() {
+  return `<h3 class="screen-title">${t("登录", "Sign in")}</h3>
+    <p class="muted">${t("使用手机号或邮箱，加上密码。", "Use your mobile number or email, plus your password.")}</p>
+    ${card(`<label class="f">${t("手机号或邮箱", "Mobile or email")}</label><input data-field="loginId" value="${esc(S.form.loginId || "")}" placeholder="09xx / email" />
+      <label class="f">${t("密码", "Password")}</label><input data-field="loginPw" type="password" value="${esc(S.form.loginPw || "")}" />
+      ${b("btn btn-primary", "login", "", t("登录", "Sign in"), "style=\"width:100%;margin-top:14px\"")}
+      <div class="row" style="margin-top:12px;justify-content:space-between">
+        <button type="button" class="link" data-act="go" data-arg="forgot" data-from="product">${t("忘记密码", "Forgot password")}</button>
+        <button type="button" class="link" data-act="go" data-arg="register" data-from="product">${t("注册", "Register")}</button>
+      </div>`)}`;
+}
+function viewOtp() {
+  return `<h3 class="screen-title">${t("第二因子验证", "Second factor")}</h3>
+    <p class="muted">${t("登录成功后强制短信 OTP，只有这一种方式。", "SMS OTP is required after sign-in. This is the only method.")}</p>
+    ${card(`<p class="tiny">OTP_LOGIN · 09** *** 831</p>${otpBoxes("login")}${b("btn btn-primary", "otp-verify", "", t("确认", "Confirm"), "style=\"width:100%\"")}${resendRow()}`)}`;
+}
+function viewForgot() {
+  const step = S.page.forgotStep;
+  let body = "";
+  if (step === 1) body = `<label class="f">${t("手机号或邮箱", "Mobile or email")}</label><input data-field="forgotId" value="${esc(S.form.forgotId || "")}" />${b("btn btn-primary", "forgot-next", "", t("发送验证码", "Send code"), "style=\"width:100%;margin-top:12px\"")}`;
+  if (step === 2) { body = `<p class="tiny">OTP_RESET</p>${otpBoxes("reset")}${b("btn btn-primary", "forgot-next", "", t("验证", "Verify"), "style=\"width:100%\"")}${resendRow()}`; }
+  if (step === 3) body = `<label class="f">${t("新密码", "New password")}</label><input data-field="np1" type="password" value="${esc(S.form.np1 || "")}" /><label class="f">${t("确认新密码", "Confirm password")}</label><input data-field="np2" type="password" value="${esc(S.form.np2 || "")}" />${b("btn btn-primary", "forgot-next", "", t("保存并返回登录", "Save and sign in"), "style=\"width:100%;margin-top:12px\"")}`;
+  return `<h3 class="screen-title">${t("忘记密码", "Forgot password")}</h3>${steps(3, step)}${card(body)}`;
+}
+function viewRegister() {
+  if (S.page.regStep === "verify") {
+    return `<h3 class="screen-title">${t("验证联系方式", "Verify contact")}</h3>${steps(2, 2)}
+      <p class="muted">${t("验证只证明这是你的联系方式，还不代表开通投注。", "This only proves the contact is yours. It does not enable play.")}</p>
+      ${card(`<p class="tiny">OTP_REGISTER · ${esc(S.form.phone || "")} · ${esc(S.form.email || "")}</p>${otpBoxes("register")}${resendRow()}${b("btn btn-primary", "reg-finish", "", t("完成验证", "Finish"), "style=\"width:100%;margin-top:8px\"")}`)}
+      <button type="button" class="link" data-act="reg-back">${t("返回修改资料", "Edit details")}</button>`;
+  }
+  const dom = (S.form.loc || "dom") === "dom";
+  const provs = Object.keys(ADDR);
+  const cities = Object.keys(ADDR[S.form.prov] || {});
+  const brgys = ((ADDR[S.form.prov] || {})[S.form.city]) || [];
+  const opt = (arr, cur, ph) => `<option value="">${ph}</option>` + arr.map((x) => `<option ${x === cur ? "selected" : ""}>${esc(x)}</option>`).join("");
+  return `<h3 class="screen-title">${t("注册", "Register")}</h3>${steps(2, 1)}
+    <p class="muted">${t("注册时提交的证件/自拍材料会送入 KYC 审核（最长 5 个工作日），审核通过前可以登录，但进不了控制面板（首页/钱包/投注），只能看到审核状态。", "ID and selfie materials go to KYC review (up to 5 business days). You can sign in before approval, but Home, Wallet, and Play stay locked. You only see review status.")}</p>
+    ${card(`
+      <p class="tiny">${t("法定姓名需与后续身份核验时使用的证件一致", "Legal name must match the ID you will use for verification")}</p>
+      <div class="grid2">
+        <div><label class="f">${t("姓", "Last name")}</label><input data-field="last" value="${esc(S.form.last || "")}" /></div>
+        <div><label class="f">${t("名", "First name")}</label><input data-field="first" value="${esc(S.form.first || "")}" /></div>
+      </div>
+      <label class="f">${t("中间名", "Middle name")}</label><input data-field="middle" value="${esc(S.form.middle || "")}" />
+      <label class="f">${t("菲律宾手机号", "Philippine mobile")}</label><input data-field="phone" value="${esc(S.form.phone || "")}" placeholder="09xxxxxxxxx" />
+      <label class="f">${t("邮箱", "Email")}</label><input data-field="email" value="${esc(S.form.email || "")}" />
+      <label class="f">${t("出生日期", "Date of birth")}</label><input data-field="dob" type="date" value="${esc(S.form.dob || "")}" />
+      <label class="f">${t("密码", "Password")}</label><input data-field="regPw" type="password" value="${esc(S.form.regPw || "")}" />
+      <label class="f">${t("地址", "Address")}</label>
+      <div class="chips">
+        <button type="button" class="chip ${dom ? "on" : ""}" data-act="loc" data-arg="dom">${t("境内", "Domestic")}</button>
+        <button type="button" class="chip ${!dom ? "on" : ""}" data-act="loc" data-arg="for">${t("境外", "Overseas")}</button>
+      </div>
+      ${dom ? `<label class="f">${t("省", "Province")}</label><select data-field="prov" data-rerender="1">${opt(provs, S.form.prov, t("选择省", "Province"))}</select>
+        <label class="f">${t("市 / 自治市", "City / municipality")}</label><select data-field="city" data-rerender="1">${opt(cities, S.form.city, t("选择城市", "City"))}</select>
+        <label class="f">${t("村社", "Barangay")}</label><select data-field="brgy">${opt(brgys, S.form.brgy, t("选择村社", "Barangay"))}</select>`
+        : `<label class="f">${t("街道", "Street")}</label><input data-field="street" value="${esc(S.form.street || "")}" />
+           <label class="f">${t("城镇", "Town")}</label><input data-field="town" value="${esc(S.form.town || "")}" />
+           <label class="f">${t("州 / 省", "State / province")}</label><input data-field="state" value="${esc(S.form.state || "")}" />
+           <label class="f">${t("邮编", "Postal code")}</label><input data-field="zip" value="${esc(S.form.zip || "")}" />
+           <label class="f">${t("国家", "Country")}</label><select data-field="country">${opt(["Japan", "Singapore", "United States", "Hong Kong", "Australia", "Canada", "United Kingdom"], S.form.country, t("选择国家", "Country"))}</select>`}
+      <label class="f">${t("收入来源（可多选）", "Source of funds (multi)")}</label>
+      ${INCOME_SRC.map((s) => `<label class="tiny" style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" data-income="${s}" ${S.income[s] ? "checked" : ""} style="width:auto" /> ${s}</label>`).join("")}
+      <label class="f">${t("月收入区间", "Monthly income band")}</label>
+      <select data-field="band">${opt(INCOME_BAND, S.form.band, t("选择区间", "Select band"))}</select>
+      <label class="tiny" style="display:flex;gap:8px;margin-top:12px"><input id="agree" type="checkbox" data-field="agree" ${S.form.agree ? "checked" : ""} style="width:auto" /><span>${t("我已阅读并同意条款与理性娱乐声明", "I agree to the terms and the rational-play statement")}</span></label>
+      ${b("btn btn-primary", "reg-next", "", t("提交并验证联系方式", "Submit and verify contact"), "style=\"width:100%;margin-top:12px\"")}
+      <p class="tiny" style="margin-top:10px">${t("收集信息遵循《2012菲律宾数据隐私法案》，设备 ID 自动记录用于设备追踪。", "Collection follows the Data Privacy Act of 2012. Device ID is recorded automatically for device tracking.")}</p>
+      <p class="tiny">DEV-7F3A-19C2</p>
+    `)}`;
+}
+function viewSecurity() {
+  return `<h3 class="screen-title">${t("登录与安全", "Sign-in & security")}</h3>
+    ${card(`<h4>${t("修改密码", "Change password")}</h4>
+      <label class="f">${t("当前密码", "Current")}</label><input type="password" data-field="oldPw" />
+      <label class="f">${t("新密码", "New")}</label><input type="password" data-field="newPw" />
+      <label class="f">${t("确认新密码", "Confirm")}</label><input type="password" data-field="newPw2" />
+      ${b("btn btn-primary", "save-pw", "", t("保存", "Save"), "style=\"margin-top:10px\"")}`)}
+    ${card(`<h4>${t("登录设备历史", "Device history")}</h4><p class="tiny">${t("仅展示历史记录。", "History only.")}</p>
+      ${DEVICES.map((d) => `<div class="check"><span>${d[0]}<br><span class="tiny">${d[1]}</span></span><span class="tiny">${d[2]}</span></div>`).join("")}`)}
+    ${b("btn", "logout", "", t("退出登录", "Sign out"))}`;
+}
+function kycChecks(failed) {
+  return KYC_CHECKS.map((c, i) => {
+    const bad = failed && failed.includes(i);
+    return `<div class="check"><span>${t(c[0], c[1])}</span><span class="tag ${bad ? "tag-rose" : "tag-ok"}">${bad ? t("未通过", "Failed") : t("通过", "Passed")}</span></div>`;
+  }).join("");
+}
+function viewKyc() {
+  if (S.page.kyc === "pending") {
+    return `<h3 class="screen-title">eKYC</h3>${card(`<span class="tag tag-warn">${t("审核中", "In review")}</span><p>${t("预计 5 个工作日内完成。", "Expected within 5 business days.")}</p>${kycChecks()}`)}`;
+  }
+  if (S.page.kyc === "rejected") {
+    return `<h3 class="screen-title">eKYC</h3>${card(`<span class="tag tag-rose">${t("被拒绝", "Rejected")}</span><p>${t("原因：证件照片反光，OCR 未通过。", "Reason: glare on the ID, OCR failed.")}</p>${kycChecks([0, 3])}${b("btn btn-primary", "kyc-resubmit", "", t("重新提交", "Resubmit"), "style=\"margin-top:10px\"")}`)}`;
+  }
+  const step = S.page.kycStep;
+  const id = ID_TYPES.find((x) => x[0] === S.idType) || ID_TYPES[0];
+  let body = "";
+  if (step === 1) body = `<h4>${t("选择证件类型", "Choose ID")}</h4><div class="chips">${ID_TYPES.map((d) => `<button type="button" class="chip ${S.idType === d[0] ? "on" : ""}" data-act="idtype" data-arg="${d[0]}">${t(d[1], d[2])}</button>`).join("")}</div>${b("btn btn-primary", "kyc-next", "", t("下一步", "Next"))}`;
+  if (step === 2) body = `<h4>${t("拍摄证件", "Capture ID")}</h4>
+    <div class="shot">${S.kycShots.front ? t("正面已采集", "Front captured") : t("证件正面", "Front")}</div>${b("btn", "kyc-shot", "front", t("拍摄正面", "Capture front"))}
+    ${id[3] ? `<div class="shot">${S.kycShots.back ? t("反面已采集", "Back captured") : t("证件反面", "Back")}</div>${b("btn", "kyc-shot", "back", t("拍摄反面", "Capture back"))}` : `<p class="tiny">${t("护照只需正面。", "Passport needs the bio page only.")}</p>`}
+    ${b("btn btn-primary", "kyc-next", "", t("下一步", "Next"), "style=\"margin-top:8px\"")}`;
+  if (step === 3) body = `<h4>${t("活体检测", "Liveness")}</h4><p class="muted">${t("请正对光源，缓慢眨眼，再左右转头。", "Face the light, blink slowly, then turn your head.")}</p><div class="shot" style="min-height:140px">${S.kycShots.live ? t("活体检测通过", "Liveness passed") : t("等待开始", "Ready")}</div>${b("btn btn-primary", "kyc-live", "", S.kycShots.live ? t("下一步", "Next") : t("开始检测", "Start"))}`;
+  if (step === 4) body = `<h4>${t("人脸比对", "Face match")}</h4><p class="jack-amt" style="font-size:32px">98.4%</p><p class="tag tag-ok">${t("比对通过", "Match passed")}</p>${b("btn btn-primary", "kyc-next", "", t("下一步", "Next"), "style=\"margin-top:10px\"")}`;
+  if (step === 5) body = `<h4>${t("提交审核", "Submit")}</h4><p class="tiny">${t("以下 7 项已自动校验", "Seven automatic checks")}</p>${kycChecks()}${b("btn btn-primary", "kyc-submit", "", t("提交审核", "Submit for review"), "style=\"width:100%;margin-top:10px\"")}`;
+  return `<h3 class="screen-title">eKYC</h3>${steps(5, step)}${card(body)}`;
+}
+function viewKycStatus() {
+  const st = kycView();
+  const blocks = {
+    none: card(`<h4>${t("未认证", "Unverified")}</h4><p class="muted">${t("尚未提交 KYC。审核通过前不能进入首页、钱包或投注。", "KYC has not been submitted. Home, wallet, and play stay locked until approval.")}</p>${b("btn btn-primary", "go", "kyc", t("开始认证", "Start verification"), "data-from=\"product\"")}`),
+    pending: card(`<h4>${t("审核中", "In review")}</h4><span class="tag tag-warn">${t("审核中", "In review")}</span><p>${t("材料已送入 KYC。预计 5 个工作日内完成。审核通过前可以登录，但进不了首页、钱包或投注。", "Materials are in KYC review. Expected within 5 business days. You can stay signed in, but Home, Wallet, and Play stay locked.")}</p>${S.journey && S.flowOffer ? b("btn btn-primary", "flow-unlock", "", t("审核已通过，去首页", "Approved. Go to home"), "style=\"width:100%;margin-top:10px\"") : ""}${S.journey && !S.flowOffer ? b("btn btn-primary", "go", "kyc", t("去认证", "Verify identity"), "data-from=\"product\" style=\"margin-top:10px\"") : ""}`),
+    approved: card(`<h4>${t("已通过", "Approved")}</h4><span class="tag tag-ok">${t("已通过", "Approved")}</span><p class="muted">${t("通过时间 2026-10-07 15:02 UTC+8。可以投注与提现。", "Approved 2026-10-07 15:02 UTC+8. Play and withdrawal are open.")}</p>`),
+    rejected: card(`<h4>${t("被拒绝", "Rejected")}</h4><span class="tag tag-rose">${t("被拒绝", "Rejected")}</span><p>${t("原因：证件照片反光导致 OCR 失败。", "Reason: glare on the ID caused OCR to fail.")}</p>${b("btn btn-primary", "go", "kyc", t("重新提交", "Resubmit"), "data-from=\"product\"")}`)
+  };
+  return `<h3 class="screen-title">${t("实名状态", "Identity status")}</h3>${blocks[st] || blocks.none}`;
+}
+function freqOf(id) {
+  if (HOT[id]) return HOT;
+  const hot = [[1, 20], [7, 16], [12, 14], [21, 13], [30, 11], [42, 10]];
+  const cold = [[2, 3], [8, 4], [15, 4], [19, 5], [27, 5], [33, 6]];
+  return { hot, cold };
+}
+function viewHome() {
+  const mode = S.page.home;
+  if (mode === "loading") return `<h3 class="screen-title">${t("首页", "Home")}</h3>${[1, 2, 3, 4].map(() => `<div class="sk"></div>`).join("")}`;
+  if (mode === "empty") return `<h3 class="screen-title">${t("首页", "Home")}</h3><div class="empty"><div class="empty-orb"></div><p>${t("当前没有在售游戏", "No games on sale")}</p></div>`;
+  if (mode === "lucky") {
+    const g = gameBy(S.gameId);
+    const pack = g.kind === "lotto" ? (HOT[g.id] || { u658: freqOf().hot, cold: freqOf().cold }) : null;
+    const hot = (HOT[g.id] ? HOT.u658 : freqOf().hot);
+    const cold = HOT.cold || freqOf().cold;
+    const useHot = HOT[g.id] ? HOT[g.id] : hot;
+    const useCold = HOT.cold;
+    const bars = (arr, color) => arr.map(([n, p]) => `<div class="row"><span class="mono" style="width:28px">${n}</span><div class="bar grow"><i style="width:${p * 4}%"></i></div><span class="tiny">${p}%</span></div>`).join("");
+    return `<button type="button" class="link" data-act="home-main">${t("返回首页", "Back to home")}</button>
+      <h3 class="screen-title">${t("幸运选号", "Lucky pick")}</h3>
+      <p class="tiny">${t("各号码历史开出次数占比。可以把高频或低频号码直接加入投注。", "Historical hit share. Add hot or cold numbers straight into a play slip.")}</p>
+      <div class="chips">${GAMES.filter((x) => x.kind === "lotto").map((x) => `<button type="button" class="chip ${S.gameId === x.id ? "on" : ""}" data-act="set-game" data-arg="${x.id}">${gname(x)}</button>`).join("")}</div>
+      ${card(`<h4>${t("高频", "Hot")}</h4><div class="bars">${bars(useHot)}</div>`)}
+      ${card(`<h4>${t("低频", "Cold")}</h4><div class="bars">${bars(useCold)}</div>`)}
+      <div class="row">${b("btn btn-primary grow", "lucky-add", "hot", t("加入高频", "Add hot"))}${b("btn grow", "lucky-add", "cold", t("加入低频", "Add cold"))}</div>`;
+  }
+  if (mode === "outlets" || mode === "outletsLoading" || mode === "outletsEmpty") {
+    let body = `<button type="button" class="link" data-act="home-main">${t("返回首页", "Back to home")}</button><h3 class="screen-title">${t("PCSO 网点定位", "PCSO branches")}</h3>`;
+    if (mode === "outletsLoading") body += [1, 2, 3].map(() => `<div class="sk"></div>`).join("");
+    else if (mode === "outletsEmpty") body += `<div class="empty"><div class="empty-orb"></div><p>${t("附近暂无网点", "No branches nearby")}</p></div>`;
+    else body += OUTLETS.map((o) => card(`<h4>${o[0]}</h4><p class="muted">${o[1]}</p><p class="tiny">${o[2]} · ${o[3]} UTC+8</p>`)).join("");
+    return body;
+  }
+  const slides = top3().map((g) => `<div class="slide"><div class="hero hero-jack">
+      <span class="pill-gold">${gname(g)}</span>
+      <p class="tiny" style="margin-top:8px">${t("头奖", "Jackpot")} · ${t("下一期", "Next")} ${g.draw} UTC+8</p>
+      <div class="jack-amt">₱${g.pool.toLocaleString("en-US")}</div>
+      <p class="tiny">${t("头奖估算定期更新", "Jackpot estimate refreshes on a schedule")}</p>
+      ${decoBalls()}
+    </div></div>`).join("");
+  const annSlides = ANNS.map((a, i) => `<div class="slide"><button type="button" class="card" style="width:100%;text-align:left" data-act="ann-open" data-arg="${i}"><p class="tiny">${t("公告", "Notice")}</p><h4>${t(a.zt, a.et)}</h4><p class="muted">${t(a.zs, a.es)}</p></button></div>`).join("");
+  return `
+    <div class="slider"><div class="track" id="jackTrack" style="transform:translateX(-${S.jackIndex * 100}%)">${slides}</div></div>
+    <div class="dots">${top3().map((_, i) => `<button type="button" data-act="jackdot" data-arg="${i}" class="${i === S.jackIndex ? "on" : ""}"></button>`).join("")}</div>
+    <div class="row" style="margin:14px 0 6px"><h3 class="screen-title" style="margin:0">${t("公告", "Announcements")}</h3><span class="tiny">${t("来自管理端公告管理推送", "Pushed from announcement admin")}</span></div>
+    <div class="slider" id="annSlider"><div class="track" id="annTrack" style="transform:translateX(-${S.annIndex * 100}%)">${annSlides}</div></div>
+    <div class="row" style="justify-content:space-between;margin-top:6px">
+      ${b("btn", "ann-prev", "", "‹")}<div class="dots">${ANNS.map((_, i) => `<button type="button" data-act="anndot" data-arg="${i}" class="${i === S.annIndex ? "on" : ""}"></button>`).join("")}</div>${b("btn", "ann-next", "", "›")}
+    </div>
+    <h3 class="screen-title" style="margin-top:16px">${t("在售游戏", "On sale")}</h3>
+    <div class="games">${GAMES.map((g, i) => `<button type="button" class="card game" data-act="pick-game" data-arg="${g.id}"><div class="ball ${["c1", "c2", "c3", "c4", "c5"][i % 5]}">${g.kind === "lotto" ? "6" : g.digits}</div><div class="grow"><b style="color:#fff">${gname(g)}</b><div class="tiny">${t(g.freqZh, g.freqEn)} · ${t("下期", "Next")} ${g.draw} UTC+8</div><div class="tiny">${t("单注", "Stake")} ₱${g.price}${g.kind === "lotto" ? " · " + t("奖池", "Pool") + " ₱" + g.pool.toLocaleString("en-US") : ""}</div></div></button>`).join("")}</div>
+    <div class="quick" style="margin-top:12px">
+      ${b("btn", "results-history", "", t("开奖历史记录", "Draw history"))}
+      ${b("btn", "home-lucky", "", t("幸运选号", "Lucky pick"))}
+      ${b("btn", "home-outlets", "", t("PCSO 网点定位", "PCSO branches"))}
+    </div>
+    <div class="card phase2"><b>${t("直播流", "Live stream")}</b> <span class="tag tag-muted">[二期]</span><p class="tiny">${t("播放器不在本期范围。", "No player in this phase.")}</p></div>`;
+}
+function viewBet() {
+  const g = gameBy(S.gameId);
+  if (S.page.bet === "processing") return `<h3 class="screen-title">${t("投注", "Play")}</h3>${card(`<div class="spin"></div><p style="text-align:center;color:#fff;font-weight:800">${t("处理中，请勿重复提交", "Processing. Do not submit again.")}</p><p class="muted" style="text-align:center">${t("正在等待投注登记回执。", "Waiting for the registration receipt.")}</p>`)}`;
+  if (S.page.bet === "done") return `<h3 class="screen-title">${t("投注", "Play")}</h3>${card(`<h4>${t("登记成功", "Registered")}</h4><p class="tiny">${t("票据号", "Ticket numbers")}</p>${(S.issued.length ? S.issued : ["IL-20261010-11001"]).map((n) => `<div class="mono" style="color:var(--cyan);margin:4px 0">${n}</div>`).join("")}${b("btn", "bet-reset", "", t("继续选号", "Pick again"), "style=\"margin-top:8px\"")}`)}`;
+  const maxP = g.kind === "lotto" ? 12 : 90;
+  let picker = "";
+  if (S.pickMode === "quick") picker = `<p class="muted">${t("机选一注", "Quick pick")}: ${(S.picks.join(" ") || "—")}</p>${b("btn", "quickpick", "", t("换一注", "Reshuffle"))}`;
+  else if (g.kind === "lotto") picker = `<div class="nums">${Array.from({ length: g.max }, (_, i) => i + 1).map((n) => `<button type="button" class="nbtn ${S.picks.includes(n) ? "on" : ""}" data-act="num" data-arg="${n}">${n}</button>`).join("")}</div>`;
+  else picker = `<p class="mono" style="font-size:22px;color:#fff;letter-spacing:.2em">${Array.from({ length: g.digits }, (_, i) => S.picks[i] ?? "·").join(" ")}</p><div class="nums" style="grid-template-columns:repeat(5,1fr)">${Array.from({ length: 10 }, (_, n) => `<button type="button" class="nbtn" data-act="digit" data-arg="${n}">${n}</button>`).join("")}</div>`;
+  return `<h3 class="screen-title">${t("投注", "Play")}</h3>
+    <div class="chips">${GAMES.map((x) => `<button type="button" class="chip ${S.gameId === x.id ? "on" : ""}" data-act="set-game" data-arg="${x.id}">${gname(x)}</button>`).join("")}</div>
+    <div class="chips">
+      <button type="button" class="chip ${S.pickMode === "manual" ? "on" : ""}" data-act="pick-mode" data-arg="manual">${t("手动", "Manual")}</button>
+      <button type="button" class="chip ${S.pickMode === "quick" ? "on" : ""}" data-act="pick-mode" data-arg="quick">${t("机选", "Quick pick")}</button>
+    </div>
+    ${card(`<div class="row"><span class="muted">${t("选号", "Numbers")}</span><span class="tiny">${g.kind === "lotto" ? t("至少选 ", "Pick at least ") + g.pick : g.digits + t(" 位", " digits")}</span></div>${picker}<div class="row" style="margin-top:8px">${b("btn", "quickpick", "", t("机选一注", "Quick pick"))}${b("btn", "clear-picks", "", t("清空", "Clear"))}</div>`)}
+    <div class="grid2">
+      ${card(`<label class="f">${t("倍数", "Multiple")}</label><input data-field="mult" type="number" min="1" value="${esc(S.form.mult || 1)}" />`)}
+      ${card(`<label class="f">${t("期数", "Draws")}</label><input data-field="periods" type="number" min="1" max="${maxP}" value="${esc(S.form.periods || 1)}" /><p class="tiny">${g.kind === "lotto" ? t("乐透最多 12 期", "Lotto: up to 12 draws") : t("数字类最多 90 期", "Digits: up to 90 draws")}</p>`)}
+    </div>
+    ${card(`<h4>${t("结算明细", "Settlement")}</h4><div id="settleBox">${settleHtml()}</div>${b("btn btn-primary", "submit-bet", "", t("提交投注", "Submit play"), "style=\"width:100%;margin-top:12px\"")}`)}`;
+}
+function viewResults() {
+  if (S.page.results === "loading") return `<h3 class="screen-title">${t("开奖结果", "Results")}</h3>${[1, 2, 3].map(() => `<div class="sk"></div>`).join("")}`;
+  if (S.page.results === "empty") return `<h3 class="screen-title">${t("开奖结果", "Results")}</h3><div class="empty"><div class="empty-orb"></div><p>${t("该期暂无开奖", "No result for this draw")}</p></div>`;
+  const hist = S.page.resultsMode === "history";
+  const head = `<div class="chips"><button type="button" class="chip ${!hist ? "on" : ""}" data-act="res-mode" data-arg="query">${t("按期查询", "By draw")}</button><button type="button" class="chip ${hist ? "on" : ""}" data-act="res-mode" data-arg="history">${t("历史列表", "History")}</button></div>`;
+  if (hist) {
+    const rows = GAMES.map((g) => {
+      const d = DRAWS[g.id];
+      return card(`<div class="row"><b class="grow" style="color:#fff">${gname(g)}</b><span class="tiny">${d.issue}</span></div><div class="row" style="margin-top:8px;flex-wrap:wrap">${d.nums.map((n, i) => colorBall(n, i)).join("")}</div><p class="tiny">2026-10-09 21:00 UTC+8</p>`);
+    }).join("");
+    return `<h3 class="screen-title">${t("开奖结果", "Results")}</h3>${head}${rows}`;
+  }
+  const g = gameBy(S.resGame);
+  const d = DRAWS[g.id];
+  const tiers = g.kind === "lotto"
+    ? [[t("头奖", "Jackpot"), t("6 个号码全中", "Match 6"), d.roll], [t("二奖", "2nd"), t("5 个号码", "Match 5"), "₱80,000"], [t("三奖", "3rd"), t("4 个号码", "Match 4"), "₱2,000"], [t("四奖", "4th"), t("3 个号码", "Match 3"), "₱100"]]
+    : [[t("一奖", "1st"), t("号码及顺序全中", "Exact order"), "₱4,000"]];
+  return `<h3 class="screen-title">${t("开奖结果", "Results")}</h3>${head}
+    ${card(`<label class="f">${t("游戏", "Game")}</label><select data-field="resGame" data-rerender="1">${GAMES.map((x) => `<option value="${x.id}" ${x.id === S.resGame ? "selected" : ""}>${gname(x)}</option>`).join("")}</select>
+      <label class="f">${t("期号", "Draw no.")}</label><select data-field="resIssue"><option>2026-1009-3</option><option>2026-1008-2</option><option>2026-1007-1</option></select>`)}
+    ${card(`<p class="tiny">${d.issue} · 2026-10-09 21:00 UTC+8</p><div class="row" style="flex-wrap:wrap;margin:8px 0">${d.nums.map((n, i) => colorBall(n, i)).join("")}</div>
+      ${g.kind === "lotto" ? `<p class="muted">${t("本期无人中头奖，滚入下一期", "No jackpot winner. Rolls to the next draw")} ${d.roll}</p>` : ""}
+      <h4 style="margin-top:10px">${t("中奖等级对照", "Prize tiers")}</h4>
+      <table><thead><tr><th>${t("等级", "Tier")}</th><th>${t("条件", "Rule")}</th><th>${t("奖金", "Prize")}</th></tr></thead><tbody>${tiers.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</tbody></table>`)}`;
+}
+function viewTickets() {
+  const st = S.page.tickets;
+  const tabs = `<div class="chips">${TICKET_TABS.map(([k, zh, en]) => `<button type="button" class="chip ${st === k ? "on" : ""}" data-act="ticket-tab" data-arg="${k}">${t(zh, en)}</button>`).join("")}</div>`;
+  if (st === "loading") return `<h3 class="screen-title">${t("我的彩票", "My tickets")}</h3>${tabs}${[1, 2, 3].map(() => `<div class="sk"></div>`).join("")}`;
+  if (st === "empty") return `<h3 class="screen-title">${t("我的彩票", "My tickets")}</h3>${tabs}<div class="empty"><div class="empty-orb"></div><p>${t("还没有彩票", "No tickets yet")}</p></div>${retention()}`;
+  const flow = S.journey && S.flowTicket && S.flowTicket.status === st ? (() => {
+    const tk = S.flowTicket;
+    const g = gameBy(tk.game);
+    const label = TICKET_TABS.find((x) => x[0] === tk.status);
+    const code = tk.status === "claim" ? `<p class="mono" style="color:var(--gold);font-size:18px;margin:6px 0">${tk.code}</p>${b("btn btn-primary", "flow-claim", "", t("柜台核验", "Counter check"), "style=\"margin-top:6px\"")}` : "";
+    const used = tk.status === "claimed" ? `<p class="mono" style="color:var(--muted);font-size:16px;margin:6px 0"><s>${tk.codeUsed}</s></p><p class="muted">${t("申领码已失效。奖金已记入兑奖流水。", "Claim code is no longer valid. The prize is in the claim ledger.")}</p>${b("btn", "flow-ledger", "", t("查看兑奖流水", "Open prize claim"), "style=\"margin-top:6px\"")}` : "";
+    return card(`<div class="row"><b class="grow" style="color:#fff">${gname(g)}</b><span class="tag tag-warn">${t(label[1], label[2])}</span></div>
+      <p class="tiny">${tk.id} · ${tk.issue} · ${tk.time} UTC+8</p>
+      <div class="row" style="flex-wrap:wrap;margin:8px 0">${String(tk.nums).split(" ").map((n, i) => colorBall(n, i)).join("")}</div>
+      <p class="tiny">${t("金额", "Amount")} ${peso(tk.amt)}${tk.prize ? " · " + t("奖金", "Prize") + " " + peso(tk.prize) : ""}</p>${code}${used}`);
+  })() : "";
+  const list = flow + TICKETS.filter((tk) => tk.status === st).map((tk) => {
+    const g = gameBy(tk.game);
+    const label = TICKET_TABS.find((x) => x[0] === tk.status);
+    return card(`<div class="row"><b class="grow" style="color:#fff">${gname(g)}</b>${kycBadge(tk.status === "void" ? "rejected" : tk.status === "claimed" ? "approved" : tk.status === "claim" ? "pending" : "none").replace(/>[^<]+</, ">" + t(label[1], label[2]) + "<")}</div>
+      <p class="tiny">${tk.id} · ${tk.issue} · ${tk.time} UTC+8</p>
+      <div class="row" style="flex-wrap:wrap;margin:8px 0">${String(tk.nums).split(" ").map((n, i) => colorBall(n, i)).join("")}</div>
+      <p class="tiny">${t("金额", "Amount")} ${peso(tk.amt)}${tk.prize ? " · " + t("奖金", "Prize") + " " + peso(tk.prize) : ""}</p>
+      ${tk.code ? `<p class="mono" style="color:var(--amber);font-size:18px;margin:6px 0">${tk.code}</p>` : ""}
+      ${tk.status === "void" ? `<p class="muted">${t("不开奖日调整导致作废，已自动退款", "Voided after a non-draw day change. Refunded automatically.")}</p>` : ""}`);
+  }).join("");
+  const claimNote = st === "claim" ? card(`<p>${t("申领码只在登录后的这个页面展示，不通过短信或邮箱发送。", "The claim code is shown only on this signed-in page. It is not sent by SMS or email.")}</p><p>${t("柜台核验通过后，彩票状态自动变为「中奖已申领」，申领码随之失效。核验通过本身就是失效触发点。超过有效期还没申领的，可在 App 内重新生成。", "After the counter verifies the code, the ticket becomes claimed and the code stops working. Verification itself is what invalidates it. If it lapses unused, you can generate a new one in the app.")}</p>`) : "";
+  return `<h3 class="screen-title">${t("我的彩票", "My tickets")}</h3>${tabs}${list}${claimNote}${retention()}`;
+}
+function retention() { return `<p class="tiny">${t("普通彩票保存 30 天，中奖彩票自开奖日起保存 1 年零 1 天。", "Regular tickets are kept 30 days. Winning tickets are kept 1 year and 1 day from the draw date.")}</p>`; }
+function viewWallet() {
+  const locked = S.lockUntil > Date.now();
+  if (S.page.wallet === "deposit") return depositView();
+  if (S.page.wallet === "withdraw") return locked ? lockView() : withdrawView();
+  return `<h3 class="screen-title">${t("钱包", "Wallet")}</h3>
+    <div class="grid2">
+      ${card(`<p class="tiny">${t("投注余额", "Stake balance")}</p><div style="font-size:22px;color:#fff">${money(S.bal.bet)}</div>`)}
+      ${card(`<p class="tiny">${t("奖金余额", "Prize balance")}</p><div style="font-size:22px;color:var(--ok)">${money(S.bal.prize)}</div>`)}
+    </div>
+    <div class="row" style="margin-bottom:8px">${eyeBtn()}${S.reveal ? `<span class="tiny">${t("30 秒后自动隐藏", "Hides again after 30 seconds")}</span>` : ""}</div>
+    <p class="muted">${t("扣款顺序：先扣投注余额，不足部分从奖金余额扣。只有奖金余额能提现。", "Debit order: stake balance first, then prize balance. Only the prize balance can be withdrawn.")}</p>
+    <div class="row" style="margin-top:10px">${b("btn btn-primary grow", "deposit", "", t("充值", "Top up"))}${locked ? "" : b("btn grow", "withdraw", "", t("提现", "Withdraw"))}</div>
+    ${locked ? lockView() : ""}`;
+}
+function lockView() {
+  return card(`<h4 style="color:var(--rose)">${t("提现已锁定", "Withdrawal locked")}</h4><p>${t("MFA 连续失败 3 次，提现功能自动锁定 30 分钟。", "Three MFA failures in a row. Withdrawal locks for 30 minutes.")}</p><p class="jack-amt" style="font-size:28px" id="lockLeft">${fmtLeft(S.lockUntil - Date.now())}</p><button type="button" class="btn" disabled>${t("锁定期间不能重新发起", "You cannot start a new withdrawal")}</button>`);
+}
+function depositView() {
+  const step = S.page.depStep;
+  if (step === 3) return `<h3 class="screen-title">${t("充值", "Top up")}</h3>${card(`<span class="tag tag-ok">${t("成功", "Success")}</span><p>${t("已进入投注余额。", "Credited to the stake balance.")}</p><p class="mono">DP-${Date.now().toString().slice(-6)}</p>${b("btn btn-primary", "wallet-main", "", t("完成", "Done"), "style=\"margin-top:8px\"")}`)}`;
+  if (step === 2) return `<h3 class="screen-title">${t("确认充值", "Confirm top-up")}</h3>${card(`<p>${peso(Number(S.form.depAmt) || 0)}</p><p class="tiny">${esc(S.form.depCh || "GCash")} · 2026-10-10 UTC+8</p>${b("btn btn-primary", "dep-confirm", "", t("确认", "Confirm"), "style=\"width:100%;margin-top:8px\"")}`)}`;
+  return `<h3 class="screen-title">${t("充值", "Top up")}</h3>${card(`<label class="f">${t("金额", "Amount")}</label><input data-field="depAmt" type="number" value="${esc(S.form.depAmt || "")}" />
+    <div class="chips">${[100, 500, 1000, 5000].map((n) => `<button type="button" class="chip" data-act="dep-amt" data-arg="${n}">₱${n.toLocaleString("en-US")}</button>`).join("")}</div>
+    <label class="f">${t("渠道", "Channel")}</label><select data-field="depCh"><option>GCash</option><option>Maya</option><option>BDO</option></select>
+    ${b("btn btn-primary", "dep-next", "", t("继续", "Continue"), "style=\"width:100%;margin-top:12px\"")}`)}
+    <button type="button" class="link" data-act="wallet-main">${t("返回钱包", "Back to wallet")}</button>`;
+}
+function withdrawView() {
+  const step = S.page.wdStep;
+  const dest = DESTS.find((d) => d.id === S.dest) || DESTS[0];
+  if (step === 4) return `<h3 class="screen-title">${t("提现", "Withdraw")}</h3>${card(`<span class="tag tag-ok">${t("已提交", "Submitted")}</span><p>${peso(Number(S.form.wdAmt) || 0)} → ${dest.name}</p><p class="tiny">${t(dest.zh, dest.en)}</p><p class="mono">WD-${Date.now().toString().slice(-6)}</p>${b("btn btn-primary", "wallet-main", "", t("完成", "Done"), "style=\"margin-top:8px\"")}`)}`;
+  if (step === 3) return `<h3 class="screen-title">${t("确认提现", "Confirm withdrawal")}</h3>${card(`<div class="check"><span>${t("金额", "Amount")}</span><b>${peso(Number(S.form.wdAmt) || 0)}</b></div><div class="check"><span>${t("到账目的地", "Destination")}</span><b>${dest.name} ${dest.mask}</b></div><div class="check"><span>${t("预计到账", "Arrival")}</span><b>${t(dest.zh, dest.en)}</b></div>${b("btn btn-primary", "wd-confirm", "", t("确认提现", "Confirm"), "style=\"width:100%;margin-top:12px\"")}`)}`;
+  if (step === 2) {
+    return `<h3 class="screen-title">${t("提现验证", "Withdrawal check")}</h3>${card(`<p>${t("每一笔提现都要重新进行短信 OTP 验证，不论是否刚刚登录、不论是否常用设备，与金额大小无关。", "Every withdrawal needs a fresh SMS OTP, whether you just signed in, whether this is a usual device, and regardless of amount.")}</p>${otpBoxes("withdraw")}<p class="tiny">${t("剩余可失败次数", "Failures left")}: ${Math.max(0, 3 - S.wdFails)}</p>${b("btn btn-primary", "wd-verify", "", t("验证", "Verify"), "style=\"width:100%\"")}${resendRow()}`)}`;
+  }
+  return `<h3 class="screen-title">${t("提现", "Withdraw")}</h3>${card(`<p class="tiny">${t("可提现（奖金余额）", "Withdrawable (prize balance)")} ${money(S.bal.prize)}</p>
+    <label class="f">${t("提现金额", "Amount")}</label><input data-field="wdAmt" type="number" value="${esc(S.form.wdAmt || "")}" />
+    <label class="f">${t("提现目的地", "Destination")}</label>
+    ${DESTS.map((d) => `<button type="button" class="chip ${S.dest === d.id ? "on" : ""}" data-act="dest" data-arg="${d.id}">${d.name} ${d.mask}</button>`).join(" ")}
+    ${b("btn btn-primary", "wd-next", "", t("继续", "Continue"), "style=\"width:100%;margin-top:12px\"")}`)}
+    <button type="button" class="link" data-act="wallet-main">${t("返回钱包", "Back to wallet")}</button>`;
+}
+function viewPaybind() {
+  const mode = S.page.paybind;
+  const tag = `<p><span class="tag tag-warn">[一期为聚合商沙箱环境，生产对接二期]</span></p>`;
+  if (mode === "checking") return `<h3 class="screen-title">${t("绑定支付账户", "Link payout account")}</h3>${tag}${card(`<div class="spin"></div><p style="text-align:center">${t("正在核验户名与实名是否一致", "Checking the account name against your legal name")}</p>`)}`;
+  if (mode === "bound") return `<h3 class="screen-title">${t("绑定支付账户", "Link payout account")}</h3>${tag}${card(DESTS.filter((d) => S.bound.includes(d.id)).map((d) => `<div class="check"><span>${d.name}</span><span class="tiny">${d.mask}</span></div>`).join("") || `<p class="muted">${t("尚未绑定", "Nothing linked yet")}</p>`)}${b("btn", "pay-reset", "", t("继续绑定", "Link another"), "style=\"margin-top:8px\"")}`;
+  return `<h3 class="screen-title">${t("绑定支付账户", "Link payout account")}</h3>${tag}
+    <div class="chips">${["GCash", "Maya", "BDO"].map((n) => `<button type="button" class="chip ${S.payChannel === n ? "on" : ""}" data-act="pay-ch" data-arg="${n}">${n === "BDO" ? t("银行卡", "Bank") + " · BDO" : n}</button>`).join("")}</div>
+    ${card(`<h4>${esc(S.payChannel)}</h4><label class="f">${t("账户号码", "Account number")}</label><input data-field="acct" value="${esc(S.form.acct || "")}" /><label class="f">${t("户名（将与实名核验）", "Account name (checked against your legal name)")}</label><input data-field="holder" value="${esc(S.form.holder || "")}" placeholder="Juan Dela Cruz" />${b("btn btn-primary", "bind", "", t("提交核验", "Submit for check"), "style=\"width:100%;margin-top:10px\"")}`)}`;
+}
+function viewLedger() {
+  const tabs = `<div class="chips">${LEDGER_TABS.map(([k, zh, en]) => `<button type="button" class="chip ${S.page.ledgerTab === k ? "on" : ""}" data-act="led-tab" data-arg="${k}">${t(zh, en)}</button>`).join("")}</div>`;
+  if (S.page.ledger === "loading") return `<h3 class="screen-title">${t("交易流水", "Transactions")}</h3>${tabs}${[1, 2, 3].map(() => `<div class="sk"></div>`).join("")}`;
+  if (S.page.ledger === "empty") return `<h3 class="screen-title">${t("交易流水", "Transactions")}</h3>${tabs}<div class="empty"><div class="empty-orb"></div><p>${t("暂无流水", "No transactions")}</p></div>`;
+  const rows = S.ledgerExtra.concat(LEDGER).filter((r) => r.type === S.page.ledgerTab);
+  return `<h3 class="screen-title">${t("交易流水", "Transactions")}</h3>${tabs}${rows.map((r) => card(`<div class="row"><b class="grow">${signed(r.amt)}</b><span class="tag ${r.statusZh === "失败" ? "tag-rose" : r.statusZh === "处理中" || r.statusZh === "待申领" ? "tag-warn" : "tag-ok"}">${t(r.statusZh, r.statusEn)}</span></div><p class="tiny">${r.time} UTC+8 · ${r.ref}</p>`)).join("") || `<div class="empty"><p>${t("这一类暂无记录", "Nothing in this type")}</p></div>`}`;
+}
+function viewAccount() {
+  const grads = ["linear-gradient(135deg,#22d3ee,#7c3aed)", "linear-gradient(135deg,#f59e0b,#e11d48)", "linear-gradient(135deg,#34d399,#0891b2)", "linear-gradient(135deg,#818cf8,#22d3ee)"];
+  const legal = S.reveal ? "Juan Dela Cruz" : "Ju**D**";
+  return `<h3 class="screen-title">${t("账户", "Account")}</h3>
+    <button type="button" class="card menu-row" data-act="go" data-arg="profile" data-from="product"><span class="row"><span class="avatar" style="background:${grads[S.avatar % 4]}">${esc((S.nick || "L").slice(0, 1))}</span><span><b style="color:#fff">${esc(S.nick)}</b><br><span class="tiny">${t("编辑资料", "Edit profile")}</span></span></span><span>›</span></button>
+    <button type="button" class="card menu-row" data-act="go" data-arg="kycstatus" data-from="product"><span>${t("实名状态", "Identity status")} ${kycBadge(sessionKyc())}</span><span>›</span></button>
+    ${card(`<div class="row"><div class="grow"><p class="tiny">${t("姓名", "Name")}</p><b style="color:#fff">${legal}</b></div>${eyeBtn()}</div>
+      ${S.reveal ? `<p class="tiny">${t("30 秒后自动隐藏", "Hides again after 30 seconds")}</p>` : ""}
+      <div class="grid2" style="margin-top:8px"><div><p class="tiny">${t("投注余额", "Stake balance")}</p><div>${money(S.bal.bet)}</div></div><div><p class="tiny">${t("奖金余额", "Prize balance")}</p><div>${money(S.bal.prize)}</div></div></div>
+      <div class="row" style="margin-top:10px">${b("btn btn-primary grow", "deposit", "", t("入金", "Top up"))}${b("btn grow", "withdraw", "", t("提现", "Withdraw"))}</div>`)}
+    <button type="button" class="menu-row" data-act="go" data-arg="ledger" data-from="product"><span>${t("交易记录", "Transactions")}</span><span>›</span></button>
+    <button type="button" class="menu-row" data-act="go" data-arg="rg" data-from="product"><span>PlaySafe</span><span>›</span></button>
+    <button type="button" class="menu-row" data-act="go" data-arg="help" data-from="product"><span>${t("帮助", "Help")}</span><span>›</span></button>
+    <button type="button" class="menu-row" data-act="go" data-arg="security" data-from="product"><span>${t("账号安全", "Account security")}</span><span>›</span></button>`;
+}
+function viewProfile() {
+  const grads = ["linear-gradient(135deg,#22d3ee,#7c3aed)", "linear-gradient(135deg,#f59e0b,#e11d48)", "linear-gradient(135deg,#34d399,#0891b2)", "linear-gradient(135deg,#818cf8,#22d3ee)"];
+  return `<h3 class="screen-title">${t("资料修改", "Edit profile")}</h3>
+    ${card(`<div class="row"><span class="avatar" style="background:${grads[S.avatar % 4]}">${esc((S.nick || "L").slice(0, 1))}</span>${b("btn", "avatar", "", t("更换头像", "Change avatar"))}</div>
+      <label class="f">${t("昵称", "Nickname")}</label><input data-field="nick" value="${esc(S.nick)}" />
+      <label class="f">${t("绑定邮箱", "Email")}</label><input data-field="pemail" value="${esc(S.form.pemail || "juan@example.com")}" />
+      <label class="f">${t("绑定手机号", "Mobile")}</label>
+      <div class="row"><input data-field="pphone" value="${esc(S.form.pphone || "09••••831")}" />${b("btn", "send-profile-otp", "", "OTP_TXN")}</div>
+      <p class="tiny">${t("改手机号需走 OTP_TXN 模板验证。", "Changing the mobile number uses the OTP_TXN template.")}</p>
+      ${S.profileOtpSent ? otpBoxes("profile") + resendRow() : ""}
+      ${b("btn btn-primary", "save-profile", "", t("保存", "Save"), "style=\"margin-top:8px\"")}`)}`;
+}
+function viewNotice() {
+  if (S.page.notice === "loading") return `<h3 class="screen-title">${t("通知", "Notifications")}</h3>${[1, 2, 3].map(() => `<div class="sk"></div>`).join("")}`;
+  if (S.page.notice === "empty") return `<h3 class="screen-title">${t("通知", "Notifications")}</h3><div class="empty"><div class="empty-orb"></div><p>${t("没有通知", "No notifications")}</p></div>`;
+  return `<h3 class="screen-title">${t("通知", "Notifications")}</h3>
+    <p class="tiny">${t("理性娱乐提醒间隔固定 10 分钟。该值是后台配置的只读参数，玩家不可调。", "The rational-play reminder interval is fixed at 10 minutes. It is a read-only admin parameter. Players cannot change it.")}</p>
+    ${b("btn", "reality", "", t("预览现实状态提醒", "Preview reality check"), "style=\"margin:8px 0\"")}
+    ${NOTICES.map((n) => card(`<div class="row"><b class="grow" style="color:#fff">${t(n.zt, n.et)}</b>${n.unread && !S.unreadCleared ? `<span class="tag tag-rose">${t("未读", "New")}</span>` : ""}</div><p class="muted">${t(n.zd, n.ed)}</p>`)).join("")}`;
+}
+function viewRg() {
+  const mode = S.page.rg;
+  const termName = { "3m": t("3 个月", "3 months"), "6m": t("6 个月", "6 months"), "1y": t("1 年", "1 year"), perm: t("永久", "Permanent") };
+  let banner = "";
+  if (mode === "cooloff") banner = card(`<span class="tag tag-warn">${t("冷静期中", "Cool-off active")}</span><p>${t("期间禁止投注与充值，到期自动解除，不需要审批。", "Play and top-up are blocked. It lifts automatically. No approval is required.")}</p><p class="tiny">${t("预计解除", "Lifts")} 2026-10-17 00:00 UTC+8</p>`);
+  if (mode === "excluded" || mode === "permanent") banner = card(`<span class="tag tag-rose">${t("自主排除中", "Self-excluded")} · ${mode === "permanent" ? termName.perm : termName[S.excludeTerm] || termName["6m"]}</span>
+    <p>${t("排除期内无法登录投注、充值，仅能查看余额、提取已到账的中奖奖金、访问帮助资源。", "You cannot sign in to play or top up. You can view the balance, withdraw prizes already credited, and open help.")}</p>
+    <p class="tiny">${t("排除期间停止推送营销类通知，交易通知与 KYC、账号相关的法定通知照常发送。", "Marketing notices stop. Transaction notices and statutory KYC or account notices still send.")}</p>
+    ${mode === "permanent" ? `<p>${t("永久排除没有恢复入口。", "Permanent exclusion has no restore path.")}</p>` : `<h4>${t("恢复申请", "Restore request")}</h4><p class="tiny">${t("定期排除到期不自动恢复。需重新进行身份核验，勾选确认，并等待 PCSO 人员审批。", "A timed exclusion does not lift by itself. Identity must be checked again, the risk box ticked, and PCSO staff must approve.")}</p>
+      <label class="f">${t("证件号码", "ID number")}</label><input data-field="restoreId" />
+      <label class="tiny" style="display:flex;gap:8px;margin:8px 0"><input type="checkbox" data-field="risk" ${S.form.risk ? "checked" : ""} style="width:auto" />${t("我已了解风险", "I understand the risks")}</label>
+      ${b("btn btn-primary", "restore", "", t("提交恢复申请", "Submit restore request"))}`}`);
+  const lim = (key, label) => `<label class="f">${label}</label><input data-field="lim-${key}" type="number" value="${esc(S.limits[key])}" />`;
+  return `<h3 class="screen-title">${t("责任博彩", "Responsible gaming")}</h3>
+    <p><span class="tag tag-warn">[后台参数，以 PCSO 规定为准]</span></p>
+    ${banner}
+    ${card(`<h4>${t("充值限额", "Top-up limits")}</h4>
+      ${lim("depD", t("每日（默认 ₱5,000，范围 ₱500–20,000）", "Daily (default ₱5,000, range ₱500–20,000)"))}
+      ${lim("depW", t("每周（默认 ₱20,000）", "Weekly (default ₱20,000)"))}
+      ${lim("depM", t("每月（默认 ₱60,000）", "Monthly (default ₱60,000)"))}
+      <h4 style="margin-top:12px">${t("投注限额", "Play limits")}</h4>
+      ${lim("betD", t("每日（默认 ₱5,000，范围 ₱500–20,000）", "Daily (default ₱5,000, range ₱500–20,000)"))}
+      ${lim("betW", t("每周（默认 ₱20,000）", "Weekly (default ₱20,000)"))}
+      ${lim("betM", t("每月（默认 ₱60,000）", "Monthly (default ₱60,000)"))}
+      ${lim("single", t("单笔投注上限（默认 ₱2,000）", "Single-play cap (default ₱2,000)"))}
+      <p class="tiny">${t("调低即时生效。调高或撤销限额需 24 小时等待期。", "A lower limit applies immediately. Raising or removing a limit waits 24 hours.")}</p>
+      ${b("btn btn-primary", "save-limits", "", t("保存限额", "Save limits"), "style=\"margin-top:8px\"")}`)}
+    ${card(`<h4>${t("冷静期", "Cool-off")}</h4><p class="muted">${t("可选 24 小时 / 7 天 / 30 天。期间禁止投注与充值，到期自动解除。", "Choose 24 hours, 7 days, or 30 days. Play and top-up stop, then it lifts automatically.")}</p>
+      <div class="chips">${[["24h", "24 小时", "24 hours"], ["7d", "7 天", "7 days"], ["30d", "30 天", "30 days"]].map(([k, zh, en]) => `<button type="button" class="chip ${S.form.cool === k ? "on" : ""}" data-act="cool" data-arg="${k}">${t(zh, en)}</button>`).join("")}</div>
+      ${b("btn", "cool-on", "", t("开启冷静期", "Start cool-off"))}`)}
+    ${card(`<h4 style="color:var(--rose)">${t("自主排除", "Self-exclusion")}</h4><p class="muted">${t("选择周期后再确认。", "Pick a period, then confirm.")}</p>
+      <div class="chips">${[["3m", "3 个月", "3 months"], ["6m", "6 个月", "6 months"], ["1y", "1 年", "1 year"], ["perm", "永久", "Permanent"]].map(([k, zh, en]) => `<button type="button" class="chip ${S.excludeTerm === k ? "on" : ""}" data-act="ex-term" data-arg="${k}">${t(zh, en)}</button>`).join("")}</div>
+      ${b("btn btn-danger", "exclude-open", "", t("申请自主排除", "Request self-exclusion"))}`)}
+    ${card(`<h4>${t("理性娱乐提醒", "Rational play reminder")}</h4><p>10 ${t("分钟", "minutes")} <span class="tag tag-muted">${t("只读", "Read-only")}</span></p><p class="tiny">${t("后台配置，玩家不可调。", "Set in admin. Players cannot change it.")}</p>`)}
+    <button type="button" class="link" data-act="go" data-arg="helpplay" data-from="product">${t("问题赌博帮助", "Problem gambling help")}</button>`;
+}
+function viewHelpPlay() {
+  const qs = [
+    [t("过去 12 个月是否曾因博彩影响工作或家庭？", "In the past 12 months, has play affected work or family?"), "q1"],
+    [t("是否曾试图减少博彩但没有做到？", "Have you tried to cut down and not managed?"), "q2"],
+    [t("是否曾借钱或变卖物品来继续？", "Have you borrowed or sold things to continue?"), "q3"],
+    [t("是否曾对家人隐瞒花在博彩上的时间或金额？", "Have you hidden time or money spent on play?"), "q4"]
+  ];
+  const yes = S.self.filter(Boolean).length;
+  return `<h3 class="screen-title">${t("问题赌博帮助", "Problem gambling help")}</h3>
+    ${card(`<h4>${t("赌博成瘾风险自测", "Risk self-test")}</h4>
+      ${S.selfDone ? `<p>${yes >= 2 ? t("结果显示风险偏高，建议联系热线，并考虑冷静期或自主排除。", "The result is elevated. Consider the hotline, a cool-off, or self-exclusion.") : t("当前回答显示风险较低。仍可随时设置限额。", "Answers suggest a lower risk. Limits are still available any time.")}</p>${b("btn", "self-reset", "", t("重新作答", "Start over"))}`
+        : qs.map((q, i) => `<p class="muted">${q[0]}</p><div class="row" style="margin-bottom:8px">${b("btn", "self", i + ":0", t("否", "No"))}${b("btn", "self", i + ":1", t("是", "Yes"))}</div>`).join("")}
+    `)}
+    ${card(`<h4>${t("求助热线", "Help line")}</h4><p class="mono" style="color:var(--cyan)">+63 2 8555 0198</p><p class="tiny">08:00–22:00 UTC+8</p>`)}
+    ${b("btn btn-primary", "go", "rg", t("前往责任博彩设置", "Open responsible gaming"), "data-from=\"product\"")}`;
+}
+function viewHelp() {
+  const faqs = [
+    [t("什么时候截止投注？", "When do sales close?"), t("每期开奖前 30 分钟停止该期销售。", "Sales for a draw stop 30 minutes before it.")],
+    [t("奖金多久入账？", "When is a prize credited?"), t("小奖核验后进入奖金余额。大奖需凭申领码到 PCSO 网点办理。", "Smaller prizes credit to the prize balance after checks. Large prizes need the claim code at a PCSO branch.")],
+    [t("如何修改限额？", "How do I change limits?"), t("在 PlaySafe 调低立即生效，调高或撤销需等待 24 小时。", "In PlaySafe, a lower limit is immediate. Raising or removing one waits 24 hours.")],
+    [t("忘记密码怎么办？", "Forgot the password?"), t("使用手机号或邮箱接收 OTP_RESET，再设置新密码。", "Use your mobile or email for OTP_RESET, then set a new password.")],
+    [t("客服怎么联系？", "How do I reach support?"), t("support@ilotto.ph ，每日 08:00–22:00 UTC+8。", "support@ilotto.ph, daily 08:00–22:00 UTC+8.")]
+  ];
+  return `<h3 class="screen-title">${t("帮助", "Help")}</h3>
+    ${card(`<h4>FAQ</h4>${faqs.map((f, i) => `<button type="button" class="menu-row" data-act="faq" data-arg="${i}"><span>${f[0]}</span><span>${S.faq === i ? "–" : "+"}</span></button>${S.faq === i ? `<p class="muted">${f[1]}</p>` : ""}`).join("")}`)}
+    ${card(`<h4>${t("联系客服", "Contact support")}</h4><p class="mono" style="color:var(--cyan)">support@ilotto.ph</p>${b("btn btn-primary", "support", "", t("联系客服", "Contact support"), "style=\"margin-top:8px\"")}`)}
+    ${card(`<h4>${t("游戏规则", "Game rules")}</h4><p class="tiny">${t("规则由上游 PCSO 提供，只读查看。", "Rules are read-only from PCSO upstream.")}</p><div class="chips">${GAMES.map((g) => `<button type="button" class="chip" data-act="rule" data-arg="${g.id}">${gname(g)}</button>`).join("")}</div>`)}`;
+}
+
+const VIEWS = { splash: viewSplash, login: viewLogin, otp: viewOtp, forgot: viewForgot, register: viewRegister, security: viewSecurity, kyc: viewKyc, kycstatus: viewKycStatus, home: viewHome, bet: viewBet, results: viewResults, tickets: viewTickets, wallet: viewWallet, paybind: viewPaybind, ledger: viewLedger, account: viewAccount, profile: viewProfile, notice: viewNotice, rg: viewRg, helpplay: viewHelpPlay, help: viewHelp };
+function render() {
+  renderProto(); renderNav(); renderStatus(); renderTabs();
+  const view = VIEWS[S.screen] || viewSplash;
+  $("screen").innerHTML = view();
+  renderRail(); renderModal();
+  const auth = AUTH.has(S.screen);
+  const flowTabs = auth && S.journey && S.loggedIn;
+  $("main").classList.toggle("nochrome", auth && !flowTabs);
+  $("main").classList.toggle("flow-auth", flowTabs);
+  document.documentElement.lang = S.lang === "en" ? "en" : "zh-CN";
+}
+function readOtp() { return [...document.querySelectorAll(".otp-i")].map((i) => i.value).join("") || S.otpDigits; }
+function fillQuick() {
+  const g = gameBy(S.gameId);
+  if (g.kind === "lotto") {
+    const set = new Set();
+    while (set.size < g.pick) set.add(1 + Math.floor(Math.random() * g.max));
+    S.picks = [...set].sort((a, b) => a - b);
+  } else S.picks = Array.from({ length: g.digits }, () => Math.floor(Math.random() * 10));
+}
+function hotList(kind) {
+  const g = gameBy(S.gameId);
+  const pack = freqOf(g.id);
+  if (kind === "hot") return (Array.isArray(HOT[g.id]) ? HOT[g.id] : pack.hot).map((x) => x[0]);
+  return (HOT.cold || pack.cold).map((x) => x[0]);
+}
+function syncAnn() {
+  const track = $("annTrack");
+  if (track) track.style.transform = `translateX(-${S.annIndex * 100}%)`;
+  document.querySelectorAll('[data-act="anndot"]').forEach((d) => d.classList.toggle("on", Number(d.dataset.arg) === S.annIndex));
+}
+function syncJack() {
+  const track = $("jackTrack");
+  if (track) track.style.transform = `translateX(-${S.jackIndex * 100}%)`;
+  document.querySelectorAll('[data-act="jackdot"]').forEach((d) => d.classList.toggle("on", Number(d.dataset.arg) === S.jackIndex));
+}
+function regError() {
+  const f = S.form;
+  if (!f.last || !f.first || !f.middle) return t("请填写姓、名和中间名", "Enter last, first, and middle name");
+  if (!/^09\d{9}$/.test(f.phone || "")) return t("请填写 11 位菲律宾手机号", "Enter an 11-digit mobile starting with 09");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email || "")) return t("请填写有效邮箱", "Enter a valid email");
+  if (!f.dob || new Date(f.dob) > new Date("2008-10-10")) return t("需年满 18 岁", "You must be 18 or older");
+  if ((f.regPw || "").length < 8) return t("密码至少 8 位", "Use at least 8 characters");
+  if ((f.loc || "dom") === "dom") { if (!f.prov || !f.city || !f.brgy) return t("请选择完整的境内地址", "Choose the full domestic address"); }
+  else if (!f.street || !f.town || !f.state || !f.zip || !f.country) return t("请填写完整的境外地址", "Complete the overseas address");
+  if (!INCOME_SRC.some((s) => S.income[s])) return t("请选择收入来源", "Choose a source of funds");
+  if (!f.band) return t("请选择月收入区间", "Choose an income band");
+  if (!f.agree) return t("请先同意条款", "Please accept the terms");
+  return "";
+}
+function armTimers() {
+  setInterval(() => {
+    const btn = document.querySelector("[data-act='resend']");
+    if (btn) {
+      const left = S.otpUntil - Date.now();
+      if (left > 0) { btn.textContent = Math.ceil(left / 1000) + "s"; btn.disabled = true; }
+      else { btn.textContent = t("重新发送", "Resend"); btn.disabled = false; }
+    }
+    const lock = $("lockLeft");
+    if (lock) {
+      const ms = S.lockUntil - Date.now();
+      lock.textContent = fmtLeft(ms);
+      if (ms <= 0) { S.lockUntil = 0; S.wdFails = 0; render(); }
+    }
+    const sess = $("sessDur");
+    if (sess) sess.textContent = fmtSession();
+  }, 1000);
+  setInterval(() => {
+    if (S.screen === "home" && S.page.home === "main") { S.jackIndex = (S.jackIndex + 1) % 3; syncJack(); }
+  }, 5000);
+  setInterval(() => {
+    if (S.screen === "home" && S.page.home === "main" && !S.modal) { S.annIndex = (S.annIndex + 1) % ANNS.length; syncAnn(); }
+  }, 4500);
+}
+let realityArmed = false;
+function scheduleReality() {
+  if (realityArmed) return;
+  realityArmed = true;
+  setTimeout(() => {
+    if (S.loggedIn && !AUTH.has(S.screen) && !S.modal) { S.modal = "reality"; renderModal(); }
+  }, 8000);
+  setInterval(() => {
+    if (!S.loggedIn || AUTH.has(S.screen) || S.modal) return;
+    S.modal = "reality"; renderModal();
+  }, 600000);
+}
+function toggleReveal() {
+  S.reveal = !S.reveal;
+  clearTimeout(S.revealTimer);
+  if (S.reveal) S.revealTimer = setTimeout(() => { S.reveal = false; S.revealTimer = null; render(); }, 30000);
+  render();
+}
+function onClick(e) {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  if (e.target.id === "modal" && S.modal === "reality") return;
+  const act = el.dataset.act;
+  const arg = el.dataset.arg || "";
+  if (act === "nav") { S.navOpen = !S.navOpen; S.railOpen = false; renderNav(); $("backdrop").classList.toggle("show", S.navOpen); return; }
+  if (act === "rail") { S.railOpen = !S.railOpen; S.navOpen = false; renderRail(); $("backdrop").classList.toggle("show", S.railOpen); return; }
+  if (act === "backdrop") { S.navOpen = false; S.railOpen = false; renderNav(); renderRail(); return; }
+  if (act === "lang") { S.lang = arg; render(); return; }
+  if (act === "persona") { S.persona = (S.persona + 1) % 3; applyPersona(true); render(); return; }
+  if (act === "group") { S.groups[arg] = !S.groups[arg]; renderNav(); return; }
+  if (act === "go") { go(arg, el.dataset.from || "product"); return; }
+  if (act === "reveal") { toggleReveal(); return; }
+  if (act === "pop") { S.pop = !S.pop; renderStatus(); return; }
+  if (act === "state") { applyPageState(arg); return; }
+  if (act === "enter") {
+    if (!S.loggedIn) go("login", "product");
+    else if (kycOk()) go("home", "product");
+    else go("kycstatus", "product");
+    return;
+  }
+  if (act === "login") {
+    if (!S.form.loginId || !S.form.loginPw) return toast(t("请填写手机号或邮箱，以及密码", "Enter your mobile or email, and your password"));
+    go("otp", "product"); return;
+  }
+  if (act === "otp-verify") {
+    if (readOtp().length !== 6) return toast(t("请输入 6 位验证码", "Enter the 6-digit code"));
+    S.loggedIn = true; S.sessionStart = Date.now(); scheduleReality();
+    if (kycOk()) go("home", "product"); else go("kycstatus", "product");
+    return;
+  }
+  if (act === "resend") { if (S.otpUntil > Date.now()) return; S.otpUntil = Date.now() + 60000; toast(t("验证码已重新发送", "Code sent again")); render(); return; }
+  if (act === "forgot-next") {
+    if (S.page.forgotStep === 1) { if (!S.form.forgotId) return toast(t("请填写手机号或邮箱", "Enter mobile or email")); S.page.forgotStep = 2; S.otpScope = null; render(); return; }
+    if (S.page.forgotStep === 2) { if (readOtp().length !== 6) return toast(t("请输入 6 位验证码", "Enter the 6-digit code")); S.page.forgotStep = 3; render(); return; }
+    if ((S.form.np1 || "").length < 8 || S.form.np1 !== S.form.np2) return toast(t("两次密码需一致，且至少 8 位", "Passwords must match and be at least 8 characters"));
+    toast(t("密码已更新，请登录", "Password updated. Please sign in")); S.page.forgotStep = 1; go("login", "product"); return;
+  }
+  if (act === "loc") { S.form.loc = arg; render(); return; }
+  if (act === "reg-next") { const err = regError(); if (err) return toast(err); S.page.regStep = "verify"; S.otpScope = null; render(); return; }
+  if (act === "reg-back") { S.page.regStep = "form"; render(); return; }
+  if (act === "reg-finish") {
+    if (readOtp().length !== 6) return toast(t("请输入 6 位验证码", "Enter the 6-digit code"));
+    S.loggedIn = true; S.sessionStart = Date.now(); scheduleReality();
+    if (S.journey) {
+      S.flowKyc = "pending"; S.flowOffer = false; S.page.kycView = "pending";
+    } else S.sessionKyc = "pending";
+    if (!S.journey) S.page.kycView = "pending";
+    toast(t("注册完成，KYC 审核中", "Registered. KYC is in review")); go("kycstatus", "product"); return;
+  }
+  if (act === "logout") { S.loggedIn = false; go("login", "product"); return; }
+  if (act === "save-pw") {
+    if ((S.form.newPw || "").length < 8 || S.form.newPw !== S.form.newPw2) return toast(t("新密码需一致且至少 8 位", "New passwords must match and be at least 8 characters"));
+    toast(t("密码已更新", "Password updated")); return;
+  }
+  if (act === "idtype") { S.idType = arg; S.kycShots = { front: false, back: false, live: false }; render(); return; }
+  if (act === "kyc-shot") { S.kycShots[arg] = !S.kycShots[arg]; render(); return; }
+  if (act === "kyc-live") { if (S.kycShots.live) { S.page.kycStep = 4; render(); return; } S.kycShots.live = true; render(); return; }
+  if (act === "kyc-next") {
+    const id = ID_TYPES.find((x) => x[0] === S.idType);
+    if (S.page.kycStep === 2 && (!S.kycShots.front || (id[3] && !S.kycShots.back))) return toast(t("请先完成拍摄", "Capture the ID first"));
+    if (S.page.kycStep === 3 && !S.kycShots.live) return toast(t("请先完成活体检测", "Finish liveness first"));
+    S.page.kycStep = Math.min(5, S.page.kycStep + 1); render(); return;
+  }
+  if (act === "kyc-submit") {
+    if (S.journey) { S.flowOffer = true; S.page.kycView = "pending"; go("kycstatus", "product"); return; }
+    S.page.kyc = "pending"; render(); return;
+  }
+  if (act === "flow-unlock") {
+    S.flowKyc = "approved"; S.flowOffer = false; S.page.kycView = "approved"; go("home", "product"); return;
+  }
+  if (act === "flow-claim") {
+    if (!S.flowTicket || S.flowTicket.status !== "claim") return;
+    const prize = S.flowTicket.prize || 8500;
+    S.flowTicket.codeUsed = S.flowTicket.code; S.flowTicket.code = ""; S.flowTicket.status = "claimed";
+    S.bal.prize += prize; S.page.tickets = "claimed";
+    S.ledgerExtra.unshift({ type: "redeem", amt: prize, statusZh: "已入账", statusEn: "Credited", time: "2026-10-10 01:05:00", ref: "CLM-4F8K-21" });
+    toast(t("柜台核验通过，奖金已入账", "Counter check passed. Prize credited")); render(); return;
+  }
+  if (act === "flow-ledger") {
+    S.page.ledger = "data"; S.page.ledgerTab = "redeem"; go("ledger", "product"); return;
+  }
+  if (act === "kyc-resubmit") { S.page.kyc = "flow"; S.page.kycStep = 1; S.kycShots = { front: false, back: false, live: false }; render(); return; }
+  if (act === "jackdot") { S.jackIndex = Number(arg); syncJack(); return; }
+  if (act === "anndot") { S.annIndex = Number(arg); syncAnn(); return; }
+  if (act === "ann-prev") { S.annIndex = (S.annIndex + ANNS.length - 1) % ANNS.length; syncAnn(); return; }
+  if (act === "ann-next") { S.annIndex = (S.annIndex + 1) % ANNS.length; syncAnn(); return; }
+  if (act === "ann-open") { S.annIndex = Number(arg); S.modal = "ann"; render(); return; }
+  if (act === "home-main") { S.page.home = "main"; render(); return; }
+  if (act === "home-lucky") { if (gameBy(S.gameId).kind !== "lotto") S.gameId = "u658"; S.page.home = "lucky"; render(); return; }
+  if (act === "home-outlets") { S.page.home = "outlets"; render(); return; }
+  if (act === "results-history") { S.page.results = "data"; S.page.resultsMode = "history"; go("results", "product"); return; }
+  if (act === "res-mode") { S.page.resultsMode = arg; render(); return; }
+  if (act === "pick-game") { S.gameId = arg; S.picks = []; if (!kycOk()) return gateBounce(); go("bet", "product"); return; }
+  if (act === "set-game") { S.gameId = arg; S.picks = []; if (S.pickMode === "quick") fillQuick(); render(); return; }
+  if (act === "pick-mode") { S.pickMode = arg; if (arg === "quick") fillQuick(); render(); return; }
+  if (act === "num") {
+    const n = Number(arg); const i = S.picks.indexOf(n);
+    if (i >= 0) S.picks.splice(i, 1); else if (S.picks.length < 12) S.picks.push(n);
+    S.picks.sort((a, b) => a - b); render(); return;
+  }
+  if (act === "digit") {
+    const g = gameBy(S.gameId);
+    if (S.picks.length >= g.digits) S.picks = [];
+    S.picks.push(Number(arg)); render(); return;
+  }
+  if (act === "quickpick") { S.pickMode = "quick"; fillQuick(); render(); return; }
+  if (act === "clear-picks") { S.picks = []; render(); return; }
+  if (act === "bet-reset") { S.page.bet = "pick"; render(); return; }
+  if (act === "submit-bet") {
+    if (!kycOk()) return toast(t("审核通过前不能投注", "Play stays locked until verification is approved"));
+    const g = gameBy(S.gameId);
+    if (!comboCount(g)) return toast(t("请先选满号码", "Finish your numbers first"));
+    const picksSnap = S.picks.slice();
+    S.page.bet = "processing"; S.betToken += 1; const token = S.betToken; render();
+    setTimeout(() => {
+      if (token !== S.betToken) return;
+      const periods = Math.max(1, Math.min(g.kind === "lotto" ? 12 : 90, Number(S.form.periods) || 1));
+      const n = Math.min(6, Math.max(1, comboCount(g)) * periods);
+      const base = 12000 + Math.floor(Math.random() * 500);
+      S.issued = Array.from({ length: n }, (_, i) => "IL-20261010-" + (base + i));
+      const mult = Math.max(1, Number(S.form.mult) || 1);
+      const cost = g.price * mult * Math.max(1, comboCount(g)) * periods;
+      S.ledgerExtra.unshift({ type: "order", amt: -cost, statusZh: "已登记", statusEn: "Registered", time: "2026-10-10 00:40:00", ref: S.issued[0] });
+      if (S.journey) {
+        const nums = g.kind === "lotto" ? picksSnap.slice().sort((a, b) => a - b).map((x) => String(x).padStart(2, "0")).join(" ") : picksSnap.join(" ");
+        S.flowTicket = { id: S.issued[0], game: g.id, nums, amt: cost, status: "wait", time: "2026-10-10 00:40", issue: "2026-1010-1", code: "", codeUsed: "", prize: 0 };
+        S.page.tickets = "wait";
+      }
+      S.page.bet = "done"; if (S.screen === "bet") render();
+    }, 1600);
+    return;
+  }
+  if (act === "lucky-add") {
+    const g = gameBy(S.gameId);
+    S.picks = hotList(arg).slice(0, g.pick);
+    S.pickMode = "manual";
+    if (!kycOk()) return gateBounce();
+    go("bet", "product"); return;
+  }
+  if (act === "ticket-tab") { S.page.tickets = arg; render(); return; }
+  if (act === "led-tab") { S.page.ledgerTab = arg; if (S.page.ledger !== "data") S.page.ledger = "data"; render(); return; }
+  if (act === "deposit") {
+    if (!kycOk()) return gateBounce();
+    S.page.wallet = "deposit"; S.page.depStep = 1; go("wallet", "product"); return;
+  }
+  if (act === "withdraw") {
+    if (!kycOk()) return gateBounce();
+    if (S.lockUntil > Date.now()) { S.page.wallet = "main"; go("wallet", "product"); return; }
+    S.page.wallet = "withdraw"; S.page.wdStep = 1; S.otpScope = null; go("wallet", "product"); return;
+  }
+  if (act === "wallet-main") { S.page.wallet = "main"; render(); return; }
+  if (act === "dep-amt") { S.form.depAmt = arg; render(); return; }
+  if (act === "dep-next") { if (!(Number(S.form.depAmt) > 0)) return toast(t("请输入充值金额", "Enter a top-up amount")); S.page.depStep = 2; render(); return; }
+  if (act === "dep-confirm") {
+    const amt = Number(S.form.depAmt) || 0; S.bal.bet += amt; S.page.depStep = 3;
+    S.ledgerExtra.unshift({ type: "deposit", amt, statusZh: "成功", statusEn: "Success", time: "2026-10-10 00:45:12", ref: "DP-" + String(Date.now()).slice(-6) });
+    render(); return;
+  }
+  if (act === "dest") { S.dest = arg; render(); return; }
+  if (act === "wd-next") {
+    const amt = Number(S.form.wdAmt);
+    if (!(amt > 0)) return toast(t("请输入提现金额", "Enter an amount"));
+    if (amt > S.bal.prize) return toast(t("不能超过奖金余额", "Cannot exceed the prize balance"));
+    S.page.wdStep = 2; S.otpScope = null; render(); return;
+  }
+  if (act === "wd-verify") {
+    const code = readOtp();
+    if (code.length !== 6) return toast(t("请输入 6 位验证码", "Enter the 6-digit code"));
+    if (code === "000000") {
+      S.wdFails += 1;
+      if (S.wdFails >= 3) { S.lockUntil = Date.now() + 30 * 60 * 1000; S.page.wallet = "main"; toast(t("已锁定 30 分钟", "Locked for 30 minutes")); render(); return; }
+      toast(t("验证失败", "Check failed") + " " + S.wdFails + "/3"); S.otpDigits = ""; render(); return;
+    }
+    S.wdFails = 0; S.page.wdStep = 3; render(); return;
+  }
+  if (act === "wd-confirm") {
+    const amt = Number(S.form.wdAmt) || 0; S.bal.prize = Math.max(0, S.bal.prize - amt); S.page.wdStep = 4;
+    S.ledgerExtra.unshift({ type: "withdraw", amt: -amt, statusZh: "成功", statusEn: "Success", time: "2026-10-10 00:48:20", ref: "WD-" + String(Date.now()).slice(-6) });
+    render(); return;
+  }
+  if (act === "pay-ch") { S.payChannel = arg; render(); return; }
+  if (act === "pay-reset") { S.page.paybind = "form"; render(); return; }
+  if (act === "bind") {
+    if (!S.form.acct || !S.form.holder) return toast(t("请填写账户号码和户名", "Enter the account number and name"));
+    S.page.paybind = "checking"; render();
+    setTimeout(() => {
+      if (!S.bound.includes(S.payChannel === "BDO" ? "bdo" : S.payChannel.toLowerCase())) {
+        const id = S.payChannel === "GCash" ? "gcash" : S.payChannel === "Maya" ? "maya" : "bdo";
+        if (!S.bound.includes(id)) S.bound.push(id);
+      }
+      S.page.paybind = "bound"; if (S.screen === "paybind") render();
+    }, 1100);
+    return;
+  }
+  if (act === "avatar") { S.avatar = (S.avatar + 1) % 4; render(); return; }
+  if (act === "send-profile-otp") { S.profileOtpSent = true; S.otpScope = null; toast("OTP_TXN"); render(); return; }
+  if (act === "save-profile") {
+    if (S.profileOtpSent && readOtp().length !== 6) return toast(t("请先完成 OTP_TXN", "Finish OTP_TXN first"));
+    if (S.form.nick) S.nick = S.form.nick; toast(t("资料已保存", "Profile saved")); return;
+  }
+  if (act === "reality") { S.modal = "reality"; renderModal(); return; }
+  if (act === "reality-ok") { S.modal = null; renderModal(); return; }
+  if (act === "modal-close") { S.modal = null; renderModal(); return; }
+  if (act === "faq") { S.faq = S.faq === Number(arg) ? null : Number(arg); render(); return; }
+  if (act === "support") { toast(t("已打开客服会话（原型）", "Support chat opened (prototype)")); return; }
+  if (act === "rule") { S.modal = "rule"; S.modalArg = arg; render(); return; }
+  if (act === "self") { const [i, v] = arg.split(":"); S.self[Number(i)] = v === "1"; if (S.self.filter((x) => x !== undefined).length >= 4) S.selfDone = true; render(); return; }
+  if (act === "self-reset") { S.self = []; S.selfDone = false; render(); return; }
+  if (act === "cool") { S.form.cool = arg; render(); return; }
+  if (act === "cool-on") { if (!S.form.cool) return toast(t("请选择冷静期档位", "Choose a cool-off length")); S.page.rg = "cooloff"; toast(t("冷静期已开启，到期自动解除", "Cool-off started. It lifts automatically")); render(); return; }
+  if (act === "ex-term") { S.excludeTerm = arg; render(); return; }
+  if (act === "exclude-open") { S.modal = "exclude"; renderModal(); return; }
+  if (act === "exclude-ok") { S.page.rg = S.excludeTerm === "perm" ? "permanent" : "excluded"; S.modal = null; toast(t("自主排除已生效", "Self-exclusion is in effect")); render(); return; }
+  if (act === "restore") {
+    if (S.page.rg === "permanent") return;
+    if (!S.form.restoreId || !S.form.risk) return toast(t("请完成身份核验并勾选「我已了解风险」", "Finish the identity check and tick the risk box"));
+    toast(t("已提交，等待 PCSO 人员审批", "Submitted. Waiting for PCSO approval")); return;
+  }
+  if (act === "save-limits") {
+    const keys = ["depD", "depW", "depM", "betD", "betW", "betM", "single"];
+    const next = {};
+    keys.forEach((k) => { const el = document.querySelector(`[data-field="lim-${k}"]`); next[k] = el ? Number(el.value) : S.limits[k]; });
+    if (next.depD < 500 || next.depD > 20000 || next.betD < 500 || next.betD > 20000) return toast(t("每日限额需在 ₱500–20,000", "Daily limits must be within ₱500–20,000"));
+    if (keys.some((k) => !(next[k] > 0))) return toast(t("限额需大于 0", "Limits must be above 0"));
+    const raised = keys.some((k) => next[k] > S.saved[k]);
+    const lowered = keys.some((k) => next[k] < S.saved[k]);
+    S.limits = next;
+    if (lowered && !raised) S.saved = { ...next };
+    toast(raised ? t("调高或撤销将在 24 小时后生效", "A higher limit or a removal takes effect in 24 hours") : t("调低已即时生效", "The lower limit is already in effect"));
+    render(); return;
+  }
+}
+function onInput(e) {
+  const f = e.target.dataset.field;
+  if (e.target.dataset.otp) {
+    const v = e.target.value.replace(/\D/g, "").slice(-1);
+    e.target.value = v;
+    S.otpDigits = [...document.querySelectorAll(".otp-i")].map((i) => i.value).join("");
+    const next = e.target.nextElementSibling;
+    if (v && next && next.classList && next.classList.contains("otp-i")) next.focus();
+    return;
+  }
+  if (!f) return;
+  if (e.target.type === "checkbox") S.form[f] = e.target.checked;
+  else S.form[f] = e.target.value;
+  if (f === "mult" || f === "periods") { const box = $("settleBox"); if (box) box.innerHTML = settleHtml(); }
+}
+function onChange(e) {
+  if (e.target.dataset.income) { S.income[e.target.dataset.income] = e.target.checked; return; }
+  const f = e.target.dataset.field;
+  if (!f) return;
+  if (e.target.type === "checkbox") S.form[f] = e.target.checked;
+  else S.form[f] = e.target.value;
+  if (f === "prov") { S.form.city = ""; S.form.brgy = ""; render(); return; }
+  if (f === "city") { S.form.brgy = ""; render(); return; }
+  if (f === "resGame") { S.resGame = e.target.value; render(); return; }
+  if (e.target.dataset.rerender) render();
+}
+function onPaste(e) {
+  const t = e.target.closest(".otp-i");
+  if (!t) return;
+  const text = (e.clipboardData.getData("text") || "").replace(/\D/g, "").slice(0, 6);
+  if (!text) return;
+  e.preventDefault();
+  S.otpDigits = text;
+  render();
+}
+document.body.addEventListener("click", (e) => {
+  if (e.target.id === "modal") {
+    if (S.modal === "reality") return;
+    S.modal = null; renderModal(); return;
+  }
+  onClick(e);
+});
+document.body.addEventListener("input", onInput);
+document.body.addEventListener("change", onChange);
+document.body.addEventListener("paste", onPaste);
+setTimeout(() => { S.splashReady = true; if (S.screen === "splash") render(); }, 900);
+armTimers();
+render();
+
+</script>
+</body>
+</html>
