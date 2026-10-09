@@ -9,18 +9,20 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
 :root{
-  --bg:#0b1220;--card:#111827;--card2:#0f172a;--line:#1f2937;
-  --cyan:#22d3ee;--amber:#f59e0b;--rose:#fb7184;--ok:#34d399;
-  --text:#e2e8f0;--muted:#94a3b8;--dim:#64748b;--ink:#04232a;--white:#f8fafc;
+  --bg-base:#070b14;--bg-canvas:#0b1220;--bg-surface:#111827;--bg-surface-2:#0f172a;--bg-elevated:#161f36;--bg-sidebar:#0a0f1c;
+  --border-subtle:#1f2937;--border-glow:rgba(34,211,238,.3);
+  --accent-cyan:#22d3ee;--accent-cyan-grad:linear-gradient(135deg,#22d3ee 0%,#3b82f6 100%);
+  --accent-amber:#f59e0b;--accent-rose:#fb7184;--accent-emerald:#34d399;
+  --text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#64748b;
+  --bg:var(--bg-canvas);--card:var(--bg-surface);--card2:var(--bg-surface-2);--line:var(--border-subtle);
+  --cyan:var(--accent-cyan);--amber:var(--accent-amber);--rose:var(--accent-rose);--ok:var(--accent-emerald);
+  --text:var(--text-primary);--muted:var(--text-secondary);--dim:var(--text-muted);--ink:#04232a;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{
-  font-family:Outfit,system-ui,sans-serif;color:var(--text);background:
-    radial-gradient(1000px 480px at 0% -10%, rgba(34,211,238,.16), transparent 55%),
-    radial-gradient(800px 420px at 100% 0%, rgba(124,58,237,.18), transparent 50%),
-    var(--bg);
-  letter-spacing:-.011em;
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",Outfit,system-ui,sans-serif;
+  color:var(--text-primary);background:var(--bg-base);letter-spacing:0;
 }
 button,input,select,textarea{font-family:inherit;color:inherit}
 button{cursor:pointer}
@@ -34,16 +36,11 @@ button{cursor:pointer}
   min-height:100vh;display:grid;grid-template-columns:1.15fr .85fr;position:relative;
 }
 .login-hero{
-  padding:28px 48px 48px;display:flex;flex-direction:column;position:relative;overflow:hidden;
+  padding:28px 48px 48px;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--bg-sidebar);
 }
-.login-hero:before{
-  content:"";position:absolute;width:420px;height:420px;border-radius:50%;right:-80px;bottom:-120px;
-  background:radial-gradient(circle, rgba(34,211,238,.28), transparent 68%);filter:blur(8px);animation:float 8s ease-in-out infinite;
-}
-.brand{font-weight:800;font-size:28px;color:#fff;letter-spacing:-.03em}
-.brand em{font-style:italic;color:var(--cyan)}
-.login-hero h1{margin:auto 0 12px;font-size:56px;line-height:.98;color:#fff;max-width:640px;font-weight:800}
-.login-hero h1 span{display:block;color:var(--cyan)}
+.brand{font-weight:700;font-size:22px;color:#fff}
+.brand em{font-style:normal;color:var(--accent-cyan)}
+.login-hero h1{margin:auto 0 12px;font-size:40px;line-height:1.15;color:#fff;max-width:560px;font-weight:700}
 .lede{max-width:460px;color:#cbd5e1;font-size:16px;line-height:1.55;margin:0 0 28px}
 .hero-metrics{display:flex;gap:12px;flex-wrap:wrap;position:relative}
 .hero-metrics div{
@@ -51,14 +48,15 @@ button{cursor:pointer}
   background:rgba(15,23,42,.55);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
 }
 .hero-metrics b{display:block;color:#fff;font-size:18px;margin-top:4px}
-.hero-metrics span{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.hero-metrics span{color:var(--text-muted);font-size:12px;font-weight:500}
 .login-panel{display:flex;align-items:center;justify-content:center;padding:28px}
 .panel{
-  width:min(440px,100%);background:linear-gradient(180deg, rgba(17,24,39,.96), rgba(15,23,42,.96));
-  border:1px solid var(--line);border-radius:24px;padding:28px;position:relative;
-  box-shadow:0 30px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+  width:min(420px,100%);
+  background:linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,0) 100%), var(--bg-surface);
+  border:1px solid var(--border-subtle);border-radius:14px;padding:28px;position:relative;
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 6px 20px rgba(0,0,0,.3);
 }
-.panel h2{margin:0 0 6px;color:#fff;font-size:26px}
+.panel h2{margin:0 0 6px;color:#fff;font-size:20px}
 .sub{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 16px}
 label.f{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:600}
 input,select,textarea{
@@ -70,19 +68,18 @@ input:focus,select:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 
 .pw input{padding-right:64px}
 .pw .link{position:absolute;right:10px;top:50%;transform:translateY(-50%)}
 .btn{
-  border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:12px;
-  padding:10px 14px;font-size:13px;font-weight:700;transition:.16s transform,.16s border-color,.16s filter;
+  border:1px solid var(--border-subtle);background:var(--bg-surface-2);color:var(--text-primary);border-radius:10px;
+  padding:10px 14px;font-size:13px;font-weight:600;transition:border-color .15s ease, background .15s ease, filter .15s ease;
 }
-.btn:hover{transform:translateY(-1px);border-color:#345}
+.btn:hover{border-color:#334155}
 .btn-primary{
-  width:100%;margin-top:16px;border:0;color:var(--ink);font-weight:800;border-radius:999px;padding:13px 16px;
-  background:linear-gradient(180deg,#67e8f9,#22d3ee 45%,#06b6d4);
-  box-shadow:0 10px 28px rgba(34,211,238,.28);
+  width:100%;margin-top:16px;border:0;color:#04232a;font-weight:700;border-radius:10px;padding:12px 16px;
+  background:var(--accent-cyan-grad);
 }
 .btn-primary:hover{filter:brightness(1.05);color:var(--ink)}
 .btn-ghost{background:transparent;color:#fff}
-.btn-rose{border:0;color:#fff;background:linear-gradient(135deg,#fb7184,#e11d48);font-weight:800}
-.btn-ok{border:0;color:#042218;background:linear-gradient(180deg,#6ee7b7,#34d399);font-weight:800}
+.btn-rose{border:0;color:#fff;background:var(--accent-rose);font-weight:700}
+.btn-ok{border:0;color:#042218;background:var(--accent-emerald);font-weight:700}
 .btn-sm{padding:7px 10px;font-size:12px;border-radius:10px}
 .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
 .link{background:none;border:0;color:var(--cyan);font-weight:700;font-size:12px;padding:0}
@@ -93,71 +90,77 @@ input:focus,select:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 
   margin-top:14px;padding:10px 12px;border-radius:12px;background:rgba(251,113,132,.08);
   border:1px solid rgba(251,113,132,.28);color:#fecdd3;font-size:12px;line-height:1.5;
 }
-.shell{min-height:100vh;display:grid;grid-template-columns:248px 1fr}
+.shell{min-height:100vh;display:grid;grid-template-columns:232px 1fr}
 .side{
   position:sticky;top:0;height:100vh;padding:16px 12px 24px;overflow:auto;
-  background:rgba(15,23,42,.78);border-right:1px solid var(--line);backdrop-filter:blur(16px);
+  background:var(--bg-sidebar);border-right:1px solid var(--border-subtle);
 }
-.side-brand{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 14px}
-.side-brand .brand{font-size:22px}
-.side-brand small{display:block;color:var(--dim);font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+.side-brand{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 16px}
+.side-brand .brand{font-size:20px}
+.side-brand small{display:block;color:var(--text-muted);font-size:12px;font-weight:500;margin-top:2px}
 .nav-btn{
-  width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:0;background:transparent;
-  color:var(--text);border-radius:12px;padding:10px 10px;font-size:13.5px;font-weight:600;margin:2px 0;
+  position:relative;width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:0;background:transparent;
+  color:var(--text-secondary);border-radius:10px;padding:10px 14px;font-size:13px;font-weight:600;margin:2px 0;
+  transition:background .2s ease, color .2s ease;
 }
-.nav-btn svg{width:18px;height:18px;flex:none;opacity:.8}
-.nav-btn:hover{background:rgba(34,211,238,.06);color:#fff}
-.nav-btn.on{background:rgba(34,211,238,.12);color:var(--cyan);box-shadow:inset 3px 0 0 var(--cyan)}
+.nav-btn svg{width:16px;height:16px;flex:none;opacity:.75}
+.nav-btn:hover{background:rgba(255,255,255,.04);color:var(--text-primary)}
+.nav-btn.on{background:rgba(34,211,238,.1);color:var(--accent-cyan)}
 .nav-btn.on svg{opacity:1}
-.main{min-width:0;display:flex;flex-direction:column}
+.nav-btn.on::before{
+  content:"";position:absolute;left:-12px;top:10%;bottom:10%;width:3px;border-radius:0 4px 4px 0;
+  background:var(--accent-cyan-grad);box-shadow:0 0 8px rgba(34,211,238,.6);
+}
+.main{min-width:0;display:flex;flex-direction:column;background:var(--bg-canvas)}
 .top{
-  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:14px 28px;
-  background:rgba(11,18,32,.82);border-bottom:1px solid var(--line);backdrop-filter:blur(16px);
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:14px 32px;
+  background:rgba(11,18,32,.92);border-bottom:1px solid var(--border-subtle);
 }
 .top h2{margin:0;font-size:16px;color:#fff;white-space:nowrap}
 .top .crumb{color:var(--dim);font-size:12px;white-space:nowrap}
 .top > div:first-child{flex:none}
 .clock{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
-.view{padding:22px 28px 48px;animation:rise .35s ease}
+.view{padding:24px 32px 48px;animation:rise .18s ease}
 .page-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-.page-h h3{margin:0;color:#fff;font-size:26px;letter-spacing:-.03em}
+.page-h h3{margin:0;color:#fff;font-size:20px;font-weight:600}
 .tabs{display:flex;gap:6px;flex-wrap:wrap}
-.tabs button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px}
-.tabs button.on{background:rgba(34,211,238,.14);color:var(--cyan);border-color:rgba(34,211,238,.45)}
+.tabs button{border:1px solid var(--border-subtle);background:transparent;color:var(--text-secondary);border-radius:10px;padding:7px 12px;font-weight:600;font-size:13px;transition:background .15s ease, color .15s ease, border-color .15s ease}
+.tabs button.on{background:rgba(34,211,238,.1);color:var(--accent-cyan);border-color:rgba(34,211,238,.35)}
 .role-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#a5f3fc;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.28);border-radius:999px;padding:4px 10px}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
 .kpis.k3{grid-template-columns:repeat(3,1fr)}
 .kpis.k5{grid-template-columns:repeat(5,1fr)}
 .kpis.k6{grid-template-columns:repeat(6,1fr)}
 .kpi,.card{
-  background:linear-gradient(180deg, rgba(17,24,39,.94), rgba(15,23,42,.94));
-  border:1px solid var(--line);border-radius:18px;
-  box-shadow:0 16px 40px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04);
+  background:linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,0) 100%), var(--bg-surface);
+  border:1px solid var(--border-subtle);border-radius:14px;
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 6px 20px rgba(0,0,0,.3);
+  transition:border-color .2s ease, box-shadow .2s ease;
 }
+.kpi:hover,.card:hover{border-color:var(--border-glow);box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 8px 24px rgba(0,0,0,.35)}
 .kpi{padding:16px 16px 14px;position:relative;overflow:hidden}
-.kpi:before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--cyan),transparent 80%)}
-.kpi.warn:before{background:linear-gradient(90deg,var(--amber),transparent 80%)}
-.kpi.bad:before{background:linear-gradient(90deg,var(--rose),transparent 80%)}
-.kpi.ok:before{background:linear-gradient(90deg,var(--ok),transparent 80%)}
-.kpi .lbl{color:var(--muted);font-size:12px;font-weight:600}
-.kpi .num{color:#fff;font-size:26px;font-weight:800;margin:8px 0 4px;letter-spacing:-.03em}
-.kpi .subl{color:var(--dim);font-size:12px;line-height:1.45}
-.delta{font-weight:800;font-size:12px}
-.delta.up{color:var(--ok)}
-.delta.down{color:var(--rose)}
-.card{padding:16px 16px 14px;margin-bottom:14px}
-.card h4{margin:0 0 10px;color:#fff;font-size:15px}
+.kpi .lbl{color:var(--text-secondary);font-size:12px;font-weight:500}
+.kpi .num{color:var(--text-primary);font-size:28px;font-weight:700;margin:8px 0 4px;font-variant-numeric:tabular-nums}
+.kpi.hero .num{
+  background:var(--accent-cyan-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.kpi .subl{color:var(--text-muted);font-size:12px;line-height:1.45}
+.delta{font-weight:600;font-size:12px}
+.delta.up{color:var(--accent-emerald)}
+.delta.down{color:var(--accent-rose)}
+.card{padding:16px;margin-bottom:20px}
+.card h4{margin:0 0 10px;color:#fff;font-size:15px;font-weight:600}
 .grid2{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .split{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}
 .muted{color:var(--muted);font-size:12.5px;line-height:1.55}
 .tiny{color:var(--dim);font-size:11.5px;line-height:1.5}
-.tag{display:inline-flex;align-items:center;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;border:1px solid transparent;white-space:nowrap}
-.tag-ok{color:var(--ok);background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.35)}
-.tag-warn{color:var(--amber);background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35)}
-.tag-rose{color:var(--rose);background:rgba(251,113,132,.12);border-color:rgba(251,113,132,.35)}
-.tag-cyan{color:var(--cyan);background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.3)}
-.tag-muted{color:var(--muted);background:#0b1220;border-color:var(--line)}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;border:0;white-space:nowrap}
+.tag-ok{color:var(--accent-emerald);background:rgba(52,211,153,.12)}
+.tag-warn{color:var(--accent-amber);background:rgba(245,158,11,.12)}
+.tag-rose{color:var(--accent-rose);background:rgba(251,113,132,.12);box-shadow:0 0 8px rgba(251,113,132,.25)}
+.tag-cyan{color:var(--accent-cyan);background:rgba(34,211,238,.12)}
+.tag-muted{color:var(--text-secondary);background:rgba(255,255,255,.04)}
 .banner{
   display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;margin-bottom:14px;
   background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.22);color:#cffafe;font-size:13px;line-height:1.5;
@@ -167,38 +170,46 @@ input:focus,select:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 
 .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
 .filters.f3{grid-template-columns:repeat(3,1fr)}
 .fcard{
-  text-align:left;border:1px solid var(--line);background:rgba(15,23,42,.7);border-radius:16px;padding:14px;
-  color:inherit;transition:.16s transform,.16s border-color;
+  text-align:left;border:1px solid var(--border-subtle);
+  background:linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,0) 100%), var(--bg-surface);
+  border-radius:14px;padding:14px;color:inherit;
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 6px 20px rgba(0,0,0,.3);
+  transition:border-color .15s ease, box-shadow .15s ease;
 }
-.fcard:hover{transform:translateY(-2px);border-color:#345}
-.fcard.on{border-color:var(--cyan);box-shadow:0 0 0 1px rgba(34,211,238,.35), 0 12px 30px rgba(0,0,0,.25)}
+.fcard:hover{border-color:#334155}
+.fcard.on{border-color:var(--accent-cyan);box-shadow:0 0 0 1px rgba(34,211,238,.35)}
 .fcard b{display:block;color:#fff;font-size:24px;margin:6px 0 2px}
 .fcard span{color:var(--muted);font-size:12px;font-weight:700}
-.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+.table-wrap{overflow:auto;border:1px solid var(--border-subtle);border-radius:14px;background:var(--bg-surface-2)}
 table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
-th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:700;padding:10px 12px;background:#0d1526;position:sticky;top:0}
-td{padding:11px 12px;border-top:1px solid var(--line);vertical-align:middle}
-tr.click:hover td{background:rgba(34,211,238,.04);cursor:pointer}
+th{text-align:left;font-size:12px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text-muted);padding:10px 16px;background:transparent;border-bottom:1px solid var(--border-subtle);position:sticky;top:0}
+td{padding:12px 16px;border-bottom:1px solid rgba(31,41,55,.5);vertical-align:middle;font-variant-numeric:tabular-nums}
+tbody tr{transition:background .15s ease}
+tbody tr:hover td{background:rgba(255,255,255,.025)}
+tr.click td{cursor:pointer}
+td.amt{text-align:right;font-family:"JetBrains Mono",ui-monospace,monospace}
 tr.alert td{background:rgba(251,113,132,.08)}
 tr.alert td:first-child{box-shadow:inset 3px 0 0 var(--rose)}
 .row-actions{display:flex;gap:6px;flex-wrap:wrap}
 .games{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .gcard{padding:16px;position:relative}
 .gcard.off{opacity:.72}
-.gcard.off:after{content:"";position:absolute;inset:0;border-radius:18px;pointer-events:none;background:repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(251,113,132,.04) 8px, rgba(251,113,132,.04) 16px)}
 .gtop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .gcard h4{margin:0;color:#fff;font-size:16px}
-.switch{width:46px;height:26px;border-radius:99px;border:0;background:#1f2937;position:relative;padding:0;flex:none}
-.switch i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#94a3b8;transition:.2s left,.2s background}
-.switch.on{background:linear-gradient(90deg,#22d3ee,#0891b2);box-shadow:0 0 16px rgba(34,211,238,.35)}
-.switch.on i{left:23px;background:#fff}
+.switch{width:40px;height:22px;border-radius:999px;border:0;background:var(--border-subtle);position:relative;padding:0;flex:none;transition:background .2s ease, box-shadow .2s ease}
+.switch i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s ease}
+.switch.on{background:var(--accent-cyan-grad);box-shadow:0 0 8px rgba(34,211,238,.4)}
+.switch.on i{transform:translateX(18px)}
 .bill{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .bill div{background:#0b1220;border:1px solid var(--line);border-radius:14px;padding:12px}
 .bill b{display:block;color:#fff;font-size:16px;margin:4px 0}
-.modal-back{position:fixed;inset:0;background:rgba(2,6,16,.72);backdrop-filter:blur(8px);z-index:40;display:grid;place-items:center;padding:24px;animation:fade .2s ease}
+.modal-back{position:fixed;inset:0;background:rgba(2,6,16,.72);z-index:40;display:grid;place-items:center;padding:24px;animation:fade .15s ease}
 .modal{
-  width:min(860px,100%);max-height:min(86vh,900px);overflow:auto;background:#0f172a;border:1px solid #243044;
-  border-radius:22px;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:rise .25s ease;
+  width:min(860px,100%);max-height:min(86vh,900px);overflow:auto;
+  background:linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,0) 100%), var(--bg-elevated);
+  border:1px solid var(--border-subtle);border-radius:14px;padding:22px;
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 16px 40px rgba(0,0,0,.45);
+  animation:pop .15s ease;
 }
 .modal h3{margin:0 0 6px;color:#fff}
 .toast{
@@ -212,10 +223,11 @@ tr.alert td:first-child{box-shadow:inset 3px 0 0 var(--rose)}
 .check b{display:block;color:#fff;font-size:12px;margin-top:4px}
 .bars{display:flex;flex-direction:column;gap:10px}
 .bar-row{display:grid;grid-template-columns:110px 1fr 92px;gap:8px;align-items:center;font-size:12px}
+.bar-row b{justify-self:end;font-variant-numeric:tabular-nums}
 .track{height:10px;border-radius:99px;background:#0b1220;overflow:hidden;border:1px solid var(--line)}
-.track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#22d3ee,#818cf8)}
-.track.amber span{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
-.track.rose span{background:linear-gradient(90deg,#fb7184,#e11d48)}
+.track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg, rgba(34,211,238,.85), rgba(59,130,246,.55))}
+.track.amber span{background:linear-gradient(90deg,#fbbf24,#f59e0b);box-shadow:0 0 8px rgba(245,158,11,.35)}
+.track.rose span{background:linear-gradient(90deg,#fda4af,#fb7184);box-shadow:0 0 8px rgba(251,113,132,.4)}
 .flow{display:flex;flex-direction:column;gap:0}
 .flow .step{display:grid;grid-template-columns:160px 1fr;gap:12px;padding:12px 0;border-top:1px dashed #243044}
 .flow .step:first-child{border-top:0}
@@ -226,18 +238,33 @@ tr.alert td:first-child{box-shadow:inset 3px 0 0 var(--rose)}
 .rte{min-height:120px;background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:12px;line-height:1.55}
 .rte:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.16);outline:none}
 .userchip{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border:1px solid var(--line);border-radius:999px;background:var(--card)}
-.avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#22d3ee,#6366f1);color:var(--ink);font-size:11px;font-weight:800}
+.avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent-cyan);color:var(--ink);font-size:11px;font-weight:700}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok);display:inline-block}
 .dot.warn{background:var(--amber);box-shadow:0 0 10px var(--amber)}
 .dot.bad{background:var(--rose);box-shadow:0 0 10px var(--rose)}
+.st-cell{display:inline-flex;align-items:center;gap:8px;font-weight:600}
+.table-wrap.fit table{min-width:0}
+.sale-bars .bar-row{grid-template-columns:minmax(128px,168px) 1fr 88px}
+.sale-bars .bar-row span:first-child{white-space:nowrap}
+.todo{display:flex;flex-direction:column}
+.todo-item{
+  display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;width:100%;
+  padding:12px 8px;border:0;border-bottom:1px solid rgba(31,41,55,.5);border-radius:10px;
+  background:transparent;color:inherit;text-align:left;cursor:pointer;
+  transition:background .15s ease;
+}
+.todo-item:last-child{border-bottom:0}
+.todo-item:hover{background:rgba(255,255,255,.025)}
+.todo-item b{display:block;color:var(--text-primary);font-size:13px;font-weight:700}
+.todo-item .tiny{margin-top:2px}
 .matrix td,.matrix th{text-align:center}
 .matrix td:first-child,.matrix th:first-child{text-align:left}
 .cell-rw{color:var(--cyan);font-weight:800}
 .cell-ro{color:var(--muted)}
 .cell-hide{color:var(--rose);opacity:.8}
-@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-@keyframes float{50%{transform:translateY(-12px)}}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
 @media (max-width:1100px){
   .kpis,.kpis.k5,.kpis.k6,.games,.bill,.checks,.filters,.filters.f3{grid-template-columns:1fr 1fr}
   .grid2,.split,.login{grid-template-columns:1fr}
@@ -249,6 +276,7 @@ tr.alert td:first-child{box-shadow:inset 3px 0 0 var(--rose)}
   .side{position:sticky;top:0;height:auto;display:flex;gap:4px;overflow:auto;z-index:25;padding:8px}
   .side-brand{display:none}
   .nav-btn{width:auto;white-space:nowrap;margin:0}
+  .nav-btn.on::before{left:10px;top:auto;bottom:4px;width:16px;height:2px}
   .view{padding:16px}
   .top{padding:12px 16px;overflow:auto}
 }
@@ -384,6 +412,26 @@ const TREND = {
 const PRIZE_RATE = [52.4, 49.8, 61.2, 54.1, 48.6, 55.4, 57.9, 53.2, 66.4, 51.8, 54.6, 55.1];
 const PRIZE_MONTHS = ["10月", "11月", "12月", "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月"];
 const PRIZE_MONTHS_EN = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"];
+const DASH_BIZ = {
+  today: {
+    salesZh: "今日销售额", salesEn: "Sales today", sales: 4218750, salesDelta: 6, cmpZh: "较上周三", cmpEn: "vs last Wednesday",
+    tickets: 198420, players: 42180, playersDelta: 9,
+    rangeZh: "今日", rangeEn: "Today",
+    games: [["g655", 1410000], ["m645", 1010000], ["sw3", 880000], ["u658", 760000], ["ez2", 650000], ["l642", 500000]]
+  },
+  week: {
+    salesZh: "本周销售额", salesEn: "Sales this week", sales: 28640000, salesDelta: 4.2, cmpZh: "较上周", cmpEn: "vs last week",
+    tickets: 1286400, players: 186540, playersDelta: 5.1,
+    rangeZh: "本周", rangeEn: "This week",
+    games: [["g655", 9588000], ["m645", 6868000], ["sw3", 5984000], ["u658", 5168000], ["ez2", 4420000], ["l642", 3400000]]
+  },
+  month: {
+    salesZh: "本月销售额", salesEn: "Sales this month", sales: 126420000, salesDelta: 8.4, cmpZh: "较上月", cmpEn: "vs last month",
+    tickets: 5842100, players: 312480, playersDelta: 7.6,
+    rangeZh: "本月", rangeEn: "This month",
+    games: [["g655", 42300000], ["m645", 30300000], ["sw3", 26400000], ["u658", 22800000], ["ez2", 19500000], ["l642", 15000000]]
+  }
+};
 
 const TIER_LOTTO = [
   ["中 6 个号 · 头奖", "Match 6 · Jackpot", 5, "浮动", "Floating", 34330000, "柜台 / 待领取", "Counter / unclaimed"],
@@ -412,6 +460,7 @@ const S = {
   login: { user: "", pass: "", otp: ["", "", "", "", "", ""], err: "" },
   page: "dash",
   tab: { dash: "biz", txn: "dep", report: "sales", sys: "sms" },
+  dashRange: "today",
   kycFilter: "all",
   rgFilter: "all",
   playerId: null,
@@ -637,20 +686,24 @@ S.staff = [
   { id: "E-061", name: "Diego Flores", roles: ["kyc"] }
 ];
 
-const COMPLIANCE = [
-  { zh: "审计日志完整性", en: "Audit log integrity", st: "ok", at: "2026-10-10 02:10", over: 0 },
-  { zh: "负责任博彩合规", en: "Responsible gaming", st: "warn", at: "2026-10-09 18:40", over: 2 },
-  { zh: "渗透测试 / 压力测试", en: "Pen test / stress test", st: "bad", at: "2026-09-22 11:00", over: 18 },
-  { zh: "数据隐私合规", en: "Data privacy", st: "ok", at: "2026-10-08 09:30", over: 0 },
-  { zh: "SLA 合规", en: "SLA", st: "warn", at: "2026-10-07 16:20", over: 3 }
-];
-
 function icon(d) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
 }
 function tag(kind, text) { return `<span class="tag tag-${kind}">${text}</span>`; }
 function roleChip(zh, en) { return `<span class="role-chip">${esc(t(zh, en))}</span>`; }
 function delta(n) { return `<span class="delta ${n >= 0 ? "up" : "down"}">${n >= 0 ? "↑" : "↓"} ${t("较上月", "vs last month")} ${pct(n)}</span>`; }
+function pctDash(n) {
+  const body = Number.isInteger(n) ? String(Math.abs(n)) : Math.abs(n).toFixed(1);
+  return (n > 0 ? "+" : n < 0 ? "−" : "") + body + "%";
+}
+function dashCmp(n, zh, en) {
+  return `<span class="delta ${n >= 0 ? "up" : "down"}">${n >= 0 ? "↑" : "↓"} ${t(zh, en)} ${pctDash(n)}</span>`;
+}
+function dashGameLabel(id) {
+  if (id === "sw3") return "Swertres 3D";
+  if (id === "ez2") return "EZ2 2D";
+  return gname(gameBy(id));
+}
 function clockStr() {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Manila", hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date()) + " UTC+8";
 }
@@ -720,9 +773,9 @@ function lineChart(values, labels) {
   });
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
   const fill = `${d} L${pts[pts.length - 1][0].toFixed(1)},${h - pad} L${pts[0][0].toFixed(1)},${h - pad} Z`;
-  const dots = pts.map((p) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#22d3ee"/>`).join("");
+  const dots = pts.map((p) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="#22d3ee"/>`).join("");
   const labs = labels.map((lb, i) => `<text x="${pts[i][0].toFixed(1)}" y="${h - 8}" text-anchor="middle" fill="#64748b" font-size="10">${esc(lb)}</text>`).join("");
-  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200" role="img"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".35"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs><path d="${fill}" fill="url(#cg)"/><path d="${d}" fill="none" stroke="#22d3ee" stroke-width="2.4"/>${dots}${labs}</svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200" role="img"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".28"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient><linearGradient id="cl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs><path d="${fill}" fill="url(#cg)"/><path d="${d}" fill="none" stroke="url(#cl)" stroke-width="2"/>${dots}${labs}</svg>`;
 }
 function colChart(values) {
   const w = 680, h = 200, pad = 24;
@@ -733,11 +786,11 @@ function colChart(values) {
     const bh = (v / max) * (h - pad * 2);
     const x = pad + i * bw + 6;
     const y = h - pad - bh;
-    const c = v > 60 || v < 50 ? "#f59e0b" : "#22d3ee";
+    const c = v > 62 || v < 49 ? "url(#barBad)" : (v > 58 || v < 52 ? "url(#barWarn)" : "url(#barOk)");
     return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw - 12).toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="${c}"/>`;
   }).join("");
   const labs = values.map((_, i) => `<text x="${(pad + i * bw + bw / 2).toFixed(1)}" y="${h - 6}" text-anchor="middle" fill="#64748b" font-size="10">${esc(S.lang === "en" ? PRIZE_MONTHS_EN[i] : PRIZE_MONTHS[i])}</text>`).join("");
-  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200"><line x1="${pad}" y1="${y55.toFixed(1)}" x2="${w - pad}" y2="${y55.toFixed(1)}" stroke="#34d399" stroke-dasharray="4 4"/>${bars}${labs}</svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200"><defs><linearGradient id="barOk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#67e8f9" stop-opacity=".8"/><stop offset="1" stop-color="#3b82f6" stop-opacity=".45"/></linearGradient><linearGradient id="barWarn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#d97706"/></linearGradient><linearGradient id="barBad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fda4af"/><stop offset="1" stop-color="#e11d48"/></linearGradient></defs><line x1="${pad}" y1="${y55.toFixed(1)}" x2="${w - pad}" y2="${y55.toFixed(1)}" stroke="#34d399" stroke-dasharray="4 4"/>${bars}${labs}</svg>`;
 }
 function download(name, text, mime) {
   const a = document.createElement("a");
@@ -755,11 +808,10 @@ function viewLogin() {
     <div style="position:absolute;top:18px;right:18px;z-index:2">${langSwitch()}</div>
     <section class="login-hero">
       <div class="brand">i<em>Lotto</em></div>
-      <h1>${t("管理中心", "Admin center")}<span>${t("渠道自己的事，在这里办。", "This channel, in one place.")}</span></h1>
+      <h1>${t("管理中心", "Admin center")}</h1>
       <p class="lede">${t("游戏与开奖来自上游。这里管理上下架、玩家、合规、交易和报表。", "Games and draws come from upstream. This desk runs listing, players, compliance, money, and reports.")}</p>
       <div class="hero-metrics">
-        <div><span>${t("回执 p95", "Receipt p95")}</span><b class="mono">1.84s</b></div>
-        <div><span>${t("近 30 天可用性", "30-day uptime")}</span><b class="mono">99.95%</b></div>
+        <div><span>${t("近 30 天可用性", "30-day uptime")}</span><b class="mono">99.995%</b></div>
         <div><span>${t("在售游戏", "Games on sale")}</span><b class="mono">${GAMES.filter((g) => g.on).length} / 9</b></div>
       </div>
     </section>
@@ -805,60 +857,44 @@ function tabs(group, items) {
 }
 
 function viewDash() {
-  const head = `<div class="page-h"><div><h3>${t("仪表盘", "Dashboard")}</h3><p class="muted">${t("业务总览是登录后的默认页。", "Business overview is the landing view.")}</p></div>${tabs("dash", [["biz", "业务总览", "Business"], ["exec", "高管摘要", "Executive"], ["comp", "监管合规监控", "Compliance"]])}</div>`;
-  if (S.tab.dash === "exec") return head + viewExec();
-  if (S.tab.dash === "comp") return head + viewComp();
-  const p = S.players.find((x) => x.id === "PL-104482");
-  const left = lockLeft(p);
-  return head + `<div class="kpis k3">
-      <article class="kpi ok"><div class="lbl">${t("投注登记网关", "Bet registration gateway")}</div><div class="num">${t("正常", "Up")}</div><div class="subl"><i class="dot"></i> ${t("先登记再出票。超时自动回滚，不扣款。", "Register before a ticket is issued. Timeout rolls back with no debit.")}</div></article>
-      <article class="kpi ok"><div class="lbl">${t("回执 p95 延迟", "Receipt p95")}</div><div class="num mono">1.84s</div><div class="subl">${t("阈值 3 秒 · 近 15 分钟样本 48,220", "Threshold 3s · 48,220 samples / 15 min")}</div></article>
-      <article class="kpi ok"><div class="lbl">${t("上游游戏数据同步", "Upstream game sync")}</div><div class="num">${t("正常", "Healthy")}</div><div class="subl">${t("最近同步 2026-10-10 01:38 UTC+8", "Last sync 2026-10-10 01:38 UTC+8")}</div></article>
-    </div>
+  const d = DASH_BIZ[S.dashRange] || DASH_BIZ.today;
+  const maxSale = Math.max(...d.games.map((g) => g[1]));
+  const ranges = [["today", "今日", "Today"], ["week", "本周", "This week"], ["month", "本月", "This month"]];
+  const rangeBtns = ranges.map(([id, zh, en]) => `<button type="button" data-act="dash-range" data-arg="${id}" class="${S.dashRange === id ? "on" : ""}">${t(zh, en)}</button>`).join("");
+  const status = [
+    ["玩家端 H5", "Player H5", "ok", "正常", "Up", "全部检查通过", "All checks passed"],
+    ["管理中心", "Admin center", "ok", "正常", "Up", "全部检查通过", "All checks passed"],
+    ["投注登记网关", "Bet registration gateway", "ok", "正常", "Up", "回执 p95 1.8 秒", "Receipt p95 1.8s"],
+    ["上游游戏数据", "Upstream game data", "ok", "正常", "Up", "开奖结果与游戏规则同步正常", "Draw results and game rules are in sync"],
+    ["支付通道", "Payment rails", "ok", "正常", "Up", "GCash、Maya、银行转账", "GCash, Maya, bank transfer"],
+    ["eKYC 服务商", "eKYC vendor", "delay", "延迟", "Delayed", "活体检测平均 8.2 秒，高于日常 4 秒", "Liveness averages 8.2s, above the usual 4s"]
+  ].map((r) => `<tr><td>${t(r[0], r[1])}</td><td><span class="st-cell"><i class="dot ${r[2] === "delay" ? "warn" : ""}"></i>${t(r[3], r[4])}</span></td><td>${t(r[5], r[6])}</td></tr>`).join("");
+  const todos = [
+    ["nav", "kyc", "42 笔身份审核待处理", "42 identity reviews waiting", "最久已等待 5 小时 12 分", "Oldest has waited 5 h 12 min", "warn", "P2", "P2"],
+    ["goto-sales", "", "销售额与支付通道差异 ₱1,250", "Sales and payment rails differ by ₱1,250", "每日 06:00 对账", "Daily reconciliation at 06:00", "rose", "P1", "P1"],
+    ["goto-claim", "", "1 笔大奖待柜台兑付", "1 jackpot waiting at the counter", "₱4,120,000 · 玩家已预约", "₱4,120,000 · player has an appointment", "rose", "P1", "P1"],
+    ["goto-draws", "sw3", "Swertres 3D 21:00 场 2 小时后截止", "Swertres 3D 21:00 draw closes in 2 hours", "今日第 3 场", "Draw 3 today", "cyan", "提示", "Note"],
+    ["goto-rg", "", "3 笔自主排除申请待处理", "3 self-exclusion requests waiting", "责任博彩 · 须 24 小时内响应", "Responsible gaming · respond within 24 hours", "warn", "P2", "P2"]
+  ].map((r) => `<button type="button" class="todo-item" data-act="${r[0]}" ${r[0] === "nav" ? `data-arg="${r[1]}"` : ""} ${r[0] === "goto-draws" ? `data-arg="${r[1]}"` : ""}><span><b>${t(r[2], r[3])}</b><span class="tiny">${t(r[4], r[5])}</span></span>${tag(r[6], t(r[7], r[8]))}</button>`).join("");
+  const bars = d.games.map(([id, amt]) => `<div class="bar-row"><span>${dashGameLabel(id)}</span><div class="track"><span style="width:${(amt / maxSale * 100).toFixed(1)}%"></span></div><b class="mono amt">${pesoM(amt)}</b></div>`).join("");
+  return `<div class="page-h"><div><h3>${t("运营仪表盘", "Operations dashboard")}</h3><p class="muted">${t("系统正不正常、今天卖了多少、有什么事要处理。", "Is the system healthy, how much sold today, and what needs a person.")}</p></div>
+      <div class="row-actions"><div class="tabs">${rangeBtns}</div><button type="button" class="btn btn-sm" data-act="export-dash">${t("导出", "Export")}</button></div></div>
     <div class="kpis">
-      <article class="kpi"><div class="lbl">${t("今日销售额", "Sales today")}</div><div class="num mono">₱4.82M</div><div class="subl">${delta(9.1)}</div></article>
-      <article class="kpi"><div class="lbl">${t("今日交易笔数", "Transactions today")}</div><div class="num mono">186,420</div><div class="subl">${t("按 ₱25 折算的当量见报表", "₱25 equivalent is on Reports")}</div></article>
-      <article class="kpi warn"><div class="lbl">${t("提现锁定", "Withdrawal locks")}</div><div class="num mono">1</div><div class="subl">${t("PL-104482 剩余", "PL-104482 left")} <b data-countdown="${p.id}">${fmtLeft(left)}</b></div></article>
-      <article class="kpi warn"><div class="lbl">${t("责任博彩告警", "RG alerts")}</div><div class="num mono">4</div><div class="subl">${t("待审批恢复申请", "Restoration requests waiting")}</div></article>
+      <article class="kpi hero"><div class="lbl">${t(d.salesZh, d.salesEn)}</div><div class="num mono">${peso(d.sales)}</div><div class="subl">${dashCmp(d.salesDelta, d.cmpZh, d.cmpEn)}</div></article>
+      <article class="kpi"><div class="lbl">${t("出票张数", "Tickets issued")}</div><div class="num mono">${d.tickets.toLocaleString("en-US")}</div></article>
+      <article class="kpi"><div class="lbl">${t("投注玩家", "Betting players")}</div><div class="num mono">${d.players.toLocaleString("en-US")}</div><div class="subl">${dashCmp(d.playersDelta, d.cmpZh, d.cmpEn)}</div></article>
+      <article class="kpi"><div class="lbl">${t("可用率 · 近 30 天", "Uptime · last 30 days")}</div><div class="num mono">99.995%</div><div class="subl"><span class="delta up">${t("目标 99.99%", "Target 99.99%")}</span></div></article>
     </div>
-    <div class="card"><h4>${t("需要关注", "Needs attention")}</h4>
-      ${table([t("时间", "Time"), t("等级", "Level"), t("告警", "Alert"), ""], [
-        `<tr><td class="mono">01:06</td><td>${tag("rose", t("高", "High"))}</td><td>${t("PL-104482 连续 3 次 MFA 失败，提现锁定 30 分钟，到点自动解锁。", "PL-104482 hit 3 MFA failures. Withdrawals lock for 30 minutes and unlock on their own.")}</td><td><button class="link" data-act="open-player" data-id="PL-104482">${t("玩家档案", "Player")}</button></td></tr>`,
-        `<tr><td class="mono">00:46</td><td>${tag("warn", t("中", "Med"))}</td><td>${t("今日新增自主排除 4 人，其中 1 人为永久排除。", "4 new self-exclusions today, including 1 permanent.")}</td><td><button class="link" data-act="goto-rg">${t("责任博彩", "RG")}</button></td></tr>`,
-        `<tr><td class="mono">21:02</td><td>${tag("warn", t("中", "Med"))}</td><td>${t("出票与登记回执相差 16 笔，其中 14 笔已超时回滚。", "16 tickets differ from registration receipts. 14 already rolled back.")}</td><td><button class="link" data-act="goto-orders">${t("下单流水", "Orders")}</button></td></tr>`,
-        `<tr><td class="mono">18:40</td><td>${tag("cyan", t("低", "Low"))}</td><td>${t("身份审核队列 10 单待处理，含 1 条证件号硬命中。", "10 identity cases are waiting, including 1 hard ID-number hit.")}</td><td><button class="link" data-act="nav" data-arg="kyc">${t("去审核", "Review")}</button></td></tr>`,
-        `<tr><td class="mono">16:20</td><td>${tag("warn", t("中", "Med"))}</td><td>${t("超级乐透头奖 ₱3.20M 距申领截止还剩 6 天。", "Super Lotto jackpot ₱3.20M has 6 days left to claim.")}</td><td><button class="link" data-act="goto-unclaimed">${t("未申领", "Unclaimed")}</button></td></tr>`
-      ])}
-    </div>`;
-}
-function viewExec() {
-  return `<div style="margin-bottom:12px">${roleChip("可见角色：合规审计、系统管理员", "Visible to: Compliance audit, System admin")}</div>
-    <div class="kpis">
-      <article class="kpi"><div class="lbl">${t("营收 vs 目标", "Revenue vs target")}</div><div class="num mono">94.2%</div><div class="subl">${t("9 月销售额 ₱148.26M / 目标 ₱157.40M", "Sep sales ₱148.26M / target ₱157.40M")}</div></article>
-      <article class="kpi ok"><div class="lbl">${t("近 30 天可用性", "30-day uptime")}</div><div class="num mono">99.95%</div><div class="subl">${t("计划内维护 42 分钟", "42 minutes of planned maintenance")}</div></article>
-      <article class="kpi warn"><div class="lbl">${t("当前告警", "Open alerts")}</div><div class="num mono">7</div><div class="subl">${t("含提现锁定与责任博彩", "Includes withdrawal locks and RG")}</div></article>
-      <article class="kpi"><div class="lbl">${t("本月自我排除新增", "New self-exclusions")}</div><div class="num mono">128</div><div class="subl">${t("永久 9 · 定期 119", "Permanent 9 · fixed term 119")}</div></article>
+    <div class="split">
+      <div class="card"><h4>${t("系统状态", "System status")}</h4>
+        <div class="table-wrap fit"><table><thead><tr><th>${t("组件", "Component")}</th><th>${t("状态", "Status")}</th><th>${t("说明", "Note")}</th></tr></thead><tbody>${status}</tbody></table></div>
+      </div>
+      <div class="card"><h4>${t("待处理", "To do")}</h4><div class="todo">${todos}</div></div>
     </div>
-    <div class="card"><h4>${t("关键告警", "Key alerts")}</h4>
-      ${table([t("等级", "Severity"), t("事项", "Item"), t("负责人", "Owner")], [
-        [t("严重", "Critical"), "rose", t("渗透测试报告逾期 18 天", "Pen-test report is 18 days overdue"), t("合规审计", "Compliance")],
-        [t("高", "High"), "rose", t("PL-104482 提现锁定中", "PL-104482 withdrawal lock"), t("系统", "System")],
-        [t("高", "High"), "warn", t("4 笔自我排除恢复待审批", "4 restoration requests waiting"), t("合规审计", "Compliance")],
-        [t("中", "Medium"), "warn", t("SLA 预警，逾期 3 天", "SLA warning, 3 days overdue"), t("系统管理员", "System admin")],
-        [t("中", "Medium"), "warn", t("未申领头奖临近截止", "Unclaimed jackpot nearing deadline"), t("兑奖柜台", "Prize counter")]
-      ].map((r) => `<tr><td>${tag(r[1], r[0])}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join(""))}
+    <div class="card"><div class="page-h" style="margin-bottom:12px"><h4 style="margin:0">${t("各游戏销售额", "Sales by game")}</h4>${tag("cyan", t(d.rangeZh, d.rangeEn))}</div>
+      <div class="bars sale-bars">${bars}</div>
     </div>`;
 }
-function viewComp() {
-  const label = { ok: [t("合规", "Compliant"), "ok"], warn: [t("预警", "Warning"), "warn"], bad: [t("不合规", "Non-compliant"), "rose"] };
-  return `<div style="margin-bottom:12px">${roleChip("可见角色：合规审计、系统管理员", "Visible to: Compliance audit, System admin")}</div>
-    <div class="card"><h4>${t("合规维度", "Compliance dimensions")}</h4>
-      ${table([t("维度", "Dimension"), t("状态", "Status"), t("最近检查", "Last check"), t("逾期", "Overdue")], COMPLIANCE.map((c) => `<tr>
-        <td>${t(c.zh, c.en)}</td><td>${tag(label[c.st][1], label[c.st][0])}</td><td class="mono">${c.at} UTC+8</td>
-        <td>${c.over ? tag(c.st === "bad" ? "rose" : "warn", c.over + t(" 天", " days")) : "—"}</td></tr>`).join(""))}
-    </div>`;
-}
-
 function viewGames() {
   const cards = GAMES.map((g) => `<article class="card gcard ${g.on ? "" : "off"}">
       <div class="gtop"><div><h4>${gname(g)}</h4><p class="tiny">${t(g.kind === "lotto" ? "乐透类" : "数字类", g.kind === "lotto" ? "Lotto" : "Digits")} · ${peso(g.price)} · ${t(g.freqZh, g.freqEn)}</p></div>
@@ -911,7 +947,7 @@ function viewDraws() {
       <label class="f">${t("期号", "Draw no.")}<input data-field="drawIssue" value="${esc(S.drawQ.issue)}" placeholder="2026-1009-3" /></label>
     </div></div>
     ${table([t("开奖日期", "Draw date"), t("期号", "Draw no."), t("游戏", "Game"), t("中奖号码", "Winning numbers"), t("各奖级人数", "Winners by tier"), t("派奖总额", "Paid out"), t("头奖滚存", "Jackpot rollover")],
-      rows.map((d) => `<tr><td class="mono">${d.date}</td><td class="mono">${d.issue}</td><td>${gname(gameBy(d.game))}</td><td class="mono">${d.nums}</td><td>${d.winners}</td><td class="mono">${peso(d.payout)}</td><td>${t(d.rollZh, d.rollEn)}</td></tr>`))}
+      rows.map((d) => `<tr><td class="mono">${d.date}</td><td class="mono">${d.issue}</td><td>${gname(gameBy(d.game))}</td><td class="mono">${d.nums}</td><td>${d.winners}</td><td class="mono amt">${peso(d.payout)}</td><td>${t(d.rollZh, d.rollEn)}</td></tr>`))}
   `;
 }
 
@@ -960,7 +996,7 @@ function viewPlayers() {
       <article class="kpi warn"><div class="lbl">${t("账户受限", "Restricted accounts")}</div><div class="num mono">1,042</div><div class="subl">${t("冻结或限制投注", "Frozen or betting limited")}</div></article>
     </div>
     ${table([t("玩家", "Player"), t("手机", "Mobile"), t("实名", "Identity"), t("账号状态", "Account"), t("本金", "Cash"), t("奖金", "Prize"), t("最近登录", "Last sign-in")],
-      rows.map((p) => `<tr class="click" data-act="open-player" data-id="${p.id}"><td><b>${esc(p.name)}</b><div class="tiny mono">${p.id}</div></td><td class="mono">${esc(p.mobile)}</td><td>${kycTag(p.kyc)}</td><td>${statusTag(p.status)}</td><td class="mono">${peso2(p.cash)}</td><td class="mono">${peso2(p.prize)}</td><td class="mono">${p.login}</td></tr>`))}`;
+      rows.map((p) => `<tr class="click" data-act="open-player" data-id="${p.id}"><td><b>${esc(p.name)}</b><div class="tiny mono">${p.id}</div></td><td class="mono">${esc(p.mobile)}</td><td>${kycTag(p.kyc)}</td><td>${statusTag(p.status)}</td><td class="mono amt">${peso2(p.cash)}</td><td class="mono amt">${peso2(p.prize)}</td><td class="mono">${p.login}</td></tr>`))}`;
 }
 function viewPlayer(p) {
   if (!p) return `<div class="card">${t("找不到该玩家", "Player not found")}</div>`;
@@ -1070,14 +1106,14 @@ function viewTxn() {
   const rows = S.deposits.filter((d) => S.txnQ.dep === "all" || d.st === S.txnQ.dep);
   return head + `<div class="tabs" style="margin-bottom:12px">${txnChip("dep", "all", "全部", "All")}${txnChip("dep", "ok", "成功", "Success")}${txnChip("dep", "pending", "处理中", "Processing")}${txnChip("dep", "fail", "失败", "Failed")}</div>
     ${table([t("时间", "Time"), t("玩家", "Player"), t("渠道", "Channel"), t("金额", "Amount"), t("状态", "Status"), t("参考号", "Reference")],
-      rows.map((d) => `<tr><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono">${peso2(d.amt)}</td><td>${depTag(d.st)}</td><td class="mono">${d.ref}</td></tr>`))}`;
+      rows.map((d) => `<tr><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td>${depTag(d.st)}</td><td class="mono">${d.ref}</td></tr>`))}`;
 }
 function viewWd() {
   const rows = S.withdraws.filter((d) => S.txnQ.wd === "all" || d.st === S.txnQ.wd);
   return `<div class="banner">${t("提现记录只有处理中、已到账、已拒绝。锁定是账号上的提现功能锁，不是第四种记录状态。MFA 失败会落一笔已拒绝。", "A withdrawal is processing, paid, or rejected. A lock sits on the account, not as a fourth status. A failed MFA is recorded as rejected.")}</div>
     <div class="tabs" style="margin-bottom:12px">${txnChip("wd", "all", "全部", "All")}${txnChip("wd", "pending", "处理中", "Processing")}${txnChip("wd", "paid", "已到账", "Paid")}${txnChip("wd", "rejected", "已拒绝", "Rejected")}</div>
     ${table([t("时间", "Time"), t("玩家", "Player"), t("渠道", "Channel"), t("金额", "Amount"), "MFA", t("状态", "Status"), t("说明", "Note")],
-      rows.map((d) => `<tr class="${d.locked ? "alert" : ""}"><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono">${peso2(d.amt)}</td><td>${d.mfa === "ok" ? tag("ok", t("通过", "Passed")) : tag("rose", t("失败", "Failed"))}</td><td>${wdTag(d.st)}</td><td>${d.locked ? `<button type="button" class="link" data-act="open-player" data-id="${d.player}">${t("账号提现锁定中，查看倒计时", "Account withdrawal lock, view countdown")}</button>` : (d.st === "rejected" && d.mfa === "fail" ? t("MFA 验证失败", "MFA failed") : "—")}</td></tr>`))}`;
+      rows.map((d) => `<tr class="${d.locked ? "alert" : ""}"><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td>${d.mfa === "ok" ? tag("ok", t("通过", "Passed")) : tag("rose", t("失败", "Failed"))}</td><td>${wdTag(d.st)}</td><td>${d.locked ? `<button type="button" class="link" data-act="open-player" data-id="${d.player}">${t("账号提现锁定中，查看倒计时", "Account withdrawal lock, view countdown")}</button>` : (d.st === "rejected" && d.mfa === "fail" ? t("MFA 验证失败", "MFA failed") : "—")}</td></tr>`))}`;
 }
 function viewOrders() {
   const bad = S.orders.filter((o) => o.st !== "ok");
@@ -1091,12 +1127,12 @@ function viewOrders() {
       ${table([t("时间", "Time"), t("玩家", "Player"), t("游戏", "Game"), t("原因", "Reason")], bad.map((o) => `<tr class="alert"><td class="mono">${o.time}</td><td class="mono">${o.player}</td><td>${gname(gameBy(o.game))}</td><td>${o.st === "rollback" ? t("回执超时已回滚，未扣款", "Receipt timed out and rolled back. No debit.") : t("重复回执，未重复出票", "Duplicate receipt. No second ticket.")}</td></tr>`))}
     </div>
     ${table([t("时间", "Time"), t("玩家", "Player"), t("游戏", "Game"), t("期号", "Draw"), t("玩法", "Play"), t("金额", "Amount"), t("出票号", "Ticket"), t("登记回执", "Receipt"), t("状态", "Status")],
-      S.orders.map((o) => `<tr class="${o.st === "ok" ? "" : "alert"}"><td class="mono">${o.time} UTC+8</td><td class="mono">${o.player}</td><td>${gname(gameBy(o.game))}</td><td class="mono">${o.issue}</td><td>${o.play}</td><td class="mono">${peso2(o.amt)}</td><td class="mono">${o.ticket}</td><td class="mono">${o.receipt}</td><td>${o.st === "ok" ? tag("ok", t("已出票", "Issued")) : tag("rose", t("未出票", "Not issued"))}</td></tr>`))}`;
+      S.orders.map((o) => `<tr class="${o.st === "ok" ? "" : "alert"}"><td class="mono">${o.time} UTC+8</td><td class="mono">${o.player}</td><td>${gname(gameBy(o.game))}</td><td class="mono">${o.issue}</td><td>${o.play}</td><td class="mono amt">${peso2(o.amt)}</td><td class="mono">${o.ticket}</td><td class="mono">${o.receipt}</td><td>${o.st === "ok" ? tag("ok", t("已出票", "Issued")) : tag("rose", t("未出票", "Not issued"))}</td></tr>`))}`;
 }
 function viewClaims() {
   const rows = S.claims.map((c) => {
     const tax = taxOf(c.gross);
-    return `<tr><td class="mono">${c.ticket}</td><td class="mono">${c.code}</td><td>${gname(gameBy(c.game))}</td><td class="mono">${c.issue}</td><td class="mono">${peso(c.gross)}</td><td class="mono">${peso(tax.tax)}</td><td class="mono">${peso(tax.net)}</td><td class="mono">${c.date}</td><td class="mono">${c.cheque}</td><td>${esc(c.by)}</td><td>${esc(c.review)}</td></tr>`;
+    return `<tr><td class="mono">${c.ticket}</td><td class="mono">${c.code}</td><td>${gname(gameBy(c.game))}</td><td class="mono">${c.issue}</td><td class="mono amt">${peso(c.gross)}</td><td class="mono amt">${peso(tax.tax)}</td><td class="mono amt">${peso(tax.net)}</td><td class="mono">${c.date}</td><td class="mono">${c.cheque}</td><td>${esc(c.by)}</td><td>${esc(c.review)}</td></tr>`;
   });
   return `<div class="banner">${t("大奖在 PCSO 总部线下兑付，玩家凭申领码现场办理。这里只登记已办完的结果。兑奖柜台登记，财务复核核对登记是否准确。身份核验在 PCSO 现场完成。", "Large prizes are paid offline at PCSO headquarters with a claim code. This list records completed payouts. The counter registers the result. Finance checks that the entry is accurate. Identity is checked on site at PCSO.")}</div>
     <p class="tiny">${t("代扣税款 20%（超过免税额 ₱10,000 的部分）。自动入账上限 ₱300,000，与游戏管理里的计费参数一致。", "Withholding tax is 20% of the amount above the ₱10,000 exemption. The auto-credit cap is ₱300,000, the same figure as in Games.")}</p>
@@ -1119,13 +1155,13 @@ function viewSales() {
     : S.salesGrain === "week" ? ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"] : ["4", "5", "6", "7", "8", "9"];
   const games = GAME_SALES.map((r) => {
     const share = (r.sales / 148260000 * 100).toFixed(1) + "%";
-    return `<tr><td>${gname(gameBy(r.id))}</td><td class="mono">${peso(Math.round(r.sales * f))}</td><td>${share}</td><td class="mono">${Math.round(r.tickets * f).toLocaleString("en-US")}</td><td class="mono">${Math.round(r.players * f).toLocaleString("en-US")}</td><td class="${r.mom >= 0 ? "delta up" : "delta down"}">${pct(r.mom)}</td></tr>`;
+    return `<tr><td>${gname(gameBy(r.id))}</td><td class="mono amt">${peso(Math.round(r.sales * f))}</td><td>${share}</td><td class="mono amt">${Math.round(r.tickets * f).toLocaleString("en-US")}</td><td class="mono amt">${Math.round(r.players * f).toLocaleString("en-US")}</td><td class="${r.mom >= 0 ? "delta up" : "delta down"}">${pct(r.mom)}</td></tr>`;
   });
-  const plays = PLAY_SALES.map((r) => `<tr><td>${t(r.zh, r.en)}</td><td class="mono">${peso(Math.round(r.sales * f))}</td><td>${(r.sales / 148260000 * 100).toFixed(1)}%</td><td class="mono">${peso(r.avg)}</td><td>${t(r.nz, r.ne)}</td></tr>`);
+  const plays = PLAY_SALES.map((r) => `<tr><td>${t(r.zh, r.en)}</td><td class="mono amt">${peso(Math.round(r.sales * f))}</td><td>${(r.sales / 148260000 * 100).toFixed(1)}%</td><td class="mono amt">${peso(r.avg)}</td><td>${t(r.nz, r.ne)}</td></tr>`);
   return `<div class="page-h"><div class="tabs">${["day", "week", "month"].map((g) => `<button type="button" data-act="grain" data-arg="${g}" class="${S.salesGrain === g ? "on" : ""}">${t(g === "day" ? "按日" : g === "week" ? "按周" : "按月", g === "day" ? "Day" : g === "week" ? "Week" : "Month")}</button>`).join("")}</div>
     <button type="button" class="btn btn-sm" data-act="export-sales">${t("导出", "Export")}</button></div>
     <div class="kpis k5">
-      <article class="kpi"><div class="lbl">${t("销售额", "Sales")}</div><div class="num" style="font-size:22px">${pesoM(total)}</div><div class="subl">${delta(9.1)}<br>${t("乐透类", "Lotto")} ${pesoM(lotto)} / ${(lotto / total * 100).toFixed(1)}%<br>${t("数字类", "Digits")} ${pesoM(digit)} / ${(digit / total * 100).toFixed(1)}%</div></article>
+      <article class="kpi hero"><div class="lbl">${t("销售额", "Sales")}</div><div class="num" style="font-size:22px">${pesoM(total)}</div><div class="subl">${delta(9.1)}<br>${t("乐透类", "Lotto")} ${pesoM(lotto)} / ${(lotto / total * 100).toFixed(1)}%<br>${t("数字类", "Digits")} ${pesoM(digit)} / ${(digit / total * 100).toFixed(1)}%</div></article>
       <article class="kpi"><div class="lbl">${t("交易当量", "Transaction equivalent")}</div><div class="num" style="font-size:22px">${Math.round(5309840 * f).toLocaleString("en-US")}</div><div class="subl">${t("按 ₱25 折算", "Converted at ₱25")}</div></article>
       <article class="kpi"><div class="lbl">${t("出票张数", "Tickets")}</div><div class="num" style="font-size:22px">${Math.round(7223467 * f).toLocaleString("en-US")}</div></article>
       <article class="kpi"><div class="lbl">${t("投注玩家", "Betting players")}</div><div class="num" style="font-size:22px">${Math.round(389610 * f).toLocaleString("en-US")}</div><div class="subl">${delta(12.4)}</div></article>
@@ -1140,7 +1176,7 @@ function catRow(kind, labelZh, labelEn) {
   const prizes = s.net * BILL.prize;
   const dist = s.net - prizes;
   const ops = s.net * BILL.ops;
-  return `<tr><td>${t(labelZh, labelEn)}</td><td class="mono">${peso(Math.round(s.sales))}</td><td class="mono">${peso(Math.round(s.dst))}</td><td class="mono">${peso(Math.round(s.net))}</td><td class="mono">${peso(Math.round(prizes))}</td><td class="mono">${peso(Math.round(dist))}</td><td class="mono">${peso(Math.round(ops))}</td></tr>`;
+  return `<tr><td>${t(labelZh, labelEn)}</td><td class="mono amt">${peso(Math.round(s.sales))}</td><td class="mono amt">${peso(Math.round(s.dst))}</td><td class="mono amt">${peso(Math.round(s.net))}</td><td class="mono amt">${peso(Math.round(prizes))}</td><td class="mono amt">${peso(Math.round(dist))}</td><td class="mono amt">${peso(Math.round(ops))}</td></tr>`;
 }
 function viewShare() {
   const s = salesOf(S.kind);
@@ -1178,17 +1214,17 @@ function viewShare() {
     <div class="card"><h4>${t("按游戏类别拆分", "Split by game class")}</h4>${table([t("类别", "Class"), t("销售额", "Sales"), t("印花税", "DST"), t("净销售", "Net sales"), t("已派奖金", "Prizes paid"), t("可分配", "Distributable"), t("运营分成", "Ops share")], splitRows.concat(totalForSplit))}</div>
     <div class="card" id="pools"><h4>${t("奖池汇总", "Jackpot pools")}</h4><p class="tiny">${t("只列乐透类 5 个游戏。", "Lotto games only.")}</p>
       ${table([t("游戏", "Game"), t("当前奖池余额", "Pool balance"), t("本期新增投入", "Added this issue"), t("滚存起始日期", "Rollover since"), t("预计下期开奖前奖池", "Est. before next draw")],
-        S.pools.map((p) => `<tr><td>${gname(gameBy(p.id))}</td><td class="mono">${peso(p.bal)}</td><td class="mono">${peso(p.add)}</td><td class="mono">${p.since}</td><td class="mono">${peso(p.next)}</td></tr>`))}
+        S.pools.map((p) => `<tr><td>${gname(gameBy(p.id))}</td><td class="mono amt">${peso(p.bal)}</td><td class="mono amt">${peso(p.add)}</td><td class="mono">${p.since}</td><td class="mono amt">${peso(p.next)}</td></tr>`))}
     </div>
     <div class="card" id="unclaimed"><h4>${t("损益报表 / 未申领待兑付奖金", "Unclaimed prizes")}</h4>
       <article class="kpi warn" style="margin-bottom:12px"><div class="lbl">${t("未申领待兑付总金额", "Unclaimed total")}</div><div class="num">${peso(unclaimed)}</div></article>
       ${table([t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("开奖日期", "Draw date"), t("申领截止日期", "Claim deadline"), t("剩余天数", "Days left")],
-        S.unclaimed.map((r) => `<tr><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${peso(r.amt)}</td><td class="mono">${r.draw}</td><td class="mono">${r.deadline}</td><td>${dayTag(r.days)}</td></tr>`))}
+        S.unclaimed.map((r) => `<tr><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono amt">${peso(r.amt)}</td><td class="mono">${r.draw}</td><td class="mono">${r.deadline}</td><td>${dayTag(r.days)}</td></tr>`))}
     </div>`;
 }
 function tierRows(rows, total) {
   const head = `<tr><td colspan="6"><b>${t(rows === TIER_LOTTO ? "乐透类" : "数字类", rows === TIER_LOTTO ? "Lotto" : "Digits")} · ${peso(total)}</b></td></tr>`;
-  const body = rows.map((r) => `<tr><td>${t(r[0], r[1])}</td><td class="mono">${r[2].toLocaleString("en-US")}</td><td>${t(r[3], r[4])}</td><td class="mono">${peso(r[5])}</td><td>${(r[5] / total * 100).toFixed(1)}%</td><td>${t(r[6], r[7])}</td></tr>`).join("");
+  const body = rows.map((r) => `<tr><td>${t(r[0], r[1])}</td><td class="mono amt">${r[2].toLocaleString("en-US")}</td><td>${t(r[3], r[4])}</td><td class="mono amt">${peso(r[5])}</td><td>${(r[5] / total * 100).toFixed(1)}%</td><td>${t(r[6], r[7])}</td></tr>`).join("");
   return head + body;
 }
 function viewPrize() {
@@ -1213,14 +1249,14 @@ function viewPrize() {
     </div>
     <div class="split">
       <div class="card"><h4>${t("按奖级分布", "By prize tier")}</h4>${table([t("奖级", "Tier"), t("中奖注数", "Winning bets"), t("单注奖金", "Prize per bet"), t("合计", "Total"), t("占比", "Share"), t("兑付方式", "How paid")], [tierRows(TIER_LOTTO, sumAt(TIER_LOTTO, 5)), tierRows(TIER_DIGIT, sumAt(TIER_DIGIT, 5))])}</div>
-      <div class="card"><h4>${t("兑付方式构成", "How prizes are paid")}</h4><div class="bars">${parts.map((p) => `<div class="bar-row"><span>${p[0]}</span><div class="track ${p[2]}"><span style="width:${(p[1] / barMax * 100).toFixed(1)}%"></span></div><b class="mono">${pesoM(p[1])}</b></div>`).join("")}</div>
+      <div class="card"><h4>${t("兑付方式构成", "How prizes are paid")}</h4><div class="bars">${parts.map((p) => `<div class="bar-row"><span>${p[0]}</span><div class="track ${p[2]}"><span style="width:${(p[1] / barMax * 100).toFixed(1)}%"></span></div><b class="mono amt">${pesoM(p[1])}</b></div>`).join("")}</div>
         <p class="muted">${t("₱300,000 是分界线。以内自动进钱包，超过的必须本人到 PCSO 总部凭领奖码领支票。这条线是后台参数，PCSO 可调。", "₱300,000 is the line. At or below it, the prize goes to the wallet. Above it, the player collects a cheque in person at PCSO headquarters with a claim code. PCSO can change this admin parameter.")}</p></div>
     </div>
     <div class="card"><h4>${t("奖金率走势", "Prize-rate trend")}</h4>${colChart(PRIZE_RATE)}<p class="tiny">${t("按月 · 理论值 55%，单月波动由头奖是否中出决定。绿线是 55%。", "Monthly. The theoretical rate is 55%. A month moves when a jackpot is or is not won. The green line is 55%.")}</p>
       <div class="banner amber">${t("奖金率长期偏离 55% 需要核查：持续偏低说明奖金没发出去，持续偏高说明奖级结构或算奖逻辑有问题。", "A prize rate that stays off 55% needs a check: too low means prizes are not going out, too high means the tier structure or the prize math is wrong.")}</div></div>
     <div class="card"><div class="page-h"><h4>${t("头奖中奖人清单", "Jackpot winners")}</h4>${roleChip("可见角色：合规审计、财务复核", "Visible to: Compliance audit, Finance review")}</div>
       ${table([t("玩家 ID", "Player ID"), t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("兑奖状态", "Claim status"), t("兑奖日期", "Claim date")],
-        S.jackpots.map((r) => `<tr><td class="mono">${r.player}</td><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${peso(r.amt)}</td><td>${r.st === "paid" ? tag("ok", t("已兑付", "Paid")) : tag("warn", t("待领取", "Unclaimed"))}</td><td class="mono">${r.date}</td></tr>`))}
+        S.jackpots.map((r) => `<tr><td class="mono">${r.player}</td><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono amt">${peso(r.amt)}</td><td>${r.st === "paid" ? tag("ok", t("已兑付", "Paid")) : tag("warn", t("待领取", "Unclaimed"))}</td><td class="mono">${r.date}</td></tr>`))}
     </div>
     <div class="card"><h4>${t("中奖电子彩票信息", "Winning e-tickets")}</h4><p class="tiny">${t("和交易流水里的兑奖记录是同一套彩票号。", "Same ticket numbers as the prize-claim ledger.")}</p>
       ${table([t("彩票序列号", "Serial"), t("条码 / 二维码", "Barcode / QR"), t("游戏", "Game"), t("期号", "Draw"), t("投注组合", "Selection"), t("中奖号码", "Winning numbers"), t("奖级", "Tier"), t("当前状态", "Status")],
@@ -1229,7 +1265,7 @@ function viewPrize() {
     <div class="card"><h4>${t("奖金作废没收报表", "Forfeited prizes")}</h4>
       <article class="kpi ${showForfeit ? "bad" : ""}"><div class="lbl">${t("本期作废没收总金额", "Forfeited this period")}</div><div class="num">${showForfeit ? peso(forfeitSum) : "₱0"}</div><div class="subl">${showForfeit ? "" : t("本期无", "None this period")}</div></article>
       ${table([t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("开奖日期", "Draw date"), t("申领截止日期", "Claim deadline"), t("作废日期", "Void date"), t("没收去向", "Destination")],
-        (showForfeit ? S.forfeits : []).map((r) => `<tr><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${peso(r.amt)}</td><td>${r.draw}</td><td>${r.deadline}</td><td>${r.voided}</td><td>${t(r.toZh, r.toEn)}</td></tr>`))}
+        (showForfeit ? S.forfeits : []).map((r) => `<tr><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono amt">${peso(r.amt)}</td><td>${r.draw}</td><td>${r.deadline}</td><td>${r.voided}</td><td>${t(r.toZh, r.toEn)}</td></tr>`))}
     </div>`;
 }
 
@@ -1477,7 +1513,17 @@ function onClick(e) {
   }
   if (act === "chip") { S.txnQ[actEl.dataset.group] = arg; render(); return; }
   if (act === "grain") { S.salesGrain = arg; render(); return; }
-  if (act === "goto-rg") { S.page = "rg"; S.rgFilter = "excl"; render(); return; }
+  if (act === "dash-range") { S.dashRange = arg; render(); return; }
+  if (act === "export-dash") {
+    const d = DASH_BIZ[S.dashRange] || DASH_BIZ.today;
+    const lines = [["metric", "value"], ["range", S.dashRange], ["sales", d.sales], ["tickets", d.tickets], ["players", d.players], ["uptime_30d", "99.995%"]].concat(d.games.map(([gid, amt]) => ["game:" + gid, amt]));
+    download("ilotto-ops-dashboard.csv", lines.map((r) => r.join(",")).join("\n"), "text/csv");
+    return;
+  }
+  if (act === "goto-rg") { S.page = "rg"; S.rgFilter = "restore"; render(); return; }
+  if (act === "goto-claim") { S.page = "txn"; S.tab.txn = "claim"; render(); return; }
+  if (act === "goto-draws") { S.page = "draws"; S.drawQ.game = arg || "all"; render(); return; }
+  if (act === "goto-sales") { S.page = "reports"; S.tab.report = "sales"; render(); return; }
   if (act === "goto-orders") { S.page = "txn"; S.tab.txn = "order"; render(); return; }
   if (act === "goto-unclaimed") { S.page = "reports"; S.tab.report = "share"; render(); return; }
   if (act === "export-sales") {
