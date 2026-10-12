@@ -29,6 +29,7 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
 #app{min-height:100%}
+.devlang .specs{color:inherit;text-decoration:none;font-size:12px;padding:4px 10px;border-right:1px solid #444;white-space:nowrap}.devlang .specs:hover{text-decoration:underline}
 .devlang{position:fixed;top:10px;right:14px;z-index:70;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,.4)}
 .devtag{font-size:10px;font-weight:800;letter-spacing:.8px;color:var(--amber);padding:0 6px 0 8px}
 .lang{display:flex;padding:3px;border:1px solid var(--line);border-radius:999px;background:rgba(15,23,42,.8);gap:2px}
@@ -776,7 +777,7 @@ function table(heads, rows) {
   return `<div class="table-wrap"><table><thead>${th(heads)}</thead><tbody>${body || `<tr><td colspan="${heads.length}" class="muted">${t("没有匹配记录", "No matching rows")}</td></tr>`}</tbody></table></div>`;
 }
 function langSwitch() {
-  return `<div class="lang devlang" role="group" title="Developer aid: switch the display language to read the product. The product itself is English only."><span class="devtag">DEV</span>${["zh", "en"].map((l) => `<button type="button" data-act="lang" data-arg="${l}" class="${S.lang === l ? "on" : ""}">${l === "zh" ? "中文" : "EN"}</button>`).join("")}</div>`;
+  return `<div class="lang devlang" role="group" title="Developer aid: switch the display language to read the product. The product itself is English only."><span class="devtag">DEV</span><a class="specs" href="ilotto-page-specs.html" target="_blank" rel="noopener">Page specs</a>${["zh", "en"].map((l) => `<button type="button" data-act="lang" data-arg="${l}" class="${S.lang === l ? "on" : ""}">${l === "zh" ? "中文" : "EN"}</button>`).join("")}</div>`;
 }
 function periodFactor() {
   return { "2026-07": 0.86, "2026-08": 0.93, "2026-09": 1, "2026-10": 0.34 }[S.period] || 1;
@@ -826,6 +827,20 @@ function download(name, text, mime) {
   logAudit({ who: S.login.user || "Mina Cruz", role: t("运营专员", "Operations"), mod: t("报表", "Reports"), evt: t("导出", "Export"), obj: name, before: "—", after: name });
 }
 
+S.lg = { day: "", sent: 0, fail: 0, lock: 0 };
+function lgLocked() {
+  if (S.lg.lock > Date.now()) {
+    const m = Math.ceil((S.lg.lock - Date.now()) / 60000);
+    S.login.err = t(`账号已锁定，约 ${m} 分钟后可重试。`, `This account is locked. Try again in about ${m} min.`); return true;
+  }
+  return false;
+}
+function lgSend() {
+  const d = new Date().toISOString().slice(0, 10);
+  if (S.lg.day !== d) { S.lg.day = d; S.lg.sent = 0; }
+  if (S.lg.sent >= 10) { S.login.err = t("该手机号今天已发送 10 条验证码，请明天再试。", "This number has received 10 codes today. Try again tomorrow."); return false; }
+  S.lg.sent += 1; return true;
+}
 function viewLogin() {
   const otp = S.step === "otp";
   return `<div class="login">
@@ -846,7 +861,7 @@ function viewLogin() {
         <label class="f">${t("密码", "Password")}</label>
         <div class="pw"><input data-field="pass" type="${S.showPw ? "text" : "password"}" value="${esc(S.login.pass)}" autocomplete="current-password" />
         <button type="button" class="link" data-act="toggle-pw">${S.showPw ? t("隐藏", "Hide") : t("显示", "Show")}</button></div>`}
-      ${otp ? `<label class="f">${t("4 位短信验证码", "4-digit SMS code")}</label><div class="otp">${S.login.otp.map((v, i) => `<input data-otp="${i}" inputmode="numeric" maxlength="1" value="${esc(v)}" />`).join("")}</div>
+      ${otp ? `<label class="f">${t("4 位短信验证码", "4-digit SMS code")} <span class="tiny" style="font-weight:400">· ${t("演示验证码 1234", "demo code 1234")}</span></label><div class="otp">${S.login.otp.map((v, i) => `<input data-otp="${i}" inputmode="numeric" maxlength="1" value="${esc(v)}" />`).join("")}</div>
         <div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-ghost btn-sm" data-act="resend">${t("重新发送", "Resend")}</button><button type="button" class="link" data-act="back-creds">${t("返回修改账号", "Back")}</button></div>` : ""}
       <div class="err">${esc(S.login.err)}</div>
       <button type="button" class="btn btn-primary" data-act="${otp ? "verify" : "next"}">${otp ? t("验证并进入", "Verify and enter") : t("继续", "Continue")}</button>
@@ -1671,6 +1686,8 @@ function onClick(e) {
   if (act === "toggle-pw") { S.showPw = !S.showPw; render(); return; }
   if (act === "next") {
     if (!S.login.user.trim() || !S.login.pass) { S.login.err = t("请填写账号和密码。", "Enter the account and password."); render(); return; }
+    if (lgLocked()) { render(); return; }
+    if (!lgSend()) { render(); return; }
     S.login.err = "";
     S.step = "otp";
     render();
@@ -1679,9 +1696,17 @@ function onClick(e) {
     return;
   }
   if (act === "back-creds") { S.step = "creds"; S.login.err = ""; render(); return; }
-  if (act === "resend") { toast(t("验证码已重新发送。", "A new code was sent.")); return; }
+  if (act === "resend") { if (lgLocked()) { render(); return; } if (!lgSend()) { render(); return; } toast(t(`验证码已重新发送（今日第 ${S.lg.sent}/10 条），旧验证码立即失效。`, `A new code was sent (${S.lg.sent}/10 today). The old code is void.`)); return; }
   if (act === "verify") {
     if (S.login.otp.join("").length < 4) { S.login.err = t("请输入 4 位短信验证码。", "Enter the 4-digit SMS code."); render(); return; }
+    if (lgLocked()) { render(); return; }
+    if (S.login.otp.join("") !== "1234") {
+      S.lg.fail += 1;
+      if (S.lg.fail >= 5) { S.lg.fail = 0; S.lg.lock = Date.now() + 3600e3; S.login.err = t("验证码累计错误 5 次，账号已锁定 1 小时，到期自动解锁。", "5 wrong codes. This account is locked for 1 hour and unlocks automatically."); S.step = "creds"; S.login.otp = ["", "", "", ""]; }
+      else S.login.err = t(`验证码不正确，还可尝试 ${5 - S.lg.fail} 次。`, `Incorrect code. ${5 - S.lg.fail} attempts left.`);
+      render(); return;
+    }
+    S.lg.fail = 0;
     S.authed = true;
     S.page = "dash";
     S.tab.dash = "biz";
