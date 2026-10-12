@@ -53,7 +53,12 @@ h1{font-size:26px;font-weight:800;letter-spacing:.2px}h3{font-size:17px;font-wei
 .inp{width:100%;height:50px;border-radius:16px;background:#1a1a1a;border:1.5px solid #262626;padding:0 16px;font-size:15px;outline:none;transition:border-color .2s}
 .inp:focus{border-color:var(--cy)}
 select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#888 50%),linear-gradient(135deg,#888 50%,transparent 50%);background-position:calc(100% - 22px) 22px,calc(100% - 16px) 22px;background-size:6px 6px;background-repeat:no-repeat}
-label.lb{display:block;font-size:12px;color:var(--mu);margin:14px 0 6px}
+label.inp.bad,.inp.bad:focus{border-color:#f43f5e!important;background-color:rgba(244,63,94,.07)}
+.wbad{outline:1.5px solid #f43f5e;outline-offset:5px;border-radius:12px}
+.ferr{color:#fb7185;font-size:12.5px;margin-top:6px;line-height:1.4;display:flex;gap:5px;align-items:flex-start;animation:ferr .18s ease-out}
+.ferr::before{content:"!";flex:none;width:14px;height:14px;border-radius:50%;background:#f43f5e;color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;margin-top:1px}
+@keyframes ferr{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.lb{display:block;font-size:12px;color:var(--mu);margin:14px 0 6px}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
 .b-gr{background:rgba(52,211,153,.15);color:var(--gr)}.b-am{background:rgba(245,158,11,.15);color:var(--am)}.b-ro{background:rgba(251,113,132,.15);color:var(--ro)}.b-cy{background:rgba(34,211,238,.15);color:var(--cy)}.b-gy{background:#262626;color:#aaa}.b-vi{background:rgba(139,92,246,.18);color:#b9a2ff}
 .glowbadge{box-shadow:0 0 12px rgba(245,158,11,.45)}
@@ -501,6 +506,28 @@ function seedDemo(){fresh();const c0=Date.parse('2026-10-10T09:30:00+08:00'),D=8
  addNotif('mega','系统维护通知','Maintenance','10 月 13 日 02:00–04:00 例行维护。','Routine maintenance on Oct 13, 02:00–04:00.');
  S.notifs.forEach((n,i)=>{n.ms=c0-i*3*3600e3;n.read=i>2});genDraws()}
 
+/* ===== inline field validation (red state + message under the field) ===== */
+function fClearAll(){document.querySelectorAll('.ferr').forEach(e=>e.remove());document.querySelectorAll('.bad').forEach(e=>e.classList.remove('bad'));document.querySelectorAll('.wbad').forEach(e=>e.classList.remove('wbad'))}
+function fClear(id){document.querySelectorAll(`.ferr[data-for="${id}"]`).forEach(e=>e.remove());const el=document.getElementById(id);el&&el.classList.remove('bad');document.querySelectorAll(`[data-wb="${id}"]`).forEach(x=>x.classList.remove('wbad'))}
+function fErr(id,msg){const el=document.getElementById(id);if(!el)return null;let anchor,isInp=el.classList.contains('inp');
+ if(isInp){el.classList.add('bad');anchor=el.parentElement&&el.parentElement.style.position==='relative'?el.parentElement:el}
+ else{anchor=el.closest('label')||document.getElementById(id+'w')||el.parentElement;anchor.classList.add('wbad');anchor.dataset.wb=id}
+ const d=document.createElement('div');d.className='ferr';d.dataset.for=id;d.textContent=msg;anchor.insertAdjacentElement('afterend',d);return el}
+/* rules: [[id, errorMessageOrEmpty], ...]; empty message = field is fine. Returns true when everything passes. */
+let _fchk=0;
+function fCheck(rules){fClearAll();_fchk=1;setTimeout(()=>_fchk=0,300);let first=null;rules.forEach(([id,m])=>{if(m){const e=fErr(id,m);if(e&&!first)first=e}});
+ if(first){const f=first.closest('label')||first;f.scrollIntoView({block:'center',behavior:'smooth'});return false}return true}
+document.addEventListener('input',e=>{e.target.id&&fClear(e.target.id)});
+document.addEventListener('change',e=>{if(!_fchk&&e.target.id)fClear(e.target.id)});
+const PW_RE=/^(?=.*[A-Za-z])(?=.*\d).{8,20}$/,PH_RE=/^(\+?63|0)9\d{9}$/,EM_RE=/^\S+@\S+\.\S+$/;
+const reqm=(id,m)=>V(id).trim()?'':m;
+
+/* ===== PH mobile: default +63 when the user omits the country code ===== */
+function normPh(raw){const s=String(raw||'').trim();if(!s||s.includes('@'))return s;const d=s.replace(/[\s\-()]/g,'');if(!/^\+?\d+$/.test(d))return s;
+ let n=null;if(d.startsWith('+63'))n=d.slice(3);else if(d.startsWith('63')&&d.length===12)n=d.slice(2);else if(d.startsWith('0'))n=d.slice(1);else if(!d.startsWith('+'))n=d;
+ if(n===null||!/^9\d{9}$/.test(n))return s;return '+63 '+n.slice(0,3)+' '+n.slice(3,6)+' '+n.slice(6)}
+document.addEventListener('change',e=>{if(['r_phone','l_acc','f_acc'].includes(e.target.id)){const v=normPh(e.target.value);if(v!==e.target.value)e.target.value=v}});
+
 /* ================= AUTH & KYC ================= */
 const AUTHHEAD=(h,s)=>`<div class="fade" style="padding-top:8px"><div class="row g8 mt3"><div class="logo" style="font-size:17px"><img class="pcso" style="width:24px;height:24px" src="${PCSO_LOGO}" alt="PCSO">iLotto</div></div><h1 style="margin-top:22px">${h}</h1><div class="mu" style="margin-top:8px;font-size:14px;line-height:1.5">${s||''}</div></div>`;
 const pw=(id,ph)=>`<div style="position:relative"><input class="inp" id="${id}" type="password" placeholder="${ph}" style="padding-right:48px"><button style="position:absolute;right:12px;top:14px;color:#888" onclick="const i=document.getElementById('${id}');i.type=i.type==='password'?'text':'password'">${I('eye',20)}</button></div>`;
@@ -518,18 +545,19 @@ SC.login={auth:true,back:false,html:()=>`${AUTHHEAD(t('欢迎回来','Welcome ba
 <button class="btn c mt2" onclick="A.login()">${t('登录','Sign in')}</button>
 <div class="row" style="justify-content:center;gap:6px;margin-top:20px;font-size:14px"><span class="mu">${t('还没有账号？','No account?')}</span><button class="b" style="color:var(--cy)" onclick="A.go('register')">${t('立即注册','Register')}</button></div>
 <div class="card mt2" style="padding:14px"><div class="xs mu" style="line-height:1.6">${I('lock',13)} ${t('每次登录都会进行短信验证；一期不支持可信设备、生物识别与短信验证码登录。','SMS verification on every login. Trusted device, biometrics and SMS-code login are not supported in phase 1.')}</div></div>`};
-A.login=()=>{if(otpLocked('login'))return;if(!V('l_acc')||!V('l_pwd'))return toast(t('请输入账号和密码','Enter account and password'));
+A.login=()=>{const _l=$('#l_acc');if(_l)_l.value=normPh(_l.value);if(otpLocked('login'))return;if(!fCheck([['l_acc',reqm('l_acc','Enter your phone number or email')],['l_pwd',V('l_pwd')?'':'Enter your password']]))return;
  if(!S.reg&&S.mode!=='demo'){const c=$('#sc .card');return toast(t('该账号未注册，请先注册（或在右侧切换为老用户演示）','Not registered — register first (or switch to demo user on the right)'))}
  A.go('otp2fa')};
 SC.otp2fa={auth:true,back:true,html:()=>`${AUTHHEAD(t('短信验证','SMS verification'),t(`验证码已发送至 ${S.reg?S.reg.phone.replace(/.(?=.{3})/g,(m,i)=>i>4?'*':m):'+63917•••4567'}`,`Code sent to ${S.reg?S.reg.phone.replace(/.(?=.{3})/g,(m,i)=>i>4?'*':m):'+63917•••4567'}`))}<div style="margin-top:34px">${otp('o_code')}</div><div class="row" style="justify-content:center;margin-top:14px"><button class="sm mu" id="rs" onclick="A.resend()"></button></div><button class="btn c mt2" onclick="A.verify2fa()">${t('验证并登录','Verify & sign in')}</button><div class="xs mu" style="text-align:center;margin-top:14px">${t('一期仅支持短信 OTP，不提供“记住此设备”。','Phase 1 supports SMS OTP only — no “remember this device”.')}</div>`,mount:()=>{A.otp('o_code');if(otpSend('login'))cd('rs',59);else{const e=$('#rs');if(e)e.textContent=t('今日发送已达上限','Daily limit reached')}}};
-A.verify2fa=()=>{if(otpLocked('login'))return;if(V('o_code')!=='1234'){const w=$('#o_codew');w&&w.classList.add('shake');setTimeout(()=>w&&w.classList.remove('shake'),400);return otpWrong('login')}S.otp.fail.login=0;
+A.verify2fa=()=>{if(!fCheck([['o_code',V('o_code').length<4?'Enter the 4-digit code':'']]))return;if(otpLocked('login'))return;if(V('o_code')!=='1234'){const w=$('#o_codew');w&&w.classList.add('shake');setTimeout(()=>w&&w.classList.remove('shake'),400);return otpWrong('login')}S.otp.fail.login=0;
  S.logged=true;tick(2);if(S.kyc==='approved'){A.reset('home');toast(t('登录成功','Signed in'))}else{A.reset('kycStatus');toast(t('登录成功 · 实名认证未通过前仅可查看审核状态','Signed in · only verification status is available until KYC passes'))}};
 SC.forgot={auth:true,back:true,html:()=>{const s=S.p.step||1;return `${AUTHHEAD(t('找回密码','Reset password'),'')}<div class="steps" style="margin-top:14px">${[1,2,3].map(i=>`<i class="${i<=s?'on':''}"></i>`).join('')}</div>`+
- (s===1?`<label class="lb">${t('手机号或邮箱','Phone or email')}</label><input class="inp" id="f_acc" placeholder="091712347"><button class="btn c mt2" onclick="if(otpLocked('reset'))return;if(otpSend('reset'))A.go2('forgot',{step:2})">${t('发送验证码','Send code')}</button>`:
- s===2?`<div class="mu mt" style="font-size:14px">${t('请输入短信验证码（OTP_RESET）','Enter the SMS code (OTP_RESET)')}</div><div style="margin-top:22px">${otp('f_code')}</div><button class="btn c mt2" onclick="if(otpLocked('reset'))return;if(V('f_code')==='1234'){S.otp.fail.reset=0;A.go2('forgot',{step:3})}else otpWrong('reset')">${t('下一步','Next')}</button>`:
+ (s===1?`<label class="lb">${t('手机号或邮箱','Phone or email')}</label><input class="inp" id="f_acc" placeholder="091712347"><button class="btn c mt2" onclick="A.fg1()">${t('发送验证码','Send code')}</button>`:
+ s===2?`<div class="mu mt" style="font-size:14px">${t('请输入短信验证码（OTP_RESET）','Enter the SMS code (OTP_RESET)')}</div><div style="margin-top:22px">${otp('f_code')}</div><button class="btn c mt2" onclick="if(!fCheck([['f_code',V('f_code').length<4?'Enter the 4-digit code':'']]))return;if(otpLocked('reset'))return;if(V('f_code')==='1234'){S.otp.fail.reset=0;A.go2('forgot',{step:3})}else otpWrong('reset')">${t('下一步','Next')}</button>`:
  `<label class="lb">${t('新密码','New password')}</label>${pw('f_p1',t('8-20 位，含字母和数字','8–20 chars, letters & digits'))}<label class="lb">${t('确认新密码','Confirm password')}</label>${pw('f_p2',t('再次输入','Repeat'))}<button class="btn c mt2" onclick="A.resetPw()">${t('重置密码','Reset password')}</button>`)},mount:()=>{if(S.p.step===2)A.otp('f_code')}};
+A.fg1=()=>{const _f=$('#f_acc');if(_f)_f.value=normPh(_f.value);const v=normPh(V('f_acc')).replace(/[\s-]/g,'');if(!fCheck([['f_acc',!v?'Enter your phone number or email':(PH_RE.test(v)||EM_RE.test(v))?'':'Enter a valid PH mobile number or email address']]))return;if(otpLocked('reset'))return;if(otpSend('reset'))A.go2('forgot',{step:2})};
 A.go2=(s,p)=>{S.p=p;render()};
-A.resetPw=()=>{const a=V('f_p1'),b=V('f_p2');if(!/^(?=.*[A-Za-z])(?=.*\d).{8,20}$/.test(a))return toast(t('密码需 8-20 位且含字母和数字','8–20 chars with letters and digits'));if(a!==b)return toast(t('两次密码不一致','Passwords do not match'));toast(t('密码已重置，请重新登录','Password reset. Please sign in'));A.reset('login')};
+A.resetPw=()=>{const p=V('f_p1'),c=V('f_p2');if(!fCheck([['f_p1',!p?'Enter a new password':PW_RE.test(p)?'':'Use 8–20 characters with letters and digits'],['f_p2',!c?'Confirm your new password':c!==p?'Passwords do not match':'']]))return;toast(t('密码已重置，请重新登录','Password reset. Please sign in'));A.reset('login')};
 
 /* ---- register ---- */
 const REG={'NCR · National Capital Region':['Metro Manila'],'Region VII · Central Visayas':['Cebu'],'Region XI · Davao Region':['Davao del Sur']};
@@ -560,19 +588,21 @@ A.inc=(k,el)=>{const a=S.regTmp.inc;const i=a.indexOf(k);i<0?a.push(k):a.splice(
 A.reg=()=>{const g=$('#r_reg').value;$('#r_prov').innerHTML=`<option value="">${t('请选择','Select')}</option>`+(g?opts(REG[g]):'');$('#r_city').innerHTML=`<option value="">${t('请先选省','Select province first')}</option>`;$('#r_brgy').innerHTML=`<option value="">${t('请先选市','Select city first')}</option>`};
 A.prov=()=>{const p=$('#r_prov').value;$('#r_city').innerHTML=`<option value="">${t('请选择','Select')}</option>`+(p?opts(Object.keys(ADDR[p])):'');$('#r_brgy').innerHTML=`<option value="">${t('请先选市','Select city first')}</option>`};
 A.city=()=>{const p=$('#r_prov').value,c=$('#r_city').value;$('#r_brgy').innerHTML=`<option value="">${t('请选择','Select')}</option>`+(c?opts(ADDR[p][c]):'')};
-A.regNext=()=>{const g=V,r={last:g('r_last'),first:g('r_first'),mid:g('r_mid'),phone:g('r_phone'),email:g('r_email'),dob:g('r_dob')};
- if(!r.last||!r.first||!r.phone||!r.email||!r.dob)return toast(t('请填写所有必填项','Please fill all required fields'));
- if(!/^(\+?63|0)9\d{9}$/.test(r.phone.replace(/[\s-]/g,'')))return toast(t('请输入有效的菲律宾手机号','Enter a valid PH mobile number'));
- if(!/^\S+@\S+\.\S+$/.test(r.email))return toast(t('邮箱格式不正确','Invalid email'));
- if((Date.parse('2026-10-10')-Date.parse(r.dob))/31557600000<18)return toast(t('须年满 18 周岁','You must be 18 or older'));
- if(S.regTmp.atype==='ab'){const f=['r_st','r_tw','r_sta','r_zip','r_ctry'].map(g),n=f.filter(Boolean).length;if(n>0&&n<5)return toast(t('境外地址需填全街道、城镇、州/省、邮编、国家','Please fill all 5 foreign-address fields'))}
- if(!/^(?=.*[A-Za-z])(?=.*\d).{8,20}$/.test(g('r_pwd')))return toast(t('密码需 8-20 位且含字母和数字','Password: 8–20 chars with letters and digits'));
- if(!$('#r_ag').checked)return toast(t('请先勾选同意条款','Please accept the terms'));
+A.regNext=()=>{const g=V,r={last:g('r_last').trim(),first:g('r_first').trim(),mid:g('r_mid').trim(),phone:normPh(g('r_phone')),email:g('r_email').trim(),dob:g('r_dob')};
+ const ph=r.phone.replace(/[\s-]/g,''),age=(Date.parse('2026-10-10')-Date.parse(r.dob))/31557600000;
+ const rules=[['r_last',r.last?'':'Enter your last name'],['r_first',r.first?'':'Enter your first name'],
+ ['r_phone',!r.phone?'Enter your mobile number':PH_RE.test(ph)?'':'Enter a valid PH mobile number, e.g. +63 917 123 4567'],
+ ['r_email',!r.email?'Enter your email address':EM_RE.test(r.email)?'':'Enter a valid email address'],
+ ['r_dob',!r.dob?'Select your date of birth':age<18?'You must be 18 or older to register':''],
+ ['r_pwd',!g('r_pwd')?'Enter a password':PW_RE.test(g('r_pwd'))?'':'Use 8–20 characters with letters and digits']];
+ if(S.regTmp.atype==='ab'){const f=['r_st','r_tw','r_sta','r_zip','r_ctry'],n=f.filter(x=>g(x)).length;if(n>0&&n<5)f.forEach(x=>{if(!g(x))rules.push([x,'Required — fill all 5 fields for a foreign address'])})}
+ rules.push(['r_ag',$('#r_ag').checked?'':'Please accept the Terms and Privacy Policy to continue']);
+ if(!fCheck(rules))return;
  S.reg=r;S.j.reg=1;S.nick=r.first+r.last.replace(/\s/g,'').slice(0,4);A.go('verify',{vs:1})};
 SC.verify={auth:true,back:true,html:()=>{const v=S.p.vs||1;return `${AUTHHEAD(t('验证联系方式','Verify your contact'),t('验证只证明这是你的联系方式，还不代表已开通投注。','Verification only proves this contact is yours — it does not enable betting yet.'))}<div class="steps" style="margin-top:14px">${[1,2].map(i=>`<i class="${i<=v?'on':''}"></i>`).join('')}</div>
 <div class="card mt" style="display:flex;gap:12px;align-items:center">${I(v===1?'phone':'mega',24)}<div><div class="b">${v===1?t('手机号','Mobile'):t('邮箱','Email')}</div><div class="mu sm">${v===1?S.reg.phone:S.reg.email}</div></div></div>
 <div style="margin-top:28px">${otp('v_code')}</div><div class="row" style="justify-content:center;margin-top:14px"><button class="sm mu" id="rs" onclick="A.resend()"></button></div><button class="btn c mt2" onclick="A.verifyC()">${v===1?t('验证手机号','Verify mobile'):t('验证邮箱并继续','Verify email & continue')}</button>`},mount:()=>{A.otp('v_code');if(otpSend('reg'))cd('rs',59);else{const e=$('#rs');if(e)e.textContent=t('今日发送已达上限','Daily limit reached')}}};
-A.verifyC=()=>{if(otpLocked('reg'))return;if(V('v_code')!=='1234')return otpWrong('reg');S.otp.fail.reg=0;if(S.p.vs===1){S.p={vs:2};render()}else{toast(t('联系方式验证通过 · 请完成实名材料提交','Contacts verified · now submit your ID documents'));S.ek={step:1,doc:'',front:false,back:false,live:0,face:0};A.go('ekyc')}};
+A.verifyC=()=>{if(!fCheck([['v_code',V('v_code').length<4?'Enter the 4-digit code':'']]))return;if(otpLocked('reg'))return;if(V('v_code')!=='1234')return otpWrong('reg');S.otp.fail.reg=0;if(S.p.vs===1){S.p={vs:2};render()}else{toast(t('联系方式验证通过 · 请完成实名材料提交','Contacts verified · now submit your ID documents'));S.ek={step:1,doc:'',front:false,back:false,live:0,face:0};A.go('ekyc')}};
 
 /* ---- eKYC ---- */
 const DOCS=[['PhilSys National ID','国民身份证 PhilSys'],['Driver’s License','驾驶执照'],['Passport','护照'],['UMID','UMID 统一多用途证']];
@@ -786,7 +816,7 @@ SC.bind={title:()=>t('绑定支付账户','Payment accounts'),html:()=>{const k=
  <div class="card mt">${k==='bank'?`<label class="lb" style="margin-top:0">${t('银行','Bank')}</label><select class="inp" id="b_bank"><option>BDO</option><option>BPI</option><option>Metrobank</option><option>UnionBank</option></select>`:''}<label class="lb" style="${k==='bank'?'':'margin-top:0'}">${k==='bank'?t('银行账号','Account number'):t('手机号','Mobile number')}</label><input class="inp" id="b_no" placeholder="${k==='bank'?'00123478901':'091712347'}"><label class="lb">${t('账户户名','Account holder name')}</label><input class="inp" id="b_nm" value="${S.reg?fullName().toUpperCase():''}" placeholder="JUAN S DELA CRUZ"><button class="btn c mt2" id="bb" onclick="A.bindGo('${k}')">${t('绑定','Bind')}</button></div>
  <div class="card c2 mt" style="font-size:12.5px;color:#aaa;line-height:1.6">${I('help',13)} ${t('一期为聚合商沙箱环境，生产对接二期。','Phase 1 runs against the aggregator sandbox; production integration follows in phase 2.')}</div>
  <h3 style="margin-top:22px">${t('已绑定','Bound')}</h3>${S.accts.length?S.accts.map(acctCard).join(''):`<div class="mu sm mt">${t('暂无','None yet')}</div>`}`}};
-A.bindGo=k=>{const no=V('b_no'),nm=V('b_nm');if(no.length<10)return toast(t('请输入有效的账号/手机号','Enter a valid number'));if(!nm)return toast(t('请填写户名','Enter the holder name'));
+A.bindGo=k=>{const no=V('b_no').trim(),nm=V('b_nm').trim();if(!fCheck([['b_no',!no?(k==='bank'?'Enter your account number':'Enter your mobile number'):no.replace(/\D/g,'').length<10?'Enter a valid number (at least 10 digits)':''],['b_nm',nm?'':'Enter the account holder name']]))return;
  const b=$('#bb');b.disabled=true;b.innerHTML=`<span class="spin" style="width:20px;height:20px;border-width:3px;margin:0"></span> ${t('绑定中…','Binding…')}`;
  setTimeout(()=>{
   S.accts.push({k,no,nm:nm.toUpperCase(),ok:true,bank:k==='bank'?V('b_bank'):''});S.j.bind=1;tick(2);toast(t('绑定成功','Account bound'));renderKeep()},1500)};
@@ -799,7 +829,7 @@ SC.deposit={title:()=>t('充值','Deposit'),html:()=>{const P=S.p;const am=P.amt
  <button class="card mt3 row g8" style="width:100%;border:1.5px dashed #333;background:transparent;justify-content:center;padding:13px;color:#aaa" onclick="A.go('bind')">${I('plus',15)} ${t('绑定新账户','Bind new')}</button>
  <div class="card c2 mt" style="font-size:12.5px;color:#aaa;line-height:1.7">${I('shield',13)} ${t(`受 PlaySafe 限额约束：每日充值限额 ${fm0(S.limits.dep.d)}，今日已充 ${fm0(used)}。`,`Subject to PlaySafe limits: daily deposit limit ${fm0(S.limits.dep.d)}, deposited today ${fm0(used)}.`)}</div>
  <button class="btn c mt2" onclick="A.depGo()">${t('确认充值','Confirm deposit')}</button>`}};
-A.depGo=()=>{const am=tr2(+(S.p.amt||0)),a=S.accts[S.p.acc==null?0:S.p.acc];if(!am||am<100)return toast(t('最低充值 ₱100','Minimum deposit ₱100'));
+A.depGo=()=>{const am=tr2(+(S.p.amt||0)),a=S.accts[S.p.acc==null?0:S.p.acc];if(!fCheck([['d_amt',!am?'Enter an amount':am<100?'Minimum deposit is ₱100':'']]))return;
  if(S.excl)return toast(t('自我排除期内无法充值','Deposits are disabled during self-exclusion'));if(S.cool&&S.cool.until>S.clock)return toast(t('冷静期内无法充值','Deposits are disabled during cool-off'));
  const used=S.tx.filter(x=>x.type==='deposit'&&x.st!=='fail'&&fdt(x.ms)===fdt(S.clock)).reduce((p,x)=>p+x.amt,0);if(used+am>S.limits.dep.d)return modal(()=>`<div style="text-align:center"><div style="width:90px;height:90px;margin:0 auto">${illo('shield')}</div><h3 style="margin-top:10px">${t('超出每日充值限额','Daily deposit limit exceeded')}</h3><div class="mu sm mt3">${t(`限额 ${fm0(S.limits.dep.d)}，今日已充 ${fm0(used)}`,`Limit ${fm0(S.limits.dep.d)} · deposited ${fm0(used)}`)}</div><button class="btn mt2" onclick="A.close();A.go('playsafe')">PlaySafe</button></div>`,true);
  modal(()=>`<div style="text-align:center;padding:10px 0"><div class="spin"></div><h3 style="margin-top:18px">${t('正在向支付渠道发起扣款…','Contacting your payment provider…')}</h3><div class="skel mt2" style="height:14px"></div></div>`,true,true);
@@ -815,8 +845,8 @@ SC.withdraw={title:()=>t('提现','Withdraw'),html:()=>{const W=S.wd,left=W.lock
  if(st===3){const a=S.accts[W.dest||0];return `${bar}<h3 style="margin-top:20px">${t('确认提现','Confirm withdrawal')}</h3><div class="card mt"><div class="list">${[[t('提现金额','Amount'),fm0(W.amt)],[t('到账账户',"To"),`${a.bank||ACN[a.k][0]} ••••${a.no.slice(-4)}`],[t('预计到账','ETA'),t('5 分钟内','Within 5 minutes')],[t('手续费','Fee'),'₱0']].map(r=>`<div class="sp"><span class="mu sm">${r[0]}</span><b class="sm">${r[1]}</b></div>`).join('')}</div></div><button class="btn c mt2" onclick="A.wd3()">${t('确认提现','Confirm')}</button>`}
  return `${bar}<div class="card mt" style="text-align:center;padding:30px 20px"><div style="width:110px;height:110px;margin:0 auto" class="float">${illo('coin')}</div><h3>${t('提现申请已提交','Withdrawal submitted')}</h3><div class="big grad" style="font-size:34px;margin:8px 0">${fm0(W.amt)}</div><div class="mu sm">${t('处理中，预计 5 分钟内到账','Processing — expected within 5 minutes')}</div></div><button class="btn d mt2" onclick="S.wd.step=1;S.wd.amt=0;A.back()">${t('完成','Done')}</button>`},
  mount:()=>{if(S.wd.step===2)A.otp('w_code');if(S.wd.lock-Date.now()>0)T(()=>{const l=S.wd.lock-Date.now();if(l<=0){renderKeep();return}const e=$('#lk');if(e)e.textContent=String(Math.floor(l/60000)).padStart(2,'0')+':'+String(Math.floor(l%60000/1000)).padStart(2,'0')},1000,true)}};
-A.wd1=()=>{const am=tr2(+V('w_amt'));if(!am||am<100)return toast(t('最低提现 ₱100','Minimum withdrawal ₱100'));if(am>S.bal.prize)return toast(t('超过奖金余额，仅奖金余额可提现','Exceeds prize balance — only prize balance is withdrawable'));S.wd.amt=am;if(S.wd.dest==null)S.wd.dest=0;S.wd.step=2;render()};
-A.wd2=()=>{if(V('w_code')==='1234'){S.wd.fail=0;S.wd.step=3;return render()}
+A.wd1=()=>{const am=tr2(+V('w_amt'));if(!fCheck([['w_amt',!am?'Enter an amount':am<100?'Minimum withdrawal is ₱100':am>S.bal.prize?'Exceeds your prize balance. Only prize balance can be withdrawn.':'']]))return;S.wd.amt=am;if(S.wd.dest==null)S.wd.dest=0;S.wd.step=2;render()};
+A.wd2=()=>{if(!fCheck([['w_code',V('w_code').length<4?'Enter the 4-digit code':'']]))return;if(V('w_code')==='1234'){S.wd.fail=0;S.wd.step=3;return render()}
  S.wd.fail++;tick(1);addTx('withdraw',-S.wd.amt,'rej',(S.accts[S.wd.dest||0].bank||ACN[S.accts[S.wd.dest||0].k][0])+' · MFA');
  if(S.wd.fail>=3){S.wd.lock=Date.now()+30*60000;S.wd.fail=0;S.wd.step=1;addNotif('lock','提现已锁定','Withdrawals locked','连续 3 次 MFA 验证失败，提现锁定 30 分钟。','3 failed MFA attempts — withdrawals locked for 30 minutes.');toast(t('连续失败 3 次，提现锁定 30 分钟','3 failures — withdrawals locked for 30 minutes'));return render()}
  const w=$('#w_codew');w&&w.classList.add('shake');toast(t(`验证码错误，还可尝试 ${3-S.wd.fail} 次`,`Wrong code — ${3-S.wd.fail} attempt(s) left`));setTimeout(()=>{S.wd.step=2;render()},400)};
@@ -840,10 +870,10 @@ SC.profile={title:()=>t('资料修改','Edit profile'),html:()=>`<div class="car
  <label class="lb">${t('邮箱（修改需验证）','Email (OTP required to change)')}</label><div class="row g8"><input class="inp" value="${S.reg?S.reg.email:'juan.dc@mail.com'}" readonly><button class="btn d s" onclick="A.chg('${t('邮箱','email')}')">${t('修改','Change')}</button></div>
  <div class="xs mu mt" style="line-height:1.6">${t('姓名、出生日期、证件信息等实名字段不可在此修改。','Name, date of birth and ID details cannot be changed here.')}</div>
  <button class="btn c mt2" onclick="S.nick=V('pf_n')||S.nick;toast(t('已保存','Saved'));A.back()">${t('保存','Save')}</button>`};
-A.chg=w=>{if(otpLocked('chg'))return;if(!otpSend('chg'))return;modal(()=>`<h3>${t('验证身份','Verify identity')}</h3><div class="mu sm mt3">${t(`修改${w}需要短信验证码（OTP_TXN）`,`Changing your ${w} needs an SMS code (OTP_TXN)`)}</div><div style="margin-top:20px">${otp('c_code')}</div><button class="btn c mt2" onclick="if(otpLocked('chg'))return;if(V('c_code')==='1234'){A.close();toast(t('验证通过，请输入新的信息（演示）','Verified (demo)'))}else otpWrong('chg')">${t('验证','Verify')}</button>`,true)};
+A.chg=w=>{if(otpLocked('chg'))return;if(!otpSend('chg'))return;modal(()=>`<h3>${t('验证身份','Verify identity')}</h3><div class="mu sm mt3">${t(`修改${w}需要短信验证码（OTP_TXN）`,`Changing your ${w} needs an SMS code (OTP_TXN)`)}</div><div style="margin-top:20px">${otp('c_code')}</div><button class="btn c mt2" onclick="if(!fCheck([['c_code',V('c_code').length<4?'Enter the 4-digit code':'']]))return;if(otpLocked('chg'))return;if(V('c_code')==='1234'){A.close();toast(t('验证通过，请输入新的信息（演示）','Verified (demo)'))}else otpWrong('chg')">${t('验证','Verify')}</button>`,true)};
 SC.security={title:()=>t('账号安全','Account security'),html:()=>`<div class="card"><h3>${t('修改密码','Change password')}</h3><label class="lb">${t('当前密码','Current password')}</label>${pw('s_o','')}<label class="lb">${t('新密码','New password')}</label>${pw('s_n','')}<label class="lb">${t('确认新密码','Confirm')}</label>${pw('s_c','')}<button class="btn c mt2" onclick="A.chgPw()">${t('更新密码','Update password')}</button></div>
  <h3 style="margin-top:22px">${t('登录设备历史','Sign-in history')}</h3><div class="card mt" style="padding:4px 14px"><div class="list">${[['iPhone 15 · Safari','Makati, PH','2026-10-10 09:12',1],['Pixel 8 · Chrome','Quezon City, PH','2026-10-08 21:40'],['Windows · Edge','Cebu City, PH','2026-10-02 13:05']].map(d=>`<div><span class="ico">${I('phone',22)}</span><div class="fl1"><div class="b" style="font-size:14px">${d[0]}</div><div class="xs mu">${d[1]} · ${d[2]}</div></div>${d[3]?badge('b-gr',t('当前设备','This device')):''}</div>`).join('')}</div></div><div class="xs mu mt" style="line-height:1.6">${t('仅展示历史记录；一期不提供“信任此设备”。','History only — “trust this device” is not available in phase 1.')}</div>`};
-A.chgPw=()=>{if(!V('s_o'))return toast(t('请输入当前密码','Enter current password'));if(!/^(?=.*[A-Za-z])(?=.*\d).{8,20}$/.test(V('s_n')))return toast(t('新密码需 8-20 位且含字母和数字','8–20 chars with letters and digits'));if(V('s_n')!==V('s_c'))return toast(t('两次密码不一致','Passwords do not match'));toast(t('密码已更新','Password updated'));A.back()};
+A.chgPw=()=>{const o=V('s_o'),n=V('s_n'),c=V('s_c');if(!fCheck([['s_o',o?'':'Enter your current password'],['s_n',!n?'Enter a new password':!PW_RE.test(n)?'Use 8–20 characters with letters and digits':n===o?'New password must differ from the current one':''],['s_c',!c?'Confirm your new password':c!==n?'Passwords do not match':'']]))return;toast(t('密码已更新','Password updated'));A.back()};
 SC.notif={title:()=>t('通知','Notifications'),right:()=>`<button class="sm b" style="color:var(--cy)" onclick="S.notifs.forEach(n=>n.read=true);renderKeep()">${t('全部已读','Mark all read')}</button>`,html:()=>`<div class="card" style="padding:4px 14px"><div class="list">${S.notifs.map((n,i)=>`<div onclick="S.notifs[${i}].read=true;renderKeep()" style="align-items:flex-start"><span class="ico" style="background:#222;border-radius:12px;position:relative">${I(n.ic,18)}${n.read?'':'<i style="position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#ff4d6a"></i>'}</span><div class="fl1"><div class="b" style="font-size:14px">${t(n.zh,n.en)}</div><div class="mu sm" style="margin-top:3px;line-height:1.5">${t(n.bz,n.be)}</div><div class="xs mu" style="margin-top:4px">${fts(n.ms)}</div></div></div>`).join('')}</div></div>`};
 
 /* ================= PLAYSAFE ================= */
