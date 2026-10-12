@@ -472,7 +472,7 @@ const S = {
   showPw: false,
   login: { user: "", pass: "", otp: ["", "", "", ""], err: "" },
   page: "dash",
-  tab: { dash: "biz", txn: "dep", report: "sales", sys: "sms" },
+  tab: { dash: "biz", txn: "dep", report: "sales", sys: "sms", games: "list", simsub: "game", simType: "all", simSt: "all" },
   dashRange: "today",
   kycFilter: "all",
   rgFilter: "all",
@@ -616,8 +616,8 @@ S.etickets = [
   { sn: "TKT20261007009880", barcode: "QR-6D0988", game: "d6", issue: "2026-1007-1", pick: "1 2 0 9 8 4", win: "1 2 0 9 8 4", tier: "5th", st: "已自动入账" }
 ];
 S.forfeits = [
-  { game: "m645", issue: "2026-0602-2", amt: 32400, draw: "2026-06-02", deadline: "2026-09-02", voided: "2026-09-03", toZh: "PCSO 公益基金", toEn: "PCSO charity fund" },
-  { game: "l642", issue: "2026-0609-1", amt: 54000, draw: "2026-06-09", deadline: "2026-09-09", voided: "2026-09-10", toZh: "PCSO 公益基金", toEn: "PCSO charity fund" }
+  { game: "m645", issue: "2026-0602-2", amt: 32400, draw: "2026-06-02", deadline: "2026-09-02", voided: "2026-09-03", toZh: "待财务确认", toEn: "Pending finance decision" },
+  { game: "l642", issue: "2026-0609-1", amt: 54000, draw: "2026-06-09", deadline: "2026-09-09", voided: "2026-09-10", toZh: "待财务确认", toEn: "Pending finance decision" }
 ];
 S.pools = [
   { id: "u658", bal: 128450000, add: 4200000, since: "2026-06-18", next: 132800000 },
@@ -921,10 +921,10 @@ function viewDash() {
       <article class="kpi hero"><div class="lbl">${t(d.salesZh, d.salesEn)}</div><div class="num mono">${peso(d.sales)}</div><div class="subl">${dashCmp(d.salesDelta, d.cmpZh, d.cmpEn)}</div></article>
       <article class="kpi"><div class="lbl">${t("出票张数", "Tickets issued")}</div><div class="num mono">${d.tickets.toLocaleString("en-US")}</div></article>
       <article class="kpi"><div class="lbl">${t("投注玩家", "Betting players")}</div><div class="num mono">${d.players.toLocaleString("en-US")}</div><div class="subl">${dashCmp(d.playersDelta, d.cmpZh, d.cmpEn)}</div></article>
-      <article class="kpi"><div class="lbl">${t("可用率 · 近 30 天", "Uptime · last 30 days")}</div><div class="num mono">99.995%</div><div class="subl"><span class="delta up">${t("目标 99.99%", "Target 99.99%")}</span></div></article>
+      <article class="kpi"><div class="lbl">${t("可用率 · 近 30 天", "Uptime · last 30 days")} ${tag("muted", t("示例数据", "Sample data"))}</div><div class="num mono">99.995%</div><div class="subl"><span class="delta up">${t("目标 99.99%", "Target 99.99%")}</span></div></article>
     </div>
     <div class="split">
-      <div class="card"><h4>${t("系统状态", "System status")}</h4>
+      <div class="card"><h4>${t("系统状态", "System status")} ${tag("muted", t("示例数据", "Sample data"))}</h4>
         <div class="table-wrap fit"><table><thead><tr><th>${t("组件", "Component")}</th><th>${t("状态", "Status")}</th><th>${t("说明", "Note")}</th></tr></thead><tbody>${status}</tbody></table></div>
       </div>
       <div class="card"><h4>${t("待处理", "To do")}</h4><div class="todo">${todos}</div></div>
@@ -948,6 +948,65 @@ function cutTime(g, m) {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(c);
 }
 function viewGames() {
+  const hd = `<div style="margin-bottom:14px">${tabs("games", [["list", "游戏", "Games"], ["sim", "录入结果", "Game result"]])}</div>`;
+  return hd + (S.tab.games === "sim" ? viewSim() : viewGamesList());
+}
+
+S.sim = { seq: 8, err: "", log: [
+  { no: "PUSH-20261010-0007", type: "draw", at: "2026-10-10 18:00:12", ref: "6/55 · 2026-1010-1", st: "ok", err: "" },
+  { no: "PUSH-20261010-0006", type: "claim", at: "2026-10-10 15:42:30", ref: "TKT202610090231 · K7M2X9QD", st: "fail", err: "Claim code is void or the claim deadline has passed" },
+  { no: "PUSH-20261010-0005", type: "game", at: "2026-10-10 09:05:00", ref: "6/42 · 2026-1012-1", st: "ok", err: "" },
+  { no: "PUSH-20261009-0004", type: "draw", at: "2026-10-09 21:00:08", ref: "EZ2 · 2026-1009-3", st: "fail", err: "Winning numbers do not match the game definition (EZ2 needs 2 numbers 1–31)" }
+] };
+const SIM_TYPE = { game: ["推送游戏与排期", "Games & schedule"], draw: ["推送开奖结果", "Draw result"], claim: ["推送已兑奖", "Redeemed"] };
+function simField(key, zh, en, ph, val) { return `<div><label class="f">${t(zh, en)}</label><input data-f="${key}" placeholder="${ph || ""}" value="${esc(val || "")}" /></div>`; }
+function viewSim() {
+  const sub = S.tab.simsub;
+  const gopt = GAMES.map((g) => `<option value="${g.id}">${gname(g)}</option>`).join("");
+  const err = S.sim.err ? `<div class="err" style="margin-top:10px">${esc(S.sim.err)}</div>` : "";
+  let body = "";
+  if (sub === "game") body = `<div class="card"><h4>${t("推送游戏与排期", "Push games and schedule")}</h4><p class="tiny">${t("提交后，玩家端出现对应可售期次。", "After pushing, the player app shows the sellable draw.")}</p>
+      <div class="grid2" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      ${simField("g_code", "游戏编码", "Game code", "m655")}${simField("g_en", "游戏名称", "Game name", "Grand Lotto 6/55")}
+      <div><label class="f">${t("类型", "Type")}</label><select data-f="g_type"><option>lotto</option><option>digits</option></select></div>${simField("g_n", "选号个数", "Numbers per line", "6")}${simField("g_rng", "号码范围", "Number range", "1–55")}
+      ${simField("g_price", "单注价格", "Price per line", "25")}${simField("g_play", "玩法", "Play types", "Standard / System / 5-Roll")}${simField("g_pre", "预购上限（期）", "Pre-order max (draws)", "12")}
+      ${simField("g_freq", "开奖频次", "Draw frequency", "Tue / Thu / Sat")}${simField("g_tier", "奖级与生效时间", "Tiers and effective time", "2026-10-12 00:00")}<div></div>
+      ${simField("d_no", "期号", "Draw number", "2026-1012-1")}${simField("d_open", "开售时间", "Sales open", "2026-10-10 09:00")}${simField("d_draw", "开奖时间", "Draw time", "2026-10-12 21:00")}
+      ${simField("d_jp", "头奖预估", "Jackpot estimate", "58200000")}</div>
+      ${err}<div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" data-act="sim-push" data-arg="game">${t("推送", "Push")}</button><button type="button" class="btn btn-sm" data-act="sim-gen-week">${t("一键生成本周排期（辅助）", "Generate this week's schedule (helper)")}</button></div></div>`;
+  else if (sub === "draw") body = `<div class="card"><h4>${t("推送开奖结果", "Push draw result")}</h4><p class="tiny">${t("提交后系统自动算奖、派奖。", "After pushing, the system settles and pays prizes automatically.")}</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${simField("w_no", "期号", "Draw number", "2026-1012-1")}<div><label class="f">${t("游戏编码", "Game code")}</label><select data-f="w_game">${gopt}</select></div>${simField("w_nums", "开奖号码", "Winning numbers", "3,12,27,34,41,49")}${simField("w_at", "发布时间", "Published at", "2026-10-12 21:00")}${simField("w_jp", "头奖奖池", "Jackpot pool", "58200000")}</div>
+      ${err}<div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" data-act="sim-push" data-arg="draw">${t("推送", "Push")}</button><button type="button" class="btn btn-sm" data-act="sim-rand">${t("随机生成开奖号码（辅助）", "Random winning numbers (helper)")}</button></div></div>`;
+  else if (sub === "claim") body = `<div class="card"><h4>${t("推送已兑奖", "Push redeemed")}</h4><p class="tiny">${t("提交后该票转「中奖已申领」，申领码失效。兑奖截止日之后的推送一律拒收并记录日志。", "After pushing, the ticket becomes Won – claimed and the claim code is void. Pushes after the claim deadline are always rejected and logged.")}</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${simField("c_tk", "票号", "Ticket number", "TKT202610090231")}${simField("c_code", "申领码", "Claim code", "K7M2X9QD")}${simField("c_chq", "支票号", "Cheque number", "CHQ-0048821")}${simField("c_amt", "实付金额", "Paid amount", "4120000")}${simField("c_at", "兑付时间", "Paid at", "2026-10-12 10:30")}${simField("c_out", "兑付网点", "Paid outlet", "PCSO Main Office")}
+      <div><label class="f">${t("兑奖截止日（模拟）", "Claim deadline (simulated)")}</label><select data-f="c_dl"><option value="ok">${t("未过", "Not passed")}</option><option value="past">${t("已过", "Passed")}</option></select></div></div>
+      ${err}<div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" data-act="sim-push" data-arg="claim">${t("推送", "Push")}</button></div></div>`;
+  else {
+    const rows = S.sim.log.filter((r) => (S.tab.simType === "all" || r.type === S.tab.simType) && (S.tab.simSt === "all" || r.st === S.tab.simSt)).map((r) => `<tr><td class="mono">${r.no}<div class="tiny">${r.at} UTC+8</div></td><td>${t(...SIM_TYPE[r.type])}</td><td class="mono tiny">${esc(r.ref)}</td><td>${r.st === "ok" ? tag("ok", t("成功", "Processed")) : tag("rose", t("失败", "Failed"))}</td><td class="tiny">${esc(r.err || "-")}</td><td>${r.st === "fail" ? `<button type="button" class="btn btn-sm" data-act="sim-retry" data-id="${r.no}">${t("重新推送", "Re-push")}</button>` : ""}</td></tr>`);
+    body = `<div class="card"><h4>${t("推送日志", "Push log")}</h4><div class="tools" style="display:flex;gap:12px;margin:6px 0 10px"><label class="f">${t("类型", "Type")}<select data-field="simType">${["all", "game", "draw", "claim"].map((x) => `<option value="${x}" ${S.tab.simType === x ? "selected" : ""}>${x === "all" ? t("全部", "All") : t(...SIM_TYPE[x])}</option>`).join("")}</select></label><label class="f">${t("处理状态", "Status")}<select data-field="simSt">${["all", "ok", "fail"].map((x) => `<option value="${x}" ${S.tab.simSt === x ? "selected" : ""}>${x === "all" ? t("全部", "All") : x === "ok" ? t("成功", "Processed") : t("失败", "Failed")}</option>`).join("")}</select></label></div>
+      ${table([t("推送号", "Push no."), t("类型", "Type"), t("内容", "Content"), t("处理结果", "Result"), t("失败原因", "Failure reason"), ""], rows)}<p class="tiny">${t("失败的推送可按原推送号重新推送。", "A failed push can be re-pushed under its original push number.")}</p></div>`;
+  }
+  return `<div class="page-h"><div><h3>${t("录入结果", "Game result")}</h3><p class="muted">${t("游戏规则、开奖号码、兑奖记录由这里推送，服务端走与真实 PCSO 推送相同的处理逻辑。", "Game rules, draw numbers and redemptions are pushed from here and handled exactly like real PCSO pushes.")}</p></div>${tag("cyan", t("可见角色：运营专员", "Visible to: Operations"))}</div>
+    <div class="banner">${t("不提供「下发申领码」（单票 > ₱300,000 时系统自动向 PCSO mock 请求）和「推送封盘时间」（封盘 = 开奖时间 − 封盘提前时间）。", "There is no \"issue claim code\" (the system requests it from the PCSO mock automatically for tickets above ₱300,000) and no \"push cut-off time\" (cut-off = draw time − cut-off lead).")}</div>
+    ${tabs("simsub", [["game", "推送游戏与排期", "Games & schedule"], ["draw", "推送开奖结果", "Draw result"], ["claim", "推送已兑奖", "Redeemed"], ["log", "推送日志", "Push log"]])}<div style="height:12px"></div>${body}`;
+}
+function simVal(k) { const el = document.querySelector(`[data-f="${k}"]`); return el ? el.value.trim() : ""; }
+function simPush(type) {
+  const need = { game: ["g_code", "g_en", "g_n", "g_price", "d_no", "d_draw"], draw: ["w_no", "w_nums", "w_at"], claim: ["c_tk", "c_code", "c_amt", "c_at"] }[type];
+  if (need.some((k) => !simVal(k))) { S.sim.err = t("请填写所有必填项。", "Fill in all required fields."); S.tab.simsub = type; render(); return; }
+  const now = new Date(); const at = `2026-10-12 ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:00`;
+  const no = `PUSH-20261012-${String(S.sim.seq++).padStart(4, "0")}`;
+  let st = "ok", err = "", ref = "";
+  if (type === "game") ref = `${simVal("g_code")} · ${simVal("d_no")}`;
+  if (type === "draw") { ref = `${simVal("w_game")} · ${simVal("w_no")}`; const n = simVal("w_nums").split(",").filter(Boolean).length; if (n < 2) { st = "fail"; err = "Winning numbers do not match the game definition"; } }
+  if (type === "claim") { ref = `${simVal("c_tk")} · ${simVal("c_code")}`; if (simVal("c_dl") === "past") { st = "fail"; err = "Rejected: the claim deadline has passed"; } }
+  S.sim.log.unshift({ no, type, at, ref, st, err });
+  logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), evt: t("PCSO 模拟推送", "PCSO simulated push") + " · " + t(...SIM_TYPE[type]), obj: no });
+  S.sim.err = ""; S.tab.simsub = "log"; S.tab.simSt = "all"; S.tab.simType = "all";
+  toast(st === "ok" ? t("已推送并处理。", "Pushed and processed.") : t("推送被拒收，见推送日志。", "Push rejected. See the push log."));
+  render();
+}
+function viewGamesList() {
   const cards = GAMES.map((g) => `<article class="card gcard ${g.on ? "" : "off"}">
       <div style="margin:-16px -16px 12px">${coverHTML(g, "100%", "96px")}</div>
       <div class="gtop"><div><h4>${gname(g)}</h4><p class="tiny">${t(g.kind === "lotto" ? "乐透类" : "数字类", g.kind === "lotto" ? "Lotto" : "Digits")} · ${peso(g.price)} · ${t(g.freqZh, g.freqEn)}</p></div>
@@ -1147,10 +1206,10 @@ function viewRg() {
   const limitRow = (key, zh, en, hint) => `<tr><td>${t(zh, en)}</td><td><input data-limit="${key}" type="number" value="${S.limits[key]}" style="max-width:140px" /></td><td class="tiny">${hint || t("后台可调", "Admin adjustable")}</td></tr>`;
   const cool = S.coolTiers.map((x, i) => `<span class="tag tag-cyan">${esc(x)} <button type="button" class="link" data-act="tier-del" data-list="cool" data-i="${i}">×</button></span>`).join(" ");
   const excl = S.exclTiers.map((x, i) => `<span class="tag tag-warn">${esc(x)} <button type="button" class="link" data-act="tier-del" data-list="excl" data-i="${i}">×</button></span>`).join(" ");
-  const restores = S.restores.filter((r) => r.st === "pending").map((r) => `<tr><td class="mono">${r.id}<div class="tiny">${r.player} · ${esc(r.name)}</div></td><td>${esc(r.ended)}</td><td>${r.kyc === "pass" ? tag("ok", t("身份核验通过", "Identity passed")) : tag("warn", t("身份核验待补", "Identity to confirm"))}</td><td>${r.risk ? tag("ok", t("已勾选风险确认", "Risk confirmed")) : tag("rose", t("未勾选风险确认", "Risk not confirmed"))}</td><td class="row-actions"><button type="button" class="btn btn-ok btn-sm" data-act="rg-approve" data-id="${r.id}">${t("通过", "Approve")}</button><button type="button" class="btn btn-rose btn-sm" data-act="rg-reject" data-id="${r.id}">${t("驳回", "Reject")}</button></td></tr>`).join("");
+  const restores = S.restores.filter((r) => r.st === "pending").map((r) => `<tr><td class="mono">${r.id}<div class="tiny">${r.player} · ${esc(r.name)}</div></td><td>${esc(r.ended)}</td><td>${r.kyc === "pass" ? tag("ok", t("身份核验通过", "Identity passed")) : tag("warn", t("身份核验待补", "Identity to confirm"))}</td><td>${r.risk ? tag("ok", t("已勾选风险确认", "Risk confirmed")) : tag("rose", t("未勾选风险确认", "Risk not confirmed"))}</td><td class="row-actions">${r.kyc === "pass" && r.risk ? `<button type="button" class="btn btn-ok btn-sm" data-act="rg-approve" data-id="${r.id}">${t("通过", "Approve")}</button>` : `<button type="button" class="btn btn-sm" disabled title="${r.kyc !== "pass" ? t("身份核验未通过，只能驳回", "Identity recheck not passed. Reject only.") : t("风险未确认，只能驳回", "Risk not acknowledged. Reject only.")}" style="opacity:.4;cursor:not-allowed">${t("通过", "Approve")}</button>`}<button type="button" class="btn btn-rose btn-sm" data-act="rg-reject" data-id="${r.id}">${t("驳回", "Reject")}</button></td></tr>`).join("");
   return `<div class="page-h"><div><h3>${t("责任博彩", "Responsible gaming")}</h3><p class="muted">${t("日 / 周 / 月限额、冷静期和自主排除都是后台参数。", "Daily, weekly, and monthly limits, cool-off, and self-exclusion are admin parameters.")} </p></div></div>
     <div class="filters f3">${cards}</div>
-    ${show("restore") ? `<div class="card"><h4>${t("自我排除恢复审批", "Self-exclusion restoration")}</h4><p class="tiny">${t("只列出定期排除到期并提交了恢复申请的玩家。永久排除不会出现在这里。合规审计或系统管理员审批。", "Only expired fixed-term exclusions with a restoration request. Permanent exclusions never appear. Compliance audit or system admin decides.")}</p>${table([t("申请", "Request"), t("排除周期", "Term"), t("身份核验", "Identity"), t("风险确认", "Risk check"), ""], restores)}</div>` : ""}
+    ${show("restore") ? `<div class="card"><h4>${t("自我排除恢复审批", "Self-exclusion restoration")}</h4><p class="tiny">${t("只列出定期排除到期并提交了恢复申请的玩家。永久排除不会出现在这里。身份核验未通过或风险未确认的申请，「通过」置灰，只能驳回，玩家可重新申请。合规审计或系统管理员审批。", "Only expired fixed-term exclusions with a restoration request. Permanent exclusions never appear. If the identity recheck failed or risk is not acknowledged, Approve is disabled and the request can only be rejected; the player may apply again. Compliance audit or system admin decides.")}</p>${table([t("申请", "Request"), t("排除周期", "Term"), t("身份核验", "Identity"), t("风险确认", "Risk check"), ""], restores)}</div>` : ""}
     ${show("limit") ? `<div class="card"><h4>${t("即将到期限额调整", "Limit changes coming due")}</h4>${table([t("玩家", "Player"), t("调整", "Change"), t("生效时间", "Effective")], S.limitSoon.map((r) => `<tr><td class="mono">${r.player}<div class="tiny">${esc(r.name)}</div></td><td>${t(r.whatZh, r.whatEn)}</td><td class="mono">${r.when} UTC+8</td></tr>`))}</div>` : ""}
     ${show("excl") ? `<div class="card"><h4>${t("今日新增自主排除", "New self-exclusions today")}</h4>${table([t("玩家", "Player"), t("周期", "Term"), t("时间", "Time")], S.exclToday.map((r) => `<tr><td class="mono">${r.player}<div class="tiny">${esc(r.name)}</div></td><td>${esc(r.period)}</td><td class="mono">${r.at} UTC+8</td></tr>`))}</div>` : ""}
     <div class="card"><h4>${t("限额配置", "Limit settings")}</h4>
@@ -1263,7 +1322,7 @@ function viewSales() {
     return `<tr><td>${gname(gameBy(r.id))}</td><td class="mono amt">${peso(Math.round(r.sales * f))}</td><td>${share}</td><td class="mono amt">${Math.round(r.tickets * f).toLocaleString("en-US")}</td><td class="mono amt">${Math.round(r.players * f).toLocaleString("en-US")}</td><td class="${r.mom >= 0 ? "delta up" : "delta down"}">${pct(r.mom)}</td></tr>`;
   });
   const plays = PLAY_SALES.map((r) => `<tr><td>${t(r.zh, r.en)}</td><td class="mono amt">${peso(Math.round(r.sales * f))}</td><td>${(r.sales / 148260000 * 100).toFixed(1)}%</td><td class="mono amt">${peso(r.avg)}</td><td>${t(r.nz, r.ne)}</td></tr>`);
-  return `<div class="page-h"><div class="tabs">${["day", "week", "month"].map((g) => `<button type="button" data-act="grain" data-arg="${g}" class="${S.salesGrain === g ? "on" : ""}">${t(g === "day" ? "按日" : g === "week" ? "按周" : "按月", g === "day" ? "Day" : g === "week" ? "Week" : "Month")}</button>`).join("")}</div>
+  return `<div class="banner">${t("统计口径：销售类（销售额、投注笔数、交易当量）按出票日归属，UTC+8 自然日；金额为税前。", "Basis: sales figures (sales, bet count, transaction equivalent) are counted by ticket date, UTC+8 calendar day. Amounts are pre-tax.")}</div><div class="page-h"><div class="tabs">${["day", "week", "month"].map((g) => `<button type="button" data-act="grain" data-arg="${g}" class="${S.salesGrain === g ? "on" : ""}">${t(g === "day" ? "按日" : g === "week" ? "按周" : "按月", g === "day" ? "Day" : g === "week" ? "Week" : "Month")}</button>`).join("")}</div>
     <button type="button" class="btn btn-sm" data-act="export-sales">${t("导出", "Export")}</button></div>
     <div class="kpis k5">
       <article class="kpi hero"><div class="lbl">${t("销售额", "Sales")}</div><div class="num" style="font-size:22px">${pesoM(total)}</div><div class="subl">${delta(9.1)}<br>${t("乐透类", "Lotto")} ${pesoM(lotto)} / ${(lotto / total * 100).toFixed(1)}%<br>${t("数字类", "Digits")} ${pesoM(digit)} / ${(digit / total * 100).toFixed(1)}%</div></article>
@@ -1344,13 +1403,16 @@ function viewPrize() {
   const barMax = 30904400;
   return `<div class="page-h"><div><h3 style="font-size:22px">${t("奖金与派彩", "Prizes paid")}</h3><p class="muted">${t("钱发出去多少、还欠多少、什么时候过期", "How much went out, how much is still owed, and when it expires")}</p></div>
     <div class="tools"><label class="f">${t("月份", "Month")}<select data-field="prizeMonth">${months}</select></label><button type="button" class="btn btn-sm" data-act="export-prize">${t("导出", "Export")}</button></div></div>
+    <div class="banner">${t("统计口径：派奖类按开奖日归属；金额一律为税前，代扣税单列，税后 = 税前 − 代扣税；PCSO 线下兑付实付金额按兑付时间单列，用于对账。", "Basis: prizes are counted by draw date. Amounts are pre-tax; withholding tax is shown separately (net = pre-tax − withholding). Counter payments are listed by paid date, for reconciliation.")}</div>
     <div class="kpis k6">
       <article class="kpi"><div class="lbl">${t("派奖总额", "Prizes awarded")}</div><div class="num" style="font-size:20px">₱65.23M</div><div class="subl">${t("占净销售 55%", "55% of net sales")}</div></article>
       <article class="kpi"><div class="lbl">${t("中奖注数", "Winning bets")}</div><div class="num" style="font-size:20px">${wins.toLocaleString("en-US")}</div><div class="subl">${t("数字类占", "Digits")} ${(digitN / wins * 100).toFixed(1)}%</div></article>
       <article class="kpi"><div class="lbl">${t("自动入账", "Auto credit")}</div><div class="num" style="font-size:20px">₱30.90M</div><div class="subl">${autoN.toLocaleString("en-US")} ${t("笔", "bets")}</div></article>
       <article class="kpi"><div class="lbl">${t("柜台兑付", "Counter paid")}</div><div class="num" style="font-size:20px">₱30.21M</div><div class="subl">2 ${t("笔", "bets")}</div></article>
       <article class="kpi warn"><div class="lbl">${t("待领取", "Unclaimed")}</div><div class="num" style="font-size:20px">₱4.12M</div><div class="subl">3 ${t("笔", "bets")}</div></article>
-      <article class="kpi"><div class="lbl">${t("逾期作废", "Forfeited")}</div><div class="num" style="font-size:20px">${showForfeit ? peso(forfeitSum) : "₱0"}</div><div class="subl">${showForfeit ? t("不计入已派奖金", "Not included in prizes paid") : t("本期无", "None this period")}</div></article>
+      <article class="kpi"><div class="lbl">${t("逾期作废", "Forfeited")}</div><div class="num" style="font-size:20px">${showForfeit ? peso(forfeitSum) : "₱0"}</div><div class="subl">${showForfeit ? t("截止日已过且未兑付，税前合计，已从待领取中剔除", "Past deadline and unpaid, pre-tax; removed from Unclaimed") : t("本期无", "None this period")}</div></article>
+    </div>
+    <div class="kpis k3"><article class="kpi"><div class="lbl">${t("代扣税总额（税前 − 代扣税 = 税后）", "Withholding tax (net = pre-tax − withholding)")} ${tag("muted", t("示例数据", "Sample data"))}</div><div class="num" style="font-size:20px">₱2.46M</div><div class="subl">${t("按开奖日归属", "By draw date")}</div></article><article class="kpi"><div class="lbl">${t("PCSO 线下兑付实付金额", "Counter paid amount")}</div><div class="num" style="font-size:20px">${peso(30210000)}</div><div class="subl">${t("按兑付时间归属，用于对账", "By paid date, for reconciliation")}</div></article><article class="kpi"><div class="lbl">${t("待领取（不含已逾期）", "Unclaimed (excl. expired)")}</div><div class="num" style="font-size:20px">${peso(4120000)}</div><div class="subl">${t("已逾期的票单列在「逾期作废」", "Expired tickets are counted under Forfeited")}</div></article>
     </div>
     <div class="split">
       <div class="card"><h4>${t("按奖级分布", "By prize tier")}</h4>${table([t("奖级", "Tier"), t("中奖注数", "Winning bets"), t("单注奖金", "Prize per bet"), t("合计", "Total"), t("占比", "Share"), t("兑付方式", "How paid")], [tierRows(TIER_LOTTO, sumAt(TIER_LOTTO, 5)), tierRows(TIER_DIGIT, sumAt(TIER_DIGIT, 5))])}</div>
@@ -1725,6 +1787,10 @@ function onClick(e) {
     return;
   }
   if (act === "nav") { S.page = arg; S.playerId = null; S.kycId = null; S.modal = null; render(); return; }
+  if (act === "sim-push") { simPush(arg); return; }
+  if (act === "sim-retry") { const r = S.sim.log.find((x) => x.no === id); if (r) { r.st = "ok"; r.err = ""; toast(t("已按原推送号重新推送。", "Re-pushed under the original push number.")); render(); } return; }
+  if (act === "sim-rand") { const a = new Set(); while (a.size < 6) a.add(1 + Math.floor(Math.random() * 49)); const el = document.querySelector("[data-f=w_nums]"); if (el) el.value = [...a].sort((x, y) => x - y).join(","); return; }
+  if (act === "sim-gen-week") { const d = document.querySelector("[data-f=d_draw]"); if (d) d.value = "2026-10-13 21:00"; const n = document.querySelector("[data-f=d_no]"); if (n) n.value = "2026-1013-1"; toast(t("已填入本周排期，点「推送」提交。", "Schedule filled in. Click Push to submit.")); return; }
   if (act === "tab") { S.tab[actEl.dataset.group] = arg; render(); return; }
   if (act === "close") { S.modal = null; render(); return; }
   if (act === "cover-open") { S.mf = {}; S.modal = { type: "cover", id }; render(); return; }
@@ -1846,6 +1912,7 @@ function onClick(e) {
   }
   if (act === "rg-approve" || act === "rg-reject") {
     const r = S.restores.find((x) => x.id === id);
+    if (act === "rg-approve" && !(r.kyc === "pass" && r.risk)) { toast(t("身份核验未通过或风险未确认，不能通过，只能驳回。", "Identity recheck not passed or risk not acknowledged. You can only reject.")); return; }
     r.st = act === "rg-approve" ? "pass" : "reject";
     logAudit({ who: actor().who, role: actor().role, mod: t("责任博彩", "Responsible gaming"), evt: act === "rg-approve" ? t("通过恢复", "Approve restoration") : t("驳回恢复", "Reject restoration"), obj: r.id, before: t("待审批", "Waiting"), after: r.st });
     toast(act === "rg-approve" ? t("已通过恢复申请。", "Restoration approved.") : t("已驳回恢复申请。", "Restoration rejected."));
@@ -2029,6 +2096,8 @@ document.body.addEventListener("input", (e) => {
   const el = e.target;
   if (el.dataset.field === "user") S.login.user = el.value;
   if (el.dataset.field === "pass") S.login.pass = el.value;
+  if (el.dataset.field === "simType") { S.tab.simType = el.value; render(); }
+  if (el.dataset.field === "simSt") { S.tab.simSt = el.value; render(); }
   if (el.dataset.field === "freezeReason") S.freezeReason = el.value;
   if (el.dataset.field === "annTitle") S.ann.title = el.value;
   if (el.dataset.field === "playerQ") { S.playerQ = el.value; render(); focusField("[data-field=playerQ]"); }
