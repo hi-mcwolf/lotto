@@ -582,9 +582,9 @@ S.orders = [
   { time: "2026-10-07 20:18", player: "PL-102901", game: "d6", issue: "2026-1007-1", play: "Straight", amt: 12, ticket: "TKT20261007009880", st: "ok" }
 ];
 S.refunds = [
-  { id: "TXN20261010000912", time: "2026-10-10 09:00", player: "PL-104482", ticket: "TKT20261009000231", bet: 25, prize: 0, zh: "不开奖日调整", en: "Draw cancelled" },
+  { id: "TXN20261010000912", time: "2026-10-10 09:00", player: "PL-104482", ticket: "TKT20261009000231", bet: 25, prize: 0, zh: "游戏下架，到开奖时间仍未上架", en: "Game unavailable at draw time" },
   { id: "TXN20261010000866", time: "2026-10-10 03:21", player: "PL-102901", ticket: "TKT20261008004417", bet: 100, prize: 50, zh: "游戏下架，到开奖时间仍未上架", en: "Game delisted at draw time" },
-  { id: "TXN20261009000715", time: "2026-10-09 21:00", player: "PL-100218", ticket: "TKT20261007002190", bet: 0, prize: 36, zh: "不开奖日调整", en: "Draw cancelled" },
+  { id: "TXN20261009000715", time: "2026-10-09 21:00", player: "PL-100218", ticket: "TKT20261007002190", bet: 0, prize: 36, zh: "游戏下架，到开奖时间仍未上架", en: "Game unavailable at draw time" },
   { id: "TXN20261009000402", time: "2026-10-09 10:05", player: "PL-101774", ticket: "TKT20261007001033", bet: 300, prize: 0, zh: "游戏下架，到开奖时间仍未上架", en: "Game delisted at draw time" }
 ];
 S.claims = [
@@ -1034,7 +1034,8 @@ function viewGamesList() {
 }
 function rulesModal(id) {
   const g = gameBy(id);
-  const rows = g.prizes.map((p) => `<tr><td>${t(p[0], p[1])}</td><td>${t(g.playZh, g.playEn)}</td><td class="mono">${t(p[2], p[3])}</td></tr>`);
+  const hitEn = (s) => { let m; if ((m = s.match(/^Match (\d+)/))) return `Match ${m[1]} numbers`; if ((m = s.match(/all (\d+)/))) return `All ${m[1]} digits match`; if ((m = s.match(/last (\d+)/))) return `Last ${m[1]} digits match`; if (s === "Straight") return "Numbers match in exact order"; if (s.startsWith("Rambolito")) return "Numbers match in any order"; return s; };
+  const rows = g.prizes.map((p) => `<tr><td>${t(p[0], p[1])}</td><td>${t(p[0].replace(/^.*?·\s*/, ""), hitEn(p[1]))}</td><td>${t(g.playZh, g.playEn)}</td><td class="mono">${t(p[2], p[3])}</td></tr>`);
   return `<div class="modal-back" data-act="close"><div class="modal" data-stop="1">
     <div class="page-h"><div><h3>${gname(g)}</h3><p class="sub">${t("只读规则。数据来自上游系统，不可编辑。", "Read-only rules. Data comes from upstream and cannot be edited.")}</p></div>
       <button type="button" class="btn btn-sm" data-act="close">${t("关闭", "Close")}</button></div>
@@ -1044,7 +1045,7 @@ function rulesModal(id) {
       <article class="kpi"><div class="lbl">${t("单注 / 频次", "Price / cadence")}</div><div class="num" style="font-size:18px">${peso(g.price)} · ${t(g.freqZh, g.freqEn)}</div></article>
       <article class="kpi"><div class="lbl">${t("预购", "Advance buy")}</div><div class="num" style="font-size:18px">${g.advance} ${t("期", "draws")}</div></article>
     </div>
-    ${table([t("奖级", "Tier"), t("玩法", "Play"), t("奖金", "Prize")], rows)}
+    ${table([t("奖级", "Tier"), t("命中说明", "Match description"), t("玩法", "Play"), t("奖金", "Prize")], rows)}
     <p class="tiny">${g.kind === "lotto" ? t("头奖为累计奖池，没人中滚存；2、3 等按游戏为固定奖池（由中奖注平分）或固定金额；4 等为固定金额。复式和 5 号轮转先展开成单注，每注独立判奖。", "The jackpot rolls over. 2nd and 3rd are a shared fixed pool or a fixed amount, depending on the game; 4th is a fixed amount. System and 5-Roll bets are expanded into single lines, each judged separately.") : g.id === "d4" || g.id === "d6" ? t("全部为固定奖金，没有奖池和滚存；从最后一位往前数连续对上几位，同一注只取最高奖级。单价 ₱" + g.price + "。", "All prizes are fixed, no pool or rollover. Digits are matched from the end; only the highest tier counts per line. Price ₱" + g.price + ".") : t("全部为固定奖金，没有奖池和滚存。Rambolito 顺序不限。", "All prizes are fixed, no pool or rollover. Rambolito: any order.")}</p>
   </div></div>`;
 }
@@ -1289,7 +1290,7 @@ function viewOrders() {
 }
 function viewRefunds() {
   const rs = { ok: tag("ok", t("已退款", "Refunded")) };
-  return `<div class="banner">${t("不开奖日调整，或游戏下架后到该期开奖时间仍未上架，彩票作废，投注金额按原扣款构成原路退回钱包：充值金额部分退投注余额，奖金金额部分退奖金余额。每张作废票一条记录。", "When a draw is cancelled, or a delisted game is still off sale at the draw time, the ticket is voided and the bet is refunded the way it was paid: the deposited part to the bet balance, the prize part to the prize balance. One record per voided ticket.")}</div>
+  return `<div class="banner">${t("游戏下架后到该期开奖时间仍未上架，彩票作废，投注金额按原扣款构成原路退回钱包：充值金额部分退投注余额，奖金金额部分退奖金余额。每张作废票一条记录。", "When a delisted game is still off sale at the draw time, the ticket is voided and the bet is refunded the way it was paid: the deposited part to the bet balance, the prize part to the prize balance. One record per voided ticket.")}</div>
     ${table([t("流水号", "Transaction"), t("时间", "Time"), t("玩家", "Player"), t("原票号", "Ticket"), t("退款金额", "Refund"), t("退回投注余额", "To bet balance"), t("退回奖金余额", "To prize balance"), t("作废原因", "Reason"), t("状态", "Status")],
       S.refunds.map((r) => `<tr><td class="mono">${r.id}</td><td class="mono">${r.time} UTC+8</td><td class="mono">${r.player}</td><td class="mono">${r.ticket}</td><td class="mono amt">${peso2(r.bet + r.prize)}</td><td class="mono amt">${peso2(r.bet)}</td><td class="mono amt">${peso2(r.prize)}</td><td>${t(r.zh, r.en)}</td><td>${rs.ok}</td></tr>`))}`;
 }
