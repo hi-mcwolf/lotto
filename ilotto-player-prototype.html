@@ -499,7 +499,7 @@ function seedDemo(){fresh();const c0=Date.parse('2026-10-10T09:30:00+08:00'),D=8
  S.tx.sort((a,b)=>b.ms-a.ms);
  S.notifs=[];
  addNotif('trophy','您有一张大奖待申领','You have a prize to claim','乐透 6/42 头奖 ₱4,120,000，请凭申领码到 PCSO 总部兑付。','Lotto 6/42 jackpot ₱4,120,000 — claim at PCSO HQ with your code.');
- addNotif('wallet','充值到账','Deposit received','GCash 充值 ₱2,000 已到账。','GCash deposit ₱2,000 credited.');
+ addNotif('wallet','充值到账','Deposit result','GCash 充值 ₱2,000 已到账。','Your ₱2,000.00 deposit was successful.');
  addNotif('shield','实名认证已通过','Identity verified','您的实名认证已通过，已解锁全部功能。','Your identity is verified. All features unlocked.');
  addNotif('clock','理性娱乐提醒','Play responsibly','您已连续游戏 10 分钟，如有需要请休息一下。','You have been playing for 10 minutes. Take a break if you need one.');
  addNotif('ticket','开奖提醒','Draw reminder','超级乐透 6/49 今晚 21:00 开奖。','Super Lotto 6/49 draws tonight 21:00.');
@@ -838,7 +838,7 @@ A.depGo=()=>{const am=tr2(+(S.p.amt||0)),ch=S.p.ch||'gcash';if(!fCheck([['d_amt'
  if(S.excl)return toast(t('自我排除期内无法充值','Deposits are disabled during self-exclusion'));if(S.cool&&S.cool.until>S.clock)return toast(t('冷静期内无法充值','Deposits are disabled during cool-off'));
  const used=S.tx.filter(x=>x.type==='deposit'&&x.st!=='fail'&&fdt(x.ms)===fdt(S.clock)).reduce((p,x)=>p+x.amt,0);if(used+am>S.limits.dep.d)return modal(()=>`<div style="text-align:center"><div style="width:90px;height:90px;margin:0 auto">${illo('shield')}</div><h3 style="margin-top:10px">${t('超出每日充值限额','Daily deposit limit exceeded')}</h3><div class="mu sm mt3">${t(`限额 ${fm0(S.limits.dep.d)}，今日已充 ${fm0(used)}`,`Limit ${fm0(S.limits.dep.d)} · deposited ${fm0(used)}`)}</div><button class="btn mt2" onclick="A.close();A.go('playsafe')">PlaySafe</button></div>`,true);
  modal(()=>`<div style="text-align:center;padding:10px 0"><div class="spin"></div><h3 style="margin-top:18px">${t('正在向支付渠道发起扣款…','Contacting your payment provider…')}</h3><div class="skel mt2" style="height:14px"></div></div>`,true,true);
- setTimeout(()=>{tick(2);S.bal.bet+=am;addTx('deposit',am,'ok',ACN[ch][0]);S.j.dep=1;addNotif('wallet','充值到账','Deposit received',`${ACN[ch][0]} 充值 ${fm0(am)} 已到账。`,`${ACN[ch][0]} deposit ${fm0(am)} credited.`);
+ setTimeout(()=>{tick(2);S.bal.bet+=am;addTx('deposit',am,'ok',ACN[ch][0]);S.j.dep=1;addNotif('wallet','充值到账','Deposit result',`${ACN[ch][0]} 充值 ${fm0(am)} 已到账。`,`Your ${fm2(am)} deposit was successful.`);
   modal(()=>`<div style="text-align:center"><div style="width:100px;height:100px;margin:0 auto" class="float">${illo('coin')}</div><h3>${t('充值成功','Deposit successful')}</h3><div class="big grad" style="font-size:34px;margin:8px 0">${fm0(am)}</div><div class="mu sm">${t('已计入投注余额','Credited to bet balance')}</div><div class="row g8 mt2"><button class="btn d" onclick="A.close();S.p={};A.back()">${t('完成','Done')}</button><button class="btn c" onclick="A.close();S.p={};A.tab('play')">${t('去投注','Play now')}</button></div></div>`,true,true);renderKeep()},1700)};
 
 SC.withdraw={title:()=>t('提现','Withdraw'),html:()=>{const W=S.wd,left=W.lock-Date.now();
@@ -856,7 +856,7 @@ A.wd2=()=>{if(!fCheck([['w_code',V('w_code').length<4?'Enter the 4-digit code':'
  if(S.wd.fail>=3){S.wd.lock=Date.now()+30*60000;S.wd.fail=0;S.wd.step=1;addNotif('lock','提现已锁定','Withdrawals locked','连续 3 次 MFA 验证失败，提现锁定 30 分钟。','3 failed MFA attempts — withdrawals locked for 30 minutes.');toast(t('连续失败 3 次，提现锁定 30 分钟','3 failures — withdrawals locked for 30 minutes'));return render()}
  const w=$('#w_codew');w&&w.classList.add('shake');toast(t(`验证码错误，还可尝试 ${3-S.wd.fail} 次`,`Wrong code — ${3-S.wd.fail} attempt(s) left`));setTimeout(()=>{S.wd.step=2;render()},400)};
 A.wd3=()=>{const am=S.wd.amt;tick(3);S.bal.prize-=am;const a=S.accts[S.wd.dest||0];addTx('withdraw',-am,'proc',a.bank||ACN[a.k][0]);const id=S.tx[0].id;S.j.wd=1;S.wd.step=4;render();
- setTimeout(()=>{const x=S.tx.find(q=>q.id===id);if(x){x.st='ok';addNotif('up','提现已到账','Withdrawal paid',`${fm0(am)} 已到账 ${a.bank||ACN[a.k][0]}。`,`${fm0(am)} sent to ${a.bank||ACN[a.k][0]}.`);if(S.screen==='wallet'||S.screen==='tx')renderKeep()}},4500)};
+ setTimeout(()=>{const x=S.tx.find(q=>q.id===id);if(x){x.st='ok';addNotif('up','提现已到账','Withdrawal result',`${fm0(am)} 已到账 ${a.bank||ACN[a.k][0]}。`,`Your ${fm2(am)} withdrawal has been paid out.`);if(S.screen==='wallet'||S.screen==='tx')renderKeep()}},4500)};
 
 /* ================= ACCOUNT ================= */
 const row3=(ic,ti,fn,badgeHtml)=>`<div onclick="${fn}" style="cursor:pointer"><span class="ico">${I(ic,24)}</span><span class="fl1 b" style="font-size:16px">${ti}</span>${badgeHtml||''}<span class="mu">${I('chev',18)}</span></div>`;
