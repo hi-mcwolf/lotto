@@ -472,7 +472,7 @@ const S = {
   showPw: false,
   login: { user: "", pass: "", otp: ["", "", "", ""], err: "" },
   page: "dash",
-  tab: { dash: "biz", txn: "dep", report: "sales", sys: "sms", games: "list", simsub: "game", simType: "all", simSt: "all" },
+  tab: { dash: "biz", txn: "dep", report: "sales", sys: "sms", alert: "all", games: "list", simsub: "game", simType: "all", simSt: "all" },
   dashRange: "today",
   kycFilter: "all",
   rgFilter: "all",
@@ -653,7 +653,15 @@ S.limits = {
 S.coolTiers = ["24 小时", "7 天", "30 天"];
 S.exclTiers = ["3 个月", "6 个月", "1 年", "永久"];
 
+S.alerts = [
+  { id: "IA-2610-014", obj: "Ticket", objId: "TKT202610120087", src: "算奖", srcEn: "Prize calculation", found: "2026-10-12 21:30:18", st: "open", fu: "已开奖期次：运维手动执行补算任务", fuEn: "Draw already settled: ops runs a recalculation task manually" },
+  { id: "IA-2610-013", obj: "Bet order", objId: "BET202610120061", src: "作废退款", srcEn: "Void refund", found: "2026-10-12 03:00:41", st: "open", fu: "已作废期次：复核通过后系统自动补退", fuEn: "Voided draw: the system refunds automatically after review passes" },
+  { id: "IA-2610-012", obj: "Wallet", objId: "PL-104482", src: "每日巡检", srcEn: "Daily check", found: "2026-10-11 03:00:12", st: "closed", by: "Mina Cruz", at: "2026-10-11 10:22:05", note: "核对流水后确认签名为迁移遗留，重新验签通过。", noteEn: "Ledger checked; signature was left over from a migration. Re-verification passed.", fu: "—", fuEn: "—" },
+  { id: "IA-2610-011", obj: "Prize order", objId: "PRZ202610100019", src: "算奖", srcEn: "Prize calculation", found: "2026-10-10 21:30:09", st: "closed", by: "Mina Cruz", at: "2026-10-11 09:48:31", note: "派奖单金额与彩票一致，重新验签通过，运维已补算。", noteEn: "Prize order matches the ticket. Re-verification passed; ops ran the recalculation.", fu: "已开奖期次：运维手动执行补算任务", fuEn: "Draw already settled: ops runs a recalculation task manually" },
+  { id: "IA-2610-010", obj: "Transaction", objId: "TX202610090733", src: "每日巡检", srcEn: "Daily check", found: "2026-10-09 03:00:07", st: "closed", by: "Mina Cruz", at: "2026-10-09 11:05:50", note: "重新验签通过。", noteEn: "Re-verification passed.", fu: "—", fuEn: "—" },
+];
 S.audits = [
+  { time: "2026-10-11 10:22:05", who: "Mina Cruz", role: "运营专员", mod: "系统管理", evt: "复核关闭完整性告警", obj: "IA-2610-012", res: "成功", before: "待复核", after: "已关闭 · 核对流水后确认签名为迁移遗留，重新验签通过。" },
   { time: "2026-10-10 01:06:12", who: "系统", role: "—", mod: "玩家档案", evt: "提现锁定", obj: "PL-104482", res: "成功", before: "mfaFails=2", after: "连续 3 次 MFA 失败，锁定提现 30 分钟" },
   { time: "2026-10-09 22:18:44", who: "Mina Cruz", role: "运营专员", mod: "游戏管理", evt: "下架游戏", obj: "百万乐透 6/45", res: "成功", before: "在售", after: "已下架" },
   { time: "2026-10-09 21:02:09", who: "系统", role: "—", mod: "交易流水", evt: "出票失败回滚", obj: "PL-101552 / 大乐透", res: "已回滚", before: "待出票", after: "未扣款" },
@@ -1060,7 +1068,7 @@ function viewDraws() {
       <label class="f">${t("游戏", "Game")}<select data-field="drawGame">${opts}</select></label>
       <label class="f">${t("期号", "Draw no.")}<input data-field="drawIssue" value="${esc(S.drawQ.issue)}" placeholder="2026-1009-3" /></label>
     </div></div>
-    ${table([t("开奖日期", "Draw date"), t("期号", "Draw no."), t("游戏", "Game"), t("中奖号码", "Winning numbers"), t("各奖级人数", "Winners by tier"), t("派奖总额", "Paid out"), t("头奖滚存", "Jackpot rollover")],
+    ${table([t("开奖日期", "Draw date"), t("期号", "Draw no."), t("游戏", "Game"), t("中奖号码", "Winning numbers"), t("各奖级人数", "Winners by tier"), t("派奖总额（税前）", "Paid out (pre-tax)"), t("头奖滚存", "Jackpot rollover")],
       rows.map((d) => `<tr><td class="mono">${d.date}</td><td class="mono">${d.issue}</td><td>${gname(gameBy(d.game))}</td><td class="mono">${d.nums}</td><td>${d.winners}</td><td class="mono amt">${peso(d.payout)}</td><td>${t(d.rollZh, d.rollEn)}</td></tr>`))}
   `;
 }
@@ -1353,7 +1361,7 @@ function viewShare() {
     [t("销售额", "Sales"), peso(Math.round(s.sales)), t("乐透类 + 数字类合计", "Lotto plus digits")],
     [t("减：印花税 DST 20%", "Less: DST 20%"), peso(Math.round(s.dst)), t("含在票面价格内，法定代扣", "Included in the ticket price, withheld by law")],
     [t("计税后净销售", "Net sales after tax"), peso(Math.round(s.net)), t("分成的计算基数", "The base for the share")],
-    [t("减：已派奖金 55%", "Less: prizes paid 55%"), peso(Math.round(prizes)), t("含已入账小奖与已兑付大奖", "Includes credited small prizes and paid jackpots")],
+    [t("减：已派奖金 55%（税前）", "Less: prizes paid 55% (pre-tax)"), peso(Math.round(prizes)), t("税前，含已入账小奖与已兑付大奖（含代扣税）", "Pre-tax, includes credited small prizes and paid jackpots (withholding tax included)")],
     [t("可分配净额", "Distributable net"), peso(Math.round(dist)), ""],
     [t("PCSO 公益基金", "PCSO charity fund"), peso(Math.round(s.net * BILL.charity)), t("净销售 30%", "30% of net sales")],
     [t("运营分成", "Operations share"), peso(Math.round(s.net * BILL.ops)), t("净销售 15%", "15% of net sales")]
@@ -1376,7 +1384,7 @@ function viewShare() {
       <button type="button" class="btn btn-sm" data-act="export-share">${t("导出", "Export")}</button>
     </div></div>
     <div class="card"><h4>${t("分成测算", "Share calculation")}</h4><div class="flow">${steps.map((st) => `<div class="step"><div><b>${st[0]}</b><div class="tiny">${st[2]}</div></div><div class="mono" style="color:#fff;font-size:18px">${st[1]}</div></div>`).join("")}</div></div>
-    <div class="card"><h4>${t("按游戏类别拆分", "Split by game class")}</h4>${table([t("类别", "Class"), t("销售额", "Sales"), t("印花税", "DST"), t("净销售", "Net sales"), t("已派奖金", "Prizes paid"), t("可分配", "Distributable"), t("运营分成", "Ops share")], splitRows.concat(totalForSplit))}</div>
+    <div class="card"><h4>${t("按游戏类别拆分", "Split by game class")}</h4>${table([t("类别", "Class"), t("销售额", "Sales"), t("印花税", "DST"), t("净销售", "Net sales"), t("已派奖金（税前）", "Prizes paid (pre-tax)"), t("可分配", "Distributable"), t("运营分成", "Ops share")], splitRows.concat(totalForSplit))}</div>
     <div class="card" id="pools"><h4>${t("奖池汇总", "Jackpot pools")}</h4><p class="tiny">${t("只列乐透类 5 个游戏。", "Lotto games only.")}</p>
       ${table([t("游戏", "Game"), t("当前奖池余额", "Pool balance"), t("本期新增投入", "Added this issue"), t("滚存起始日期", "Rollover since"), t("预计下期开奖前奖池", "Est. before next draw")],
         S.pools.map((p) => `<tr><td>${gname(gameBy(p.id))}</td><td class="mono amt">${peso(p.bal)}</td><td class="mono amt">${peso(p.add)}</td><td class="mono">${p.since}</td><td class="mono amt">${peso(p.next)}</td></tr>`))}
@@ -1406,7 +1414,7 @@ function viewPrize() {
     <div class="tools"><label class="f">${t("月份", "Month")}<select data-field="prizeMonth">${months}</select></label><button type="button" class="btn btn-sm" data-act="export-prize">${t("导出", "Export")}</button></div></div>
     <div class="banner">${t("统计口径：派奖类按开奖日归属；自动入账金额为税后（实际进玩家钱包的金额），线下兑奖、待领取、逾期作废金额为税前（代扣税在兑付时才扣），代扣税单列；PCSO 线下兑付实付金额按兑付时间单列，用于对账。", "Basis: prizes are counted by draw date. Auto credit is after tax (what actually reached player wallets); counter payments, unclaimed and forfeited are pre-tax (tax is withheld when paid out). Withholding tax is shown separately. Counter payments are listed by paid date, for reconciliation.")}</div>
     <div class="kpis k6">
-      <article class="kpi"><div class="lbl">${t("派奖总额", "Prizes awarded")}</div><div class="num" style="font-size:20px">₱65.23M</div><div class="subl">${t("占净销售 55%", "55% of net sales")}</div></article>
+      <article class="kpi"><div class="lbl">${t("派奖总额（税前）", "Prizes awarded (pre-tax)")}</div><div class="num" style="font-size:20px">₱65.23M</div><div class="subl">${t("占净销售 55%", "55% of net sales")}</div></article>
       <article class="kpi"><div class="lbl">${t("中奖注数", "Winning bets")}</div><div class="num" style="font-size:20px">${wins.toLocaleString("en-US")}</div><div class="subl">${t("数字类占", "Digits")} ${(digitN / wins * 100).toFixed(1)}%</div></article>
       <article class="kpi"><div class="lbl">${t("自动入账（税后）", "Auto credit (after tax)")}</div><div class="num" style="font-size:20px">₱30.90M</div><div class="subl">${autoN.toLocaleString("en-US")} ${t("笔", "bets")}</div></article>
       <article class="kpi"><div class="lbl">${t("柜台兑付（税前）", "Counter paid (pre-tax)")}</div><div class="num" style="font-size:20px">₱30.21M</div><div class="subl">2 ${t("笔", "bets")}</div></article>
@@ -1420,7 +1428,7 @@ function viewPrize() {
       <div class="card"><h4>${t("兑付方式构成", "How prizes are paid")}</h4><div class="bars">${parts.map((p) => `<div class="bar-row"><span>${p[0]}</span><div class="track ${p[2]}"><span style="width:${(p[1] / barMax * 100).toFixed(1)}%"></span></div><b class="mono amt">${pesoM(p[1])}</b></div>`).join("")}</div>
         <p class="muted">${t("₱300,000 是分界线。以内自动进钱包，超过的必须本人到 PCSO 总部凭领奖码领支票。这条线是后台参数，PCSO 可调。", "₱300,000 is the line. At or below it, the prize goes to the wallet. Above it, the player collects a cheque in person at PCSO headquarters with a claim code. PCSO can change this admin parameter.")}</p></div>
     </div>
-    <div class="card"><h4>${t("奖金率走势", "Prize-rate trend")}</h4>${colChart(PRIZE_RATE)}<p class="tiny">${t("按月 · 理论值 55%，单月波动由头奖是否中出决定。绿线是 55%。", "Monthly. The theoretical rate is 55%. A month moves when a jackpot is or is not won. The green line is 55%.")}</p>
+    <div class="card"><h4>${t("奖金率走势", "Prize-rate trend")}</h4>${colChart(PRIZE_RATE)}<p class="tiny">${t("按月 · 分子为中奖总额（该期所有中奖票的税前奖金，不论是否已领取）÷ 销售额；理论值 55%，绿线是 55%。", "Monthly. The theoretical rate is 55%. A month moves when a jackpot is or is not won. The green line is 55%.")}</p>
       <div class="banner amber">${t("奖金率长期偏离 55% 需要核查：持续偏低说明奖金没发出去，持续偏高说明奖级结构或算奖逻辑有问题。", "A prize rate that stays off 55% needs a check: too low means prizes are not going out, too high means the tier structure or the prize math is wrong.")}</div></div>
     <div class="card"><div class="page-h"><h4>${t("头奖中奖人清单", "Jackpot winners")}</h4>${roleChip("可见角色：合规审计、财务复核", "Visible to: Compliance audit, Finance review")}</div>
       ${table([t("玩家 ID", "Player ID"), t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("兑奖状态", "Claim status"), t("兑奖日期", "Claim date")],
@@ -1438,9 +1446,10 @@ function viewPrize() {
 }
 
 function viewAudit() {
-  const rows = S.audits.map((a, i) => `<tr class="click" data-act="audit-open" data-i="${i}"><td class="mono">${esc(a.time)}</td><td>${esc(a.who)}</td><td>${esc(a.role)}</td><td>${esc(a.mod)}</td><td>${esc(a.evt)}</td><td class="mono">${esc(a.obj)}</td><td>${tag(a.res.indexOf("回滚") >= 0 || a.res.indexOf("驳回") >= 0 ? "warn" : "ok", esc(a.res))}</td></tr>${S.auditOpen === i ? `<tr><td colspan="7"><div class="split"><div><span class="tiny">${t("变更前", "Before")}</span><p class="muted">${esc(a.before)}</p></div><div><span class="tiny">${t("变更后", "After")}</span><p class="muted">${esc(a.after)}</p></div></div></td></tr>` : ""}`).join("");
+  const rows = S.audits.filter((a) => !S.auditMod || /完整性告警|integrity alert/i.test(a.evt)).map((a, i) => `<tr class="click" data-act="audit-open" data-i="${i}"><td class="mono">${esc(a.time)}</td><td>${esc(a.who)}</td><td>${esc(a.role)}</td><td>${esc(a.mod)}</td><td>${esc(a.evt)}</td><td class="mono">${esc(a.obj)}</td><td>${tag(a.res.indexOf("回滚") >= 0 || a.res.indexOf("驳回") >= 0 ? "warn" : "ok", esc(a.res))}</td></tr>${S.auditOpen === i ? `<tr><td colspan="7"><div class="split"><div><span class="tiny">${t("变更前", "Before")}</span><p class="muted">${esc(a.before)}</p></div><div><span class="tiny">${t("变更后", "After")}</span><p class="muted">${esc(a.after)}</p></div></div></td></tr>` : ""}`).join("");
   return `<div class="page-h"><div><h3>${t("审计日志", "Audit log")}</h3><p class="muted">${t("不可篡改，保存 5 年。时间均为 UTC+8。", "Immutable, retained for 5 years. Times are UTC+8.")}</p></div>
     <div class="row-actions"><button type="button" class="btn btn-sm" data-act="export-audit" data-fmt="csv">CSV</button><button type="button" class="btn btn-sm" data-act="export-audit" data-fmt="json">JSON</button><button type="button" class="btn btn-sm" data-act="export-audit" data-fmt="xml">XML</button></div></div>
+    <div class="tabs" style="margin:10px 0">${[["", "全部模块", "All modules"], ["完整性告警", "完整性告警", "Integrity alerts"]].map(([k, z, e]) => `<button type="button" data-act="audit-mod" data-arg="${k}" class="${(S.auditMod || "") === k ? "on" : ""}">${t(z, e)}</button>`).join("")}</div>
     <div class="banner rose">${t("日志只追加、不提供修改或删除。点击一行查看变更前后。", "The log is append-only. Open a row to see the before and after values.")}</div>
     ${table([t("时间", "Time"), t("操作人", "Operator"), t("角色", "Role"), t("模块", "Module"), t("事件", "Event"), t("对象", "Object"), t("结果", "Result")], rows)}`;
 }
@@ -1464,11 +1473,26 @@ function varChips(vars, act) {
   return vars.map((v) => `<button type="button" class="btn btn-sm mono" data-act="${act}" data-arg="${v}">{${v}}</button>`).join("");
 }
 function viewSys() {
-  const head = `<div class="page-h"><div><h3>${t("系统管理", "System")}</h3></div>${tabs("sys", [["sms", "短信模板", "SMS templates"], ["ann", "公告", "Notices"], ["inbox", "站内信", "Direct messages"], ["roles", "用户管理", "User management"]])}</div>`;
+  const head = `<div class="page-h"><div><h3>${t("系统管理", "System")}</h3></div>${tabs("sys", [["sms", "短信模板", "SMS templates"], ["ann", "公告", "Notices"], ["inbox", "站内信", "Direct messages"], ["roles", "用户管理", "User management"], ["alert", "完整性告警", "Integrity alerts"]])}</div>`;
+  if (S.tab.sys === "alert") return head + viewAlerts();
   if (S.tab.sys === "ann") return head + viewAnn();
   if (S.tab.sys === "inbox") return head + viewInbox();
   if (S.tab.sys === "roles") return head + viewUsers();
   return head + viewSms();
+}
+function viewAlerts() {
+  const f = S.tab.alert;
+  const list = S.alerts.filter((a) => f === "all" || a.st === f);
+  const objOpts = ["all", "Ticket", "Bet order", "Prize order", "Wallet", "Transaction"];
+  const rows = list.map((a) => `<tr><td class="mono">${a.id}</td><td>${a.obj}</td><td class="mono">${a.objId}</td><td>${t(a.src, a.srcEn)}</td><td class="mono">${a.found}</td><td>${a.st === "open" ? tag("warn", t("待复核", "Open")) : tag("ok", t("已关闭", "Closed"))}</td><td>${t(a.fu, a.fuEn)}</td><td>${a.st === "open" ? `<button type="button" class="btn btn-sm" data-act="alert-ask" data-id="${a.id}">${t("复核关闭", "Review & close")}</button>` : `<span class="tiny" style="display:block;max-width:280px;white-space:normal">${a.by} · ${a.at}<br>${esc(t(a.note, a.noteEn))}</span>`}</td></tr>`).join("");
+  return `<div class="banner amber">${t("系统在算奖、作废退款、每日巡检时，会核对彩票、投注单、派奖单、钱包、流水的防篡改签名，不一致时生成告警。可见角色：运营专员可复核关闭；系统管理员、合规审计、财务复核只读。", "When settling, refunding voided draws and during the daily check, the system verifies the tamper-proof signature of tickets, bet orders, prize orders, wallets and transactions, and raises an alert on any mismatch. Visible to: Operations can review and close; System admin, Compliance auditor and Finance reviewer are read-only.")}</div>
+    <div class="tabs" style="margin:12px 0">${[["all", "全部", "All"], ["open", "待复核", "Open"], ["closed", "已关闭", "Closed"]].map(([k, z, e]) => `<button type="button" data-act="alert-f" data-arg="${k}" class="${f === k ? "on" : ""}">${t(z, e)}</button>`).join("")}</div>
+    ${table([t("告警编号", "Alert ID"), t("对象类型", "Object type"), t("对象", "Object"), t("发现环节", "Found by"), t("发现时间", "Found at"), t("状态", "Status"), t("关闭后的处理", "After closing"), t("操作 / 复核记录", "Action / review")], rows)}
+    <p class="tiny">${t("复核关闭会重新验签，通过后关闭告警、相关彩票恢复正常；复核关闭本身不触发补算或退款：已作废期次的票由系统自动补退，已开奖期次的票由运维手动执行补算任务。每次复核关闭写入审计日志。", "Closing re-verifies the signature; if it passes, the alert closes and the related tickets return to normal. Closing does not itself recalculate or refund: tickets of a voided draw are refunded automatically, and for a settled draw ops runs the recalculation task manually. Each close is written to the audit log.")}</p>`;
+}
+function alertModal() {
+  const a = S.alerts.find((x) => x.id === S.modal.id);
+  return dialog(t("复核关闭 · ", "Review & close · ") + a.id, `<p class="muted">${a.obj} ${a.objId}</p><p class="muted">${t("确认后系统重新验签；通过则关闭告警。备注必填。", "The system re-verifies the signature; if it passes, the alert closes. A note is required.")}</p><label class="f">${t("复核备注（必填）", "Review note (required)")}</label><textarea data-f="an">${esc(S.mf.an || "")}</textarea><div class="err">${esc(S.mf.err || "")}</div>`, `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-ok" data-act="alert-confirm" data-id="${a.id}">${t("确认关闭", "Confirm close")}</button>`);
 }
 function viewSms() {
   const sub = `<div class="tabs" style="margin-bottom:12px"><button type="button" data-act="sms-sub" data-arg="tpl" class="${S.smsSub === "tpl" ? "on" : ""}">${t("模板列表", "Templates")}</button><button type="button" data-act="sms-sub" data-arg="log" class="${S.smsSub === "log" ? "on" : ""}">${t("发送记录", "Send log")}</button></div>`;
@@ -1659,6 +1683,7 @@ function renderModal() {
   if (S.modal.type === "cover") return coverModal(gameBy(S.modal.id));
   if (S.modal.type === "cut") return cutModal(gameBy(S.modal.id));
   if (S.modal.type === "delist") return delistModal(gameBy(S.modal.id));
+  if (S.modal.type === "alert") return alertModal();
   if (S.modal.type === "kycact") return kycActModal();
   if (S.modal.type === "kycimg") return kycImgModal();
   if (S.modal.type === "staff") return staffModal();
@@ -1849,6 +1874,18 @@ function onClick(e) {
   }
   if (act === "kyc-rot") { S.mf.rot = ((S.mf.rot || 0) + 90) % 360; render(); return; }
   if (act === "kyc-ask") { S.mf = {}; S.modal = { type: "kycact", id, arg }; render(); return; }
+  if (act === "alert-f") { S.tab.alert = arg; render(); return; }
+  if (act === "alert-ask") { S.modal = { type: "alert", id }; S.mf = {}; render(); return; }
+  if (act === "alert-confirm") {
+    const note = (S.mf.an || "").trim();
+    if (!note) { S.mf.err = t("请填写复核备注。", "Enter a review note."); render(); return; }
+    const a = S.alerts.find((x) => x.id === id);
+    a.st = "closed"; a.by = actor().who; a.at = clockStr(); a.note = note; a.noteEn = note;
+    S.modal = null; S.mf = {};
+    logAudit({ who: actor().who, role: t("运营专员", "Operations"), mod: t("系统管理", "System"), evt: t("复核关闭完整性告警", "Close integrity alert"), obj: a.id, before: t("待复核", "Open"), after: t("已关闭 · ", "Closed · ") + note });
+    toast(t("重新验签通过，告警已关闭。", "Re-verification passed. The alert is closed."));
+    render(); return;
+  }
   if (act === "kyc-confirm") {
     const note = (S.mf.kn || "").trim();
     if (!note) { S.mf.err = arg === "pass" ? t("请填写审核备注。", "Enter a review note.") : t("请填写拒绝原因。", "Enter a decline reason."); render(); return; }
@@ -1941,6 +1978,7 @@ function onClick(e) {
     return;
   }
   if (act === "export-share" || act === "export-prize") { download(act === "export-share" ? "ilotto-share.csv" : "ilotto-prize.csv", "report,period\nshare," + S.period, "text/csv"); return; }
+  if (act === "audit-mod") { S.auditMod = arg; S.auditOpen = null; render(); return; }
   if (act === "audit-open") { S.auditOpen = S.auditOpen === Number(actEl.dataset.i) ? null : Number(actEl.dataset.i); render(); return; }
   if (act === "export-audit") { auditExport(actEl.dataset.fmt); return; }
   if (act === "rte") { document.execCommand(actEl.dataset.cmd, false, null); return; }
