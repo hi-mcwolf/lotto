@@ -654,14 +654,16 @@ S.coolTiers = ["24 小时", "7 天", "30 天"];
 S.exclTiers = ["3 个月", "6 个月", "1 年", "永久"];
 
 S.alerts = [
-  { id: "IA-2610-014", obj: "Ticket", objId: "TKT202610120087", src: "算奖", srcEn: "Prize calculation", found: "2026-10-12 21:30:18", st: "open", fu: "已开奖期次：运维手动执行补算任务", fuEn: "Draw already settled: ops runs a recalculation task manually" },
-  { id: "IA-2610-013", obj: "Bet order", objId: "BET202610120061", src: "作废退款", srcEn: "Void refund", found: "2026-10-12 03:00:41", st: "open", fu: "已作废期次：复核通过后系统自动补退", fuEn: "Voided draw: the system refunds automatically after review passes" },
-  { id: "IA-2610-012", obj: "Wallet", objId: "PL-104482", src: "每日巡检", srcEn: "Daily check", found: "2026-10-11 03:00:12", st: "closed", by: "Mina Cruz", at: "2026-10-11 10:22:05", note: "核对流水后确认签名为迁移遗留，重新验签通过。", noteEn: "Ledger checked; signature was left over from a migration. Re-verification passed.", fu: "—", fuEn: "—" },
-  { id: "IA-2610-011", obj: "Prize order", objId: "PRZ202610100019", src: "算奖", srcEn: "Prize calculation", found: "2026-10-10 21:30:09", st: "closed", by: "Mina Cruz", at: "2026-10-11 09:48:31", note: "派奖单金额与彩票一致，重新验签通过，运维已补算。", noteEn: "Prize order matches the ticket. Re-verification passed; ops ran the recalculation.", fu: "已开奖期次：运维手动执行补算任务", fuEn: "Draw already settled: ops runs a recalculation task manually" },
-  { id: "IA-2610-010", obj: "Transaction", objId: "TX202610090733", src: "每日巡检", srcEn: "Daily check", found: "2026-10-09 03:00:07", st: "closed", by: "Mina Cruz", at: "2026-10-09 11:05:50", note: "重新验签通过。", noteEn: "Re-verification passed.", fu: "—", fuEn: "—" },
+  { id: "1729382256910270465", obj: "Ticket", objId: "TKT202610120087", src: "Settlement", found: "2026-10-12 21:30:18", st: "open" },
+  { id: "1729382256910270466", obj: "Bet order", objId: "BET202610120061", src: "Void refund", found: "2026-10-12 03:00:41", st: "open" },
+  { id: "1729382256910270467", obj: "Wallet", objId: "PL-104482", src: "Wallet update", found: "2026-10-12 00:14:07", st: "open" },
+  { id: "1729382256910270458", obj: "Ticket", objId: "TKT202610110112", src: "Claim code request", found: "2026-10-11 16:02:33", st: "closed", by: "mina.cruz", at: "2026-10-11 17:10:42", note: "Re-verification passed.", noteEn: "Re-verification passed." },
+  { id: "1729382256910270451", obj: "Prize order", objId: "PRZ202610100019", src: "PCSO payout sync", found: "2026-10-10 21:30:09", st: "closed", by: "mina.cruz", at: "2026-10-11 09:48:31", note: "Prize order matches the ticket. Re-verification passed.", noteEn: "Prize order matches the ticket. Re-verification passed." },
+  { id: "1729382256910270449", obj: "Wallet", objId: "PL-104482", src: "Daily check", found: "2026-10-11 03:00:12", st: "closed", by: "mina.cruz", at: "2026-10-11 10:22:05", note: "Signature was left over from a migration. Re-verification passed.", noteEn: "Signature was left over from a migration. Re-verification passed." },
+  { id: "1729382256910270440", obj: "Transaction", objId: "TX202610090733", src: "Daily check", found: "2026-10-09 03:00:07", st: "closed", by: "mina.cruz", at: "2026-10-09 11:05:50", note: "Re-verification passed.", noteEn: "Re-verification passed." },
 ];
 S.audits = [
-  { time: "2026-10-11 10:22:05", who: "Mina Cruz", role: "运营专员", mod: "系统管理", evt: "复核关闭完整性告警", obj: "IA-2610-012", res: "成功", before: "待复核", after: "已关闭 · 核对流水后确认签名为迁移遗留，重新验签通过。" },
+  { time: "2026-10-11 10:22:05", who: "Mina Cruz", role: "运营专员", mod: "系统管理", evt: "复核关闭完整性告警", obj: "1729382256910270449", res: "成功", before: "待复核", after: "已关闭 · 核对流水后确认签名为迁移遗留，重新验签通过。" },
   { time: "2026-10-10 01:06:12", who: "系统", role: "—", mod: "玩家档案", evt: "提现锁定", obj: "PL-104482", res: "成功", before: "mfaFails=2", after: "连续 3 次 MFA 失败，锁定提现 30 分钟" },
   { time: "2026-10-09 22:18:44", who: "Mina Cruz", role: "运营专员", mod: "游戏管理", evt: "下架游戏", obj: "百万乐透 6/45", res: "成功", before: "在售", after: "已下架" },
   { time: "2026-10-09 21:02:09", who: "系统", role: "—", mod: "交易流水", evt: "出票失败回滚", obj: "PL-101552 / 大乐透", res: "已回滚", before: "待出票", after: "未扣款" },
@@ -1481,18 +1483,20 @@ function viewSys() {
   return head + viewSms();
 }
 function viewAlerts() {
-  const f = S.tab.alert;
-  const list = S.alerts.filter((a) => f === "all" || a.st === f);
-  const objOpts = ["all", "Ticket", "Bet order", "Prize order", "Wallet", "Transaction"];
-  const rows = list.map((a) => `<tr><td class="mono">${a.id}</td><td>${a.obj}</td><td class="mono">${a.objId}</td><td>${t(a.src, a.srcEn)}</td><td class="mono">${a.found}</td><td>${a.st === "open" ? tag("warn", t("待复核", "Open")) : tag("ok", t("已关闭", "Closed"))}</td><td>${t(a.fu, a.fuEn)}</td><td>${a.st === "open" ? `<button type="button" class="btn btn-sm" data-act="alert-ask" data-id="${a.id}">${t("复核关闭", "Review & close")}</button>` : `<span class="tiny" style="display:block;max-width:280px;white-space:normal">${a.by} · ${a.at}<br>${esc(t(a.note, a.noteEn))}</span>`}</td></tr>`).join("");
-  return `<div class="banner amber">${t("系统在算奖、作废退款、每日巡检时，会核对彩票、投注单、派奖单、钱包、流水的防篡改签名，不一致时生成告警。可见角色：运营专员可复核关闭；合规审计、财务复核只读；系统管理员看不到业务数据，不可见本页签。", "When settling, refunding voided draws and during the daily check, the system verifies the tamper-proof signature of tickets, bet orders, prize orders, wallets and transactions, and raises an alert on any mismatch. Visible to: Operations can review and close; Compliance auditor and Finance reviewer are read-only; System admin cannot see business data and does not see this tab.")}</div>
-    <div class="tabs" style="margin:12px 0">${[["all", "全部", "All"], ["open", "待复核", "Open"], ["closed", "已关闭", "Closed"]].map(([k, z, e]) => `<button type="button" data-act="alert-f" data-arg="${k}" class="${f === k ? "on" : ""}">${t(z, e)}</button>`).join("")}</div>
-    ${table([t("告警编号", "Alert ID"), t("对象类型", "Object type"), t("对象", "Object"), t("发现环节", "Found by"), t("发现时间", "Found at"), t("状态", "Status"), t("关闭后的处理", "After closing"), t("操作 / 复核记录", "Action / review")], rows)}
-    <p class="tiny">${t("复核关闭会重新验签，通过后关闭告警、相关彩票恢复正常；复核关闭本身不触发补算或退款：已作废期次的票由系统自动补退，已开奖期次的票由运维手动执行补算任务。每次复核关闭写入审计日志。", "Closing re-verifies the signature; if it passes, the alert closes and the related tickets return to normal. Closing does not itself recalculate or refund: tickets of a voided draw are refunded automatically, and for a settled draw ops runs the recalculation task manually. Each close is written to the audit log.")}</p>`;
+  const f = S.tab.alert, sf = S.alertSrc || "all";
+  const list = S.alerts.filter((a) => (f === "all" || a.st === f) && (sf === "all" || a.src === sf));
+  const SRC = [["Settlement", "算奖"], ["Void refund", "作废退款"], ["Daily check", "每日巡检"], ["Claim code request", "申领码申请"], ["PCSO payout sync", "PCSO 兑奖同步"], ["Wallet update", "资金变动"]];
+  const srcName = (s) => t(SRC.find((x) => x[0] === s)[1], s);
+  const rows = list.map((a) => `<tr><td class="mono">${a.id}</td><td>${a.obj}</td><td class="mono">${a.objId}</td><td>${srcName(a.src)}</td><td class="mono">${a.found}</td><td>${a.st === "open" ? tag("warn", t("待复核", "Open")) : tag("ok", t("已关闭", "Closed"))}</td><td>${a.st === "open" ? `<button type="button" class="btn btn-sm" data-act="alert-ask" data-id="${a.id}">${t("复核关闭", "Review & close")}</button>` : `<span class="tiny" style="display:block;max-width:280px;white-space:normal">${a.by} · ${a.at}<br>${esc(a.noteEn)}</span>`}</td></tr>`).join("");
+  return `<div class="banner amber">${t("系统在算奖、作废退款、每日巡检、申请申领码、PCSO 兑奖同步、资金变动时，会核对彩票、投注单、派奖单、钱包、流水的防篡改签名，不一致时生成告警。可见角色：运营专员可复核关闭；合规审计、财务复核只读；系统管理员看不到业务数据，不可见本页签。", "The system verifies the tamper-proof signature of tickets, bet orders, prize orders, wallets and transactions when settling, refunding voided draws, in the daily check, on claim code requests, on PCSO payout sync and on wallet updates, and raises an alert on any mismatch. Visible to: Operations can review and close; Compliance auditor and Finance reviewer are read-only; System admin cannot see business data and does not see this tab.")}</div>
+    <div class="banner">${t("复核关闭后：已作废期次的票由系统自动补退；已开奖期次的票由运维手动执行补算任务；复核关闭本身不触发补算或退款。", "After closing: tickets of a voided draw are refunded automatically by the system; for a settled draw, ops runs the recalculation task manually; closing itself does not recalculate or refund.")}</div>
+    <div class="row-actions" style="margin:12px 0"><div class="tabs">${[["all", "全部", "All"], ["open", "待复核", "Open"], ["closed", "已关闭", "Closed"]].map(([k, z, e]) => `<button type="button" data-act="alert-f" data-arg="${k}" class="${f === k ? "on" : ""}">${t(z, e)}</button>`).join("")}</div>
+    <select data-fa="src"><option value="all">${t("全部发现环节", "All found-by")}</option>${SRC.map((x) => `<option value="${x[0]}" ${sf === x[0] ? "selected" : ""}>${t(x[1], x[0])}</option>`).join("")}</select></div>
+    ${table([t("告警编号", "Alert ID"), t("对象类型", "Object type"), t("对象", "Object"), t("发现环节", "Found by"), t("发现时间", "Found at"), t("状态", "Status"), t("操作 / 复核记录", "Action / review")], rows)}`;
 }
 function alertModal() {
   const a = S.alerts.find((x) => x.id === S.modal.id);
-  return dialog(t("复核关闭 · ", "Review & close · ") + a.id, `<p class="muted">${a.obj} ${a.objId}</p><p class="muted">${t("确认后系统重新验签；通过则关闭告警。备注必填。", "The system re-verifies the signature; if it passes, the alert closes. A note is required.")}</p><label class="f">${t("复核备注（必填）", "Review note (required)")}</label><textarea data-f="an">${esc(S.mf.an || "")}</textarea><div class="err">${esc(S.mf.err || "")}</div>`, `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-ok" data-act="alert-confirm" data-id="${a.id}">${t("确认关闭", "Confirm close")}</button>`);
+  return dialog(t("复核关闭 · ", "Review & close · ") + a.id, `<p class="muted">${a.obj} ${a.objId}</p><p class="muted">${t("确认后系统重新验签；通过则关闭告警。备注必填。", "The system re-verifies the signature; if it passes, the alert closes. A note is required.")}</p><p class="tiny">${t("复核关闭后：已作废期次的票由系统自动补退；已开奖期次的票由运维手动执行补算任务；复核关闭本身不触发补算或退款。", "After closing: tickets of a voided draw are refunded automatically; for a settled draw, ops runs the recalculation task manually; closing itself does not recalculate or refund.")}</p><label class="f">${t("复核备注（必填）", "Review note (required)")}</label><textarea data-f="an">${esc(S.mf.an || "")}</textarea><div class="err">${esc(S.mf.err || "")}</div>`, `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-ok" data-act="alert-confirm" data-id="${a.id}">${t("确认关闭", "Confirm close")}</button>`);
 }
 function viewSms() {
   const sub = `<div class="tabs" style="margin-bottom:12px"><button type="button" data-act="sms-sub" data-arg="tpl" class="${S.smsSub === "tpl" ? "on" : ""}">${t("模板列表", "Templates")}</button><button type="button" data-act="sms-sub" data-arg="log" class="${S.smsSub === "log" ? "on" : ""}">${t("发送记录", "Send log")}</button></div>`;
@@ -1882,7 +1886,7 @@ function onClick(e) {
     const note = (S.mf.an || "").trim();
     if (!note) { S.mf.err = t("请填写复核备注。", "Enter a review note."); render(); return; }
     const a = S.alerts.find((x) => x.id === id);
-    a.st = "closed"; a.by = actor().who; a.at = clockStr(); a.note = note; a.noteEn = note;
+    a.st = "closed"; a.by = (S.login.user || "mina.cruz"); a.at = clockStr(); a.note = note; a.noteEn = note;
     S.modal = null; S.mf = {};
     logAudit({ who: actor().who, role: t("运营专员", "Operations"), mod: t("系统管理", "System"), evt: t("复核关闭完整性告警", "Close integrity alert"), obj: a.id, before: t("待复核", "Open"), after: t("已关闭 · ", "Closed · ") + note });
     toast(t("重新验签通过，告警已关闭。", "Re-verification passed. The alert is closed."));
@@ -2189,6 +2193,7 @@ document.body.addEventListener("change", (e) => {
   if (el.dataset.field === "inboxTpl") { S.inboxQ.tpl = el.value; render(); }
   if (el.dataset.field === "userRole") { S.userRole = el.value; render(); }
   if (el.dataset.field === "userSt") { S.userSt = el.value; render(); }
+  if (el.dataset.fa === "src") { S.alertSrc = el.value; render(); return; }
   if (el.dataset.fs === "tpl") { S.msgSend.tpl = el.value; render(); }
   if (el.dataset.f === "jump") { S.mf.jump = el.value; const pj = $("msg-pbody"); }
   if (el.dataset.field === "annStart") S.ann.start = el.value;
