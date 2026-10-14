@@ -958,7 +958,7 @@ function cutTime(g, m) {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(c);
 }
 function viewGames() {
-  const hd = `<div style="margin-bottom:14px">${tabs("games", [["list", "游戏", "Games"], ["sim", "PCSO 模拟页", "PCSO simulator"]])}</div>`;
+  const hd = `<div style="margin-bottom:14px">${tabs("games", [["list", "游戏", "Games"], ["sim", "推送数据", "Push data"]])}</div>`;
   return hd + (S.tab.games === "sim" ? viewSim() : viewGamesList());
 }
 
@@ -996,7 +996,7 @@ function viewSim() {
     body = `<div class="card"><h4>${t("推送日志", "Push log")}</h4><div class="tools" style="display:flex;gap:12px;margin:6px 0 10px"><label class="f">${t("类型", "Type")}<select data-field="simType">${["all", "game", "draw", "claim"].map((x) => `<option value="${x}" ${S.tab.simType === x ? "selected" : ""}>${x === "all" ? t("全部", "All") : t(...SIM_TYPE[x])}</option>`).join("")}</select></label><label class="f">${t("处理状态", "Status")}<select data-field="simSt">${["all", "ok", "fail"].map((x) => `<option value="${x}" ${S.tab.simSt === x ? "selected" : ""}>${x === "all" ? t("全部", "All") : x === "ok" ? t("成功", "Processed") : t("失败", "Failed")}</option>`).join("")}</select></label></div>
       ${table([t("推送号", "Push no."), t("类型", "Type"), t("内容", "Content"), t("处理结果", "Result"), t("失败原因", "Failure reason"), ""], rows)}<p class="tiny">${t("失败的推送可按原推送号重新推送。", "A failed push can be re-pushed under its original push number.")}</p></div>`;
   }
-  return `<div class="page-h"><div><h3>${t("PCSO 模拟页", "PCSO simulator")}</h3><p class="muted">${t("游戏规则、开奖号码、兑奖记录由这里推送，服务端走与真实 PCSO 推送相同的处理逻辑。", "Game rules, draw numbers and redemptions are pushed from here and handled exactly like real PCSO pushes.")}</p></div>${tag("cyan", t("可见角色：运营专员", "Visible to: Operations"))}</div>
+  return `<div class="page-h"><div><h3>${t("推送数据", "Push data")}</h3><p class="muted">${t("游戏规则、开奖号码、兑奖记录由这里推送，服务端走与真实 PCSO 推送相同的处理逻辑。", "Game rules, draw numbers and redemptions are pushed from here and handled exactly like real PCSO pushes.")}</p></div>${tag("cyan", t("可见角色：运营专员", "Visible to: Operations"))}</div>
     <div class="banner">${t("不提供「下发申领码」（单票 > ₱300,000 时系统自动向 PCSO mock 请求）和「推送封盘时间」（封盘 = 开奖时间 − 封盘提前时间）。", "There is no \"issue claim code\" (the system requests it from the PCSO mock automatically for tickets above ₱300,000) and no \"push cut-off time\" (cut-off = draw time − cut-off lead).")}</div>
     ${tabs("simsub", [["game", "推送游戏与排期", "Games & schedule"], ["draw", "推送开奖结果", "Draw result"], ["claim", "推送已兑奖", "Redeemed"], ["log", "推送日志", "Push log"]])}<div style="height:12px"></div>${body}`;
 }
