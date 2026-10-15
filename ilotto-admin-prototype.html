@@ -990,7 +990,7 @@ function viewGamesList() {
       </div>
       <div style="margin:10px 0">${g.on ? tag("ok", t("在售", "On sale")) : tag("rose", t("已下架", "Delisted"))}</div>
       <p class="tiny" style="margin:0 0 4px">${t("排序号", "Sort order")} <span class="mono">${g.sort || 0}</span>${g.sort ? "" : " · " + t("未排序，排最后", "unsorted, listed last")}</p><p class="tiny" style="margin:0 0 10px">${t("下一期", "Next draw")} <span class="mono">${g.next}</span><br>${t("封盘", "Cut-off")} <span class="mono">${cutTime(g, g.cut)}</span> · ${cutLabel(g)}</p>
-      <div class="row-actions"><button type="button" class="btn btn-sm" data-act="cfg-open" data-id="${g.id}">${t("配置", "Configure")}</button><button type="button" class="btn btn-sm" data-act="cover-open" data-id="${g.id}">${t("编辑封面", "Edit cover")}</button><button type="button" class="btn btn-sm" data-act="cut-open" data-id="${g.id}">${t("设置封盘时间", "Cut-off time")}</button><button type="button" class="btn btn-sm" data-act="rules" data-id="${g.id}">${t("查看规则", "View rules")}</button></div>
+      <div class="row-actions"><button type="button" class="btn btn-sm" data-act="cfg-open" data-id="${g.id}">${t("配置", "Configure")}</button><button type="button" class="btn btn-sm" data-act="rules" data-id="${g.id}">${t("查看规则", "View rules")}</button></div>
     </article>`).join("");
   const tiles = [
     [t("印花税 DST", "DST"), "20%", t("含在票价里", "Included in the ticket price")],
@@ -1009,24 +1009,80 @@ function viewGamesList() {
     </div>`;
 }
 
+function newGameModal() {
+  const v = (k, d) => (S.mf[k] !== undefined ? S.mf[k] : d);
+  const code = v("code", "").trim(); const r = code ? ruleOf(code) : null; const used = !!(code && GAMES.some((x) => x.id === code));
+  const free = Object.keys(RULE_CATALOG).filter((c) => !GAMES.some((x) => x.id === c));
+  const err = S.mf.err ? `<div class="err">${esc(S.mf.err)}</div>` : "";
+  const f = (k, zh, en, d, ph) => `<div><label class="f">${t(zh, en)}</label><input data-f="${k}" value="${esc(String(v(k, d)))}" placeholder="${ph || ""}" /></div>`;
+  const tmp = { cover: S.mf.cover || null, c1: "#334155", c2: "#0f172a", en: v("en", "") || "New game" };
+  const preview = r && !used ? `<h4 style="margin:12px 0 6px">${t("关联的规则（开发提供，只读）", "Linked rule (provided by development, read-only)")}</h4>${ruleBlock(r, code)}` : (used ? `<div class="err">${t("这个游戏编码已经添加过了，编码是唯一的。", "This game code has already been added. Codes are unique.")}</div>` : (code ? `<div class="err">${t("没有找到这个编码对应的规则，请先让开发提供。", "No rule was found for this code. Ask development to provide it first.")}</div>` : ""));
+  return dialog(t("新增游戏", "New game"), `<p class="muted">${t("开发先写好游戏编码和规则；运营在这里填写游戏编码关联规则，再补充基本信息和封面。编码唯一，创建后不可改。新游戏默认下架，玩法全部启用，封盘提前 120 分钟，可在“配置”里再调整。", "Development writes the game code and its rules first. Operations enters the code here to link the rule, then adds basic info and a cover. Codes are unique and cannot change. A new game starts delisted with all plays on and a 120-minute cut-off; adjust them later under Configure.")}</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${f("code", "游戏编码", "Game code", "", free[0] || "m655")}${f("en", "游戏名称", "Game name", r && r.suggest ? "" : "", r && r.suggest ? r.suggest : "")}${f("price", "单注价格（₱）", "Price per line (₱)", 25)}
+    ${f("advance", "预购上限（期）", "Pre-order max (draws)", r ? (r.kind === "lotto" ? 12 : 90) : 12)}${f("freq", "开奖频次 / 开奖时间", "Draw schedule", "", "Tue / Thu / Sat 21:00")}${f("reserve", "奖池储备百分比（%）", "Reserve percentage (%)", 5)}</div>
+    <p class="tiny">${t("开发已提供、运营尚未添加的编码：", "Codes provided by development and not yet added: ")}<span class="mono">${free.join(", ") || "—"}</span></p>
+    <label class="f" style="margin-top:10px">${t("游戏封面（可选，JPG / PNG / WebP，≤ 1 MB，推荐 16:9）", "Cover (optional, JPG / PNG / WebP, up to 1 MB, 16:9 recommended)")}</label><input type="file" data-cover="1" accept="image/jpeg,image/png,image/webp" />
+    <div style="margin-top:8px">${coverHTML(tmp, "170px", "96px")}</div>
+    ${preview}${err}`,
+    `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-primary" data-act="cfg-save" data-id="">${t("添加游戏", "Add game")}</button>`);
+}
 function cfgModal() {
-  const m = S.modal; const isNew = !m.id; const g = isNew ? { id: "", zh: "", en: "", kind: "lotto", price: 25, pickEn: "", freqEn: "", advance: 12, playEn: "", reserve: 5, prizes: [] } : gameBy(m.id);
+  const m = S.modal; if (!m.id) return newGameModal();
+  const g = gameBy(m.id);
   const v = (k, d) => (S.mf[k] !== undefined ? S.mf[k] : d);
   const err = S.mf.err ? `<div class="err">${esc(S.mf.err)}</div>` : "";
-  const cfgPlays = playRules(Object.assign({}, g, { kind: v("kind", g.kind), id: isNew ? "" : g.id }));
+  const cfgPlays = playRules(g);
   const cfgPlayOn = (key) => (S.mf.plays ? S.mf.plays[key] !== false : playOn(g, key));
-  const f = (k, zh, en, d, ph) => `<div><label class="f">${t(zh, en)}</label><input data-f="${k}" value="${esc(String(v(k, d)))}" placeholder="${ph || ""}" ${!isNew && k === "code" ? "disabled" : ""} /></div>`;
-  const tiers = isNew ? `<p class="tiny">${t("新游戏默认下架。保存后在“配置”里补全奖级结构，再上架。", "A new game starts delisted. Complete the prize tiers under Configure, then list it.")}</p>` : table([t("奖级", "Tier"), t("命中说明", "Match description"), t("奖金", "Prize")], g.prizes.map((p) => `<tr><td>${t(p[0], p[1])}</td><td>${p[1]}</td><td class="mono">${t(p[2], p[3])}</td></tr>`));
-  return dialog(isNew ? t("新增游戏", "New game") : t("游戏配置 · ", "Game configuration · ") + gname(g),
-    `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${f("code", "游戏编码（创建后不可改）", "Game code (fixed after creation)", g.id, "m655")}${f("en", "游戏名称（英文）", "Game name", g.en, "Grand Lotto 6/55")}
-    <div><label class="f">${t("游戏类型", "Game type")}</label><select data-f="kind" ${isNew ? "" : "disabled"}><option value="lotto" ${v("kind", g.kind) === "lotto" ? "selected" : ""}>Lotto</option><option value="digit" ${v("kind", g.kind) === "digit" ? "selected" : ""}>Digits</option></select></div>
-    ${f("pick", "选号个数 / 号码范围", "Numbers per line / range", g.pickEn, "Pick 6 from 1–55")}${f("price", "单注价格（₱）", "Price per line (₱)", g.price)}
-    ${f("advance", "预购上限（期）", "Pre-order max (draws)", g.advance)}${f("freq", "开奖频次 / 开奖时间", "Draw schedule", g.freqEn, "Tue / Thu / Sat 21:00")}${f("reserve", "奖池储备百分比（%）", "Reserve percentage (%)", g.reserve != null ? g.reserve : 5)}</div>
-    <h4 style="margin:14px 0 6px">${t("玩法开关", "Play switches")}</h4><p class="tiny" style="margin:0 0 6px">${t("开发已实现的玩法在这里开关；关闭后玩家端不能再选，已出的票照常判奖。至少保留一个玩法。玩法规则本身不能在这里改。", "Turn built-in plays on or off. A play that is off cannot be picked by players, but tickets already issued are judged as usual. Keep at least one play on. The play rules themselves cannot be edited here.")}</p>
+  const f = (k, zh, en, d, ph) => `<div><label class="f">${t(zh, en)}</label><input data-f="${k}" value="${esc(String(v(k, d)))}" placeholder="${ph || ""}" /></div>`;
+  const cover = S.mf.cover !== undefined ? S.mf.cover : g.cover; const tmp = Object.assign({}, g, { cover });
+  const cutV = v("cut", g.cut);
+  return dialog(t("游戏配置 · ", "Game configuration · ") + gname(g),
+    `<h4 style="margin:0 0 6px">${t("规则（开发提供，只读）", "Rule (provided by development, read-only)")}</h4>
+    <p class="tiny" style="margin:0 0 8px">${t("游戏编码 ", "Game code ")}<b class="mono">${g.id}</b>${t(" 关联的规则，包括选号个数与范围、各玩法的规则、奖级结构；运营不能改，要调整请找开发。完整内容见游戏卡片上的“查看规则”。", " links to this rule: numbers per line and range, rules of each play, and the prize tiers. Operations cannot edit it; ask development to change it. See View rules on the game card for the full text.")}</p>
+    ${ruleBlock(g, g.id)}
+    <h4 style="margin:16px 0 6px">${t("基本信息", "Basic information")}</h4>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${f("en", "游戏名称", "Game name", g.en)}${f("price", "单注价格（₱）", "Price per line (₱)", g.price)}${f("advance", "预购上限（期）", "Pre-order max (draws)", g.advance)}
+    ${f("freq", "开奖频次 / 开奖时间", "Draw schedule", g.freqEn)}${f("reserve", "奖池储备百分比（%）", "Reserve percentage (%)", g.reserve != null ? g.reserve : 5)}${f("sortno", "排序号（0 = 未排序，排最后）", "Sort order (0 = unsorted, listed last)", g.sort || 0)}</div>
+    <h4 style="margin:16px 0 6px">${t("玩法开关", "Play switches")}</h4><p class="tiny" style="margin:0 0 6px">${t("开发已实现的玩法在这里开关；关闭后玩家端不能再选，已出的票照常判奖。至少保留一个。玩法规则本身不能改。", "Turn built-in plays on or off. A play that is off cannot be picked by players, but tickets already issued are judged as usual. Keep at least one play on. The play rules themselves cannot be edited.")}</p>
     <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cfgPlays.map((r) => `<div class="card" style="padding:10px 12px;display:flex;justify-content:space-between;align-items:center"><div><b>${t(r[0], r[1])}</b><div class="tiny">${t(r[2], r[3])}</div></div><button type="button" class="switch ${cfgPlayOn(r[6]) ? "on" : ""}" data-act="cfg-play" data-arg="${r[6]}" aria-pressed="${cfgPlayOn(r[6])}"><i></i></button></div>`).join("")}</div>
-    <h4 style="margin:14px 0 6px">${t("奖级结构", "Prize tiers")}</h4>${tiers}${err}
-    <p class="tiny">${t("奖级结构的编辑在正式版中为表格行编辑；演示版只展示当前版本。资金分配比例和热门号码投注上限见计费参数（热门号码上限后续版本）。", "Tier editing is a row editor in the real build; the demo shows the current version. Allocation ratios and the hot-number bet cap live under billing parameters (hot-number cap is a later release).")}</p>`,
-    `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-primary" data-act="cfg-save" data-id="${m.id || ""}">${t("保存", "Save")}</button>`);
+    <h4 style="margin:16px 0 6px">${t("游戏封面", "Cover")}</h4>
+    <div style="display:flex;gap:14px;align-items:flex-start"><div>${coverHTML(tmp, "170px", "96px")}</div><div><input type="file" data-cover="1" accept="image/jpeg,image/png,image/webp" /><p class="tiny">${t("JPG / PNG / WebP，不超过 1 MB，推荐 16:9。保存即生效，玩家端刷新后展示（缓存最长 5 分钟）。", "JPG / PNG / WebP, up to 1 MB, 16:9 recommended. Applies on save; players see it after a refresh (cache up to 5 minutes).")}</p><button type="button" class="btn btn-sm" data-act="cover-default" data-id="${g.id}" style="width:auto;flex:none">${t("恢复默认封面", "Restore default cover")}</button></div></div>
+    <h4 style="margin:16px 0 6px">${t("封盘时间", "Cut-off time")}</h4>
+    <label class="f">${t("封盘提前时间（分钟，10–1440）", "Cut-off lead time (minutes, 10–1440)")}</label><input type="number" min="10" max="1440" data-f="cut" id="cut-input" value="${cutV}" />
+    <div class="row-actions" style="margin-top:8px">${[30, 60, 120, 240].map((mm) => `<button type="button" class="btn btn-sm" data-act="cut-chip" data-arg="${mm}">${mm === 30 ? t("30 分钟", "30 min") : t(mm / 60 + " 小时", mm / 60 + " h")}</button>`).join("")}</div>
+    <p class="banner" id="cut-hint" style="margin-top:10px">${cutHint(g, cutV)}</p>
+    <label class="f">${t("变更说明（修改封盘时间时必填）", "Change note (required when the cut-off changes)")}</label><input data-f="note" value="${esc(S.mf.note || "")}" placeholder="${t("例：夜场提前封盘", "e.g. earlier cut-off for the night draw")}" />
+    ${err}
+    <p class="tiny">${t("价格、预购、开奖频次、封盘的修改只影响之后生成的期次或尚未封盘的期次；仅运营专员可改；全部写审计日志。", "Changes to price, pre-order, schedule and cut-off apply to draws generated afterwards or not yet closed. Only Operations can edit. Everything is audit-logged.")}</p>`,
+    `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-primary" data-act="cfg-save" data-id="${g.id}">${t("保存", "Save")}</button>`);
+}
+function ruleOf(code) { return GAMES.find((x) => x.id === code) || RULE_CATALOG[code] || null; }
+function ruleBlock(r, code) {
+  const plays = playRules(Object.assign({}, r, { id: code }));
+  return `<div class="kpis k3"><article class="kpi"><div class="lbl">${t("游戏类型", "Game type")}</div><div class="num" style="font-size:16px">${r.kind === "lotto" ? t("乐透类", "Lotto") : t("数字类", "Digits")}</div></article>
+    <article class="kpi"><div class="lbl">${t("选号个数 / 范围", "Numbers per line / range")}</div><div class="num" style="font-size:16px">${t(r.pickZh, r.pickEn)}</div></article>
+    <article class="kpi"><div class="lbl">${t("内置玩法", "Built-in plays")}</div><div class="num" style="font-size:16px">${plays.length}</div><div class="tiny">${plays.map((p) => p[1]).join(" / ")}</div></article></div>
+    ${table([t("奖级", "Tier"), t("命中说明", "Match description"), t("奖金", "Prize")], r.prizes.map((p) => `<tr><td>${t(p[0], p[1])}</td><td>${p[1]}</td><td class="mono">${t(p[2], p[3])}</td></tr>`))}`;
+}
+
+const RULE_CATALOG = {
+  l636: { kind: "lotto", pickZh: "1–36 选 6", pickEn: "Pick 6 from 1–36", suggest: "Mini Lotto 6/36", prizes: [
+    ["6 中 · 头奖", "Match 6 · Jackpot", "累计奖池，保底 ₱10,000,000，无人中滚存", "Rolling jackpot, floor ₱10,000,000, rolls over if nobody wins"],
+    ["5 中 · 2 等", "Match 5 · 2nd", "奖池 ₱200,000，由中奖注平分", "Pool ₱200,000 shared by winning lines"],
+    ["4 中 · 3 等", "Match 4 · 3rd", "₱1,000 固定", "₱1,000 fixed"],
+    ["3 中 · 4 等", "Match 3 · 4th", "₱50 固定", "₱50 fixed"]] },
+  d5: { kind: "digit", pickZh: "0–9 选 5 位", pickEn: "Pick 5 digits from 0–9", suggest: "5D", prizes: [
+    ["全中 · 头奖", "Match all 5 · Jackpot", "₱100,000 固定", "₱100,000 fixed"],
+    ["后 4 位", "Last 4 digits", "₱5,000 固定", "₱5,000 fixed"],
+    ["后 3 位", "Last 3 digits", "₱500 固定", "₱500 fixed"]] }
+};
+function ruleOf(code) { return GAMES.find((x) => x.id === code) || RULE_CATALOG[code] || null; }
+function ruleBlock(r, code) {
+  const plays = playRules(Object.assign({}, r, { id: code }));
+  return `<div class="kpis k3"><article class="kpi"><div class="lbl">${t("游戏类型", "Game type")}</div><div class="num" style="font-size:16px">${r.kind === "lotto" ? t("乐透类", "Lotto") : t("数字类", "Digits")}</div></article>
+    <article class="kpi"><div class="lbl">${t("选号个数 / 范围", "Numbers per line / range")}</div><div class="num" style="font-size:16px">${t(r.pickZh, r.pickEn)}</div></article>
+    <article class="kpi"><div class="lbl">${t("内置玩法", "Built-in plays")}</div><div class="num" style="font-size:16px">${plays.length}</div><div class="tiny">${plays.map((p) => p[1]).join(" / ")}</div></article></div>
+    ${table([t("奖级", "Tier"), t("命中说明", "Match description"), t("奖金", "Prize")], r.prizes.map((p) => `<tr><td>${t(p[0], p[1])}</td><td>${p[1]}</td><td class="mono">${t(p[2], p[3])}</td></tr>`))}`;
 }
 function playRulesRaw(g) {
   const m = (g.pickEn.match(/1–(\d+)/) || [0, 0]); const N = Number(m[1]) || 49; const p = peso(g.price);
@@ -1044,11 +1100,11 @@ function playRulesRaw(g) {
     ["直选 Straight", "Straight", "选 3 位数字（0–9），顺序要和开奖号码一致。", "Pick 3 digits (0–9). The order must match the draw.", "顺序全对才中奖。", "Wins only when all three digits match in order."],
     ["Rambolito", "Rambolito", "选 3 位数字，顺序不限。三位全相同（如 1-1-1）时不能选 Rambolito，只能直选。", "Pick 3 digits in any order. If all three are the same (e.g. 1-1-1), Rambolito is not available.", "三个数字都对即中奖，不看顺序；三个都不同和有一对相同，奖金不同。", "Wins when the digits match in any order; the prize differs for three different digits and for a pair."]
   ];
-  if (g.kind === "digit" && !["d4", "d6"].includes(g.id)) return [
+  if (g.kind === "digit" && !["d4", "d5", "d6"].includes(g.id)) return [
     ["直选 Straight", "Straight", "按位置依次选择数字，顺序要和开奖号码一致。", "Pick digits position by position; the order must match the draw.", "顺序全对才中奖。", "Wins only when all digits match in order."],
     ["Rambolito", "Rambolito", "顺序不限；所有数字相同时不能选 Rambolito。", "Any order; not available when all digits are the same.", "数字都对即中奖，不看顺序。", "Wins when the digits match in any order."]
   ];
-  const n = g.id === "d4" ? 4 : 6;
+  const n = { d4: 4, d5: 5, d6: 6 }[g.id];
   return [["直选 Straight（尾部匹配）", "Straight (tail match)", `选 ${n} 位数字（0–9），按位置依次选。`, `Pick ${n} digits (0–9), position by position.`, `从尾部往前数，连续对上几位就按几位判奖，只取最高奖级，不叠加。`, "Count matches from the last digit backwards; the prize follows the number of matching tail digits, and only the highest tier is paid, not added up."]];
 }
 
@@ -1063,13 +1119,13 @@ function rulesModal(id) {
   const hitEn = (s) => { let m; if ((m = s.match(/^Match (\d+)/))) return `Match ${m[1]} numbers`; if ((m = s.match(/all (\d+)/))) return `All ${m[1]} digits match`; if ((m = s.match(/last (\d+)/))) return `Last ${m[1]} digits match`; if (s === "Straight") return "Numbers match in exact order"; if (s.startsWith("Rambolito")) return "Numbers match in any order"; return s; };
   const rows = g.prizes.map((p) => `<tr><td>${t(p[0], p[1])}</td><td>${t(p[0].replace(/^.*?·\s*/, ""), hitEn(p[1]))}</td><td class="mono">${t(p[2], p[3])}</td></tr>`);
   return `<div class="modal-back" data-act="close"><div class="modal" data-stop="1">
-    <div class="page-h"><div><h3>${gname(g)}</h3><p class="sub">${t("规则预览。要修改请在游戏卡片上点“配置”。", "Rules preview. To change them, use Configure on the game card.")}</p></div>
+    <div class="page-h"><div><h3>${gname(g)}</h3><p class="sub">${t("规则由开发随游戏编码提供，运营只读；要调整请找开发。价格、玩法开关、封面、封盘在“配置”里改。", "The rule comes from development with the game code and is read-only for Operations; ask development to change it. Price, play switches, cover and cut-off are under Configure.")}</p></div>
       <button type="button" class="btn btn-sm" data-act="close">${t("关闭", "Close")}</button></div>
     ${g.v41 ? `<div style="margin-bottom:10px">${tag("ok", t("规则包 v41 已确认", "Rule pack v41 confirmed"))}</div>` : ""}
     <div class="kpis k3">
-      <article class="kpi"><div class="lbl">${t("选号", "Selection")}</div><div class="num" style="font-size:18px">${t(g.pickZh, g.pickEn)}</div></article>
-      <article class="kpi"><div class="lbl">${t("单注 / 频次", "Price / cadence")}</div><div class="num" style="font-size:18px">${peso(g.price)} · ${t(g.freqZh, g.freqEn)}</div></article>
-      <article class="kpi"><div class="lbl">${t("预购", "Advance buy")}</div><div class="num" style="font-size:18px">${g.advance} ${t("期", "draws")}</div></article>
+      <article class="kpi"><div class="lbl">${t("游戏编码", "Game code")}</div><div class="num mono" style="font-size:18px">${g.id}</div></article>
+      <article class="kpi"><div class="lbl">${t("游戏类型", "Game type")}</div><div class="num" style="font-size:18px">${g.kind === "lotto" ? t("乐透类", "Lotto") : t("数字类", "Digits")}</div></article>
+      <article class="kpi"><div class="lbl">${t("选号个数 / 范围", "Numbers per line / range")}</div><div class="num" style="font-size:18px">${t(g.pickZh, g.pickEn)}</div></article>
     </div>
     <h4 style="margin:14px 0 6px">${t("玩法规则", "Play rules")}</h4>
     ${table([t("玩法", "Play"), t("选号与金额", "Picking and amount"), t("判奖", "Judging")], playRules(g).map((r) => `<tr class="${playOn(g, r[6]) ? "" : "off"}"><td><b>${t(r[0], r[1])}</b><div style="margin-top:4px">${playOn(g, r[6]) ? tag("ok", t("已启用", "Enabled")) : tag("muted", t("未启用", "Disabled"))}</div></td><td>${t(r[2], r[3])}</td><td>${t(r[4], r[5])}</td></tr>`))}
@@ -1081,7 +1137,7 @@ function rulesModal(id) {
 
 
 const ISSUE_ST = { gen: ["已生成", "Generated", "muted"], sale: ["销售中", "On sale", "ok"], closed: ["已封盘", "Closed", "warn"], entry: ["待录入", "Awaiting entry", "cyan"], review: ["待复核", "Awaiting review", "warn"], pub: ["已发布", "Published", "ok"], settled: ["已结算", "Settled", "ok"], postponed: ["已延期", "Postponed", "rose"], void: ["已作废", "Void", "rose"] };
-const NUM_RULE = { u658: [6, 58, 1, true], g655: [6, 55, 1, true], s649: [6, 49, 1, true], m645: [6, 45, 1, true], l642: [6, 42, 1, true], ez2: [2, 31, 1, false], sw3: [3, 9, 0, false], d4: [4, 9, 0, false], d6: [6, 9, 0, false] };
+const NUM_RULE = { l636: [6, 36, 1, true], d5: [5, 9, 0, false], u658: [6, 58, 1, true], g655: [6, 55, 1, true], s649: [6, 49, 1, true], m645: [6, 45, 1, true], l642: [6, 42, 1, true], ez2: [2, 31, 1, false], sw3: [3, 9, 0, false], d4: [4, 9, 0, false], d6: [6, 9, 0, false] };
 S.issues = [
   { no: "2026-1012-1", game: "g655", open: "2026-10-09 09:00", cut: "2026-10-12 07:00", draw: "2026-10-12 09:00", st: "entry", sales: 12400000 },
   { no: "2026-1012-2", game: "ez2", open: "2026-10-11 09:00", cut: "2026-10-12 08:00", draw: "2026-10-12 10:00", st: "review", sales: 482000, first: { nums: "14,27", pool: "", by: "ops.santos" } },
@@ -2020,27 +2076,42 @@ function onClick(e) {
   }
   if (act === "cfg-open") { S.mf = {}; const g0 = gameBy(id); S.mf.plays = {}; playRules(g0).forEach((r) => { S.mf.plays[r[6]] = playOn(g0, r[6]); }); S.modal = { type: "cfg", id }; render(); return; }
   if (act === "cfg-play") { S.mf.plays = S.mf.plays || {}; S.mf.plays[arg] = !(S.mf.plays[arg] !== false); S.mf.err = ""; render(); return; }
-  if (act === "cfg-new") { S.mf = { plays: {} }; S.modal = { type: "cfg", id: "" }; render(); return; }
+  if (act === "cfg-new") { S.mf = {}; S.modal = { type: "cfg", id: "" }; render(); return; }
   if (act === "cfg-save") {
     const isNew = !id; const g = isNew ? null : gameBy(id); const v = (k, d) => (S.mf[k] !== undefined ? S.mf[k] : d);
-    const code = isNew ? v("code", "").trim() : id; const en = v("en", g ? g.en : "").trim(); const price = Number(v("price", g ? g.price : 25)); const adv = Number(v("advance", g ? g.advance : 12)); const res = Number(v("reserve", g && g.reserve != null ? g.reserve : 5));
-    if (!code || !en) { S.mf.err = t("请填写游戏编码和游戏名称。", "Enter the game code and name."); render(); return; }
-    if (isNew && GAMES.some((x) => x.id === code)) { S.mf.err = t("游戏编码已存在。", "This game code already exists."); render(); return; }
-    if (!(price > 0)) { S.mf.err = t("单注价格必须大于 0。", "Price per line must be greater than 0."); render(); return; }
-    if (!(adv >= 1 && adv <= 90)) { S.mf.err = t("预购上限为 1–90 期。", "Pre-order max is 1–90 draws."); render(); return; }
-    if (!(res >= 0 && res <= 100)) { S.mf.err = t("奖池储备百分比为 0–100。", "Reserve percentage is 0–100."); render(); return; }
-    const pk = playRules(Object.assign({}, g || {}, { kind: v("kind", g ? g.kind : "lotto"), id: isNew ? "" : id })); const plays = {}; pk.forEach((r) => { plays[r[6]] = S.mf.plays ? S.mf.plays[r[6]] !== false : (g ? playOn(g, r[6]) : true); });
-    if (!Object.values(plays).some(Boolean)) { S.mf.err = t("至少要保留一个玩法。", "Keep at least one play on."); render(); return; }
-    const playsTxt = pk.filter((r) => plays[r[6]]).map((r) => r[1]).join(" / ");
+    const fail = (m) => { S.mf.err = m; render(); };
+    const code = isNew ? v("code", "").trim() : id;
     if (isNew) {
-      GAMES.push({ id: code, zh: en, en, kind: v("kind", "lotto"), on: false, price, pickZh: v("pick", ""), pickEn: v("pick", ""), freqZh: v("freq", ""), freqEn: v("freq", ""), advance: adv, playZh: playsTxt, playEn: playsTxt, plays, reserve: res, prizes: [], c1: "#334155", c2: "#0f172a", cut: 120, next: "2026-10-20 21:00", sort: 0 });
-      logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), evt: t("新增游戏", "Create game"), obj: en, before: "—", after: "price ₱" + price + " · reserve " + res + "% · delisted" });
-    } else {
-      const before = `price ₱${g.price} · advance ${g.advance} · reserve ${g.reserve != null ? g.reserve : 5}% · plays ${g.playEn}`;
-      g.en = en; if (!/[一-龥]/.test(g.zh)) g.zh = en; g.price = price; g.advance = adv; g.reserve = res; g.pickEn = v("pick", g.pickEn); g.pickZh = g.pickEn; g.freqEn = v("freq", g.freqEn); g.freqZh = g.freqEn; g.plays = plays; g.playEn = playsTxt; g.playZh = playsTxt;
-      logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), evt: t("修改游戏配置", "Edit game configuration"), obj: en, before, after: `price ₱${price} · advance ${adv} · reserve ${res}% · plays ${playsTxt}` });
+      if (!code) return fail(t("请填写游戏编码。", "Enter the game code."));
+      if (GAMES.some((x) => x.id === code)) return fail(t("这个游戏编码已经添加过了，编码是唯一的。", "This game code has already been added. Codes are unique."));
+      if (!RULE_CATALOG[code]) return fail(t("没有找到这个编码对应的规则，请先让开发提供。", "No rule was found for this code. Ask development to provide it first."));
     }
-    S.modal = null; S.mf = {}; toast(t("已保存，只影响之后生成的期次。", "Saved. It applies only to draws generated afterwards.")); render(); return;
+    const en = v("en", g ? g.en : "").trim(); const price = Number(v("price", g ? g.price : 25)); const adv = Number(v("advance", g ? g.advance : 12)); const res = Number(v("reserve", g && g.reserve != null ? g.reserve : 5));
+    if (!en) return fail(t("请填写游戏名称。", "Enter the game name."));
+    if (!(price > 0)) return fail(t("单注价格必须大于 0。", "Price per line must be greater than 0."));
+    if (!(adv >= 1 && adv <= 90)) return fail(t("预购上限为 1–90 期。", "Pre-order max is 1–90 draws."));
+    if (!(res >= 0 && res <= 100)) return fail(t("奖池储备百分比为 0–100。", "Reserve percentage is 0–100."));
+    if (isNew) {
+      const r = RULE_CATALOG[code]; const pk = playRules(Object.assign({}, r, { id: code })); const plays = {}; pk.forEach((x) => { plays[x[6]] = true; });
+      GAMES.push({ id: code, zh: en, en, kind: r.kind, on: false, price, pickZh: r.pickZh, pickEn: r.pickEn, freqZh: v("freq", ""), freqEn: v("freq", ""), advance: adv, playZh: pk.map((x) => x[1]).join(" / "), playEn: pk.map((x) => x[1]).join(" / "), plays, reserve: res, prizes: r.prizes, c1: "#334155", c2: "#0f172a", cut: 120, next: "2026-10-20 21:00", sort: 0, cover: S.mf.cover || null, pending: 0 });
+      logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), evt: t("新增游戏", "Create game"), obj: en + " (" + code + ")", before: "—", after: "rule linked · price ₱" + price + " · delisted" });
+      S.modal = null; S.mf = {}; toast(t("已添加，新游戏默认下架。", "Added. The new game starts delisted.")); render(); return;
+    }
+    const pk = playRules(g); const plays = {}; pk.forEach((r) => { plays[r[6]] = S.mf.plays ? S.mf.plays[r[6]] !== false : playOn(g, r[6]); });
+    if (!Object.values(plays).some(Boolean)) return fail(t("至少要保留一个玩法。", "Keep at least one play on."));
+    const cut = Number(v("cut", g.cut)); const sortRaw = String(v("sortno", g.sort || 0)).trim();
+    if (!(cut >= 10 && cut <= 1440)) return fail(t("封盘提前时间为 10–1440 分钟。", "Cut-off lead time is 10–1440 minutes."));
+    if (!/^\d+$/.test(sortRaw)) return fail(t("排序号必须是整数。", "Sort order must be an integer."));
+    if (cut !== g.cut && !(S.mf.note || "").trim()) return fail(t("修改封盘时间需要填写变更说明。", "Enter a change note for the cut-off change."));
+    const playsTxt = pk.filter((r) => plays[r[6]]).map((r) => r[1]).join(" / ");
+    const who = { who: actor().who, role: actor().role, mod: t("游戏管理", "Games") };
+    const before = `price ₱${g.price} · advance ${g.advance} · reserve ${g.reserve != null ? g.reserve : 5}% · plays ${g.playEn}`;
+    g.en = en; if (!/[一-龥]/.test(g.zh)) g.zh = en; g.price = price; g.advance = adv; g.reserve = res; g.freqEn = v("freq", g.freqEn); g.freqZh = g.freqEn; g.plays = plays; g.playEn = playsTxt; g.playZh = playsTxt;
+    logAudit(Object.assign({ evt: t("修改游戏配置", "Edit game configuration"), obj: en, before, after: `price ₱${price} · advance ${adv} · reserve ${res}% · plays ${playsTxt}` }, who));
+    if (S.mf.cover !== undefined && S.mf.cover !== g.cover) { g.cover = S.mf.cover; logAudit(Object.assign({ evt: t("更换游戏封面", "Change game cover"), obj: g.zh, before: "—", after: g.cover ? t("自定义封面", "Custom cover") : t("系统默认封面", "Default cover") }, who)); }
+    if (Number(sortRaw) !== (g.sort || 0)) { logAudit(Object.assign({ evt: t("修改游戏排序号", "Change game sort order"), obj: g.zh, before: String(g.sort || 0), after: sortRaw }, who)); g.sort = Number(sortRaw); }
+    if (cut !== g.cut) { logAudit(Object.assign({ evt: t("设置封盘时间", "Set cut-off time"), obj: g.zh, before: g.cut + " min", after: cut + " min · " + S.mf.note }, who)); g.cut = cut; }
+    S.modal = null; S.mf = {}; toast(t("已保存。价格、频次、封盘只影响之后的期次。", "Saved. Price, schedule and cut-off apply to later draws.")); render(); return;
   }
   if (act === "draw-gen-open") { S.mf = {}; S.genPrev = null; S.modal = { type: "drawgen" }; render(); return; }
   if (act === "draw-gen-preview") { if (!genBuild()) { render(); return; } render(); return; }
@@ -2451,7 +2522,6 @@ document.body.addEventListener("input", (e) => {
   if (el.dataset.field === "user") S.login.user = el.value;
   if (el.dataset.field === "pass") S.login.pass = el.value;
   if (el.dataset.field === "drawSt") { S.drawQ.st = el.value; render(); }
-  if (el.dataset.f === "kind") { S.mf.kind = el.value; S.mf.plays = {}; render(); return; }
   if (el.dataset.field === "claimQ") { S.claimQ = el.value; render(); focusField("[data-field=claimQ]"); }
   if (el.dataset.field === "freezeReason") S.freezeReason = el.value;
   if (el.dataset.field === "annTitle") S.ann.title = el.value;
@@ -2496,6 +2566,7 @@ document.body.addEventListener("change", (e) => {
     r.readAsDataURL(f);
     return;
   }
+  if (el.dataset.f === "code" && S.modal && S.modal.type === "cfg") { S.mf.code = el.value; render(); return; }
   if (el.dataset.field === "drawGame") { S.drawQ.game = el.value; render(); }
   if (el.dataset.field === "period") { S.period = el.value; render(); }
   if (el.dataset.field === "kind") { S.kind = el.value; render(); }
