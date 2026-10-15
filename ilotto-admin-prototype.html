@@ -329,7 +329,7 @@ const $ = (id) => document.getElementById(id);
 const NAV = [
   ["dash", "仪表盘", "Dashboard", "M3 13h8M3 6h18M3 20h12"],
   ["games", "游戏管理", "Games", "M4 7h16v10H4zM8 7V5h8v2"],
-  ["draws", "开奖管理", "Draw management", "M12 8v5l3 2M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"],
+  ["draws", "期次与开奖", "Draws and results", "M12 8v5l3 2M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"],
   ["claims", "大奖申领", "Big prize claims", "M5 4h14v16H5zM9 9h6M9 13h6M9 17h3"],
   ["kyc", "身份审核", "Identity review", "M12 12a4 4 0 1 0-4-4M4 20c1.5-3 3.8-4.5 8-4.5s6.5 1.5 8 4.5"],
   ["players", "玩家档案", "Players", "M8 11a4 4 0 1 1 8 0 4 4 0 0 1-8 0zM4 20c1.2-3 3.5-4.5 8-4.5S18.8 17 20 20"],
@@ -1211,8 +1211,8 @@ function viewEntryPage() {
   const i = S.issues.find((x) => x.no === S.sub.no); const g = gameBy(i.game);
   const cur = S.mf.matched ? 3 : i.st === "entry" ? 1 : i.st === "review" ? 2 : 4;
   const err = S.mf.err ? `<div class="err" style="margin:10px 0">${esc(S.mf.err)}</div>` : "";
-  const head = `<div class="crumb"><a data-act="entry-back">${t("开奖管理", "Draw management")}</a> › ${t("开奖结果录入", "Draw result entry")} › <span class="mono">${i.no}</span></div>
-    <div class="page-h"><div><h3>${t("开奖结果录入", "Draw result entry")}</h3><p class="muted">${gname(g)} · <span class="mono">${i.no}</span> · ${t("开奖时间", "Draw time")} <span class="mono">${i.draw}</span> ${tag(ISSUE_ST[i.st][2], t(ISSUE_ST[i.st][0], ISSUE_ST[i.st][1]))}</p></div><button type="button" class="btn" style="width:auto;flex:none" data-act="entry-back">${t("返回开奖管理", "Back to draws")}</button></div>
+  const head = `<div class="crumb"><a data-act="entry-back">${t("期次与开奖", "Draws and results")}</a> › ${t("开奖结果录入", "Draw result entry")} › <span class="mono">${i.no}</span></div>
+    <div class="page-h"><div><h3>${t("开奖结果录入", "Draw result entry")}</h3><p class="muted">${gname(g)} · <span class="mono">${i.no}</span> · ${t("开奖时间", "Draw time")} <span class="mono">${i.draw}</span> ${tag(ISSUE_ST[i.st][2], t(ISSUE_ST[i.st][0], ISSUE_ST[i.st][1]))}</p></div><button type="button" class="btn" style="width:auto;flex:none" data-act="entry-back">${t("返回期次与开奖", "Back to draws")}</button></div>
     ${stepper([["第一次录入", "First entry", "运营专员", "Operations"], ["第二次独立录入", "Second entry", "财务复核，看不到第一次内容", "Finance review, first entry hidden"], ["比对与预览", "Compare and preview", "系统比对两份录入", "System compares both"], ["授权发布", "Authorize and publish", "财务复核授权，系统自动算奖派奖", "Finance authorizes, system judges and pays"]], cur)}`;
   if (i.st === "settled" || i.st === "pub") {
     return head + `<div class="card"><h4>${t("已发布", "Published")}</h4><p class="muted">${t("开奖号码", "Winning numbers")}</p><div class="slots">${(i.nums || "").split(",").map((n) => `<span class="slot f">${n.padStart(2, "0")}</span>`).join("")}</div><p class="tiny">${t("已发布的结果不可修改或撤回。系统已逐票算奖：≤ ₱300,000 自动入奖金余额；> ₱300,000 生成申领码，到“大奖申领”办理。", "A published result cannot be edited or withdrawn. The system has judged every ticket: prizes up to ₱300,000 were credited automatically; larger prizes got a claim code and are handled under Big prize claims.")}</p></div>`;
@@ -1245,7 +1245,7 @@ function viewDraws() {
     return `<tr><td class="mono">${d.no}</td><td>${gname(gameBy(d.game))}</td><td class="mono">${d.open}</td><td class="mono">${d.cut}</td><td class="mono">${d.draw}</td><td>${tag(st[2], t(st[0], st[1]))}${d.reason ? `<div class="tiny">${esc(d.reason)}</div>` : ""}</td><td class="mono">${d.nums || "—"}</td><td class="mono amt">${peso(d.sales)}</td><td><div class="row-actions">${acts}</div></td></tr>`;
   });
   const hist = S.draws.filter((d) => (S.drawQ.game === "all" || d.game === S.drawQ.game) && (!q || d.issue.toLowerCase().includes(q)));
-  return `<div class="page-h"><div><h3>${t("开奖管理", "Draw management")}</h3><p class="muted">${t("管理每个游戏的开奖期次，并录入、授权开奖结果。和玩家端开奖结果同源。", "Manage draws for each game and enter and authorize results. Same source as the player results.")}</p></div><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-gen-open">${t("生成期次", "Generate draws")}</button></div>
+  return `<div class="page-h"><div><h3>${t("期次与开奖", "Draws and results")}</h3><p class="muted">${t("管理每个游戏的开奖期次，并录入、授权开奖结果。和玩家端开奖结果同源。", "Manage draws for each game and enter and authorize results. Same source as the player results.")}</p></div><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-gen-open">${t("生成期次", "Generate draws")}</button></div>
     <div class="banner">${t("没有上游接口，开奖结果由人工录入：运营专员先录入，财务复核看不到第一次内容并独立再录一遍，两份一致后由财务复核授权发布；不一致则两份都作废。已发布的结果不可修改。", "There is no upstream API. Results are entered by hand: Operations enters first, Finance review enters again without seeing the first entry, and Finance authorizes only when both match. A mismatch discards both entries. Published results cannot be changed.")}</div>
     <div class="card"><div class="tools">
       <label class="f">${t("游戏", "Game")}<select data-field="drawGame">${opts}</select></label>
@@ -2136,10 +2136,10 @@ function onClick(e) {
       if (!DT_RE.test(nd)) { S.mf.err = t("时间格式 YYYY-MM-DD HH:mm。", "Time format YYYY-MM-DD HH:mm."); render(); return; }
       if (nd <= NOWSTR()) { S.mf.err = t("新的开奖时间必须晚于现在。", "The new draw time must be in the future."); render(); return; }
       i.was = i.st; i.st = "postponed"; i.reason = S.mf.d_reason; i.draw = nd;
-      logAudit({ who: actor().who, role: actor().role, mod: t("开奖管理", "Draw management"), evt: t("期次延期", "Postpone draw"), obj: i.no, before: "—", after: nd + " · " + S.mf.d_reason });
+      logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("期次延期", "Postpone draw"), obj: i.no, before: "—", after: nd + " · " + S.mf.d_reason });
       toast(t("已延期，已向已购玩家发送站内信。", "Postponed. Buyers were sent an inbox message."));
     } else {
-      i.st = i.was || "sale"; i.reason = ""; logAudit({ who: actor().who, role: actor().role, mod: t("开奖管理", "Draw management"), evt: t("期次恢复", "Resume draw"), obj: i.no, before: "postponed", after: i.st + " · " + S.mf.d_reason });
+      i.st = i.was || "sale"; i.reason = ""; logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("期次恢复", "Resume draw"), obj: i.no, before: "postponed", after: i.st + " · " + S.mf.d_reason });
       toast(t("已恢复。", "Resumed."));
     }
     S.modal = null; S.mf = {}; render(); return;
@@ -2165,23 +2165,23 @@ function onClick(e) {
     if (g.kind === "lotto" && !/^\d+(\.\d{1,2})?$/.test(pool)) return fail(t("请填写头奖奖池金额（最多 2 位小数）。", "Enter the jackpot pool (up to 2 decimals)."));
     if (i.st === "entry") {
       i.first = { nums: norm, pool, by: actor().who }; i.st = "review";
-      logAudit({ who: actor().who, role: actor().role, mod: t("开奖管理", "Draw management"), evt: t("开奖结果第一次录入", "Draw result first entry"), obj: i.no, before: "—", after: "submitted" });
+      logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("开奖结果第一次录入", "Draw result first entry"), obj: i.no, before: "—", after: "submitted" });
       S.pad = { nums: [] }; S.mf = { err: "" }; toast(t("第一次录入已提交，请财务复核独立录入。", "First entry submitted. Finance review now enters it independently.")); render(); return;
     }
     if (i.first.by === actor().who && !keep.other) return fail("The second entry must be made by a different person");
     if (i.first.nums !== norm || (g.kind === "lotto" && i.first.pool !== "" && i.first.pool !== pool)) {
       delete i.first; i.st = "entry"; S.pad = { nums: [] };
-      logAudit({ who: actor().who, role: actor().role, mod: t("开奖管理", "Draw management"), evt: t("两份录入不一致", "Entries do not match"), obj: i.no, before: "review", after: "entry (both discarded)" });
+      logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("两份录入不一致", "Entries do not match"), obj: i.no, before: "review", after: "entry (both discarded)" });
       S.mf = { err: "The two entries do not match. Both entries were discarded." }; render(); return;
     }
-    logAudit({ who: actor().who, role: actor().role, mod: t("开奖管理", "Draw management"), evt: t("开奖结果第二次录入，两份一致", "Second entry matches"), obj: i.no, before: "review", after: "matched" });
+    logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("开奖结果第二次录入，两份一致", "Second entry matches"), obj: i.no, before: "review", after: "matched" });
     S.mf = { matched: true, nums: norm }; render(); return;
   }
   if (act === "draw-auth") {
     const i = S.issues.find((x) => x.no === id); const nums = S.mf.nums;
     i.nums = nums; i.st = "settled"; delete i.first;
     S.draws.unshift({ date: i.draw, issue: i.no, game: i.game, nums: nums.split(",").map((n) => n.padStart(2, "0")).join(" "), winners: t("系统已算奖（见交易流水）", "Settled by the system"), payout: 0, rollZh: "—", rollEn: "—" });
-    logAudit({ who: actor().who, role: actor().role, mod: t("开奖管理", "Draw management"), evt: t("授权发布开奖结果", "Authorize and publish result"), obj: i.no, before: "matched", after: nums });
+    logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("授权发布开奖结果", "Authorize and publish result"), obj: i.no, before: "matched", after: nums });
     S.mf = {}; toast(t("已发布，系统已逐票算奖派奖。", "Published. The system has judged and paid out every ticket.")); render(); return;
   }
   if (act === "claim-records") { S.tab.claims = "records"; render(); return; }
