@@ -234,6 +234,21 @@ tr.alert td:first-child{box-shadow:inset 3px 0 0 var(--rose)}
 .track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg, rgba(34,211,238,.85), rgba(59,130,246,.55))}
 .track.amber span{background:linear-gradient(90deg,#fbbf24,#f59e0b);box-shadow:0 0 8px rgba(245,158,11,.35)}
 .track.rose span{background:linear-gradient(90deg,#fda4af,#fb7184);box-shadow:0 0 8px rgba(251,113,132,.4)}
+.stepper{display:flex;gap:0;list-style:none;margin:0 0 18px;padding:0;counter-reset:s}
+.stepper li{flex:1;position:relative;padding:10px 12px 10px 44px;border:1px solid #243044;border-left:0;background:#0f1726;color:#8b98ad;font-size:13px;counter-increment:s;min-height:48px;display:flex;flex-direction:column;justify-content:center}
+.stepper li:first-child{border-left:1px solid #243044;border-radius:12px 0 0 12px}.stepper li:last-child{border-radius:0 12px 12px 0}
+.stepper li::before{content:counter(s);position:absolute;left:12px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#1b2536;color:#8b98ad;font-weight:700;font-size:12px}
+.stepper li small{font-size:11px;color:#6b7a90}
+.stepper li.done{color:#d5dbe6}.stepper li.done::before{content:"✓";background:var(--accent-emerald);color:#042218}
+.stepper li.cur{color:#fff;background:#13233a;border-color:var(--accent-cyan)}.stepper li.cur::before{background:var(--accent-cyan);color:#021018}
+.padwrap{display:grid;gap:14px}
+.slots{display:flex;gap:10px;flex-wrap:wrap}
+.slot{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:16px;border:1px dashed #33425a;color:#55657c;font-variant-numeric:tabular-nums}
+.slot.f{border:0;color:#021018;background:radial-gradient(circle at 32% 28%,#7ee8fb,#22d3ee 40%,#2563eb);box-shadow:0 0 14px rgba(34,211,238,.45)}
+.pad{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:8px;max-width:620px}
+.pad button{height:42px;border-radius:50%;border:1px solid #2a384e;background:radial-gradient(circle at 32% 28%,#2a3447,#151d2b);color:#dbe3ee;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer}
+.pad button.on{border:0;color:#021018;background:radial-gradient(circle at 32% 28%,#7ee8fb,#22d3ee 40%,#2563eb);box-shadow:0 0 12px rgba(34,211,238,.5)}
+.crumb{font-size:13px;color:#8b98ad;margin-bottom:10px}.crumb a{color:var(--accent-cyan);cursor:pointer}
 .flow{display:flex;flex-direction:column;gap:0}
 .flow .step{display:grid;grid-template-columns:160px 1fr;gap:12px;padding:12px 0;border-top:1px dashed #243044}
 .flow .step:first-child{border-top:0}
@@ -1040,12 +1055,39 @@ S.issues = [
   { no: "2026-1011-2", game: "d6", open: "2026-10-09 09:00", cut: "2026-10-11 19:00", draw: "2026-10-11 21:00", st: "void", sales: 0 }
 ];
 const NOWSTR = () => clockStr().replace(" UTC+8", "").slice(0, 16);
+function minusMin(dt, m) {
+  const d = new Date(Date.parse(dt.replace(" ", "T") + ":00+08:00") - m * 60000);
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+}
+const DT_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+function genBuild() {
+  const gid = S.mf.g_game || GAMES[0].id; const n = Number(S.mf.g_n || 3); const from = S.mf.g_from || "2026-10-15"; const g = gameBy(gid);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !(n >= 1 && n <= 90)) { S.mf.err = t("起始日期格式 YYYY-MM-DD，期数 1–90。", "Date as YYYY-MM-DD, draws 1–90."); return false; }
+  const rows = [];
+  for (let k = 0; k < n; k++) {
+    const ds = new Date(Date.parse(from + "T00:00:00Z") + k * 86400000).toISOString().slice(0, 10);
+    const no = ds.slice(0, 4) + "-" + ds.slice(5, 7) + ds.slice(8, 10) + "-1";
+    const dupe = S.issues.some((x) => x.no === no && x.game === gid);
+    rows.push({ no, open: ds + " 09:00", draw: ds + " 21:00", inc: !dupe, dupe });
+  }
+  S.genPrev = { gid, lead: g.cut || 120, rows }; S.mf.err = ""; return true;
+}
 function drawGenModal() {
   const err = S.mf.err ? `<div class="err">${esc(S.mf.err)}</div>` : "";
-  const opts = GAMES.map((g) => `<option value="${g.id}">${gname(g)}</option>`).join("");
-  return dialog(t("生成期次", "Generate draws"), `<p class="muted">${t("按游戏的开奖频次批量生成。乐透类至少补足 12 期，数字类至少补足 90 期；已存在的期次不重复生成。期次记下生成时的价格、奖级结构、封盘提前时间和税率。", "Generated from the game's draw schedule. Lotto games are topped up to at least 12 draws and digit games to at least 90. Existing draws are not duplicated. Each draw records the price, prize tiers, cut-off lead time and tax rate at generation time.")}</p>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"><div><label class="f">${t("游戏", "Game")}</label><select data-f="g_game">${opts}</select></div><div><label class="f">${t("起始日期", "From")}</label><input data-f="g_from" value="${esc(S.mf.g_from || "2026-10-15")}" /></div><div><label class="f">${t("生成期数", "Number of draws")}</label><input data-f="g_n" value="${esc(S.mf.g_n || "3")}" /></div></div>${err}`,
-    `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-primary" data-act="draw-gen">${t("生成", "Generate")}</button>`);
+  const gp = S.genPrev;
+  if (!gp) {
+    const opts = GAMES.map((g) => `<option value="${g.id}" ${S.mf.g_game === g.id ? "selected" : ""}>${gname(g)}</option>`).join("");
+    return dialog(t("生成期次 · 第 1 步：参数", "Generate draws · Step 1: parameters"), `<p class="muted">${t("按游戏的开奖频次生成。乐透类至少补足 12 期，数字类至少补足 90 期；已存在的期次不重复生成。期次记下生成时的价格、奖级结构、封盘提前时间和税率。下一步先预览，可以逐期调整，确认后才真正生成。", "Draws follow the game's schedule. Lotto games are topped up to at least 12 draws and digit games to 90; existing draws are not duplicated. Each draw records the price, tiers, cut-off lead and tax rate at generation time. Next you preview and adjust each draw; nothing is created until you confirm.")}</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"><div><label class="f">${t("游戏", "Game")}</label><select data-f="g_game">${opts}</select></div><div><label class="f">${t("起始日期", "From")}</label><input data-f="g_from" value="${esc(S.mf.g_from || "2026-10-15")}" /></div><div><label class="f">${t("生成期数", "Number of draws")}</label><input data-f="g_n" value="${esc(S.mf.g_n || "3")}" /></div></div>${err}`,
+      `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-primary" data-act="draw-gen-preview">${t("预览", "Preview")}</button>`);
+  }
+  const g = gameBy(gp.gid);
+  const rows = gp.rows.map((r, k) => `<tr class="${r.inc ? "" : "off"}"><td><input type="checkbox" data-gi="${k}" data-gk="inc" ${r.inc ? "checked" : ""} ${r.dupe ? "disabled" : ""} /></td><td class="mono">${r.no}</td><td><input class="mono" data-gi="${k}" data-gk="open" value="${esc(r.open)}" style="width:150px" /></td><td><input class="mono" data-gi="${k}" data-gk="draw" value="${esc(r.draw)}" style="width:150px" /></td><td class="mono">${DT_RE.test(r.draw) ? minusMin(r.draw, gp.lead) : "—"}</td><td>${r.dupe ? tag("muted", t("已存在，跳过", "Exists, skipped")) : tag("ok", t("新建", "New"))}</td></tr>`).join("");
+  const n = gp.rows.filter((r) => r.inc).length;
+  return dialog(t("生成期次 · 第 2 步：预览与调整 · ", "Generate draws · Step 2: preview and adjust · ") + gname(g), `<div style="width:min(900px,86vw)"><p class="muted">${t("可以取消勾选某一期，或直接改开售时间和开奖时间；封盘时间 = 开奖时间 − 封盘提前时间（", "Untick a draw, or edit the sales-open and draw times. Cut-off = draw time − cut-off lead (")}${cutLabel(g)}${t("），随开奖时间自动更新。", "), updated automatically.")}</p>
+    <div class="table-wrap fit"><table><thead><tr><th></th><th>${t("期号", "Draw no.")}</th><th>${t("开售时间", "Sales open")}</th><th>${t("开奖时间", "Draw time")}</th><th>${t("封盘时间（自动）", "Cut-off (auto)")}</th><th>${t("结果", "Result")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="tiny">${t(`将生成 ${n} 期。生成后期次状态为“已生成”，到开售时间自动转“销售中”。`, `${n} draw(s) will be created. They start as Generated and turn On sale at the sales-open time.`)}</p>${err}</div>`,
+    `<button type="button" class="btn" data-act="draw-gen-back">${t("上一步", "Back")}</button><button type="button" class="btn btn-primary" data-act="draw-gen">${t("确认生成", "Confirm and generate")}</button>`);
 }
 function drawActModal() {
   const m = S.modal; const i = S.issues.find((x) => x.no === m.id); const post = m.arg === "postpone";
@@ -1054,20 +1096,47 @@ function drawActModal() {
     <label class="f" style="margin-top:8px">${t("原因（必填）", "Reason (required)")}</label><input data-f="d_reason" value="${esc(S.mf.d_reason || "")}" />${err}<p class="tiny">${post ? t("延期后玩家端该期显示“已延期”，并向已购玩家发站内信；封盘时间随开奖时间重新计算。", "Players see the draw as postponed and buyers get an inbox message. The cut-off is recalculated from the new draw time.") : ""}</p>`,
     `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-primary" data-act="draw-act-save" data-id="${i.no}" data-arg="${m.arg}">${t("确认", "Confirm")}</button>`);
 }
-function drawEntModal() {
-  const m = S.modal; const i = S.issues.find((x) => x.no === m.id); const g = gameBy(i.game); const second = i.st === "review";
-  const err = S.mf.err ? `<div class="err">${esc(S.mf.err)}</div>` : "";
-  if (S.mf.matched) {
-    return dialog(t("两份录入一致 · ", "Entries match · ") + i.no, `<div class="banner">${t("两份独立录入完全一致。确认下方预览后授权发布。", "Both independent entries match. Review the preview, then authorize.")}</div>
-      ${table([t("开奖号码", "Winning numbers"), t("需生成申领码的票数", "Tickets needing a claim code"), t("代扣税合计", "Total tax withheld")], [`<tr><td class="mono">${esc(S.mf.nums)}</td><td class="mono">${i.game === "g655" ? 1 : 0}</td><td class="mono">${peso(i.game === "g655" ? 824000 : 0)}</td></tr>`])}<p class="tiny">${t("预览数值为示例。", "Preview values are sample data.")}</p>`,
-      `<button type="button" class="btn" data-act="close">${t("稍后", "Later")}</button><button type="button" class="btn btn-primary" data-act="draw-auth" data-id="${i.no}">${t("授权发布", "Authorize and publish")}</button>`);
-  }
-  return dialog((second ? t("第二次录入（财务复核）· ", "Second entry (Finance review) · ") : t("第一次录入（运营专员）· ", "First entry (Operations) · ")) + i.no + " · " + gname(g),
-    `<p class="muted">${second ? t("看不到第一次录入的内容，请独立再录一遍。", "The first entry is hidden. Enter the result independently.") : t("到开奖时间后才能录入。号码用逗号分隔。", "Entry opens at the draw time. Separate numbers with commas.")}</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><label class="f">${t("开奖号码", "Winning numbers")}</label><input data-f="nums" value="${esc(S.mf.nums || "")}" placeholder="${NUM_RULE[i.game][0]} numbers" /></div>${g.kind === "lotto" ? `<div><label class="f">${t("头奖奖池金额（₱）", "Jackpot pool (₱)")}</label><input data-f="pool" value="${esc(S.mf.pool || "")}" placeholder="58200000" /></div>` : ""}</div>
-    ${second ? `<label class="f" style="margin-top:8px"><input type="checkbox" data-f="other" ${S.mf.other ? "checked" : ""} /> ${t("演示用：模拟另一位复核人（正式版按登录账号判断）", "Demo only: simulate a different reviewer account (the real build checks the login)")}</label><p class="tiny">${t("演示用：第一次录入内容为 14,27。", "Demo only: the first entry was 14,27.")}</p>` : ""}${err}`,
-    `<button type="button" class="btn" data-act="close">${t("取消", "Cancel")}</button><button type="button" class="btn btn-primary" data-act="draw-entry-save" data-id="${i.no}">${second ? t("提交并比对", "Submit and compare") : t("提交", "Submit")}</button>`);
+function stepper(steps, cur) {
+  return `<ol class="stepper">${steps.map((s, k) => `<li class="${k + 1 < cur ? "done" : k + 1 === cur ? "cur" : ""}">${t(s[0], s[1])}<small>${t(s[2], s[3])}</small></li>`).join("")}</ol>`;
 }
+function padVal() {
+  const i = S.issues.find((x) => x.no === S.sub.no); const r = NUM_RULE[i.game]; const nums = S.pad.nums;
+  return i.game && (r[3] ? nums.slice().sort((a, b) => a - b) : nums);
+}
+function numPad(i) {
+  const r = NUM_RULE[i.game]; const P = r[0]; const nums = S.pad.nums;
+  const slots = `<div class="slots">${Array.from({ length: P }, (_, k) => { const v = r[3] ? padVal()[k] : nums[k]; return `<span class="slot ${v !== undefined ? "f" : ""}">${v !== undefined ? String(v).padStart(2, "0") : "–"}</span>`; }).join("")}</div>`;
+  if (r[3]) {
+    const pad = Array.from({ length: r[1] }, (_, k) => k + 1).map((n) => `<button type="button" class="${nums.includes(n) ? "on" : ""}" data-act="pad-pick" data-arg="${n}">${String(n).padStart(2, "0")}</button>`).join("");
+    return `<div class="padwrap">${slots}<p class="tiny">${t(`从 1–${r[1]} 中选 ${P} 个号码，不重复；点已选号码取消。`, `Pick ${P} numbers from 1–${r[1]}, no repeats. Tap a picked number to remove it.`)}</p><div class="pad">${pad}</div></div>`;
+  }
+  const rowsHtml = Array.from({ length: P }, (_, p) => `<div><p class="tiny" style="margin:6px 0">${t("第 " + (p + 1) + " 位", "Position " + (p + 1))}</p><div class="pad">${Array.from({ length: r[1] - r[2] + 1 }, (_, k) => k + r[2]).map((n) => `<button type="button" class="${nums[p] === n ? "on" : ""}" data-act="pad-pick" data-id="${p}" data-arg="${n}">${r[1] > 9 ? String(n).padStart(2, "0") : n}</button>`).join("")}</div></div>`).join("");
+  return `<div class="padwrap">${slots}<p class="tiny">${t(`按位置依次选择，${r[1] > 9 ? "1–" + r[1] : "0–9"}，可重复。`, `Choose a value for each position, ${r[1] > 9 ? "1–" + r[1] : "0–9"}, repeats allowed.`)}</p>${rowsHtml}</div>`;
+}
+function viewEntryPage() {
+  const i = S.issues.find((x) => x.no === S.sub.no); const g = gameBy(i.game);
+  const cur = S.mf.matched ? 3 : i.st === "entry" ? 1 : i.st === "review" ? 2 : 4;
+  const err = S.mf.err ? `<div class="err" style="margin:10px 0">${esc(S.mf.err)}</div>` : "";
+  const head = `<div class="crumb"><a data-act="entry-back">${t("开奖记录", "Draw results")}</a> › ${t("开奖结果录入", "Draw result entry")} › <span class="mono">${i.no}</span></div>
+    <div class="page-h"><div><h3>${t("开奖结果录入", "Draw result entry")}</h3><p class="muted">${gname(g)} · <span class="mono">${i.no}</span> · ${t("开奖时间", "Draw time")} <span class="mono">${i.draw}</span> ${tag(ISSUE_ST[i.st][2], t(ISSUE_ST[i.st][0], ISSUE_ST[i.st][1]))}</p></div><button type="button" class="btn" style="width:auto;flex:none" data-act="entry-back">${t("返回开奖记录", "Back to draws")}</button></div>
+    ${stepper([["第一次录入", "First entry", "运营专员", "Operations"], ["第二次独立录入", "Second entry", "财务复核，看不到第一次内容", "Finance review, first entry hidden"], ["比对与预览", "Compare and preview", "系统比对两份录入", "System compares both"], ["授权发布", "Authorize and publish", "财务复核授权，系统自动算奖派奖", "Finance authorizes, system judges and pays"]], cur)}`;
+  if (i.st === "settled" || i.st === "pub") {
+    return head + `<div class="card"><h4>${t("已发布", "Published")}</h4><p class="muted">${t("开奖号码", "Winning numbers")}</p><div class="slots">${(i.nums || "").split(",").map((n) => `<span class="slot f">${n.padStart(2, "0")}</span>`).join("")}</div><p class="tiny">${t("已发布的结果不可修改或撤回。系统已逐票算奖：≤ ₱300,000 自动入奖金余额；> ₱300,000 生成申领码，到“大奖申领”办理。", "A published result cannot be edited or withdrawn. The system has judged every ticket: prizes up to ₱300,000 were credited automatically; larger prizes got a claim code and are handled under Big prize claims.")}</p></div>`;
+  }
+  if (S.mf.matched) {
+    return head + `<div class="card"><h4>${t("两份录入一致", "Both entries match")}</h4><div class="slots">${S.mf.nums.split(",").map((n) => `<span class="slot f">${n.padStart(2, "0")}</span>`).join("")}</div>
+      ${table([t("需生成申领码的票数", "Tickets needing a claim code"), t("代扣税合计", "Total tax withheld"), t("预计自动入账票数", "Tickets auto-credited")], [`<tr><td class="mono">${i.game === "g655" ? 1 : 0}</td><td class="mono">${peso(i.game === "g655" ? 824000 : 0)}</td><td class="mono">${i.game === "g655" ? 128 : 0}</td></tr>`])}<p class="tiny">${t("预览数值为示例。授权后立即发布并算奖，不可撤回。", "Preview values are samples. Authorizing publishes and judges immediately and cannot be undone.")}</p>
+      <div class="row-actions" style="margin-top:10px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-auth" data-id="${i.no}">${t("授权发布", "Authorize and publish")}</button></div></div>`;
+  }
+  const second = i.st === "review";
+  return head + `<div class="card"><h4>${second ? t("第二次录入（财务复核）", "Second entry (Finance review)") : t("第一次录入（运营专员）", "First entry (Operations)")}</h4>
+    <p class="muted">${second ? t("看不到第一次录入的内容，请对照开奖现场结果独立再录一遍。", "The first entry is hidden. Enter the result again independently from the official draw.") : t("到开奖时间后才能录入。用号码盘选号，乐透类再填头奖奖池金额。", "Entry opens at the draw time. Pick the numbers on the pad; lotto games also need the jackpot pool.")}</p>
+    ${numPad(i)}
+    ${g.kind === "lotto" ? `<div style="max-width:300px;margin-top:12px"><label class="f">${t("头奖奖池金额（₱）", "Jackpot pool (₱)")}</label><input data-f="pool" value="${esc(S.mf.pool || "")}" placeholder="58200000" /></div>` : ""}
+    ${second ? `<label class="f" style="margin-top:10px"><input type="checkbox" data-f="other" ${S.mf.other ? "checked" : ""} /> ${t("演示用：模拟另一位复核人（正式版按登录账号判断）", "Demo only: simulate a different reviewer account (the real build checks the login)")}</label><p class="tiny">${t("演示用：第一次录入内容为 14, 27。", "Demo only: the first entry was 14, 27.")}</p>` : ""}${err}
+    <div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-entry-save" data-id="${i.no}">${second ? t("提交并比对", "Submit and compare") : t("提交第一次录入", "Submit first entry")}</button><button type="button" class="btn" style="width:auto;flex:none" data-act="pad-clear">${t("清空号码", "Clear")}</button></div></div>`;
+}
+
 function viewDraws() {
   const opts = [`<option value="all">${t("全部游戏", "All games")}</option>`].concat(GAMES.map((g) => `<option value="${g.id}" ${S.drawQ.game === g.id ? "selected" : ""}>${gname(g)}</option>`)).join("");
   const sopts = [`<option value="all">${t("全部状态", "All statuses")}</option>`].concat(Object.keys(ISSUE_ST).map((k) => `<option value="${k}" ${S.drawQ.st === k ? "selected" : ""}>${t(ISSUE_ST[k][0], ISSUE_ST[k][1])}</option>`)).join("");
@@ -1302,6 +1371,7 @@ function viewTxn() {
   if (S.tab.txn === "refund") return head + viewRefunds();
   if (S.tab.txn === "wd") return head + viewWd();
   if (S.tab.txn === "order") return head + viewOrders();
+  if (S.sub && S.sub.type === "claim") return viewClaimPage();
   if (S.tab.txn === "claim") return head + viewClaims();
   const rows = S.deposits.filter((d) => S.txnQ.dep === "all" || d.st === S.txnQ.dep);
   return head + `<div class="tabs" style="margin-bottom:12px">${txnChip("dep", "all", "全部", "All")}${txnChip("dep", "ok", "成功", "Success")}${txnChip("dep", "pending", "处理中", "Processing")}${txnChip("dep", "fail", "失败", "Failed")}</div>
@@ -1340,34 +1410,52 @@ function claimReason(c, code) {
   return "";
 }
 function viewClaims() {
-  const q = S.claimQ.trim().toLowerCase();
-  const found = q ? S.claimable.filter((c) => [c.ticket, c.player, c.issue, c.code].some((x) => x.toLowerCase().includes(q))) : S.claimable;
-  const sel = S.claimable.find((c) => c.ticket === S.claimSel);
-  const list = table([t("票号", "Ticket"), t("玩家", "Player"), t("游戏 / 期号", "Game / Draw"), t("税前奖金", "Prize (pre-tax)"), t("状态", "Status"), ""], found.map((c) => `<tr><td class="mono">${c.ticket}</td><td class="mono">${c.player}</td><td>${gname(gameBy(c.game))} · <span class="mono">${c.issue}</span></td><td class="mono amt">${peso(c.gross)}</td><td>${c.status === "pending" ? (c.deadline < NOWSTR().slice(0, 10) ? tag("rose", t("待申领 · 已逾期", "Awaiting claim · Overdue")) : tag("warn", t("待申领", "Awaiting claim"))) : tag("ok", t("已申领", "Claimed"))}</td><td><button type="button" class="btn btn-sm" data-act="claim-pick" data-id="${c.ticket}">${t("核验", "Verify")}</button></td></tr>`));
-  let detail = "";
-  if (sel) {
-    const tx = taxOf(sel.gross); const res = S.claimRes;
-    const msg = res && res.err ? `<div class="err" style="margin-top:10px">${esc(res.err)}. ${t("付款登记已屏蔽。", "Payment registration is blocked.")}</div>` : (res && res.ok ? `<div class="banner" style="margin-top:10px">${t("校验通过。可以登记支票付款。", "Verification passed. You can register the cheque payment.")}</div>` : "");
-    detail = `<div class="card" style="margin-top:14px"><h4>${sel.ticket}</h4>
-      <div class="kpis k3"><article class="kpi"><div class="lbl">${t("玩家（KYC 摘要）", "Player (KYC summary)")}</div><div class="num" style="font-size:14px">${sel.player}<div class="tiny">${esc(sel.kyc)}</div></div></article>
-      <article class="kpi"><div class="lbl">${t("游戏 / 期号 / 开奖日", "Game / Draw / Draw date")}</div><div class="num" style="font-size:14px">${gname(gameBy(sel.game))}<div class="tiny mono">${sel.issue} · ${sel.draw}</div></div></article>
-      <article class="kpi"><div class="lbl">${t("兑奖截止日", "Claim deadline")}</div><div class="num mono" style="font-size:16px">${sel.deadline}</div></article></div>
-      <p class="tiny" style="margin:10px 0 2px">${t("投注号码 / 开奖号码", "Bet / winning numbers")}</p><p class="mono" style="margin:0">${sel.mine} <span class="tiny">/</span> ${sel.win} · ${sel.tier}</p>
-      <p class="tiny" style="margin:8px 0 0">${t("税前奖金", "Gross")} <b class="mono">${peso(sel.gross)}</b> · ${t("代扣税", "Tax")} <b class="mono">${peso(tx.tax)}</b> · ${t("实付金额（支票金额）", "Paid amount (cheque)")} <b class="mono">${peso(tx.net)}</b></p>
-      <div class="tools" style="display:flex;gap:10px;align-items:flex-end;margin-top:12px"><div><label class="f">${t("申领码（录入或扫码）", "Claim code (type or scan)")}</label><input data-f="ccode" value="${esc(S.mf.ccode || "")}" placeholder="K7M2X9QD" /></div><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="claim-verify" data-id="${sel.ticket}">${t("校验", "Verify code")}</button></div>${msg}
-      ${res && res.ok ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px"><div><label class="f">${t("支票号", "Cheque number")}</label><input data-f="chq" value="${esc(S.mf.chq || "")}" placeholder="PCSO-CHK-21005" /></div><div><label class="f">${t("兑付网点", "Payout outlet")}</label><input data-f="outlet" value="${esc(S.mf.outlet || "PCSO Head Office, Mandaluyong")}" /></div><div><label class="f">${t("兑付时间", "Paid at")}</label><input value="${NOWSTR()}" disabled /></div></div>
-      <div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="claim-register" data-id="${sel.ticket}">${t("登记支票付款", "Register cheque payment")}</button></div>` : ""}</div>`;
-  }
   const rows = S.claims.map((c) => {
     const tax = taxOf(c.gross);
     return `<tr><td class="mono">${c.ticket}</td><td>${gname(gameBy(c.game))}</td><td class="mono">${c.issue}</td><td class="mono amt">${peso(c.gross)}</td><td class="mono amt">${peso(tax.tax)}</td><td class="mono amt">${peso(tax.net)}</td><td class="mono">${c.cheque}</td><td class="mono">${c.pushed}</td><td>${esc(c.outlet || "PCSO Head Office, Mandaluyong")}</td><td class="mono">${c.by || "fin.reyes"}</td></tr>`;
   });
-  return `<div class="banner">${t("大奖（单票税前超过 ₱300,000）由玩家本人到 PCSO 总部兑奖。财务复核在这里检索彩票、录入申领码校验，校验通过后才能登记支票付款，奖金以支票线下支付，不进玩家钱包。合规审计和运营专员只读。", "Big prizes (a single ticket above ₱300,000 pre-tax) are claimed in person at PCSO Head Office. Finance review looks up the ticket, verifies the claim code, and registers the cheque only after verification passes. Prizes are paid by cheque offline, not to the wallet. Compliance audit and Operations are read-only.")}</div>
-    <div class="card"><h4>${t("检索彩票", "Find a ticket")}</h4><div class="tools"><label class="f">${t("序列号 / 条码 / 二维码内容 / 玩家账号 / 期号", "Serial / barcode / QR content / player ID / draw no.")}<input data-field="claimQ" value="${esc(S.claimQ)}" placeholder="TKT202610090231" /></label></div>${list}</div>
-    ${detail}
+  const waiting = S.claimable.filter((c) => c.status === "pending").length;
+  return `<div class="banner">${t("大奖（单票税前超过 ₱300,000）由玩家本人到 PCSO 总部兑奖，奖金以支票线下支付，不进玩家钱包。办理在“大奖申领”页面进行；这里只看已完成的兑奖记录。", "Big prizes (a single ticket above ₱300,000 pre-tax) are claimed in person at PCSO Head Office and paid by cheque offline, not to the wallet. Handling happens on the Big prize claims page; this tab only lists completed claims.")}<button type="button" class="btn btn-sm btn-primary" style="margin-left:12px;width:auto;flex:none" data-act="claim-open">${t("办理大奖申领", "Handle a big prize claim")} (${waiting})</button></div>
     <h4 style="margin:16px 0 6px">${t("兑奖记录", "Claim records")}</h4>
     <p class="tiny">${t("代扣税款：单票税前奖金超过免税额 ₱10,000 时按全额 20% 扣，税率与免税额可配置。自动入账上限 ₱300,000，与游戏管理里的计费参数一致。", "Withholding: when a single prize exceeds the ₱10,000 allowance, 20% of the full prize is withheld. Rate and allowance are configurable. The auto-credit cap is ₱300,000, the same figure as in Games.")}</p>
     ${table([t("彩票号", "Ticket"), t("游戏", "Game"), t("期号", "Draw"), t("税前奖金", "Prize (pre-tax)"), t("代扣税款", "Tax withheld"), t("实付", "Paid out"), t("支票号", "Cheque"), t("兑付时间", "Paid at"), t("兑付网点", "Outlet"), t("经办人", "Handled by")], rows)}`;
+}
+function viewClaimPage() {
+  const sel = S.claimable.find((c) => c.ticket === S.claimSel); const step = S.claimStep || 1; const res = S.claimRes;
+  const head = `<div class="crumb"><a data-act="claim-back">${t("交易流水 · 兑奖", "Transactions · Claims")}</a> › ${t("大奖申领", "Big prize claims")}</div>
+    <div class="page-h"><div><h3>${t("大奖申领", "Big prize claims")}</h3><p class="muted">${t("玩家本人到 PCSO 总部兑奖时，由财务复核按流程办理。合规审计和运营专员只读。", "Handled by Finance review when the player claims in person at PCSO Head Office. Compliance audit and Operations are read-only.")}</p></div><button type="button" class="btn" style="width:auto;flex:none" data-act="claim-back">${t("返回兑奖记录", "Back to claim records")}</button></div>
+    ${stepper([["检索彩票", "Find ticket", "序列号 / 条码 / 二维码 / 玩家 / 期号", "Serial / barcode / QR / player / draw"], ["核对本人", "Check identity", "对照 KYC 摘要与证件", "Match KYC summary and ID"], ["校验申领码", "Verify claim code", "不通过则屏蔽付款", "Blocked if it fails"], ["登记支票付款", "Register cheque", "实付金额系统带出", "Amount filled by the system"], ["完成", "Done", "打印凭证", "Print receipt"]], step)}`;
+  const card = (c) => `<div class="card" style="margin-bottom:14px"><h4>${c.ticket}</h4>
+    <div class="kpis k3"><article class="kpi"><div class="lbl">${t("玩家（KYC 摘要）", "Player (KYC summary)")}</div><div class="num" style="font-size:14px">${c.player}<div class="tiny">${esc(c.kyc)}</div></div></article>
+    <article class="kpi"><div class="lbl">${t("游戏 / 期号 / 开奖日", "Game / Draw / Draw date")}</div><div class="num" style="font-size:14px">${gname(gameBy(c.game))}<div class="tiny mono">${c.issue} · ${c.draw}</div></div></article>
+    <article class="kpi"><div class="lbl">${t("兑奖截止日", "Claim deadline")}</div><div class="num mono" style="font-size:16px">${c.deadline}</div></article></div>
+    <p class="tiny" style="margin:10px 0 2px">${t("投注号码 / 开奖号码", "Bet / winning numbers")}</p><p class="mono" style="margin:0">${c.mine} <span class="tiny">/</span> ${c.win} · ${c.tier}</p>
+    <p class="tiny" style="margin:8px 0 0">${t("税前奖金", "Gross")} <b class="mono">${peso(c.gross)}</b> · ${t("代扣税", "Tax")} <b class="mono">${peso(taxOf(c.gross).tax)}</b> · ${t("实付金额（支票金额）", "Paid amount (cheque)")} <b class="mono">${peso(taxOf(c.gross).net)}</b></p></div>`;
+  if (step === 1) {
+    const q = S.claimQ.trim().toLowerCase();
+    const found = q ? S.claimable.filter((c) => [c.ticket, c.player, c.issue, c.code].some((x) => x.toLowerCase().includes(q))) : S.claimable;
+    return head + `<div class="card"><h4>${t("第 1 步 · 检索彩票", "Step 1 · Find the ticket")}</h4><div class="tools"><label class="f">${t("序列号 / 条码 / 二维码内容 / 玩家账号 / 期号", "Serial / barcode / QR content / player ID / draw no.")}<input data-field="claimQ" value="${esc(S.claimQ)}" placeholder="TKT202610090231" /></label></div>
+      ${table([t("票号", "Ticket"), t("玩家", "Player"), t("游戏 / 期号", "Game / Draw"), t("税前奖金", "Prize (pre-tax)"), t("状态", "Status"), ""], found.map((c) => `<tr><td class="mono">${c.ticket}</td><td class="mono">${c.player}</td><td>${gname(gameBy(c.game))} · <span class="mono">${c.issue}</span></td><td class="mono amt">${peso(c.gross)}</td><td>${c.status === "pending" ? (c.deadline < NOWSTR().slice(0, 10) ? tag("rose", t("待申领 · 已逾期", "Awaiting claim · Overdue")) : tag("warn", t("待申领", "Awaiting claim"))) : tag("ok", t("已申领", "Claimed"))}</td><td><button type="button" class="btn btn-sm" data-act="claim-pick" data-id="${c.ticket}">${t("选择", "Select")}</button></td></tr>`))}</div>`;
+  }
+  if (step === 2) {
+    return head + card(sel) + `<div class="card"><h4>${t("第 2 步 · 核对本人", "Step 2 · Check identity")}</h4><p class="muted">${t("请玩家出示有效证件，对照上方 KYC 摘要中的姓名、证件类型和证件号后 4 位。", "Ask the player for a valid ID and compare it with the name, ID type and last 4 digits in the KYC summary above.")}</p>
+      <label class="f"><input type="checkbox" data-f="idok" ${S.mf.idok ? "checked" : ""} /> ${t("证件与 KYC 摘要一致，是玩家本人", "The ID matches the KYC summary and the claimant is the player")}</label>
+      <div class="row-actions" style="margin-top:12px"><button type="button" class="btn" style="width:auto;flex:none" data-act="claim-restart">${t("换一张票", "Pick another ticket")}</button><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="claim-id-ok">${t("下一步", "Next")}</button></div></div>`;
+  }
+  if (step === 3) {
+    const msg = res && res.err ? `<div class="err" style="margin-top:10px">${esc(res.err)}. ${t("付款登记已屏蔽，不能绕过。", "Payment registration is blocked and cannot be bypassed.")}</div>` : "";
+    return head + card(sel) + `<div class="card"><h4>${t("第 3 步 · 校验申领码", "Step 3 · Verify the claim code")}</h4><p class="muted">${t("录入或扫描玩家出示的申领码。系统校验：与该票匹配、票据为“中奖待申领”、未过兑奖截止日。", "Type or scan the claim code. The system checks: it matches this ticket, the ticket is awaiting claim, and the deadline has not passed.")}</p>
+      <div class="tools" style="display:flex;gap:10px;align-items:flex-end"><div><label class="f">${t("申领码", "Claim code")}</label><input data-f="ccode" value="${esc(S.mf.ccode || "")}" placeholder="K7M2X9QD" /></div><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="claim-verify" data-id="${sel.ticket}">${t("校验", "Verify code")}</button><button type="button" class="btn" style="width:auto;flex:none" data-act="claim-restart">${t("换一张票", "Pick another ticket")}</button></div>${msg}</div>`;
+  }
+  if (step === 4) {
+    return head + card(sel) + `<div class="card"><h4>${t("第 4 步 · 登记支票付款", "Step 4 · Register the cheque payment")}</h4><div class="banner">${t("校验通过。", "Verification passed.")}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px"><div><label class="f">${t("支票号", "Cheque number")}</label><input data-f="chq" value="${esc(S.mf.chq || "")}" placeholder="PCSO-CHK-21005" /></div><div><label class="f">${t("兑付网点", "Payout outlet")}</label><input data-f="outlet" value="${esc(S.mf.outlet || "PCSO Head Office, Mandaluyong")}" /></div><div><label class="f">${t("实付金额（只读）", "Paid amount (read-only)")}</label><input value="${peso(taxOf(sel.gross).net)}" disabled /></div><div><label class="f">${t("兑付时间（系统）", "Paid at (system)")}</label><input value="${NOWSTR()}" disabled /></div></div>
+      ${S.mf.err ? `<div class="err" style="margin-top:10px">${esc(S.mf.err)}</div>` : ""}<div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="claim-register" data-id="${sel.ticket}">${t("登记支票付款", "Register cheque payment")}</button></div></div>`;
+  }
+  const done = S.claims[0];
+  return head + `<div class="card"><h4>${t("申领已完成", "Claim completed")}</h4><p class="muted">${t("彩票已转“中奖已申领”，申领码已失效，钱包余额不变。", "The ticket is now claimed, the claim code is void, and the wallet balance is unchanged.")}</p>
+    ${table([t("票号", "Ticket"), t("支票号", "Cheque"), t("实付金额", "Paid amount"), t("兑付时间", "Paid at"), t("经办人", "Handled by")], [`<tr><td class="mono">${done.ticket}</td><td class="mono">${done.cheque}</td><td class="mono amt">${peso(taxOf(done.gross).net)}</td><td class="mono">${done.pushed}</td><td class="mono">${done.by}</td></tr>`])}
+    <div class="row-actions" style="margin-top:12px"><button type="button" class="btn" style="width:auto;flex:none" data-act="claim-print">${t("打印校验后的中奖彩票副本", "Print verified ticket copy")}</button><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="claim-restart">${t("办理下一张", "Handle the next ticket")}</button></div></div>`;
 }
 
 function viewReports() {
@@ -1746,7 +1834,6 @@ function renderModal() {
   if (S.modal.type === "cfg") return cfgModal();
   if (S.modal.type === "drawgen") return drawGenModal();
   if (S.modal.type === "drawact") return drawActModal();
-  if (S.modal.type === "drawent") return drawEntModal();
   if (S.modal.type === "cover") return coverModal(gameBy(S.modal.id));
   if (S.modal.type === "cut") return cutModal(gameBy(S.modal.id));
   if (S.modal.type === "delist") return delistModal(gameBy(S.modal.id));
@@ -1789,7 +1876,7 @@ function translateDom() {
 
 function render() {
   document.documentElement.lang = S.lang === "en" ? "en" : "zh-CN";
-  const pages = { dash: viewDash, games: viewGames, draws: viewDraws, kyc: viewKyc, players: viewPlayers, rg: viewRg, txn: viewTxn, reports: viewReports, audit: viewAudit, sys: viewSys };
+  const pages = { dash: viewDash, games: viewGames, draws: () => (S.sub && S.sub.type === "entry" ? viewEntryPage() : viewDraws()), kyc: viewKyc, players: viewPlayers, rg: viewRg, txn: viewTxn, reports: viewReports, audit: viewAudit, sys: viewSys };
   $("app").innerHTML = (S.authed ? shell(pages[S.page]()) : viewLogin()) + langSwitch();
   let host = $("modal-host");
   if (!host) {
@@ -1879,7 +1966,7 @@ function onClick(e) {
     render();
     return;
   }
-  if (act === "nav") { S.page = arg; S.playerId = null; S.kycId = null; S.modal = null; render(); return; }
+  if (act === "nav") { S.sub = null; S.page = arg; S.playerId = null; S.kycId = null; S.modal = null; render(); return; }
   if (act === "tab") { S.tab[actEl.dataset.group] = arg; render(); return; }
   if (act === "close") { S.modal = null; render(); return; }
   if (act === "cover-open") { S.mf = {}; S.modal = { type: "cover", id }; render(); return; }
@@ -1914,18 +2001,19 @@ function onClick(e) {
     }
     S.modal = null; S.mf = {}; toast(t("已保存，只影响之后生成的期次。", "Saved. It applies only to draws generated afterwards.")); render(); return;
   }
-  if (act === "draw-gen-open") { S.mf = {}; S.modal = { type: "drawgen" }; render(); return; }
+  if (act === "draw-gen-open") { S.mf = {}; S.genPrev = null; S.modal = { type: "drawgen" }; render(); return; }
+  if (act === "draw-gen-preview") { if (!genBuild()) { render(); return; } render(); return; }
+  if (act === "draw-gen-back") { S.mf = { g_game: S.genPrev.gid }; S.genPrev = null; render(); return; }
   if (act === "draw-gen") {
-    const gid = S.mf.g_game || GAMES[0].id; const n = Number(S.mf.g_n || 3); const from = S.mf.g_from || "2026-10-15";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !(n >= 1 && n <= 90)) { S.mf.err = t("起始日期格式 YYYY-MM-DD，期数 1–90。", "Date as YYYY-MM-DD, draws 1–90."); render(); return; }
-    let added = 0, skipped = 0; const g = gameBy(gid);
-    for (let k = 0; k < n; k++) {
-      const d = new Date(Date.parse(from + "T00:00:00Z") + k * 86400000); const ds = d.toISOString().slice(0, 10); const no = ds.slice(0, 4) + "-" + ds.slice(5, 7) + ds.slice(8, 10) + "-" + "1";
-      if (S.issues.some((x) => x.no === no && x.game === gid)) { skipped++; continue; }
-      S.issues.unshift({ no, game: gid, open: ds + " 09:00", cut: ds + " " + String(21 - Math.round((g.cut || 120) / 60)).padStart(2, "0") + ":00", draw: ds + " 21:00", st: "gen", sales: 0 }); added++;
+    const gp = S.genPrev; const g = gameBy(gp.gid); const pick = gp.rows.filter((r) => r.inc);
+    if (!pick.length) { S.mf.err = t("没有要生成的期次。", "No draws selected."); render(); return; }
+    for (const r of pick) {
+      if (!DT_RE.test(r.open) || !DT_RE.test(r.draw)) { S.mf.err = t("时间格式须为 YYYY-MM-DD HH:mm：", "Time format must be YYYY-MM-DD HH:mm: ") + r.no; render(); return; }
+      if (r.open >= r.draw) { S.mf.err = t("开售时间必须早于开奖时间：", "Sales open must be before the draw time: ") + r.no; render(); return; }
     }
-    logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), evt: t("生成期次", "Generate draws"), obj: g.en, before: "—", after: added + " draws from " + from });
-    S.modal = null; S.mf = {}; toast(t(`已生成 ${added} 期，跳过 ${skipped} 期（已存在）。`, `${added} draw(s) generated, ${skipped} skipped (already exist).`)); render(); return;
+    pick.forEach((r) => S.issues.unshift({ no: r.no, game: gp.gid, open: r.open, cut: minusMin(r.draw, gp.lead), draw: r.draw, st: "gen", sales: 0 }));
+    logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), evt: t("生成期次", "Generate draws"), obj: g.en, before: "—", after: pick.length + " draws · " + pick[0].draw + (pick.length > 1 ? " …" : "") });
+    S.modal = null; S.mf = {}; S.genPrev = null; toast(t(`已生成 ${pick.length} 期。`, `${pick.length} draw(s) generated.`)); render(); return;
   }
   if (act === "draw-act-open") { S.mf = {}; S.modal = { type: "drawact", id, arg }; render(); return; }
   if (act === "draw-act-save") {
@@ -1933,7 +2021,7 @@ function onClick(e) {
     if (!(S.mf.d_reason || "").trim()) { S.mf.err = t("请填写原因。", "Enter a reason."); render(); return; }
     if (arg === "postpone") {
       const nd = (S.mf.d_new !== undefined ? S.mf.d_new : "2026-10-13 21:00").trim();
-      if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(nd)) { S.mf.err = t("时间格式 YYYY-MM-DD HH:mm。", "Time format YYYY-MM-DD HH:mm."); render(); return; }
+      if (!DT_RE.test(nd)) { S.mf.err = t("时间格式 YYYY-MM-DD HH:mm。", "Time format YYYY-MM-DD HH:mm."); render(); return; }
       if (nd <= NOWSTR()) { S.mf.err = t("新的开奖时间必须晚于现在。", "The new draw time must be in the future."); render(); return; }
       i.was = i.st; i.st = "postponed"; i.reason = S.mf.d_reason; i.draw = nd;
       logAudit({ who: actor().who, role: actor().role, mod: t("开奖记录", "Draw results"), evt: t("期次延期", "Postpone draw"), obj: i.no, before: "—", after: nd + " · " + S.mf.d_reason });
@@ -1944,54 +2032,74 @@ function onClick(e) {
     }
     S.modal = null; S.mf = {}; render(); return;
   }
-  if (act === "draw-ent-open") { S.mf = {}; S.modal = { type: "drawent", id }; render(); return; }
+  if (act === "draw-ent-open") { S.mf = {}; S.pad = { nums: [] }; S.sub = { type: "entry", no: id }; render(); return; }
+  if (act === "entry-back") { S.sub = null; S.mf = {}; render(); return; }
+  if (act === "pad-clear") { S.pad.nums = []; S.mf.err = ""; render(); return; }
+  if (act === "pad-pick") {
+    const i = S.issues.find((x) => x.no === S.sub.no); const r = NUM_RULE[i.game]; const n = Number(arg); S.mf.err = "";
+    if (r[3]) { const k = S.pad.nums.indexOf(n); if (k >= 0) S.pad.nums.splice(k, 1); else if (S.pad.nums.length < r[0]) S.pad.nums.push(n); else { S.mf.err = t(`已选满 ${r[0]} 个号码，先取消一个。`, `All ${r[0]} numbers are picked. Remove one first.`); } }
+    else S.pad.nums[Number(id)] = n;
+    render(); return;
+  }
   if (act === "draw-entry-save") {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const r = NUM_RULE[i.game];
-    if (i.draw > NOWSTR()) { S.mf.err = "Draw time not reached"; render(); return; }
-    if (i.st === "pub" || i.st === "settled") { S.mf.err = "This draw has already been published"; render(); return; }
-    const nums = (S.mf.nums || "").split(",").map((x) => x.trim()).filter(Boolean); const pool = (S.mf.pool || "").trim();
-    const okNum = nums.length === r[0] && nums.every((x) => /^\d+$/.test(x) && Number(x) >= r[2] && Number(x) <= r[1]) && (!r[3] || new Set(nums).size === nums.length);
-    if (!okNum || (g.kind === "lotto" && !/^\d+(\.\d{1,2})?$/.test(pool))) { S.mf.err = "Winning numbers do not match the game definition"; render(); return; }
-    const norm = nums.join(",");
+    const keep = { pool: S.mf.pool, other: S.mf.other };
+    const raw = r[3] ? S.pad.nums.slice().sort((a, b) => a - b) : Array.from({ length: r[0] }, (_, k) => S.pad.nums[k]);
+    const fail = (m) => { S.mf.err = m; render(); };
+    if (i.draw > NOWSTR()) return fail("Draw time not reached");
+    if (i.st === "pub" || i.st === "settled") return fail("This draw has already been published");
+    if (raw.length !== r[0] || raw.some((x) => x === undefined)) return fail(t(`请选满 ${r[0]} 个号码。`, `Pick all ${r[0]} numbers.`));
+    const pool = (S.mf.pool || "").trim(); const norm = raw.join(",");
+    if (g.kind === "lotto" && !/^\d+(\.\d{1,2})?$/.test(pool)) return fail(t("请填写头奖奖池金额（最多 2 位小数）。", "Enter the jackpot pool (up to 2 decimals)."));
     if (i.st === "entry") {
       i.first = { nums: norm, pool, by: actor().who }; i.st = "review";
       logAudit({ who: actor().who, role: actor().role, mod: t("开奖记录", "Draw results"), evt: t("开奖结果第一次录入", "Draw result first entry"), obj: i.no, before: "—", after: "submitted" });
-      S.modal = null; S.mf = {}; toast(t("已提交，等待财务复核独立录入。", "Submitted. Waiting for Finance review's independent entry.")); render(); return;
+      S.pad = { nums: [] }; S.mf = { err: "" }; toast(t("第一次录入已提交，请财务复核独立录入。", "First entry submitted. Finance review now enters it independently.")); render(); return;
     }
-    if (i.first.by === actor().who && !S.mf.other) { S.mf.err = "The second entry must be made by a different person"; render(); return; }
+    if (i.first.by === actor().who && !keep.other) return fail("The second entry must be made by a different person");
     if (i.first.nums !== norm || (g.kind === "lotto" && i.first.pool !== "" && i.first.pool !== pool)) {
-      delete i.first; i.st = "entry";
+      delete i.first; i.st = "entry"; S.pad = { nums: [] };
       logAudit({ who: actor().who, role: actor().role, mod: t("开奖记录", "Draw results"), evt: t("两份录入不一致", "Entries do not match"), obj: i.no, before: "review", after: "entry (both discarded)" });
-      S.mf = { err: "The two entries do not match. Both entries were discarded." }; S.modal = null; toast("The two entries do not match. Both entries were discarded."); render(); return;
+      S.mf = { err: "The two entries do not match. Both entries were discarded." }; render(); return;
     }
     logAudit({ who: actor().who, role: actor().role, mod: t("开奖记录", "Draw results"), evt: t("开奖结果第二次录入，两份一致", "Second entry matches"), obj: i.no, before: "review", after: "matched" });
     S.mf = { matched: true, nums: norm }; render(); return;
   }
   if (act === "draw-auth") {
-    const i = S.issues.find((x) => x.no === id); const nums = S.mf.nums; const g = gameBy(i.game);
+    const i = S.issues.find((x) => x.no === id); const nums = S.mf.nums;
     i.nums = nums; i.st = "settled"; delete i.first;
-    S.draws.unshift({ date: i.draw, issue: i.no, game: i.game, nums: nums.split(",").join(" "), winners: t("系统已算奖（见交易流水）", "Settled by the system"), payout: 0, rollZh: "—", rollEn: "—" });
+    S.draws.unshift({ date: i.draw, issue: i.no, game: i.game, nums: nums.split(",").map((n) => n.padStart(2, "0")).join(" "), winners: t("系统已算奖（见交易流水）", "Settled by the system"), payout: 0, rollZh: "—", rollEn: "—" });
     logAudit({ who: actor().who, role: actor().role, mod: t("开奖记录", "Draw results"), evt: t("授权发布开奖结果", "Authorize and publish result"), obj: i.no, before: "matched", after: nums });
-    S.modal = null; S.mf = {}; toast(t("已发布，系统已逐票算奖派奖。", "Published. The system has judged and paid out every ticket.")); render(); return;
+    S.mf = {}; toast(t("已发布，系统已逐票算奖派奖。", "Published. The system has judged and paid out every ticket.")); render(); return;
   }
-  if (act === "claim-pick") { S.claimSel = id; S.claimRes = null; S.mf = {}; render(); return; }
+  if (act === "claim-open") { S.sub = { type: "claim" }; S.claimStep = 1; S.claimSel = ""; S.claimRes = null; S.mf = {}; render(); return; }
+  if (act === "claim-back") { S.sub = null; S.mf = {}; render(); return; }
+  if (act === "claim-restart") { S.claimStep = 1; S.claimSel = ""; S.claimRes = null; S.mf = {}; render(); return; }
+  if (act === "claim-pick") { S.claimSel = id; S.claimRes = null; S.mf = {}; S.claimStep = 2; render(); return; }
+  if (act === "claim-id-ok") {
+    if (!S.mf.idok) { toast(t("请先确认已核对证件。", "Confirm the ID check first.")); return; }
+    const c = S.claimable.find((x) => x.ticket === S.claimSel);
+    logAudit({ who: actor().who, role: actor().role, mod: t("交易流水", "Transactions"), evt: t("核对领奖人身份", "Check claimant identity"), obj: c.ticket, before: "—", after: "confirmed" });
+    S.claimStep = 3; S.mf = {}; render(); return;
+  }
   if (act === "claim-verify") {
     const c = S.claimable.find((x) => x.ticket === id); const code = (S.mf.ccode || "").trim();
     if (!code) { S.claimRes = { err: "Enter the claim code" }; render(); return; }
     const why = claimReason(c, code);
     S.claimRes = why ? { err: why } : { ok: true };
     logAudit({ who: actor().who, role: actor().role, mod: t("交易流水", "Transactions"), evt: t("申领码核验", "Claim code verification"), obj: c.ticket, before: "—", after: why || "passed" });
+    if (!why) { S.claimStep = 4; S.mf = {}; }
     render(); return;
   }
   if (act === "claim-register") {
     const c = S.claimable.find((x) => x.ticket === id);
-    if (!(S.mf.chq || "").trim()) { toast(t("请填写支票号。", "Enter the cheque number.")); return; }
+    if (!(S.mf.chq || "").trim()) { S.mf.err = t("请填写支票号。", "Enter the cheque number."); render(); return; }
     c.status = "claimed";
     S.claims.unshift({ ticket: c.ticket, code: c.code, game: c.game, issue: c.issue, gross: c.gross, date: NOWSTR().slice(0, 10), cheque: S.mf.chq.trim(), pushed: NOWSTR(), outlet: S.mf.outlet || "PCSO Head Office, Mandaluyong", by: actor().who });
     logAudit({ who: actor().who, role: actor().role, mod: t("交易流水", "Transactions"), evt: t("登记支票付款", "Register cheque payment"), obj: c.ticket, before: "中奖待申领", after: "中奖已申领 · " + S.mf.chq.trim() });
-    S.claimRes = null; S.mf = {}; toast(t("已登记。彩票转“中奖已申领”，申领码失效。可打印校验后的彩票副本。", "Registered. The ticket is now claimed and the code is void. A verified ticket copy can be printed."));
-    render(); return;
+    S.claimRes = null; S.mf = {}; S.claimStep = 5; toast(t("已登记。彩票转“中奖已申领”，申领码失效。", "Registered. The ticket is now claimed and the code is void.")); render(); return;
   }
+  if (act === "claim-print") { toast(t("演示版：已发送到打印机（不真的打印）。", "Demo: sent to the printer (nothing is printed).")); return; }
   if (act === "cut-open") { S.mf = {}; S.modal = { type: "cut", id }; render(); return; }
   if (act === "cut-chip") { S.mf.cut = Number(arg); const i = $("cut-input"); if (i) { i.value = arg; $("cut-hint").textContent = cutHint(gameBy(S.modal.id), arg); } return; }
   if (act === "cut-save") {
@@ -2294,6 +2402,10 @@ function sendMsgs(ids) {
   toast(t(`已发送给 ${ids.length} 位玩家。`, `Sent to ${ids.length} player(s).`)); render();
 }
 document.body.addEventListener("click", onClick);
+document.body.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.dataset && el.dataset.gi != null && S.genPrev) { const r = S.genPrev.rows[Number(el.dataset.gi)]; r[el.dataset.gk] = el.dataset.gk === "inc" ? el.checked : el.value.trim(); render(); }
+});
 document.body.addEventListener("input", (e) => {
   const el = e.target;
   if (el.dataset.field === "user") S.login.user = el.value;
