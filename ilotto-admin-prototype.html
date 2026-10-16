@@ -819,7 +819,7 @@ function auditNorm(a) {
     a.type = /Transactions|交易|Cheque|支票|payout|Withdrawal lock/i.test(e) && !/Export/i.test(e) ? (/Withdrawal lock/i.test(e) ? "Audit" : "Transaction")
       : /fail|越权|unauthori|完整性告警生成|Integrity alert raised/i.test(e) ? "Security"
       : /SMS|短信|站内信|push|Direct message|Send message/i.test(e) ? "Communication"
-      : /gateway|draw machine|抓号|回调/i.test(e) ? "Integration"
+      : /gateway|callback/i.test(e) ? "Integration"
       : /Delist|参数|parameter|tax|unit value|schedule|变更申请|Approve change|Reject change|Limit betting|Publish notice/i.test(e) && !/Players/.test(a.mod || "") ? "Change" : "Audit";
   }
   if (a.time && !/UTC\+8/.test(a.time)) a.time = a.time + " UTC+8";
@@ -992,7 +992,7 @@ function viewDash() {
     ["goto-draws", "sw3", "Swertres 3D 21:00 场 28 分钟后截止", "Swertres 3D 21:00 draw closes in 28 minutes", "今日第 3 场 · 封盘前 30 分钟内才进列表", "Draw 3 today · listed only in the last 30 minutes before cut-off", "warn", "P2", "P2"],
     ...S.issues.filter((x) => x.st === "prize").length ? [["goto-draws", "", "待录入奖金 · " + S.issues.filter((x) => x.st === "prize").length + " 期", "Prizes to enter (" + S.issues.filter((x) => x.st === "prize").length + ")", S.issues.filter((x) => x.st === "prize").map((x) => x.no).join(", ") + " · 号码已核对一致", S.issues.filter((x) => x.st === "prize").map((x) => x.no).join(", ") + " · numbers matched, prizes not entered yet", "warn", "P2", "P2"]] : [],
     ...drawsBelowMin().length ? [["goto-draws", "", "期次数低于下限", "Draws below minimum", drawsBelowMin().map((x) => x.g.en + " " + x.n + "/" + DRAW_MIN(x.g)).join(", "), drawsBelowMin().map((x) => x.g.en + " " + x.n + "/" + DRAW_MIN(x.g)).join(", ") + " · Run daily top-up", "warn", "P2", "P2"]] : [],
-    ...(S.fetchFails || []).length ? [["goto-draws", "", "开奖机获取失败", "Draw machine fetch failed", (S.fetchFails || []).map((x) => x.no).join(", ") + " · 已转手工录入", (S.fetchFails || []).map((x) => x.no).join(", ") + " · switched to manual entry", "rose", "P1", "P1"]] : [],
+    
     ["goto-sys", "", S.sysChg.filter((c) => c.st === "pending").length + " 项变更申请待批准", "Change requests awaiting approval (" + S.sysChg.filter((c) => c.st === "pending").length + ")", "系统管理 · 需另一位管理员批准", "System · needs approval by another admin", "warn", "P2", "P2"],
     ["goto-rg", "", "3 笔自主排除申请待处理", "3 self-exclusion requests waiting", "理性购彩 · 须 24 小时内响应", "Play Responsibly · respond within 24 hours", "warn", "P2", "P2"]
   ].map((r) => `<button type="button" class="todo-item" data-act="${r[0]}" ${r[0] === "nav" ? `data-arg="${r[1]}"` : ""} ${r[0] === "goto-draws" ? `data-arg="${r[1]}"` : ""} ${r[0] === "open-player" ? `data-id="PL-104482"` : ""}><span><b>${t(r[2], r[3])}</b><span class="tiny">${t(r[4], r[5])}</span></span>${tag(r[6], t(r[7], r[8]))}</button>`).join("");
@@ -1688,10 +1688,10 @@ function viewEntryPage() {
   }
   const second = i.st === "review"; const m = S.mf;
   return head + `<div class="card"><h4>${second ? t("第二次录入（财务复核）", "Second independent entry (Finance review)") : t("第一次录入（运营专员）", "First entry (Operations)")}</h4>
-    <p class="muted">${second ? t("看不到第一次录入的内容，请对照开奖现场结果独立再录一遍。", "The first entry is hidden. Enter the result again independently from the official draw.") : t("到开奖时间后才能录入。可从开奖机取号，或用号码盘手工录入。只录开奖号码，奖金在下一步录入。", "Entry opens at the draw time. Fetch from the draw machine, or enter manually on the pad. Numbers only; prizes are entered in a later step.")}</p>
-    ${second ? "" : `<div class="row-actions" style="margin-bottom:8px"><button type="button" class="btn" style="width:auto;flex:none" data-act="ent-fetch">${t("从开奖机获取", "Fetch from draw machine")}</button><label class="f" style="margin:0"><input type="checkbox" data-f="failSim" ${m.failSim ? "checked" : ""} /> ${t("演示用：模拟获取失败", "Demo only: simulate fetch failure")}</label>${m.src === "machine" ? tag("cyan", "Source: draw machine") : m.src === "manual" ? tag("muted", t("来源：手工录入", "Source: manual entry")) : ""}</div>${m.fetchErr ? `<div class="banner amber">${esc(m.fetchErr)}</div>` : ""}`}
+    <p class="muted">${second ? t("看不到第一次录入的内容，请对照开奖现场结果独立再录一遍。", "The first entry is hidden. Enter the result again independently from the official draw.") : t("到开奖时间后才能录入。用号码盘手工录入，只录开奖号码，奖金在下一步录入。", "Entry opens at the draw time. Enter the numbers on the pad. Numbers only; prizes are entered in a later step.")}</p>
+    ${second ? "" : `<div class="row-actions" style="margin-bottom:8px"><label class="f" style="margin:0"><input type="checkbox" data-f="failSim" ${m.failSim ? "checked" : ""} /> ${t("演示用：模拟获取失败", "Demo only: simulate fetch failure")}</label>${m.src === "machine" ? tag("cyan", "Source: draw machine") : m.src === "manual" ? tag("muted", t("来源：手工录入", "Source: manual entry")) : ""}</div>${m.fetchErr ? `<div class="banner amber">${esc(m.fetchErr)}</div>` : ""}`}
     ${numPad(i)}
-    ${!second && m.src === "machine" ? `<label class="f" style="margin-top:10px"><input type="checkbox" data-f="mcheck" ${m.mcheck ? "checked" : ""} /> ${t("我已人工核对开奖机号码与现场结果一致", "I have manually checked these numbers against the official draw")}</label>` : ""}
+    
     ${second ? `<label class="f" style="margin-top:10px"><input type="checkbox" data-f="other" ${m.other ? "checked" : ""} /> ${t("演示用：模拟另一位复核人（正式版按登录账号判断）", "Demo only: simulate a different reviewer account (the real build checks the login)")}</label><p class="tiny">${t("演示用：第一次录入内容为 14, 27。", "Demo only: the first entry was 14, 27.")}</p>` : ""}${err}
     <div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-entry-save" data-id="${i.no}">${second ? t("提交并比对", "Submit and compare") : t("提交第一次录入", "Submit first entry")}</button><button type="button" class="btn" style="width:auto;flex:none" data-act="pad-clear">${t("清空号码", "Clear")}</button></div></div>
     ${trace}`;
@@ -3802,17 +3802,6 @@ function onClick(e) {
     }
     S.modal = null; S.mf = {}; render(); return;
   }
-  if (act === "ent-fetch") {
-    const i = S.issues.find((x) => x.no === S.sub.no); const r = NUM_RULE[i.game];
-    if (S.mf.failSim) {
-      S.mf.src = "manual"; S.mf.fetchErr = t("开奖机获取失败，已转为手工录入，并已在仪表盘生成待处理事项。", "Fetch from the draw machine failed. Switched to manual entry; a pending item was added to the dashboard.");
-      S.fetchFails = S.fetchFails || []; S.fetchFails.push({ no: i.no, at: NOWSTR() });
-      logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Draw machine fetch failed", obj: i.no, before: "—", after: "manual entry" });
-      toast(t("开奖机获取失败，请手工录入。", "Draw machine fetch failed. Enter manually.")); render(); return;
-    }
-    S.pad = { nums: r[3] ? [3, 11, 19, 27, 38, 44].slice(0, r[0]).map((n) => Math.min(n, r[1])) : Array.from({ length: r[0] }, (_, k) => Math.min(r[1], r[2] + (k * 3 + 4) % (r[1] - r[2] + 1))) };
-    S.mf.src = "machine"; S.mf.mcheck = false; S.mf.fetchErr = ""; S.mf.err = ""; toast(t("已从开奖机获取号码，请人工核对。", "Numbers fetched from the draw machine. Check them manually.")); render(); return;
-  }
   if (act === "draw-prz-skip") {
     const i = S.issues.find((x) => x.no === id);
     i.prz1 = { pool: "", pb: {}, by: actor().who }; i.przOk = true; i.prz = { pool: "", pb: {}, won: false };
@@ -3874,7 +3863,7 @@ function onClick(e) {
     const raw = r[3] ? S.pad.nums.slice().sort((a, b) => a - b) : Array.from({ length: r[0] }, (_, k) => S.pad.nums[k]);
     const fail = (m) => { S.mf.err = m; render(); };
     if (i.draw > NOWSTR()) return fail("Draw time not reached");
-    if (i.st === "entry" && S.mf.src === "machine" && !S.mf.mcheck) return fail(t("请先勾选“已人工核对”。", "Tick the manual check box before submitting."));
+
     if (i.st === "pub" || i.st === "settled") return fail("This draw has already been published");
     if (raw.length !== r[0] || raw.some((x) => x === undefined)) return fail(t(`请选满 ${r[0]} 个号码。`, `Pick all ${r[0]} numbers.`));
     const norm = raw.join(",");
