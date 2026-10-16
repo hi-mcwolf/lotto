@@ -1708,7 +1708,7 @@ function viewEntryPage() {
         <div style="max-width:380px;margin:8px 0"><label class="f">${t("奖池金额（₱）", "Pool amount (₱)")}</label><input class="mono" data-f="pool" value="${esc(m.pool || "")}" placeholder="58200000" /></div>${jpWarnBox(i)}`;
     }
     const tbl = `<div class="table-wrap fit"><table><thead><tr><th>${t("奖级", "Tier")}</th><th>${t("线上中奖注数", "Online winners")}</th><th>${t("单注奖金", "Prize per winning bet")}</th></tr></thead><tbody>${trs}</tbody></table></div>`;
-    const sub = poolRows.length && !i.przOk ? `${second ? `<label class="f" style="margin-top:10px"><input type="checkbox" data-f="other" ${m.other ? "checked" : ""} /> ${t("演示用：模拟另一位复核人（正式版按登录账号判断）", "Demo only: simulate a different reviewer account (the real build checks the login)")}</label>` : ""}${err}<div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-prz-save" data-id="${i.no}">${second ? t("提交并比对", "Submit and compare") : t("提交奖金录入", "Submit prize entry")}</button></div>` : err;
+    const sub = poolRows.length && !i.przOk ? `${err}<div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-prz-save" data-id="${i.no}">${second ? t("提交并比对", "Submit and compare") : t("提交奖金录入", "Submit prize entry")}</button></div>` : err;
     return head + `<div class="card"><h4>${t("两份号码一致", "Both entries match")}</h4><div class="slots">${slots}</div></div>
       ${refCard}
       <div class="card"><h4>${t("线上中奖统计", "Online winners by tier")}</h4><p class="tiny" style="margin:0 0 6px">${t("系统统计，仅供 PCSO 查看，不发布", "System statistics. PCSO only, not published")}</p>
@@ -1722,7 +1722,7 @@ function viewEntryPage() {
     <p class="muted">${second ? t("看不到第一次录入的内容，请对照开奖现场结果独立再录一遍。", "The first entry is hidden. Enter the result again independently from the official draw.") : t("到开奖时间后才能录入。用号码盘手工录入，只录开奖号码，奖金在下一步录入。", "Entry opens at the draw time. Enter the numbers on the pad. Numbers only; prizes are entered in a later step.")}</p>
     ${numPad(i)}
     
-    ${second ? `<label class="f" style="margin-top:10px"><input type="checkbox" data-f="other" ${m.other ? "checked" : ""} /> ${t("演示用：模拟另一位复核人（正式版按登录账号判断）", "Demo only: simulate a different reviewer account (the real build checks the login)")}</label><p class="tiny">${t("演示用：第一次录入内容为 14, 27。", "Demo only: the first entry was 14, 27.")}</p>` : ""}${err}
+    ${second ? `<p class="tiny">${t("演示用：第一次录入内容为 14, 27。", "Demo only: the first entry was 14, 27.")}</p>` : ""}${err}
     <div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-entry-save" data-id="${i.no}">${second ? t("提交并比对", "Submit and compare") : t("提交第一次录入", "Submit first entry")}</button><button type="button" class="btn" style="width:auto;flex:none" data-act="pad-clear">${t("清空号码", "Clear")}</button></div></div>
     ${trace}`;
 }
@@ -3882,7 +3882,7 @@ function onClick(e) {
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Prize first entry", obj: i.no, before: "prize", after: "submitted" });
       S.mf = { err: "" }; toast(t("第一次奖金录入已提交，请财务复核独立再录一遍。", "Prize entry submitted. Finance review now enters it independently.")); render(); return;
     }
-    if (i.prz1.by === actor().who && !S.mf.other) return fail("The second entry must be made by a different person");
+    if (i.prz1.by === actor().who) return fail("The second entry must be made by a different person");
     if (JSON.stringify([i.prz1.pool, i.prz1.pb]) !== JSON.stringify([p.pool, p.pb])) {
       delete i.prz1; if (i.trace) delete i.trace.win;
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Prize entries do not match", obj: i.no, before: "prize", after: "prize entry (both discarded)" });
@@ -3919,7 +3919,7 @@ function onClick(e) {
   }
   if (act === "draw-entry-save") {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const r = NUM_RULE[i.game];
-    const keep = { other: S.mf.other }; const srcKeep = S.mf.src;
+    const srcKeep = S.mf.src;
     const raw = r[3] ? S.pad.nums.slice().sort((a, b) => a - b) : Array.from({ length: r[0] }, (_, k) => S.pad.nums[k]);
     const fail = (m) => { S.mf.err = m; render(); };
     if (i.draw > NOWSTR()) return fail("Draw time not reached");
@@ -3932,7 +3932,7 @@ function onClick(e) {
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("开奖结果第一次录入", "Draw result first entry"), obj: i.no, before: "—", after: "submitted" });
       S.pad = { nums: [] }; S.mf = { err: "" }; toast(t("第一次录入已提交，请财务复核独立录入。", "First entry submitted. Finance review now enters it independently.")); render(); return;
     }
-    if (i.first.by === actor().who && !keep.other) return fail("The second entry must be made by a different person");
+    if (i.first.by === actor().who) return fail("The second entry must be made by a different person");
     if (i.first.nums !== norm) {
       delete i.first; i.st = "entry"; S.pad = { nums: [] }; delete i.trace;
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("两份录入不一致", "Entries do not match"), obj: i.no, before: "review", after: "entry (both discarded)" });
