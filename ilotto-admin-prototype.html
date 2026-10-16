@@ -2943,14 +2943,19 @@ function viewFinalTax() {
 S.rpf = { kyc: "all", st: "all", from: "", to: "" };
 function maskEmail(e) { const [a, b] = String(e).split("@"); return b ? a[0] + "***@" + b : e; }
 function viewRegPlayers() {
-  const f = S.rpf;
-  const rows = S.players.filter((p) => (f.kyc === "all" || p.kyc === f.kyc) && (f.st === "all" || p.status === f.st) && (!f.from || p.reg >= f.from) && (!f.to || p.reg <= f.to));
+  const all = S.players; const inP = all.filter((p) => inRange(p.reg));
+  const asOf = all.filter((p) => p.reg <= S.rr.to);
   const so = (arr, sel) => arr.map(([v, l]) => `<option value="${v}" ${sel === v ? "selected" : ""}>${l}</option>`).join("");
-  return `<div class="card" style="margin-bottom:12px"><div class="tools"><label class="f">${z("Registered from", "注册开始")}<input type="date" data-p58="rp" data-k="from" value="${f.from}" /></label><label class="f">${z("to", "结束")}<input type="date" data-p58="rp" data-k="to" value="${f.to}" /></label>
-    <label class="f">${z("Identity status", "实名状态")}<select data-p58="rp" data-k="kyc">${so([["all", "All"], ["verified", "Verified"], ["pending", "In review"], ["rejected", "Rejected"]], f.kyc)}</select></label>
-    <label class="f">${z("Account status", "账号状态")}<select data-p58="rp" data-k="st">${so([["all", "All"], ["normal", "Active"], ["limited", "Betting limited"], ["frozen", "Temporarily deactivated"], ["selfoff", "Deactivated by player"], ["closed", "Closed"]], f.st)}</select></label></div>
-    <div class="tiny" style="margin-top:6px">${z("Mobile and email are masked in the list and in exports. Only Finance review and Compliance audit can export; Operations sees totals only.", "手机号、邮箱在列表和导出中均脱敏；仅财务复核、合规审计可导出，运营专员只看汇总。")}</div></div>
-    ${table([z("Player ID", "玩家 ID"), z("Name", "姓名"), z("Mobile", "手机号"), z("Email", "邮箱"), z("Registered", "注册时间"), z("Identity", "实名"), z("Account", "账号状态"), z("Region", "登记地址大区")], rows.map((p) => `<tr><td class="mono">${p.id}</td><td>${esc(p.name)}</td><td class="mono">${esc(p.mobile)}</td><td class="mono">${esc(maskEmail(p.email))}</td><td class="mono">${p.reg}</td><td>${kycTag(p.kyc)}</td><td>${statusTag(p.status)}</td><td>${esc(p.region || "Unknown")}</td></tr>`).concat([`<tr style="font-weight:700"><td colspan="8">${z("Total", "合计")}: ${rows.length}</td></tr>`]))}`;
+  const kyc = [["verified", "Verified"], ["pending", "In review"], ["rejected", "Rejected"], ["none", "Not submitted"]];
+  const st = [["normal", "Active"], ["limited", "Betting limited"], ["frozen", "Temporarily deactivated"], ["selfoff", "Deactivated by player"], ["closed", "Closed"]];
+  const regions = [...new Set(asOf.map((p) => p.region || "Unknown"))].sort();
+  const cnt = (arr, fn) => arr.filter(fn).length;
+  const dist = (title, rows) => `<div class="card"><h4>${title}</h4>${table([z("Group", "分组"), z("Players", "玩家数"), z("Share", "占比")], rows.map(([l, n]) => `<tr><td>${l}</td><td class="mono">${n}</td><td class="mono">${asOf.length ? (n / asOf.length * 100).toFixed(1) : "0.0"}%</td></tr>`))}</div>`;
+  return `<div class="card" style="margin-bottom:12px"><div class="tools"><span class="tiny">${z("Period", "统计期间")}: <b class="mono">${S.rr.from} – ${S.rr.to}</b> ${z("(set with the date shortcuts above)", "（用上方日期快捷项设置）")}</span>
+    <button type="button" class="btn btn-sm" data-act="rp-export">${z("Export player list (CSV)", "导出玩家名单（CSV）")}</button></div>
+    <div class="tiny" style="margin-top:6px">${z("This page shows counts only. To look up or manage a player, use Players. The exported list masks mobile and email; only Finance review and Compliance audit can export, and every export is audited.", "本页只看数量；查询、处理单个玩家请到“玩家档案”。导出的名单中手机号、邮箱脱敏；仅财务复核、合规审计可导出，每次导出写审计日志。")}</div></div>
+    <div class="kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px"><div class="card"><div class="tiny">${z("Registered players (end of period)", "期末注册玩家总数")}</div><div class="kpi mono" style="font-size:26px">${asOf.length}</div></div><div class="card"><div class="tiny">${z("New registrations in period", "期内新增注册")}</div><div class="kpi mono" style="font-size:26px">${inP.length}</div></div><div class="card"><div class="tiny">${z("Verified identity", "已实名认证")}</div><div class="kpi mono" style="font-size:26px">${cnt(asOf, (p) => p.kyc === "verified")}</div></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px">${dist(z("By identity status", "按实名状态"), kyc.map(([v, l]) => [l, cnt(asOf, (p) => p.kyc === v)]))}${dist(z("By account status", "按账号状态"), st.map(([v, l]) => [l, cnt(asOf, (p) => p.status === v)]))}${dist(z("By region (registered address)", "按登记地址大区"), regions.map((r) => [r, cnt(asOf, (p) => (p.region || "Unknown") === r)]))}</div>`;
 }
 function viewReports() {
   const tb = tabs("report", [["sales", "销售报表", "Sales"], ["share", "业绩与分成", "Performance"], ["prize", "奖金与派彩", "Prizes"], ["tm", "交易监控", "Transaction Monitoring"], ["ds", "开奖销售", "Draw Sales"], ["jp", "头奖报告", "Jackpot"], ["fo", "没收/逾期未领", "Forfeited / Overdue"], ["tax", "最终税", "Final Tax"], ["rp", "注册玩家名单", "Registered Players"]]);
@@ -3441,6 +3446,13 @@ function onClick(e) {
     const lines = [["game", "sales"]].concat(GAME_SALES.map((r) => [gameBy(r.id).zh, r.sales]));
     download("ilotto-sales.csv", lines.map((r) => r.join(",")).join("\n"), "text/csv");
     return;
+  }
+  if (act === "rp-export") {
+    const rows = S.players.filter((p) => inRange(p.reg));
+    const lines = [["player_id", "name", "mobile", "email", "registered", "identity", "account", "region"]].concat(rows.map((p) => [p.id, p.name, p.mobile, maskEmail(p.email), p.reg, p.kyc, p.status, p.region || "Unknown"]));
+    try { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.map((r) => r.join(",")).join("\n")], { type: "text/csv" })); a.download = "registered-players.csv"; a.click(); } catch (e) {}
+    logAudit({ who: actor().who, role: actor().role, mod: t("报表", "Reports"), cat: "Audit", evt: t("导出注册玩家名单", "Export registered player list"), obj: S.rr.from + " – " + S.rr.to + " · " + rows.length });
+    toast(t("已导出。", "Exported.")); return true;
   }
   if (act === "export-share" || act === "export-prize") { download(act === "export-share" ? "ilotto-share.csv" : "ilotto-prize.csv", "report,period\nshare," + S.period, "text/csv"); return; }
   if (act === "audit-type") { S.auditType = arg; S.auditOpen = null; render(); return; }
