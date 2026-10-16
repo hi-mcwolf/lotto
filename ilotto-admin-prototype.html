@@ -3830,7 +3830,6 @@ function specHtml(d,log){
     (d.nw?'<div class="sp-vd n"><b>NEW in V1.1</b> — '+e(t('V1.0 没有此页面','This page does not exist in V1.0'))+'</div>':
       d.vd?'<div class="sp-vd c"><b>CHANGED in V1.1</b> — '+e(t(d.vd[0],d.vd[1]))+'</div>':'<div class="sp-vd">'+e(t('与 V1.0 一致','Same as V1.0'))+'</div>');
   }
-  h+='<details class="sp-log"><summary>'+e(t('PRD V1.1 变更记录','PRD v1.1 change log'))+' ('+log.length+')</summary><ol>'+log.map(x=>'<li>'+e(x)+'</li>').join('')+'</ol></details>';
   return h;
 }
 const SPEC_CSS=`.sp-crumb{font-size:11px;opacity:.6}.sp-title{font-size:18px;font-weight:700;margin:2px 0 6px}.sp-prd{display:inline-block;font-size:11px;color:#33c6ff;border:1px solid #1f4a5c;border-radius:999px;padding:1px 10px}
