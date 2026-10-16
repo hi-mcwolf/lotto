@@ -566,8 +566,9 @@ document.addEventListener('change',e=>{if(['r_phone','l_acc','f_acc'].includes(e
 
 /* ---------- demo panel: V1.1 player scenarios (appended below the main panel by render()) ---------- */
 function panelExtra(){const el=$('#panel');if(!el||S.pmode==='spec')return;const pb=(l,fn)=>`<button class="pb" onclick="${fn}">${l}</button>`;
- el.insertAdjacentHTML('beforeend',`<h4>${t('V1.1 新场景（演示）','V1.1 scenarios (demo)')}</h4><div class="xs" style="color:#888;line-height:1.6;margin-bottom:8px">${t('iLotto 玩家端支持 H5 和 App（iOS、Android），两端规则一致。','iLotto player supports H5 and the App (iOS, Android); rules are identical on both.')}</div>
- ${pb(t('让号码 07 超限（提交被拒）','Make number 07 hit its limit (submit rejected)'),'A.demoOver7()')}${pb(t('重置号码锁定','Reset number locks'),'A.demoUnlock()')}${pb(t('Mega 6/45 无开奖日 开/关','Mega 6/45 no-draw date on/off'),'A.demoND()')}${pb(t('清空 Mega 开奖结果（No result yet）','Clear Mega results (No result yet)'),'A.demoNoRes()')}${pb(t('时钟推到 15:30（数字类场次变“已开”）','Clock to 15:30 (digit sessions drawn)'),'A.demoClock()')}${pb(t('再次弹出登录后弹窗','Show login pop-up again'),'A.demoPop()')}${pb(t('System 7 复式示例（拆 7 张票）','System 7 example (7 tickets)'),'A.demoSys7()')}${pb(t('大奖票恢复为“未发起申领”','Reset prize ticket to “not started”'),'A.demoClaimReset()')}`)}
+ const html=pb(t('让号码 07 超限（提交被拒）','Make number 07 hit its limit (submit rejected)'),'A.demoOver7()')+pb(t('重置号码锁定','Reset number locks'),'A.demoUnlock()')+pb(t('Mega 6/45 无开奖日 开/关','Mega 6/45 no-draw date on/off'),'A.demoND()')+pb(t('清空 Mega 开奖结果（No result yet）','Clear Mega results (No result yet)'),'A.demoNoRes()')+pb(t('时钟推到 15:30（数字类场次变“已开”）','Clock to 15:30 (digit sessions drawn)'),'A.demoClock()')+pb(t('再次弹出登录后弹窗','Show login pop-up again'),'A.demoPop()')+pb(t('System 7 复式示例（拆 7 张票）','System 7 example (7 tickets)'),'A.demoSys7()')+pb(t('大奖票恢复为“未发起申领”','Reset prize ticket to “not started”'),'A.demoClaimReset()');
+ const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Simulate draw|模拟开奖/.test(h.textContent));
+ if(k>=0&&hs[k+1])hs[k+1].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}
 
 /* ================= AUTH & KYC ================= */
 const AUTHHEAD=(h,s)=>`<div class="fade" style="padding-top:8px"><div class="row g8 mt3"><div class="logo" style="font-size:17px"><img class="pcso" style="width:24px;height:24px" src="${PCSO_LOGO}" alt="PCSO">iLotto</div></div><h1 style="margin-top:22px">${h}</h1><div class="mu" style="margin-top:8px;font-size:14px;line-height:1.5">${s||''}</div></div>`;
@@ -1120,7 +1121,7 @@ function specId(){
 function panel(){
   const pm=S.pmode==='spec';
   if(pm){$('#panel').innerHTML='<div class="sp-pane">'+specHtml(SPEC_D[specId()],SPEC_LOG)+'</div>'}else panel0();
-  const bar='<div style="display:flex;gap:6px;margin-bottom:12px;position:sticky;top:0;z-index:2"><button class="pb '+(pm?'':'on')+'" style="flex:1;margin:0" onclick="S.pmode=\'demo\';panel()">'+t('演示控制','Demo controls')+'</button><button class="pb '+(pm?'on':'')+'" style="flex:1;margin:0" onclick="S.pmode=\'spec\';panel()">'+t('页面说明','Page spec')+'</button></div>';
+  const bar='<div style="display:flex;gap:6px;margin-bottom:12px;position:sticky;top:-18px;z-index:2;background:#121214;padding:18px 0 8px;margin-top:-18px"><button class="pb '+(pm?'':'on')+'" style="flex:1;margin:0" onclick="S.pmode=\'demo\';panel()">'+t('演示控制','Demo controls')+'</button><button class="pb '+(pm?'on':'')+'" style="flex:1;margin:0" onclick="S.pmode=\'spec\';panel()">'+t('页面说明','Page spec')+'</button></div>';
   $('#panel').insertAdjacentHTML('afterbegin',bar);
 }
 if(!document.getElementById('spec-css')){const st=document.createElement('style');st.id='spec-css';st.textContent=SPEC_CSS;document.head.appendChild(st)}
