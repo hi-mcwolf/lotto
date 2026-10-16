@@ -873,7 +873,7 @@ function lineChart(values, labels) {
   const labs = labels.map((lb, i) => `<text x="${pts[i][0].toFixed(1)}" y="${h - 8}" text-anchor="middle" fill="#64748b" font-size="10">${esc(lb)}</text>`).join("");
   return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200" role="img"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".28"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient><linearGradient id="cl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs><path d="${fill}" fill="url(#cg)"/><path d="${d}" fill="none" stroke="url(#cl)" stroke-width="2"/>${dots}${labs}</svg>`;
 }
-function colChart(values) {
+function colChart(values, labels) {
   const w = 680, h = 200, pad = 24;
   const max = 70;
   const bw = (w - pad * 2) / values.length;
@@ -885,7 +885,7 @@ function colChart(values) {
     const c = v > 62 || v < 49 ? "url(#barBad)" : (v > 58 || v < 52 ? "url(#barWarn)" : "url(#barOk)");
     return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw - 12).toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="${c}"/>`;
   }).join("");
-  const labs = values.map((_, i) => `<text x="${(pad + i * bw + bw / 2).toFixed(1)}" y="${h - 6}" text-anchor="middle" fill="#64748b" font-size="10">${esc(S.lang === "en" ? PRIZE_MONTHS_EN[i] : PRIZE_MONTHS[i])}</text>`).join("");
+  const labs = values.map((_, i) => `<text x="${(pad + i * bw + bw / 2).toFixed(1)}" y="${h - 6}" text-anchor="middle" fill="#64748b" font-size="10">${esc(labels ? labels[i] : S.lang === "en" ? PRIZE_MONTHS_EN[i] : PRIZE_MONTHS[i])}</text>`).join("");
   return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200"><defs><linearGradient id="barOk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#67e8f9" stop-opacity=".8"/><stop offset="1" stop-color="#3b82f6" stop-opacity=".45"/></linearGradient><linearGradient id="barWarn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#d97706"/></linearGradient><linearGradient id="barBad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fda4af"/><stop offset="1" stop-color="#e11d48"/></linearGradient></defs><line x1="${pad}" y1="${y55.toFixed(1)}" x2="${w - pad}" y2="${y55.toFixed(1)}" stroke="#34d399" stroke-dasharray="4 4"/>${bars}${labs}</svg>`;
 }
 function download(name, text, mime) {
@@ -1955,28 +1955,153 @@ function viewClaimPage() {
     <div class="row-actions" style="margin-top:12px"><button type="button" class="btn" style="width:auto;flex:none" data-act="claim-print">${t("打印校验后的中奖彩票副本", "Print verified ticket copy")}</button><button type="button" class="btn" style="width:auto;flex:none" data-act="claim-records">${t("查看兑奖记录", "View claim records")}</button><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="claim-restart">${t("办理下一张", "Handle the next ticket")}</button></div></div>`;
 }
 
+/* ---- p7: shared game/draw filter + per-draw prize dataset (demo values) ---- */
+S.rf = { prize: { game: "", draw: "" }, jp: { game: "", draw: "" }, fo: { game: "", draw: "" }, tax: { game: "", draw: "" }, sales: { game: "" } };
+S.pdOpen = {};
+function issueDate(no) { const m = /^(\d{4})-(\d{2})(\d{2})-/.exec(String(no)); return m ? m[1] + "-" + m[2] + "-" + m[3] : ""; }
+function jpRows() {
+  return [["s649", "2026-1008-2", "2026-10-08", "05-14-22-31-36-49", 1, 3200000, 3200000, ""], ["u658", "2026-1009-3", "2026-10-09", "04-11-23-29-41-58", 0, 128450000, 0, "No winner, jackpot rolls over"], ["g655", "2026-1009-3", "2026-10-09", "02-09-18-27-40-55", 0, 86420000, 0, "No winner, jackpot rolls over"], ["l642", "2026-1007-2", "2026-10-07", "01-08-19-24-33-42", 0, 9200000, 0, "No winner, jackpot rolls over"], ["m645", "2026-1005-1", "2026-10-05", "06-15-21-30-38-45", 0, 18650000, 0, "No winner, jackpot rolls over"], ["u658", "2026-0914-1", "2026-09-14", "04-11-23-29-41-58", 1, 36800000, 18400000, "One online winner; the jackpot entered at the draw is the amount per winning bet"]];
+}
+function foRows() {
+  return S.forfeits.map((f) => ({ game: f.game, issue: f.issue, draw: f.draw, deadline: f.deadline, n: 1, amt: f.amt })).concat([{ game: "s649", issue: "2026-0620-1", draw: "2026-06-20", deadline: "2026-09-20", n: 1, amt: 410000 }, { game: "u658", issue: "2026-0702-1", draw: "2026-07-02", deadline: "2026-10-02", n: 2, amt: 1250000 }]);
+}
+const PD_LOTTO = { u658: [128450000, 1, 18400000], g655: [86420000, 0.8, 11810000], s649: [42180000, 0.6, 3200000], m645: [18650000, 0.4, 2900000], l642: [9200000, 0.3, 1900000] };
+const PD_DIGIT = {
+  ez2: [["EZ2 Straight", 4000, 0.5], ["EZ2 Rambolito", 2000, 0.5]],
+  sw3: [["Swertres Straight", 4500, 0.4], ["Swertres Rambolito 6", 750, 0.35], ["Swertres Rambolito 3", 1500, 0.25]],
+  d4: [["4D 1st", 10000, 0.2], ["4D 2nd", 800, 0.3], ["4D 3rd", 100, 0.5]],
+  d6: [["6D 1st", 150000, 0.1], ["6D 4th", 400, 0.3], ["6D 5th", 40, 0.6]]
+};
+let PD_CACHE = null;
+function pdPad(n) { return String(n).padStart(2, "0"); }
+function pdData() {
+  if (PD_CACHE) return PD_CACHE;
+  const out = [];
+  const addD = (d, n) => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  GAMES.forEach((g, gi) => {
+    const gs = GAME_SALES.find((x) => x.id === g.id) || { sales: 3000000 };
+    for (let k = 0; k < 6; k++) {
+      const date = addD("2026-10-15", -3 * k - (gi % 2));
+      const issue = date.slice(0, 4) + "-" + date.slice(5, 7) + date.slice(8, 10) + "-1";
+      const sa = Math.round(gs.sales / 12 * (0.9 + ((gi + k * 3) % 5) * 0.05) / 25) * 25;
+      const r = 0.46 + ((gi * 5 + k * 3) % 9) * 0.011;
+      const target = sa * r;
+      let tiers = [];
+      if (PD_LOTTO[g.id]) {
+        const L = PD_LOTTO[g.id], m = L[1], hit = (gi + k) % 4 === 2 ? 1 : 0;
+        const p5 = Math.round(50000 * m / 100) * 100, p4 = Math.round(1400 * m / 10) * 10, p3 = Math.max(20, Math.round(100 * m / 10) * 10);
+        const jv = hit ? Math.round(L[2] * (1 - k * 0.03) / 1000) * 1000 : Math.round(L[0] * (1 - 0.03 * k) / 1000) * 1000;
+        tiers = [["Match 6 · Jackpot", "中 6 个号 · 头奖", hit, jv], ["Match 5", "中 5 个号", Math.max(1, Math.round(target * 0.30 / p5)), p5], ["Match 4", "中 4 个号", Math.max(1, Math.round(target * 0.30 / p4)), p4], ["Match 3", "中 3 个号", Math.max(1, Math.round(target * 0.40 / p3)), p3]];
+      } else {
+        const T = PD_DIGIT[g.id] || PD_DIGIT.d4;
+        tiers = T.map((x) => [x[0], x[0], Math.max(1, Math.round(target * x[2] / x[1])), x[1]]);
+      }
+      tiers = tiers.map((x) => ({ en: x[0], zh: x[1], n: x[2], prize: x[3], total: x[2] * x[3] }));
+      out.push({ game: g.id, kind: g.kind, issue, date, k, sa, tiers, jackpotTier: PD_LOTTO[g.id] ? tiers[0] : null, ver: k > 3 ? "v1" : "v2" });
+    }
+  });
+  PD_CACHE = out;
+  return out;
+}
+function pdCalc(r) {
+  const pay = r.tiers.reduce((s, x) => s + x.total, 0);
+  const bets = r.tiers.reduce((s, x) => s + x.n, 0);
+  let autoPre = 0, autoTax = 0, autoBets = 0, cPre = 0, cTax = 0, cBets = 0, unc = 0, uncBets = 0;
+  r.tiers.forEach((x) => {
+    const tx = taxOf(x.prize).tax * x.n;
+    if (x.prize > 300000) {
+      if (r.k >= 2) { cPre += x.total; cTax += tx; cBets += x.n; } else { unc += x.total; uncBets += x.n; }
+    } else { autoPre += x.total; autoTax += tx; autoBets += x.n; }
+  });
+  const adj = r.game === "g655" && r.k === 2 ? -3000 : 0;
+  const pool = r.jackpotTier ? r.jackpotTier.prize * Math.max(1, r.jackpotTier.n) : Math.round(pay * 1.15 / 1000) * 1000;
+  const addD = (d, n) => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  return Object.assign({}, r, { pay, bets, paid: pay + adj, diff: adj, pool, autoPre, autoTax, autoNet: autoPre - autoTax, autoBets, cPre, cTax, cNet: cPre - cTax, cBets, unc, uncBets, forf: 0, tax: autoTax + cTax, rate: r.sa ? pay / r.sa * 100 : 0, settled: r.k >= 1 ? addD(r.date, 1) + " 02:30" : "", autoDate: addD(r.date, 1), cDate: cPre ? addD(r.date, 3) : "" });
+}
+function pdAll() { return pdData().map(pdCalc); }
+function pdFiltered() { const f = S.rf.prize; return pdAll().filter((r) => (!f.game || r.game === f.game) && (f.draw ? r.issue === f.draw : inRange(r.date))); }
+function drawsOf(game, pdOnly) {
+  if (!game) return [];
+  const set = {};
+  pdData().filter((r) => r.game === game).forEach((r) => { set[r.issue] = 1; });
+  if (!pdOnly) {
+    S.draws.filter((d) => d.game === game).forEach((d) => { set[d.issue] = 1; });
+    jpRows().filter((r) => r[0] === game).forEach((r) => { set[r[1]] = 1; });
+    foRows().filter((r) => r.game === game).forEach((r) => { set[r.issue] = 1; });
+    S.claims.filter((r) => r.game === game).forEach((r) => { set[r.issue] = 1; });
+    S.jackpots.filter((r) => r.game === game).forEach((r) => { set[r.issue] = 1; });
+  }
+  return Object.keys(set).filter((no) => issueDate(no)).sort((a, b) => issueDate(b).localeCompare(issueDate(a)) || (a < b ? 1 : -1)).map((no) => ({ no, date: issueDate(no) }));
+}
+function rfDrawSel(game, sel, attrs, pdOnly) {
+  const list = drawsOf(game, pdOnly);
+  return `<label class="f">${z("Draw", "期次")}<select ${attrs} ${game ? "" : "disabled"} title="${game ? "" : z("Select a game first", "请先选择游戏")}"><option value="">${game ? z("All draws", "全部期次") : z("All (select a game first)", "全部（先选游戏）")}</option>${list.map((d) => `<option value="${d.no}" ${sel === d.no ? "selected" : ""}>${d.no} · ${d.date}</option>`).join("")}</select></label>`;
+}
+function rfBar(k, noDraw) {
+  const f = S.rf[k];
+  return `<div class="tools" data-rfbar="${k}" style="margin-bottom:10px"><label class="f">${z("Game", "游戏")}<select data-p58="rf" data-rf="${k}" data-k="game"><option value="">${z("All games", "全部游戏")}</option>${GAMES.map((g) => `<option value="${g.id}" ${f.game === g.id ? "selected" : ""}>${esc(gname(g))}</option>`).join("")}</select></label>${noDraw ? "" : rfDrawSel(f.game, f.draw, `data-p58="rf" data-rf="${k}" data-k="draw"`)}${!noDraw && f.draw ? `<span class="tiny">${z("A draw is selected: the date range is off.", "已选期次：日期范围不生效。")}</span>` : ""}</div>`;
+}
+function rfLocked(k) { if (k === "tm") return !!S.tm.issue; const f = S.rf[k]; return !!(f && f.draw); }
+function rfPass(k, game, issue, date) { const f = S.rf[k]; if (f.game && game !== f.game) return false; if (f.draw) return issue === f.draw; return inRange(date); }
+function pdTierTable(r) {
+  return table([z("Tier", "奖级"), z("Winning bets", "中奖注数"), z("Prize per bet", "单注奖金"), z("Total", "合计")], r.tiers.map((x) => `<tr><td>${t(x.zh, x.en)}</td><td class="mono amt">${x.n.toLocaleString("en-US")}</td><td class="mono amt">${peso(x.prize)}</td><td class="mono amt">${peso(x.total)}</td></tr>`));
+}
+function pdBands(rows) {
+  const bands = (S.tax && S.tax.rows ? S.tax.rows : []).filter((r) => r.on).sort((a, b) => Number(a.th) - Number(b.th));
+  const out = [{ lbl: bands.length ? "≤ " + peso(Number(bands[0].th)) : z("All amounts", "全部金额"), rate: 0, gross: 0, tax: 0 }].concat(bands.map((b, i) => ({ lbl: "> " + peso(Number(b.th)) + (bands[i + 1] ? " – " + peso(Number(bands[i + 1].th)) : ""), rate: Number(b.rate), gross: 0, tax: 0 })));
+  rows.forEach((r) => r.tiers.forEach((x) => {
+    if (x.prize > 300000 && r.k < 2) return; // unclaimed: no tax yet
+    let bi = 0; bands.forEach((b, i) => { if (x.prize > Number(b.th)) bi = i + 1; });
+    out[bi].gross += x.total; out[bi].tax += taxOf(x.prize).tax * x.n;
+  }));
+  return out;
+}
+function pdRecon(pf) {
+  const all = pdAll().filter((r) => !pf.game || r.game === pf.game);
+  const td = A58.today();
+  const sel = (d) => pf.draw ? true : (d && d >= S.rr.from && d <= S.rr.to && d <= td);
+  const base = pf.draw ? all.filter((r) => r.issue === pf.draw) : all;
+  const sum = (fn) => base.reduce((s, r) => s + fn(r), 0);
+  const draw = pdFiltered();
+  const dsum = (fn) => draw.reduce((s, r) => s + fn(r), 0);
+  return [
+    [z("Auto credit (after tax)", "自动入账（税后）"), z("credit date", "入账日"), sum((r) => sel(r.autoDate) ? r.autoNet : 0), dsum((r) => r.autoNet)],
+    [z("Paid at counter (after tax)", "柜台付款（税后）"), z("payment registration date", "付款登记日"), sum((r) => r.cDate && sel(r.cDate) ? r.cNet : 0), dsum((r) => r.cNet)],
+    [z("Withholding tax", "代扣税"), z("payment date", "付款日"), sum((r) => (sel(r.autoDate) ? r.autoTax : 0) + (r.cDate && sel(r.cDate) ? r.cTax : 0)), dsum((r) => r.tax)]
+  ];
+}
+function pdTrend(pf) {
+  const all = pdAll();
+  const gi = Math.max(0, GAMES.findIndex((g) => g.id === pf.game));
+  if (pf.game && pf.draw) { const r = all.find((x) => x.game === pf.game && x.issue === pf.draw); return { vals: r ? [Math.round(r.rate * 10) / 10] : [], labs: [pf.draw.slice(5)], cap: z("Prize rate of the selected draw", "所选期次的奖金率") }; }
+  if (pf.game) { const rs = all.filter((x) => x.game === pf.game).sort((a, b) => a.date.localeCompare(b.date)); return { vals: rs.map((x) => Math.round(x.rate * 10) / 10), labs: rs.map((x) => x.issue.slice(5)), cap: z("Per draw, last 6 draws of this game", "按期次，该游戏最近 6 期") }; }
+  return { vals: PRIZE_RATE.slice(), labs: null, cap: z("Monthly, all games", "按月，全部游戏") };
+}
+function drawFilterNote() { return z("Draw dropdown follows the selected game and shows Draw No · Draw Date. Picking a draw turns the date range off.", "期次下拉随所选游戏联动，显示“期号 · 开奖日”；选了期次则日期范围不生效。"); }
 function viewSales() {
   const f = periodFactor();
-  const lotto = 118420000 * f;
-  const digit = 29840000 * f;
+  const sg = S.rf.sales.game, sgr = GAME_SALES.find((x) => x.id === sg), sgk = sg ? (gameBy(sg).kind === "lotto" ? "lotto" : "digit") : "";
+  const sc = sg ? (sgr ? sgr.sales : 0) / 148260000 : 1;
+  const lotto = (sg ? (sgk === "lotto" ? sgr.sales : 0) : 118420000) * f;
+  const digit = (sg ? (sgk === "digit" ? sgr.sales : 0) : 29840000) * f;
   const total = lotto + digit;
   const labels = S.salesGrain === "day"
     ? ["09-27", "09-28", "09-29", "09-30", "10-01", "10-02", "10-03", "10-04", "10-05", "10-06", "10-07", "10-08", "10-09", "10-10"]
     : S.salesGrain === "week" ? ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"] : ["4", "5", "6", "7", "8", "9"];
-  const games = GAME_SALES.map((r) => {
+  const games = GAME_SALES.filter((r) => !sg || r.id === sg).map((r) => {
     const share = (r.sales / 148260000 * 100).toFixed(1) + "%";
     return `<tr><td>${gname(gameBy(r.id))}</td><td class="mono amt">${peso(Math.round(r.sales * f))}</td><td>${share}</td><td class="mono amt">${Math.round(r.tickets * f).toLocaleString("en-US")}</td><td class="mono amt">${Math.round(r.players * f).toLocaleString("en-US")}</td><td class="${r.mom >= 0 ? "delta up" : "delta down"}">${pct(r.mom)}</td></tr>`;
   });
-  const plays = PLAY_SALES.map((r) => `<tr><td>${t(r.zh, r.en)}</td><td class="mono amt">${peso(Math.round(r.sales * f))}</td><td>${(r.sales / 148260000 * 100).toFixed(1)}%</td><td class="mono amt">${peso(r.avg)}</td><td>${t(r.nz, r.ne)}</td></tr>`);
-  return `<div class="banner">${t("统计口径：销售类（销售额、出票张数、投注玩家）按出票日归属，UTC+8 自然日；金额为税前。", "Basis: sales figures (sales, tickets, betting players) are counted by ticket date, UTC+8 calendar day. Amounts are pre-tax.")}</div><div class="page-h"><div class="tabs">${["day", "week", "month"].map((g) => `<button type="button" data-act="grain" data-arg="${g}" class="${S.salesGrain === g ? "on" : ""}">${t(g === "day" ? "按日" : g === "week" ? "按周" : "按月", g === "day" ? "Day" : g === "week" ? "Week" : "Month")}</button>`).join("")}</div>
+  const plays = PLAY_SALES.filter(() => !sg || sgk === "digit").map((r) => `<tr><td>${t(r.zh, r.en)}</td><td class="mono amt">${peso(Math.round(r.sales * f))}</td><td>${(r.sales / 148260000 * 100).toFixed(1)}%</td><td class="mono amt">${peso(r.avg)}</td><td>${t(r.nz, r.ne)}</td></tr>`);
+  return `<div class="banner">${t("统计口径：销售类（销售额、出票张数、投注玩家）按出票日归属，UTC+8 自然日；金额为税前。", "Basis: sales figures (sales, tickets, betting players) are counted by ticket date, UTC+8 calendar day. Amounts are pre-tax.")}</div>${rfBar("sales", true)}<div class="page-h"><div class="tabs">${["day", "week", "month"].map((g) => `<button type="button" data-act="grain" data-arg="${g}" class="${S.salesGrain === g ? "on" : ""}">${t(g === "day" ? "按日" : g === "week" ? "按周" : "按月", g === "day" ? "Day" : g === "week" ? "Week" : "Month")}</button>`).join("")}</div>
     <button type="button" class="btn btn-sm" data-act="export-sales">${t("导出", "Export")}</button></div>
     <div class="kpis k5" style="grid-template-columns:repeat(4,1fr)">
       <article class="kpi hero"><div class="lbl">${t("销售额", "Sales")}</div><div class="num" style="font-size:22px">${pesoM(total)}</div><div class="subl">${delta(9.1)}<br>${t("乐透类", "Lotto")} ${pesoM(lotto)} / ${(lotto / total * 100).toFixed(1)}%<br>${t("数字类", "Digits")} ${pesoM(digit)} / ${(digit / total * 100).toFixed(1)}%</div></article>
-      <article class="kpi"><div class="lbl">${t("出票张数", "Tickets")}</div><div class="num" style="font-size:22px">${Math.round(7223467 * f).toLocaleString("en-US")}</div></article>
-      <article class="kpi"><div class="lbl">${t("投注玩家", "Betting players")}</div><div class="num" style="font-size:22px">${Math.round(389610 * f).toLocaleString("en-US")}</div><div class="subl">${delta(12.4)}</div></article>
+      <article class="kpi"><div class="lbl">${t("出票张数", "Tickets")}</div><div class="num" style="font-size:22px">${Math.round(7223467 * f * sc).toLocaleString("en-US")}</div></article>
+      <article class="kpi"><div class="lbl">${t("投注玩家", "Betting players")}</div><div class="num" style="font-size:22px">${Math.round(389610 * f * (sg ? (sgr ? sgr.players / 389610 * 4.6 : 0) : 1)).toLocaleString("en-US")}</div><div class="subl">${delta(12.4)}</div></article>
       <article class="kpi"><div class="lbl">${t("人均投注", "Stake per player")}</div><div class="num" style="font-size:22px">₱380.53</div><div class="subl">${delta(1.8)}</div></article>
     </div>
-    <div class="card"><h4>${t("销售趋势", "Sales trend")}</h4>${lineChart(TREND[S.salesGrain], labels)}<p class="tiny">${t("金额单位：百万比索。", "Amounts in millions of pesos.")}</p></div>
+    <div class="card"><h4>${t("销售趋势", "Sales trend")}</h4>${lineChart(TREND[S.salesGrain].map((v) => v * sc), labels)}<p class="tiny">${t("金额单位：百万比索。", "Amounts in millions of pesos.")}</p></div>
     <div class="card"><h4>${t("按游戏", "By game")}</h4>${table([t("游戏", "Game"), t("销售额", "Sales"), t("占比", "Share"), t("出票数", "Tickets"), t("投注玩家", "Players"), t("环比", "Change")], games)}</div>
     <div class="card"><h4>${t("按玩法", "By play type")}</h4><p class="tiny">${t("玩法指 Straight / Rambolito 这类数字类投注方式。不按渠道。地域细分一期不做。", "Play type means Straight / Rambolito and the other digit bets. There is no channel split.")} ${tag("muted", t("[二期]", "[Phase 2]"))}</p>${table([t("玩法", "Play"), t("销售额", "Sales"), t("占比", "Share"), t("平均每单", "Average slip"), t("说明", "Note")], plays)}</div>`;
 }
@@ -2037,47 +2162,79 @@ function tierRows(rows, total) {
   return head + body;
 }
 function viewPrize() {
-  const lottoN = sumAt(TIER_LOTTO, 2);
-  const digitN = sumAt(TIER_DIGIT, 2);
-  const wins = lottoN + digitN;
-  const autoN = wins - 5;
-  const months = ["2026-07", "2026-08", "2026-09", "2026-10"].map((m) => `<option value="${m}" ${S.prizeMonth === m ? "selected" : ""}>${m}</option>`).join("");
-  const showForfeit = S.prizeMonth === "2026-09";
-  const forfeitSum = showForfeit ? S.forfeits.reduce((n, r) => n + r.amt, 0) : 0;
-  const parts = [[t("自动入账", "Auto credit"), 30904400, ""], [t("柜台已付", "Paid at counter"), 30210000, "amber"], [t("待领取", "Unclaimed"), 4120000, "rose"]];
-  const barMax = 30904400;
+  const f = S.rf.prize;
+  const R = pdFiltered().sort((a, b) => b.date.localeCompare(a.date) || (a.game < b.game ? -1 : 1));
+  const sm = (fn) => R.reduce((s, r) => s + fn(r), 0);
+  const sales = sm((r) => r.sa), pay = sm((r) => r.pay), paid = sm((r) => r.paid), wins = sm((r) => r.bets);
+  const digitN = R.filter((r) => r.kind !== "lotto").reduce((s, r) => s + r.bets, 0);
+  const auto = sm((r) => r.autoNet), autoN = sm((r) => r.autoBets), cPre = sm((r) => r.cPre), cBets = sm((r) => r.cBets), cNet = sm((r) => r.cNet);
+  const unc = sm((r) => r.unc), uncN = sm((r) => r.uncBets), forf = sm((r) => r.forf), taxT = sm((r) => r.tax);
+  const parts = [[t("自动入账", "Auto credit"), auto, ""], [t("柜台已付", "Paid at counter"), cNet, "amber"], [t("待领取", "Unclaimed"), unc, "rose"]];
+  const barMax = Math.max(1, ...parts.map((p) => p[1]));
+  const M = (n) => pesoM(n);
+  const kinds = [["lotto", "乐透类", "Lotto"], ["digit", "数字类", "Digits"]];
+  const tierAgg = (kind) => {
+    const m = {}, order = [];
+    R.filter((r) => (kind === "lotto") === (r.kind === "lotto")).forEach((r) => r.tiers.forEach((x) => { const o = m[x.en] || (m[x.en] = { zh: x.zh, en: x.en, n: 0, total: 0, prizes: {}, jp: x.prize > 300000 }); if (!order.includes(x.en)) order.push(x.en); o.n += x.n; o.total += x.total; o.prizes[x.prize] = 1; if (x.prize > 300000) o.jp = true; }));
+    return order.map((k) => m[k]);
+  };
+  const tierRowsHtml = kinds.map(([k, zh, en]) => {
+    const rs = tierAgg(k); if (!rs.length) return "";
+    const tot = rs.reduce((s, x) => s + x.total, 0) || 1;
+    return `<tr><td colspan="6"><b>${t(zh, en)} · ${peso(tot)}</b></td></tr>` + rs.map((x) => { const pk = Object.keys(x.prizes); return `<tr><td>${t(x.zh, x.en)}</td><td class="mono amt">${x.n.toLocaleString("en-US")}</td><td>${x.jp ? t("浮动", "Floating") : pk.length === 1 ? peso(Number(pk[0])) : t("按游戏固定", "Fixed by game")}</td><td class="mono amt">${peso(x.total)}</td><td>${(x.total / tot * 100).toFixed(1)}%</td><td>${x.jp ? t("柜台 / 待领取", "Counter / unclaimed") : t("自动入账", "Auto credit")}</td></tr>`; }).join("");
+  }).join("");
+  const bands = pdBands(R);
+  const bandRows = bands.map((b) => `<tr><td class="mono">${b.lbl}</td><td class="mono">${b.rate}%</td><td class="mono amt">${peso(b.gross)}</td><td class="mono amt">${peso(b.tax)}</td><td class="mono amt">${peso(b.gross - b.tax)}</td></tr>`).concat([`<tr style="font-weight:700"><td colspan="2">${z("Total", "合计")}</td><td class="mono amt">${peso(bands.reduce((s, b) => s + b.gross, 0))}</td><td class="mono amt">${peso(bands.reduce((s, b) => s + b.tax, 0))}</td><td class="mono amt">${peso(bands.reduce((s, b) => s + b.gross - b.tax, 0))}</td></tr>`]);
+  const rec = pdRecon(f);
+  const recRows = rec.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="mono amt">${peso(r[2])}</td><td class="mono amt">${peso(r[3])}</td><td class="mono amt ${r[2] - r[3] ? "" : ""}">${peso(r[2] - r[3])}</td></tr>`);
+  const tr = pdTrend(f);
+  const byDraw = R.map((r) => {
+    const key = r.game + "|" + r.issue, open = !!S.pdOpen[key];
+    return `<tr data-act="pd-open" data-arg="${key}" style="cursor:pointer" class="pd-row"><td>${open ? "▾" : "▸"} ${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.date}</td><td>${r.ver}</td><td class="mono amt">${r.bets.toLocaleString("en-US")}</td><td class="mono amt">${peso(r.pool)}</td><td class="mono amt">${peso(r.pay)}</td><td class="mono amt">${peso(r.paid)}</td><td class="mono amt pd-diff ${r.diff ? "bad" : ""}" style="${r.diff ? "color:var(--rose);font-weight:700" : ""}">${r.diff ? peso(r.diff) : "₱0"}</td><td class="mono amt">${peso(r.autoNet)}</td><td class="mono amt">${peso(r.cNet)}</td><td class="mono amt">${peso(r.unc)}</td><td class="mono amt">${peso(r.forf)}</td><td class="mono amt">${peso(r.tax)}</td><td class="mono">${r.rate.toFixed(1)}%</td><td>${r.settled ? tag("ok", z("Settled", "已结算")) + `<div class="tiny mono">${r.settled}</div>` : tag("muted", z("Published", "已发布"))}</td></tr>` + (open ? `<tr class="pd-exp"><td colspan="16"><div class="tiny" style="margin-bottom:6px">${z("Tier distribution of this draw (online winning bets)", "该期奖级分布（线上中奖注数）")}</div>${pdTierTable(r)}</td></tr>` : "");
+  });
+  const jps = S.jackpots.filter((r) => rfPass("prize", r.game, r.issue, issueDate(r.issue)));
+  const ets = S.etickets.filter((r) => rfPass("prize", r.game, r.issue, issueDate(r.issue)));
+  const fos = S.forfeits.filter((r) => rfPass("prize", r.game, r.issue, r.voided));
+  const forfSum = fos.reduce((s, r) => s + r.amt, 0);
   return `<div class="page-h"><div><h3 style="font-size:22px">${t("奖金与派彩", "Prizes paid")}</h3><p class="muted">${t("钱发出去多少、还欠多少、什么时候过期", "How much went out, how much is still owed, and when it expires")}</p></div>
-    <div class="tools"><label class="f">${t("月份", "Month")}<select data-field="prizeMonth">${months}</select></label><span class="tiny">${t("导出：日期跨度 ≤ 92 天，单次最多 100,000 行", "Export: date span ≤ 92 days, up to 100,000 rows")}</span><button type="button" class="btn btn-sm" data-act="export-prize">${t("导出", "Export")}</button></div></div>
-    <div class="banner">${t("统计口径：派奖类按开奖日归属；自动入账金额为税后（实际进玩家钱包的金额），线下兑奖、待领取、逾期作废金额为税前（代扣税在兑付时才扣），代扣税单列；PCSO 线下兑付实付金额按兑付时间单列，用于对账。", "Basis: prizes are counted by draw date. Auto credit is after tax (what actually reached player wallets); counter payments, unclaimed and forfeited are pre-tax (tax is withheld when paid out). Withholding tax is shown separately. Counter payments are listed by paid date, for reconciliation.")}</div>
+    <div class="tools"><span class="tiny">${t("导出：日期跨度 ≤ 92 天，单次最多 100,000 行", "Export: date span ≤ 92 days, up to 100,000 rows")}</span><button type="button" class="btn btn-sm" data-act="export-prize">${t("导出", "Export")}</button></div></div>
+    ${rfBar("prize")}
+    <div class="banner">${t("统计口径：所有 KPI 按开奖日归属，只统计线上中奖（线下中奖不进系统）；自动入账金额为税后，柜台已付按税后列示，待领取、逾期作废为税前（代扣税在兑付时才扣），代扣税单列。按付款日的金额见下方“对账”小块，两种口径的合计可能不等。以下为演示数据。", "Basis: every KPI is counted by draw date and covers online winners only (offline winners do not enter the system). Auto credit and counter paid are after tax; unclaimed and forfeited are pre-tax (tax is withheld when paid out); withholding tax is shown separately. Amounts by payment date are in the Reconciliation block below; the two bases can differ. Demo data.")}</div>
     <div class="kpis k6">
-      <article class="kpi"><div class="lbl">${t("派奖总额（税前）", "Total prize paid (pre-tax)")}</div><div class="num" style="font-size:20px">₱65.23M</div><div class="subl">${t("占净销售 55%", "55% of net sales")}</div></article>
-      <article class="kpi"><div class="lbl">${t("中奖票数", "Winning tickets")}</div><div class="num" style="font-size:20px">${wins.toLocaleString("en-US")}</div><div class="subl">${t("数字类占", "Digits")} ${(digitN / wins * 100).toFixed(1)}%</div></article>
-      <article class="kpi"><div class="lbl">${t("自动入账（税后）", "Auto credit (after tax)")}</div><div class="num" style="font-size:20px">₱30.90M</div><div class="subl">${autoN.toLocaleString("en-US")} ${t("笔", "bets")}</div></article>
-      <article class="kpi"><div class="lbl">${t("柜台兑付（税前）", "Counter paid (pre-tax)")}</div><div class="num" style="font-size:20px">₱30.21M</div><div class="subl">2 ${t("笔", "bets")}</div></article>
-      <article class="kpi warn"><div class="lbl">${t("待领取（税前）", "Unclaimed (pre-tax)")}</div><div class="num" style="font-size:20px">₱4.12M</div><div class="subl">3 ${t("笔", "bets")}</div></article>
-      <article class="kpi"><div class="lbl">${t("逾期作废（税前）", "Forfeited (pre-tax)")}</div><div class="num" style="font-size:20px">${showForfeit ? peso(forfeitSum) : "₱0"}</div><div class="subl">${showForfeit ? t("截止日已过且未兑付，税前合计，已从待领取中剔除", "Past deadline and unpaid, pre-tax; removed from Unclaimed") : t("本期无", "None this period")}</div></article>
+      <article class="kpi"><div class="lbl">${t("派奖总额（税前）", "Total prize paid (pre-tax)")}</div><div class="num" style="font-size:20px">${M(paid)}</div><div class="subl">${t("奖金率", "Prize rate")} ${sales ? (pay / sales * 100).toFixed(1) : "0.0"}% ${t("（占销售额）", "of sales")}</div></article>
+      <article class="kpi"><div class="lbl">${t("中奖票数", "Winning bets")}</div><div class="num" style="font-size:20px">${wins.toLocaleString("en-US")}</div><div class="subl">${t("数字类占", "Digits")} ${wins ? (digitN / wins * 100).toFixed(1) : "0.0"}%</div></article>
+      <article class="kpi"><div class="lbl">${t("自动入账（税后）", "Auto credit (after tax)")}</div><div class="num" style="font-size:20px">${M(auto)}</div><div class="subl">${autoN.toLocaleString("en-US")} ${t("笔", "bets")}</div></article>
+      <article class="kpi"><div class="lbl">${t("柜台兑付（税前）", "Counter paid (pre-tax)")}</div><div class="num" style="font-size:20px">${M(cPre)}</div><div class="subl">${cBets} ${t("笔", "bets")}</div></article>
+      <article class="kpi warn"><div class="lbl">${t("待领取（税前）", "Unclaimed (pre-tax)")}</div><div class="num" style="font-size:20px">${M(unc)}</div><div class="subl">${uncN} ${t("笔", "bets")}</div></article>
+      <article class="kpi"><div class="lbl">${t("逾期作废（税前）", "Forfeited (pre-tax)")}</div><div class="num" style="font-size:20px">${peso(forf)}</div><div class="subl">${forf ? t("截止日已过且未兑付，税前合计，已从待领取中剔除", "Past deadline and unpaid, pre-tax; removed from Unclaimed") : t("所选范围无", "None in this selection")}</div></article>
     </div>
-    <div class="kpis k3"><article class="kpi"><div class="lbl">${t("代扣税总额", "Withholding tax")} ${tag("muted", t("示例数据", "Sample data"))}</div><div class="num" style="font-size:20px">₱2.46M</div><div class="subl">${t("按开奖日归属", "By draw date")}</div></article><article class="kpi"><div class="lbl">${t("PCSO 线下兑付实付金额（税后）", "Counter paid amount (after tax)")}</div><div class="num" style="font-size:20px">${peso(24168000)}</div><div class="subl">${t("税前 − 代扣税；按兑付时间归属，用于对账", "Pre-tax − withholding; by paid date, for reconciliation")}</div></article><article class="kpi"><div class="lbl">${t("待领取（税前，不含已逾期）", "Unclaimed (pre-tax, excl. expired)")}</div><div class="num" style="font-size:20px">${peso(4120000)}</div><div class="subl">${t("已逾期的票单列在「逾期作废」", "Expired tickets are counted under Forfeited")}</div></article>
+    <div class="kpis k3"><article class="kpi"><div class="lbl">${t("代扣税总额", "Withholding tax")} ${tag("muted", t("演示数据", "Demo data"))}</div><div class="num" style="font-size:20px">${peso(taxT)}</div><div class="subl">${t("按开奖日归属；按档拆分见下", "By draw date; split by tax band below")}</div></article><article class="kpi"><div class="lbl">${t("柜台兑付（税后）", "Counter paid (after tax)")}</div><div class="num" style="font-size:20px">${peso(cNet)}</div><div class="subl">${t("税前 − 代扣税；按付款日见对账块", "Pre-tax − withholding; by payment date see Reconciliation")}</div></article><article class="kpi"><div class="lbl">${t("待领取（税前，不含已逾期）", "Unclaimed (pre-tax, excl. expired)")}</div><div class="num" style="font-size:20px">${peso(unc)}</div><div class="subl">${t("已逾期的票单列在「逾期作废」", "Expired tickets are counted under Forfeited")}</div></article>
     </div>
     <div class="split">
-      <div class="card"><h4>${t("按奖级分布（按注计）", "By prize tier (counted by bet)")}</h4>${table([t("奖级", "Tier"), t("中奖注数", "Winning bets"), t("单注奖金", "Prize per bet"), t("合计", "Total"), t("占比", "Share"), t("兑付方式", "How paid")], [tierRows(TIER_LOTTO, sumAt(TIER_LOTTO, 5)), tierRows(TIER_DIGIT, sumAt(TIER_DIGIT, 5))])}</div>
-      <div class="card"><h4>${t("兑付方式构成", "How prizes are paid")}</h4><div class="bars">${parts.map((p) => `<div class="bar-row"><span>${p[0]}</span><div class="track ${p[2]}"><span style="width:${(p[1] / barMax * 100).toFixed(1)}%"></span></div><b class="mono amt">${pesoM(p[1])}</b></div>`).join("")}</div>
+      <div class="card"><h4>${t("按奖级分布（按注计，线上）", "By prize tier (counted by bet, online)")}</h4>${table([t("奖级", "Tier"), t("中奖注数", "Winning bets"), t("单注奖金", "Prize per bet"), t("合计", "Total"), t("占比", "Share"), t("兑付方式", "How paid")], tierRowsHtml)}</div>
+      <div class="card"><h4>${t("兑付方式构成", "How prizes are paid")}</h4><div class="bars">${parts.map((p) => `<div class="bar-row"><span>${p[0]}</span><div class="track ${p[2]}"><span style="width:${(p[1] / barMax * 100).toFixed(1)}%"></span></div><b class="mono amt">${M(p[1])}</b></div>`).join("")}</div>
         <p class="muted">${t("₱300,000 是分界线。以内自动进钱包，超过的必须本人到 PCSO 总部凭领奖码领支票。这条线是后台参数，PCSO 可调。", "₱300,000 is the line. At or below it, the prize goes to the wallet. Above it, the player collects a cheque in person at PCSO headquarters with a claim code. PCSO can change this admin parameter.")}</p></div>
     </div>
-    <div class="card"><h4>${t("奖金率走势", "Prize-rate trend")}</h4>${colChart(PRIZE_RATE)}<p class="tiny">${t("按月 · 奖金率 = 中奖总额（Total prizes won，该期所有中奖票的税前奖金，不论是否已领取）÷ 销售额；理论值 55%，绿线是 55%。注意与派奖率（Prizes paid to net sales，已派奖金 ÷ 净销售）区分。", "Monthly. Prize payout rate = total prizes won (pre-tax prizes of all winning tickets in the period, claimed or not) ÷ sales; not to be confused with the payout ratio (prizes paid to net sales). The theoretical rate is 55%. A month moves when a jackpot is or is not won. The green line is 55%.")}</p>
+    <div class="card"><h4>${t("按期次", "By draw")}</h4><p class="tiny">${z("One row per draw. Click a row to see its tier distribution. Difference = Paid − Payable; a non-zero difference is shown in red. Prize rate = total prizes won ÷ that draw's sales. A draw with a jackpot winner can exceed 100% because the jackpot comes from the accumulated pool. Counter paid is after tax; Unclaimed and Forfeited are pre-tax.", "一期一行，点行展开该期奖级分布。差异 = 实派 − 应派，非 0 标红；奖金率 = 中奖总额 ÷ 该期销售额，头奖中出的期次可超过 100%（头奖来自累计奖池）；柜台已付为税后，待领取与逾期作废为税前。")}</p>
+      ${table([z("Game", "游戏"), z("Draw", "期号"), z("Draw Date", "开奖日"), z("Rule Version", "规则版本"), z("Winning Bets (Online)", "线上中奖注数"), z("Prize Pool", "奖池金额"), z("Payable", "应派奖金"), z("Paid (Pre-Tax)", "实派奖金（税前）"), z("Difference", "差异"), z("Auto Credit (After Tax)", "自动入账（税后）"), z("Counter Paid (After Tax)", "柜台已付（税后）"), z("Unclaimed (Pre-Tax)", "待领取（税前）"), z("Forfeited (Pre-Tax)", "逾期作废（税前）"), z("Withholding Tax", "代扣税"), z("Prize Rate", "奖金率"), z("Status", "状态")], byDraw)}</div>
+    <div class="split">
+      <div class="card"><h4>${z("Withholding tax by tax band", "代扣税（按税率档）")}</h4>${table([z("Band", "档位"), z("Rate", "税率"), z("Pre-Tax Prizes", "应税奖金（税前）"), z("Withholding Tax", "代扣税"), z("After-Tax Prizes", "税后")], bandRows)}<p class="tiny">${z("Bands come from the current tax table; tax applies to the whole prize once it passes the threshold. Unpaid prizes carry no tax yet. Demo data, not linked to real draw entry.", "档位取自当前税率表；超过门槛后对整笔奖金计税；未兑付的奖金尚未扣税。演示数据，不联动真实开奖录入。")}</p></div>
+      <div class="card"><h4>${z("Reconciliation (by payment date)", "对账（按付款日）")}</h4>${table([z("Item", "项目"), z("Date basis", "日期口径"), z("By payment date", "按付款日"), z("By draw date", "按开奖日"), z("Difference", "差异")], recRows)}<p class="tiny">${z("For Finance reconciliation. The period total by payment date can differ from the draw-date KPIs above because a prize can be drawn in one period and paid in another. Columns to be confirmed by Finance.", "用于与财务对账。按付款日的期间合计可能与上方按开奖日的 KPI 不等（开奖与付款可能跨期）；所需列待财务确认。")}</p></div>
+    </div>
+    <div class="card"><h4>${t("奖金率走势", "Prize-rate trend")}</h4>${tr.vals.length ? colChart(tr.vals, tr.labs) : `<p class="muted">${z("No data", "无数据")}</p>`}<p class="tiny">${tr.cap}. ${t("奖金率 = 中奖总额（Total prizes won，所有中奖票的税前奖金，不论是否已领取）÷ 销售额；理论值 55%，绿线是 55%。注意与派奖率（Prizes paid to net sales，已派奖金 ÷ 净销售）区分。分母为销售额（未扣退款）。", "Prize payout rate = total prizes won (pre-tax prizes of all winning tickets, claimed or not) ÷ sales (before refunds); not to be confused with the payout ratio (prizes paid to net sales). The theoretical rate is 55%. A period moves when a jackpot is or is not won. The green line is 55%.")}</p>
       <div class="banner amber">${t("奖金率长期偏离 55% 需要核查：持续偏低说明奖金没发出去，持续偏高说明奖级结构或算奖逻辑有问题。", "A prize rate that stays off 55% needs a check: too low means prizes are not going out, too high means the tier structure or the prize math is wrong.")}</div></div>
     <div class="card"><div class="page-h"><h4>${t("头奖中奖人清单", "Jackpot winners")}</h4>${roleChip("可见角色：合规审计、财务复核", "Visible to: Compliance audit, Finance review")}</div>
       ${table([t("玩家 ID", "Player ID"), t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("兑奖状态", "Claim status"), t("兑奖日期", "Claim date")],
-        S.jackpots.map((r) => `<tr><td class="mono">${r.player}</td><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono amt">${peso(r.amt)}</td><td>${r.st === "paid" ? tag("ok", t("已兑付", "Paid")) : tag("warn", t("待领取", "Unclaimed"))}</td><td class="mono">${r.date}</td></tr>`))}
+        jps.map((r) => `<tr><td class="mono">${r.player}</td><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono amt">${peso(r.amt)}</td><td>${r.st === "paid" ? tag("ok", t("已兑付", "Paid")) : tag("warn", t("待领取", "Unclaimed"))}</td><td class="mono">${r.date}</td></tr>`))}
     </div>
     <div class="card"><h4>${t("中奖电子彩票信息", "Winning e-tickets")}</h4><p class="tiny">${t("和大奖申领里的兑奖记录是同一套彩票号。", "Same ticket numbers as the prize-claim ledger.")}</p>
       ${table([t("彩票序列号", "Serial"), t("条码 / 二维码", "Barcode / QR"), t("游戏", "Game"), t("期号", "Draw"), t("投注组合", "Selection"), t("中奖号码", "Winning numbers"), t("奖级", "Tier"), t("当前状态", "Status")],
-        S.etickets.map((r) => `<tr><td class="mono">${r.sn}</td><td class="mono">${r.barcode}</td><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${r.pick}</td><td class="mono">${r.win}</td><td>${r.tier}</td><td>${esc(r.st)}</td></tr>`))}
+        ets.map((r) => `<tr><td class="mono">${r.sn}</td><td class="mono">${r.barcode}</td><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono">${r.pick}</td><td class="mono">${r.win}</td><td>${r.tier}</td><td>${esc(r.st)}</td></tr>`))}
     </div>
     <div class="card"><h4>${t("奖金作废没收报表", "Forfeited prizes")}</h4>
-      <article class="kpi ${showForfeit ? "bad" : ""}"><div class="lbl">${t("本期作废没收总金额", "Forfeited this period")}</div><div class="num">${showForfeit ? peso(forfeitSum) : "₱0"}</div><div class="subl">${showForfeit ? "" : t("本期无", "None this period")}</div></article>
+      <article class="kpi ${forfSum ? "bad" : ""}"><div class="lbl">${t("所选范围作废没收总金额", "Forfeited in this selection")}</div><div class="num">${peso(forfSum)}</div><div class="subl">${forfSum ? "" : t("所选范围无", "None in this selection")}</div></article>
       ${table([t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("开奖日期", "Draw date"), t("申领截止日期", "Claim deadline"), t("作废日期", "Void date"), t("没收去向", "Destination")],
-        (showForfeit ? S.forfeits : []).map((r) => `<tr><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono amt">${peso(r.amt)}</td><td>${r.draw}</td><td>${r.deadline}</td><td>${r.voided}</td><td>${t(r.toZh, r.toEn)}</td></tr>`))}
+        fos.map((r) => `<tr><td>${gname(gameBy(r.game))}</td><td class="mono">${r.issue}</td><td class="mono amt">${peso(r.amt)}</td><td>${r.draw}</td><td>${r.deadline}</td><td>${r.voided}</td><td>${t(r.toZh, r.toEn)}</td></tr>`))}
     </div>`;
 }
 
@@ -3046,10 +3203,11 @@ function rrRange(key) {
 rrInit();
 function rrInit() { const r = rrRange("month"); S.rr.from = r[0]; S.rr.to = r[1]; }
 function rangeBar() {
-  const long = A58.span(S.rr.from, S.rr.to) + 1 > 92;
-  return `<div class="card" style="margin-bottom:12px"><div class="tools"><div class="tabs">${RR_KEYS.map(([k, l]) => `<button type="button" data-act="rr-pick" data-arg="${k}" class="${S.rr.key === k ? "on" : ""}">${l}</button>`).join("")}</div>
-    <label class="f">${z("From", "开始")}<input type="date" data-p58="rr" data-k="from" value="${S.rr.from}" /></label><label class="f">${z("To", "结束")}<input type="date" data-p58="rr" data-k="to" value="${S.rr.to}" /></label>
-    <span class="tiny">UTC+8 · ${A58.span(S.rr.from, S.rr.to) + 1} ${z("days", "天")}${long ? " · " + z("over 92 days: Performance, Prizes and audit exports are blocked", "超过 92 天：业绩、奖金与派彩及审计导出将被拦截") : ""}</span>${expBtns("rr-export")}</div></div>`;
+  const lock = rfLocked(S.tab.report);
+  const long = !lock && A58.span(S.rr.from, S.rr.to) + 1 > 92;
+  return `<div class="card" style="margin-bottom:12px"><div class="tools"><div class="tabs">${RR_KEYS.map(([k, l]) => `<button type="button" data-act="rr-pick" data-arg="${k}" ${lock ? "disabled" : ""} class="${S.rr.key === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    <label class="f">${z("From", "开始")}<input type="date" data-p58="rr" data-k="from" value="${S.rr.from}" ${lock ? "disabled" : ""} /></label><label class="f">${z("To", "结束")}<input type="date" data-p58="rr" data-k="to" value="${S.rr.to}" ${lock ? "disabled" : ""} /></label>
+    <span class="tiny">UTC+8 · ${lock ? z("Date range off: a draw is selected", "已选期次，日期范围不生效") : A58.span(S.rr.from, S.rr.to) + 1 + " " + z("days", "天")}${long ? " · " + z("over 92 days: Performance, Prizes and audit exports are blocked", "超过 92 天：业绩、奖金与派彩及审计导出将被拦截") : ""}</span>${expBtns("rr-export")}</div></div>`;
 }
 
 /* ---- regions ---- */
@@ -3088,7 +3246,7 @@ function tmData() {
 function tmWeek(d) { const dow = (new Date(d + "T00:00:00Z").getUTCDay() + 6) % 7; return "Week of " + A58.addDays(d, -dow); }
 function tmFiltered() {
   const f = S.tm;
-  return tmData().filter((r) => r.date >= S.rr.from && r.date <= S.rr.to && (!f.games.length || f.games.indexOf(r.game) >= 0) && (!f.types.length || f.types.indexOf(r.type) >= 0) && (!f.issue || r.issue === f.issue.trim()) && (f.term === "all" || r.term === f.term) && (f.flag === "all" || (f.flag === "pending" ? r.rev === "pending" : r.rev === "reviewed")));
+  return tmData().filter((r) => (f.issue || (r.date >= S.rr.from && r.date <= S.rr.to)) && (!f.games.length || f.games.indexOf(r.game) >= 0) && (!f.types.length || f.types.indexOf(r.type) >= 0) && (!f.issue || r.issue === f.issue.trim()) && (f.term === "all" || r.term === f.term) && (f.flag === "all" || (f.flag === "pending" ? r.rev === "pending" : r.rev === "reviewed")));
 }
 function tmKey(r) {
   const g = S.tm.group;
@@ -3098,13 +3256,16 @@ function tmKey(r) {
   const gr = S.tm.grain;
   return gr === "hour" ? r.date + " " + String(r.hr).padStart(2, "0") + ":00" : gr === "week" ? tmWeek(r.date) : gr === "month" ? r.date.slice(0, 7) : r.date;
 }
-function tmOrders(key, rows) {
+function tmOrders(key, rows) { const all = tmOrdersAll(key, rows); return S.tm.dissue ? all.filter((o) => o.issue === S.tm.dissue) : all; }
+function tmOrdersAll(key, rows) {
   const base = rows.filter((r) => tmKey(r) === key); const sub = base.length ? Array.from({ length: 120 }, (_, i) => base[i % base.length]) : [];
-  return sub.map((r, i) => { const dig = 10 + ((r.n + i * 37) % 89); const unit = TM_UNIT_NOW; return { no: "ORD" + r.date.replace(/-/g, "") + String(4000 + ((r.n * 13 + i * 71 + i * i) % 5000)) + String(i).padStart(3, "0"), pl: "PL-10" + dig + "***", amt: r.amt, cnt: r.cnt, unit, bef: r.exact.toFixed(2), rev: r.rev }; });
+  return sub.map((r, i) => { const dig = 10 + ((r.n + i * 37) % 89); const unit = TM_UNIT_NOW; return { no: "ORD" + r.date.replace(/-/g, "") + String(4000 + ((r.n * 13 + i * 71 + i * i) % 5000)) + String(i).padStart(3, "0"), pl: "PL-10" + dig + "***", issue: r.issue, amt: r.amt, cnt: r.cnt, unit, bef: r.exact.toFixed(2), rev: r.rev }; });
 }
 const TM_UNIT_NOW = 25;
 function viewTM() {
-  const f = S.tm, rows = tmFiltered();
+  const f = S.tm;
+  if (f.games.length !== 1 || !drawsOf(f.games[0], true).some((d) => d.no === f.issue)) f.issue = "";
+  const rows = tmFiltered();
   const sales = rows.reduce((s, r) => s + r.n * r.amt, 0), cnt = rows.reduce((s, r) => s + r.n * r.cnt, 0);
   const cxu = rows.reduce((s, r) => s + r.n * r.exact * TM_UNIT_NOW, 0), varn = Math.round(sales - cxu), pend = rows.filter((r) => r.rev === "pending").reduce((s, r) => s + r.n, 0);
   const groups = {}; rows.forEach((r) => { const k = tmKey(r); const g = groups[k] || (groups[k] = { n: 0, cnt: 0, sales: 0, pend: 0 }); g.n += r.n; g.cnt += r.n * r.cnt; g.sales += r.n * r.amt; if (r.rev === "pending") g.pend += r.n; });
@@ -3112,7 +3273,7 @@ function viewTM() {
   const opt = (arr, sel) => arr.map(([v, l]) => `<option value="${v}" ${sel === v ? "selected" : ""}>${l}</option>`).join("");
   const mulOpt = (arr, sel) => arr.map(([v, l]) => `<option value="${v}" ${sel.indexOf(v) >= 0 ? "selected" : ""}>${esc(l)}</option>`).join("");
   const types = A58.uniq(TM_TYPES.map((x) => x[1]));
-  const drill = f.drill && groups[f.drill] ? `<div class="card" id="tm-drill-card" style="border-color:var(--cyan,#22d3ee);scroll-margin-top:90px"><h4>${z("Bet orders in", "投注单明细")}: ${esc(f.drill)} <button type="button" class="link" data-act="tm-drill" data-arg="">${z("close", "关闭")}</button></h4>${table([z("Bet order", "投注单号"), z("Player (masked)", "玩家（脱敏）"), z("Amount", "金额"), z("Count", "交易数"), z("Unit value", "单元价值"), z("Before → after rounding", "舍入前 → 后"), z("Review", "复核状态")], tmOrders(f.drill, rows).slice((S.tmPage || 0) * 50, (S.tmPage || 0) * 50 + 50).map((o) => `<tr><td class="mono">${o.no}</td><td class="mono">${o.pl}</td><td class="mono amt">${peso(o.amt)}</td><td class="mono">${o.cnt}</td><td class="mono">${peso(o.unit)}</td><td class="mono">${o.bef} → ${o.cnt}</td><td>${o.rev === "pending" ? tag("warn", "Pending review") : o.rev === "reviewed" ? tag("ok", "Reviewed") : tag("muted", "—")}</td></tr>`))}${(() => { const n = tmOrders(f.drill, rows).length, pg = S.tmPage || 0, pages = Math.max(1, Math.ceil(n / 50)); return `<div class="row-actions" style="margin-top:8px"><button type="button" class="btn btn-sm" data-act="tm-page" data-arg="${pg - 1}" ${pg <= 0 ? "disabled" : ""}>‹</button><span class="tiny">${z("Page", "第")} ${pg + 1} / ${pages} · ${z("50 per page, newest first", "每页 50 行，按时间倒序")}</span><button type="button" class="btn btn-sm" data-act="tm-page" data-arg="${pg + 1}" ${pg + 1 >= pages ? "disabled" : ""}>›</button><button type="button" class="btn btn-sm" data-act="tm-ord-export">${z("Export CSV", "导出 CSV")}</button></div><div class="tiny">${z("Read-only. Player IDs are masked. Over 10,000 orders in a group: only the latest 10,000 are shown, narrow the filters or export.", "只读；玩家 ID 脱敏；一个分组超过 10,000 笔只显示最近 10,000 笔，请缩小筛选范围或导出。")}</div>`; })()}</div>` : "";
+  const drill = f.drill && groups[f.drill] ? `<div class="card" id="tm-drill-card" style="border-color:var(--cyan,#22d3ee);scroll-margin-top:90px"><h4>${z("Bet orders in", "投注单明细")}: ${esc(f.drill)} <button type="button" class="link" data-act="tm-drill" data-arg="">${z("close", "关闭")}</button></h4><div class="tools" style="margin-bottom:8px"><label class="f">${z("Draw", "期次")}<select data-p58="tm" data-k="dissue" id="tm-dissue"><option value="">${z("All draws", "全部期次")}</option>${A58.uniq(tmOrdersAll(f.drill, rows).map((o) => o.issue)).sort().reverse().map((no) => `<option value="${no}" ${f.dissue === no ? "selected" : ""}>${no} · ${issueDate(no)}</option>`).join("")}</select></label></div>${table([z("Bet order", "投注单号"), z("Draw", "期号"), z("Player (masked)", "玩家（脱敏）"), z("Amount", "金额"), z("Count", "交易数"), z("Unit value", "单元价值"), z("Before → after rounding", "舍入前 → 后"), z("Review", "复核状态")], tmOrders(f.drill, rows).slice((S.tmPage || 0) * 50, (S.tmPage || 0) * 50 + 50).map((o) => `<tr><td class="mono">${o.no}</td><td class="mono">${o.issue}</td><td class="mono">${o.pl}</td><td class="mono amt">${peso(o.amt)}</td><td class="mono">${o.cnt}</td><td class="mono">${peso(o.unit)}</td><td class="mono">${o.bef} → ${o.cnt}</td><td>${o.rev === "pending" ? tag("warn", "Pending review") : o.rev === "reviewed" ? tag("ok", "Reviewed") : tag("muted", "—")}</td></tr>`))}${(() => { const n = tmOrders(f.drill, rows).length, pg = S.tmPage || 0, pages = Math.max(1, Math.ceil(n / 50)); return `<div class="row-actions" style="margin-top:8px"><button type="button" class="btn btn-sm" data-act="tm-page" data-arg="${pg - 1}" ${pg <= 0 ? "disabled" : ""}>‹</button><span class="tiny">${z("Page", "第")} ${pg + 1} / ${pages} · ${z("50 per page, newest first", "每页 50 行，按时间倒序")}</span><button type="button" class="btn btn-sm" data-act="tm-page" data-arg="${pg + 1}" ${pg + 1 >= pages ? "disabled" : ""}>›</button><button type="button" class="btn btn-sm" data-act="tm-ord-export">${z("Export CSV", "导出 CSV")}</button></div><div class="tiny">${z("Read-only. Player IDs are masked. Over 10,000 orders in a group: only the latest 10,000 are shown, narrow the filters or export.", "只读；玩家 ID 脱敏；一个分组超过 10,000 笔只显示最近 10,000 笔，请缩小筛选范围或导出。")}</div>`; })()}</div>` : "";
   const dayRec = A58.uniq(tmData().map((r) => r.date)).map((d) => { const dr = tmData().filter((r) => r.date === d); const sl = dr.reduce((s, r) => s + r.n * r.amt, 0), c = dr.reduce((s, r) => s + r.n * r.cnt, 0); const rc = S.tmRecon.find((x) => x.date === d); return { d, sl, c, rc }; });
   const reconRows = S.tmRecon.map((rc) => { const dr = dayRec.find((x) => x.d === rc.date); return `<tr class="${rc.st === "open" ? "alert" : ""}"><td class="mono">${rc.date}</td><td>${z("Daily", "日")}</td><td class="mono amt">${dr ? peso(dr.sl) : "—"}</td><td class="mono amt">${dr ? peso(dr.sl - rc.varn) : "—"}</td><td class="mono amt" style="color:var(--rose)">${peso(rc.varn)}</td><td>${rc.st === "open" ? tag("rose", "Reconciliation difference · open") : tag("ok", "Closed")}</td><td>${rc.st === "open" ? `<button type="button" class="btn btn-sm" data-act="tm-close-open" data-id="${rc.date}">${z("Close with reason", "填写原因并关闭")}</button>` : esc(rc.reason)}</td></tr>`; });
   const repRows = S.tmReports.map((r) => `<tr><td class="mono">${r.per}</td><td>${r.kind}</td><td>${r.st === "final" ? tag("ok", "Finalized · locked") : tag("warn", "Draft")}</td><td>${r.adj ? `<span class="mono">${esc(r.adj.orig)}</span> → <b class="mono">${esc(r.adj.adj)}</b> ${tag("muted", "Adjusted")}` : "—"}</td><td class="row-actions">${r.st === "draft" ? `<button type="button" class="btn btn-sm" data-act="tm-final" data-id="${r.id}">${z("Finalize", "定稿")}</button>` : `<button type="button" class="btn btn-sm" data-act="tm-adj-open" data-id="${r.id}">${z("Request adjustment", "提交调整申请")}</button>`}<button type="button" class="btn btn-sm" data-act="tm-rep-export" data-id="${r.id}" data-arg="csv">CSV</button></td></tr>`);
@@ -3123,7 +3284,7 @@ function viewTM() {
       <label class="f">${z("Group by", "分组")}<select data-p58="tm" data-k="group">${opt([["game", "Game"], ["type", "Bet type"], ["draw", "Draw"], ["period", "Period"]], f.group)}</select></label>
       <label class="f">${z("Game", "游戏")}<select multiple size="3" data-p58="tm" data-k="games">${mulOpt(GAMES.map((g) => [g.id, gname(g)]), f.games)}</select></label>
       <label class="f">${z("Bet Type", "投注类型")}<select multiple size="3" data-p58="tm" data-k="types">${mulOpt(types.map((x) => [x, x]), f.types)}</select></label>
-      <label class="f">${z("Draw", "期次")}<input data-p58="tm" data-k="issue" value="${esc(f.issue)}" placeholder="2026-1012-1" style="min-width:110px" /></label>
+      ${rfDrawSel(f.games.length === 1 ? f.games[0] : "", f.issue, 'data-p58="tm" data-k="issue"', true)}
       <label class="f">${z("Terminal", "终端")}<select data-p58="tm" data-k="term">${opt([["all", "All"], ["H5", "H5"], ["App", "App"]], f.term)}</select></label>
       <label class="f">${z("Review Flag", "复核标记")}<select data-p58="tm" data-k="flag">${opt([["all", "All"], ["pending", "Pending review"], ["reviewed", "Reviewed"]], f.flag)}</select></label></div>
       <div class="tiny" style="margin-top:6px">${z("Date range above; counted by ticket issue time, UTC+8. Real-time board, delay ≤ 1 minute. Unit value now: ₱25 (effective since 2026-01-01).", "日期范围见上方；按出票时间 UTC+8 归属；实时看板延迟 ≤ 1 分钟；当前单元价值 ₱25。")}</div></div>
@@ -3157,46 +3318,45 @@ function dsRows() {
   return S.draws.map((d, i) => {
     const id = d.date.slice(0, 10), sc = 18000 + i * 2300, sa = d.payout * 3 + 400000 + i * 90000;
     const wc = Math.round(sc * 0.07), wa = Math.round(sa * 0.42), pc = wc - (i % 3), pa = wa - (i % 3 ? 30000 : 0), uc = wc - pc, ua = wa - pa;
-    return { issue: d.issue, game: d.game, date: d.date, sc, sa, wc, wa, pc, pa, uc, ua, region: ["NCR", "Region IV-A", "Region III", "Region VII", "Unknown"][i % 5], id };
+    const rc = i % 3 === 0 ? 4 + i : 0, ra = rc * 50; return { issue: d.issue, game: d.game, date: d.date, sc, sa, rc, ra, wc, wa, pc, pa, uc, ua, region: ["NCR", "Region IV-A", "Region III", "Region VII", "Unknown"][i % 5], id };
   }).filter((r) => inRange(r.id));
 }
 function viewDrawSales() {
   const sub = S.tab.dsub || "sum";
   const rows = dsRows();
-  const head = [z("Draw", "期号"), z("Game", "游戏"), z("Draw Time", "开奖时间"), z("Sales Count / Amount", "销售笔数 / 金额"), z("Winning Count / Amount (Pre-Tax)", "中奖笔数 / 金额（税前）"), z("Paid Count / Amount (Pre-Tax)", "派奖笔数 / 金额（税前）"), z("Unclaimed Count / Amount (Pre-Tax)", "未兑奖笔数 / 金额（税前）")];
+  const head = [z("Draw", "期号"), z("Game", "游戏"), z("Draw Time", "开奖时间"), z("Sales Count / Amount", "销售笔数 / 金额"), z("Refunded Count / Amount", "退款笔数 / 金额"), z("Net Sales", "净销售"), z("Winning Count / Amount (Pre-Tax)", "中奖笔数 / 金额（税前）"), z("Paid Count / Amount (Pre-Tax)", "派奖笔数 / 金额（税前）"), z("Unclaimed Count / Amount (Pre-Tax)", "未兑奖笔数 / 金额（税前）")];
   const cell = (c, a) => `<td class="mono amt">${c.toLocaleString("en-US")} / ${peso(a)}</td>`;
-  const tot = (rs) => rs.reduce((s, r) => ({ sc: s.sc + r.sc, sa: s.sa + r.sa, wc: s.wc + r.wc, wa: s.wa + r.wa, pc: s.pc + r.pc, pa: s.pa + r.pa, uc: s.uc + r.uc, ua: s.ua + r.ua }), { sc: 0, sa: 0, wc: 0, wa: 0, pc: 0, pa: 0, uc: 0, ua: 0 });
-  const totRow = (label, tt) => `<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${label}</td>${cell(tt.sc, tt.sa)}${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`;
+  const tot = (rs) => rs.reduce((s, r) => ({ sc: s.sc + r.sc, sa: s.sa + r.sa, rc: s.rc + r.rc, ra: s.ra + r.ra, wc: s.wc + r.wc, wa: s.wa + r.wa, pc: s.pc + r.pc, pa: s.pa + r.pa, uc: s.uc + r.uc, ua: s.ua + r.ua }), { sc: 0, sa: 0, rc: 0, ra: 0, wc: 0, wa: 0, pc: 0, pa: 0, uc: 0, ua: 0 });
+  const totRow = (label, tt) => `<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${label}</td>${cell(tt.sc, tt.sa)}${cell(tt.rc, tt.ra)}<td class="mono amt">${peso(tt.sa - tt.ra)}</td>${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`;
   let body;
   if (sub === "game") {
     const g = {}; rows.forEach((r) => { (g[r.game] = g[r.game] || []).push(r); });
-    body = table(head.map((h, i) => i === 0 ? z("Draws", "期数") : i === 2 ? "" : h), Object.keys(g).map((k) => { const tt = tot(g[k]); return `<tr><td class="mono">${g[k].length}</td><td>${esc(gname(gameBy(k)))}</td><td></td>${cell(tt.sc, tt.sa)}${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`; }).concat([totRow(z("Total", "合计"), tot(rows))]));
+    body = table(head.map((h, i) => i === 0 ? z("Draws", "期数") : i === 2 ? "" : h), Object.keys(g).map((k) => { const tt = tot(g[k]); return `<tr><td class="mono">${g[k].length}</td><td>${esc(gname(gameBy(k)))}</td><td></td>${cell(tt.sc, tt.sa)}${cell(tt.rc, tt.ra)}<td class="mono amt">${peso(tt.sa - tt.ra)}</td>${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`; }).concat([totRow(z("Total", "合计"), tot(rows))]));
   } else if (sub === "region") {
     const g = {}; rows.forEach((r) => { (g[r.region] = g[r.region] || []).push(r); });
-    body = table(head.map((h, i) => i === 0 ? z("Draws", "期数") : i === 1 ? z("Region", "地区") : i === 2 ? "" : h), Object.keys(g).map((k) => { const tt = tot(g[k]); return `<tr><td class="mono">${g[k].length}</td><td>${k}</td><td></td>${cell(tt.sc, tt.sa)}${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`; }).concat([totRow(z("Total", "合计"), tot(rows))]));
+    body = table(head.map((h, i) => i === 0 ? z("Draws", "期数") : i === 1 ? z("Region", "地区") : i === 2 ? "" : h), Object.keys(g).map((k) => { const tt = tot(g[k]); return `<tr><td class="mono">${g[k].length}</td><td>${k}</td><td></td>${cell(tt.sc, tt.sa)}${cell(tt.rc, tt.ra)}<td class="mono amt">${peso(tt.sa - tt.ra)}</td>${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`; }).concat([totRow(z("Total", "合计"), tot(rows))]));
   } else if (sub === "pre") {
-    const pre = S.issues.filter((i) => i.st === "sale" || i.st === "closed" || i.st === "gen" || i.st === "postponed").map((i) => `<tr><td class="mono">${i.no}</td><td>${esc(gname(gameBy(i.game)))}</td><td class="mono">${i.draw}</td><td class="mono amt">${Math.round(i.sales / 25).toLocaleString("en-US")} / ${peso(i.sales)}</td><td class="mono">-</td><td class="mono">-</td><td class="mono">-</td></tr>`);
+    const pre = S.issues.filter((i) => i.st === "sale" || i.st === "closed" || i.st === "gen" || i.st === "postponed").map((i) => `<tr><td class="mono">${i.no}</td><td>${esc(gname(gameBy(i.game)))}</td><td class="mono">${i.draw}</td><td class="mono amt">${Math.round(i.sales / 25).toLocaleString("en-US")} / ${peso(i.sales)}</td><td class="mono">-</td><td class="mono">-</td><td class="mono">-</td><td class="mono">-</td><td class="mono">-</td></tr>`);
     body = `<p class="tiny">${z("Pre-sale: issues already sold but not yet drawn (including future draws of multi-draw bets). Only sales columns are filled.", "预售：已售出但尚未开奖的期次（含多期投注的未来期），只显示销售列。")}</p>` + table(head, pre);
   } else {
-    body = table(head, rows.map((r) => `<tr><td class="mono">${r.issue}</td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.date}</td>${cell(r.sc, r.sa)}${cell(r.wc, r.wa)}${cell(r.pc, r.pa)}${cell(r.uc, r.ua)}</tr>`).concat(rows.length ? [totRow(z("Total for the selected range", "所选范围合计"), tot(rows))] : []));
+    body = table(head, rows.map((r) => `<tr><td class="mono">${r.issue}</td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.date}</td>${cell(r.sc, r.sa)}${cell(r.rc, r.ra)}<td class="mono amt">${peso(r.sa - r.ra)}</td>${cell(r.wc, r.wa)}${cell(r.pc, r.pa)}${cell(r.uc, r.ua)}</tr>`).concat(rows.length ? [totRow(z("Total for the selected range", "所选范围合计"), tot(rows))] : []));
   }
-  return `<div class="tabs" style="margin-bottom:10px">${[["sum", "Summary"], ["game", "By game"], ["region", "By region"], ["pre", "Pre-sale"]].map(([k, l]) => `<button type="button" data-act="tab" data-group="dsub" data-arg="${k}" class="${sub === k ? "on" : ""}">${l}</button>`).join("")}</div>${body}`;
+  return `<p class="tiny">${z("Refunded = bets voided with no draw date or refunded because a draw was cancelled. Net sales = sales − refunded. The prize rate denominator stays Sales (effective sales not refunded). Demo data.", "退款 = 无开奖日作废及期次取消退款；净销售 = 销售额 − 退款；奖金率分母仍为销售额（未退款的有效销售）。演示数据。")}</p><div class="tabs" style="margin-bottom:10px">${[["sum", "Summary"], ["game", "By game"], ["region", "By region"], ["pre", "Pre-sale"]].map(([k, l]) => `<button type="button" data-act="tab" data-group="dsub" data-arg="${k}" class="${sub === k ? "on" : ""}">${l}</button>`).join("")}</div>${body}`;
 }
 function viewJackpot() {
-  const J = [["s649", "2026-1008-2", "2026-10-08", "05-14-22-31-36-49", 1, 0, 3200000, ""], ["u658", "2026-1009-3", "2026-10-09", "04-11-23-29-41-58", 0, 0, 128450000, "No winner, jackpot rolls over"], ["g655", "2026-1009-3", "2026-10-09", "02-09-18-27-40-55", 0, 0, 86420000, "No winner, jackpot rolls over"], ["l642", "2026-1007-2", "2026-10-07", "01-08-19-24-33-42", 0, 0, 9200000, "No winner, jackpot rolls over"], ["m645", "2026-1005-1", "2026-10-05", "06-15-21-30-38-45", 0, 0, 18650000, "No winner, jackpot rolls over"], ["u658", "2026-0914-1", "2026-09-14", "04-11-23-29-41-58", 1, 1, 36800000, "One online and one offline winner share the pool"]].filter((r) => inRange(r[2]) || S.rr.key === "custom" && false);
-  const all = J;
-  return `<div class="banner">${z("The jackpot winner list (names) stays restricted to Finance review and Compliance audit.", "头奖中奖人清单仍仅限财务复核、合规审计查看。")}</div>${table([z("Game", "游戏"), z("Draw", "期号"), z("Draw Date", "开奖日"), z("Winning Numbers", "中奖号码"), z("Jackpot Winner Count", "头奖注数"), z("Jackpot Pool", "头奖奖池"), z("Jackpot Per Winning Bet", "单注头奖"), z("Remark", "备注")],
-    all.map((r) => { const n = r[4] + r[5]; return `<tr><td>${esc(gname(gameBy(r[0])))}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td class="mono">${r[3]}</td><td>${n ? `${r[4]} online / ${r[5]} offline (total ${n})` : "0"}</td><td class="mono amt">${peso(r[6])}</td><td class="mono amt">${n ? peso(Math.floor(r[6] / n)) : "-"}</td><td>${r[7] || "—"}</td></tr>`; }))}<p class="tiny">${z("Per winning bet = pool ÷ (online + offline winning bets), rounded down.", "单注头奖 = 奖池 ÷（线上 + 线下中奖注数），向下取整。")}</p>`;
+  const all = jpRows().filter((r) => rfPass("jp", r[0], r[1], r[2]));
+  return `<div class="banner">${z("The jackpot winner list (names) stays restricted to Finance review and Compliance audit.", "头奖中奖人清单仍仅限财务复核、合规审计查看。")}</div>${rfBar("jp")}${table([z("Game", "游戏"), z("Draw", "期号"), z("Draw Date", "开奖日"), z("Winning Numbers", "中奖号码"), z("Jackpot Winner Count", "头奖注数"), z("Jackpot Pool", "头奖奖池"), z("Jackpot Per Winning Bet", "单注头奖"), z("Remark", "备注")],
+    all.map((r) => `<tr><td>${esc(gname(gameBy(r[0])))}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td class="mono">${r[3]}</td><td class="mono">${r[4]}</td><td class="mono amt">${peso(r[5])}</td><td class="mono amt">${r[4] ? peso(r[6]) : "-"}</td><td>${r[7] || "—"}</td></tr>`))}<p class="tiny">${z("Winner count is online winning bets only. Jackpot per winning bet is the value entered with the draw result.", "头奖注数只统计线上中奖注数；单注头奖取开奖时录入的值。")}</p>`;
 }
 function viewForfeit() {
-  const rows = S.forfeits.map((f) => ({ date: f.deadline, game: f.game, n: 1, amt: f.amt })).concat([{ date: "2026-09-20", game: "s649", n: 1, amt: 410000 }, { date: "2026-10-02", game: "u658", n: 2, amt: 1250000 }]).filter((r) => inRange(r.date)).sort((a, b) => b.date.localeCompare(a.date));
-  return `<div class="banner">${z("Forfeited / overdue unclaimed prizes: big-prize tickets whose claim deadline has passed without payment, counted on the deadline day. Where the money goes is a Finance decision; this report only counts.", "没收/逾期未领奖金：截止日已过且未兑付的大奖票，按兑奖截止日归日；奖金去向待财务确认，本报表只统计。")}</div>${table([z("Date", "日期"), z("Game", "游戏"), z("Overdue tickets", "逾期票数"), z("Overdue prize (pre-tax)", "逾期税前奖金")], rows.map((r) => `<tr><td class="mono">${r.date}</td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.n}</td><td class="mono amt">${peso(r.amt)}</td></tr>`).concat(rows.length ? [`<tr style="font-weight:700"><td colspan="2">${z("Total", "合计")}</td><td class="mono">${rows.reduce((s, r) => s + r.n, 0)}</td><td class="mono amt">${peso(rows.reduce((s, r) => s + r.amt, 0))}</td></tr>`] : []))}`;
+  const rows = foRows().filter((r) => rfPass("fo", r.game, r.issue, r.deadline)).sort((a, b) => b.deadline.localeCompare(a.deadline));
+  return `<div class="banner">${z("Forfeited / overdue unclaimed prizes: one row per draw, for big-prize tickets whose claim deadline has passed without payment. Where the money goes is a Finance decision; this report only counts.", "没收/逾期未领奖金：一期一行，截止日已过且未兑付的大奖票；奖金去向待财务确认，本报表只统计。")}</div>${rfBar("fo")}${table([z("Draw", "期号"), z("Game", "游戏"), z("Draw Date", "开奖日"), z("Claim Deadline", "兑奖截止日"), z("Overdue Tickets", "逾期票数"), z("Overdue Prize (Pre-Tax)", "逾期税前奖金")], rows.map((r) => `<tr><td class="mono">${r.issue}</td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.draw}</td><td class="mono">${r.deadline}</td><td class="mono">${r.n}</td><td class="mono amt">${peso(r.amt)}</td></tr>`).concat(rows.length ? [`<tr style="font-weight:700"><td colspan="4">${z("Total", "合计")}</td><td class="mono">${rows.reduce((s, r) => s + r.n, 0)}</td><td class="mono amt">${peso(rows.reduce((s, r) => s + r.amt, 0))}</td></tr>`] : []))}`;
 }
 function viewFinalTax() {
   const names = { TKT20260914004410: "Pedro R. Santos", TKT20260830003102: "Elena M. Cruz", TKT20260718001990: "Ramon T. Lim", TKT20260602001120: "Grace A. Tan", TKT20260511000814: "Luis B. Ramos", TKT20260409000440: "Joy C. Navarro" };
-  const rows = S.claims.map((c) => ({ game: c.game, issue: c.issue, no: c.ticket, date: c.date, name: names[c.ticket] || "Juan P. Reyes", gross: c.gross })).concat([{ game: "d6", issue: "2026-1007-1", no: "TKT20261007009880", date: "2026-10-07", name: "Diego Ramos", gross: 15000 }, { game: "ez2", issue: "2026-1010-C", no: "TKT20261010011020", date: "2026-10-10", name: "Diego Ramos", gross: 4500 }]).filter((r) => inRange(r.date)).sort((a, b) => b.date.localeCompare(a.date));
+  const rows = S.claims.map((c) => ({ game: c.game, issue: c.issue, no: c.ticket, date: c.date, name: names[c.ticket] || "Juan P. Reyes", gross: c.gross })).concat([{ game: "d6", issue: "2026-1007-1", no: "TKT20261007009880", date: "2026-10-07", name: "Diego Ramos", gross: 15000 }, { game: "ez2", issue: "2026-1010-C", no: "TKT20261010011020", date: "2026-10-10", name: "Diego Ramos", gross: 4500 }]).filter((r) => rfPass("tax", r.game, r.issue, r.date)).sort((a, b) => b.date.localeCompare(a.date));
   const tt = rows.map((r) => Object.assign({}, r, taxOf(r.gross)));
-  return `<div class="banner">${z("One row per paid ticket. Offline claims use the cheque registration date; auto-credits use the credit date. TIN is not collected yet and shows -. Includes personal data: only Finance review and Compliance audit can export; Operations sees totals only.", "每张已兑付票一行；线下兑付按付款登记日，自动入账按入账日；TIN 暂未采集显示 -；含个人信息，仅财务复核、合规审计可导出。")}</div>${table([z("Game", "游戏"), z("Draw", "期号"), z("Ticket Number", "票号"), z("Paid Date", "兑付日"), z("Player Name", "玩家姓名"), "TIN", z("Prize Pre-Tax", "税前奖金"), z("Withholding Tax", "预扣税"), z("Net Amount", "净额")],
+  return `<div class="banner">${z("One row per paid ticket. Offline claims use the cheque registration date; auto-credits use the credit date. TIN is not collected yet and shows -. Includes personal data: only Finance review and Compliance audit can export; Operations sees totals only.", "每张已兑付票一行；线下兑付按付款登记日，自动入账按入账日；TIN 暂未采集显示 -；含个人信息，仅财务复核、合规审计可导出。")}</div>${rfBar("tax")}${table([z("Game", "游戏"), z("Draw", "期号"), z("Ticket Number", "票号"), z("Paid Date", "兑付日"), z("Player Name", "玩家姓名"), "TIN", z("Prize Pre-Tax", "税前奖金"), z("Withholding Tax", "预扣税"), z("Net Amount", "净额")],
     tt.map((r) => `<tr><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.no}</td><td class="mono">${r.date}</td><td>${esc(r.name)}</td><td class="mono">-</td><td class="mono amt">${peso(r.gross)}</td><td class="mono amt">${peso(r.tax)}</td><td class="mono amt">${peso(r.net)}</td></tr>`).concat(tt.length ? [`<tr style="font-weight:700"><td colspan="6">${z("Total", "合计")}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.gross, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.tax, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.net, 0))}</td></tr>`] : []))}`;
 }
 S.rpf = { kyc: "all", st: "all", from: "", to: "" };
@@ -3266,14 +3426,15 @@ function adm58More(act, id, el, e) {
   if (act === "rr-export") {
     const tabk = S.tab.report;
     const long = A58.span(S.rr.from, S.rr.to) + 1 > 92;
-    if (long && (tabk === "share" || tabk === "prize")) { toast("The date span cannot exceed 92 days for this export."); return true; }
+    if (!rfLocked(tabk) && long && (tabk === "share" || tabk === "prize")) { toast("The date span cannot exceed 92 days for this export."); return true; }
     const tbls = [...document.querySelectorAll(".main .table-wrap table")].sort((a, b) => b.rows.length - a.rows.length);
     if (!tbls.length) { toast("Nothing to export."); return true; }
     const rows = [...tbls[0].rows]; const heads = [...rows[0].cells].map((c) => c.innerText.trim()); const body = rows.slice(1).map((r) => [...r.cells].map((c) => c.innerText.trim()));
     adm58Export("report-" + tabk, heads, body, arg, t("报表", "Reports"), `${S.rr.from} to ${S.rr.to}`);
     render(); return true;
   }
-  if (act === "tm-drill") { S.tm.drill = arg || ""; S.tmPage = 0; render(); if (arg) setTimeout(() => { const e = document.getElementById("tm-drill-card"); if (e) e.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); return true; }
+  if (act === "pd-open") { S.pdOpen[arg] = !S.pdOpen[arg]; render(); return true; }
+  if (act === "tm-drill") { S.tm.drill = arg || ""; S.tm.dissue = ""; S.tmPage = 0; render(); if (arg) setTimeout(() => { const e = document.getElementById("tm-drill-card"); if (e) e.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); return true; }
   if (act === "tm-page") { S.tmPage = Math.max(0, Number(arg) || 0); render(); return true; }
   if (act === "tm-ord-export") {
     const rows = tmOrders(S.tm.drill, tmFiltered()); const lines = [["bet_order", "player_masked", "amount", "count", "unit_value", "before_rounding", "review"]].concat(rows.map((o) => [o.no, o.pl, o.amt, o.cnt, o.unit, o.bef, o.rev]));
@@ -3323,6 +3484,7 @@ function adm58Change(g, el) {
   const k = el.dataset.k;
   if (g === "rr") { S.rr[k] = el.value; S.rr.key = "custom"; if (S.rr.from && S.rr.to && S.rr.from > S.rr.to) { toast("The start date cannot be after the end date."); } render(); }
   else if (g === "tm") { if (el.multiple) S.tm[k] = [...el.selectedOptions].map((o) => o.value); else S.tm[k] = el.value; render(); }
+  else if (g === "rf") { const o = S.rf[el.dataset.rf]; o[k] = el.value; if (k === "game") o.draw = ""; render(); }
   else if (g === "rg") { S.rgSel = el.value; render(); }
   else if (g === "rp") { S.rpf[k] = el.value; render(); }
 }
@@ -3774,7 +3936,13 @@ function onClick(e) {
     toast(t("已导出。", "Exported.")); return true;
   }
   if (act === "sales-view") { S.salesView = arg; render(); return; }
-  if (act === "export-share" || act === "export-prize") { download(act === "export-share" ? "ilotto-share.csv" : "ilotto-prize.csv", "report,period\nshare," + S.period, "text/csv"); return; }
+  if (act === "export-prize") {
+    const rs = pdFiltered(); const hd = ["Game", "Draw", "Draw Date", "Rule Version", "Winning Bets (Online)", "Prize Pool", "Payable", "Paid (Pre-Tax)", "Difference", "Auto Credit (After Tax)", "Counter Paid (After Tax)", "Unclaimed (Pre-Tax)", "Forfeited (Pre-Tax)", "Withholding Tax", "Prize Rate", "Status"];
+    const body = rs.map((r) => [r.game, r.issue, r.date, r.ver, r.bets, r.pool, r.pay, r.paid, r.diff, r.autoNet, r.cNet, r.unc, r.forf, r.tax, r.rate.toFixed(1) + "%", r.settled ? "Settled " + r.settled : "Published"]);
+    download("ilotto-prize.csv", [hd].concat(body).map((x) => x.join(",")).join("\n"), "text/csv");
+    return;
+  }
+  if (act === "export-share") { download("ilotto-share.csv", "report,period\nshare," + S.period, "text/csv"); return; }
   if (act === "audit-type") { S.auditType = arg; S.auditOpen = null; render(); return; }
   if (act === "audit-mod") { S.auditMod = arg; S.auditOpen = null; render(); return; }
   if (act === "audit-open") { S.auditOpen = S.auditOpen === Number(actEl.dataset.i) ? null : Number(actEl.dataset.i); render(); return; }
