@@ -947,7 +947,7 @@ function viewLogin() {
       <div class="err">${esc(S.login.err)}</div>
       <button type="button" class="btn btn-primary" data-act="${otp ? "verify" : "next"}">${otp ? t("验证并进入", "Verify and enter") : t("继续", "Continue")}</button>
       <div class="note">${t("管理端每次登录都强制短信 OTP，不提供记住此设备。", "Admin sign-in always requires an SMS OTP. This device is never remembered.")}</div>
-      ${otp ? "" : `<p class="tiny" data-dev="1" style="margin:10px 0 0;text-align:center;opacity:.7">DEV · demo accounts (any password): mina.cruz Operations · omar.reyes Ops reviewer · henrik.tan Finance review · amina.bautista Compliance · paolo.santos Identity reviewer · noah.lim System admin. Other names sign in as Operations.</p>`}
+      ${otp ? "" : `<div data-dev="1" style="margin:12px 0 0;text-align:center"><p class="tiny" style="margin:0 0 6px;opacity:.7">DEV · demo only · pick a role to fill the account and password</p><div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">${[["demo.all","All functions"],["mina.cruz","Operations"],["omar.reyes","Ops reviewer"],["henrik.tan","Finance review"],["paolo.santos","Identity reviewer"],["amina.bautista","Compliance audit"],["noah.lim","System admin"]].map((x) => `<button type="button" class="btn btn-ghost btn-sm" data-act="demo-role" data-arg="${x[0]}" style="${S.login.user === x[0] ? "border-color:#0b7a75;color:#0b7a75;font-weight:600" : ""}">${x[1]}</button>`).join("")}</div></div>`}
     </div></section>
   </div>`;
 }
@@ -1935,6 +1935,7 @@ function viewRg() {
     </div>
     <div class="card"><h4>${t("现实检查弹窗与记录", "Reality check pop-up and record")}</h4><p class="tiny">${t("弹窗显示本次游戏时长、本次投注总额、本次输赢汇总、钱包余额，以及限额期内累计消费；玩家点 Continue playing 或 Take a break，系统记录该选择。弹窗不可关闭，仅登录后在控制面板显示，不经短信、邮件。每次弹出和玩家响应都写审计日志，并计入后续理性购彩报告；上述参数修改写 Change 类审计。通知列表里的记录使用模板 MSG_REALITY_CHECK（站内信）。", "The pop-up shows this session's play time, total bet, win/loss summary and wallet balance, plus spending in the current limit period. The player taps Continue playing or Take a break and the choice is recorded. It cannot be dismissed, shows only after sign-in in the dashboard, and is never sent by SMS or email. Every pop-up and response is written to the audit log and counted in later Play Responsibly reports; changes to these parameters are written as Change audit events. The record in the notification list uses the MSG_REALITY_CHECK template.")}</p></div>`;
 }
+function demoAll() { return (S.login.user || "").trim().toLowerCase() === "demo.all"; } /* demo only: "all functions" sign-in, not a real role */
 function myRole() {
   const u = (S.login.user || "mina.cruz").trim().toLowerCase(); const s = S.staff.find((x) => x.acct === u);
   return s && s.roles[0] ? s.roles[0] : "ops";
@@ -2452,7 +2453,7 @@ function visChg(c) { const r = myRole(); return (r === "opsrev" || r === "financ
 function chgTierTag(c) { return tag(chgTier(c) === "opsrev" ? "cyan" : "warn", chgTier(c) === "opsrev" ? t("运营复核批准", "Ops reviewer approves") : t("财务复核批准", "Finance review approves")); }
 function chgDecideErr(c) {
   const need = chgTier(c) === "opsrev" ? "opsrev" : "finance";
-  if (myRole() !== need) return "Only " + (need === "opsrev" ? "Ops reviewer" : "Finance review") + " can decide this request.";
+  if (!demoAll() && myRole() !== need) return "Only " + (need === "opsrev" ? "Ops reviewer" : "Finance review") + " can decide this request.";
   if (c.by === me0()) return "You cannot approve a change you submitted.";
   return "";
 }
@@ -2528,6 +2529,7 @@ function sysApplyChange(c) {
 function sysTabs() {
   const n = S.sysChg.filter((c) => c.st === "pending" && visChg(c)).length;
   const all = sysTabsAll(n);
+  if (demoAll()) return all;
   if (myRole() === "ops" || myRole() === "finance") { const pick = (id) => all.find((x) => x[0] === id); return [pick("params"), pick("chg"), pick("alert"), pick("ann")]; } /* limited System group + Announcements */
   return all;
 }
@@ -3685,7 +3687,7 @@ function adm58More(act, id, el, e) {
     const long = A58.span(S.rr.from, S.rr.to) + 1 > 92;
     if (!rfLocked(tabk) && long && (tabk === "share" || tabk === "prize")) { toast("The date span cannot exceed 92 days for this export."); return true; }
     if (tabk === "recon") {
-      if (!reconRole() || myRole() === "ops") { toast("Your role cannot export this report."); return true; }
+      if (!reconRole() || (myRole() === "ops" && !demoAll())) { toast("Your role cannot export this report."); return true; }
       const rr = reconRows().map((r) => [r.date, r.sales, r.paid, r.tax, r.alloc]);
       adm58Export("daily-reconciliation", ["Date", "Sales Amount", "Paid Prize (After Tax)", "Withholding Tax", "Fund Allocation"], rr, arg, t("报表", "Reports"), `${S.rr.from} to ${S.rr.to}`);
       render(); return true;
@@ -3775,6 +3777,7 @@ function onClick(e) {
     if (first) first.focus();
     return;
   }
+  if (act === "demo-role") { S.login.user = arg; S.login.pass = "demo1234"; S.login.err = ""; S.showPw = false; render(); return; }
   if (act === "back-creds") { S.step = "creds"; S.login.err = ""; render(); return; }
   if (act === "resend") { if (lgLocked()) { render(); return; } if (!lgSend()) { render(); return; } toast(t(`验证码已重新发送（今日第 ${S.lg.sent}/10 条），旧验证码立即失效。`, `A new code was sent (${S.lg.sent}/10 today). The old code is void.`)); return; }
   if (act === "verify") {
