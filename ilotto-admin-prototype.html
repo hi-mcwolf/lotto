@@ -1094,6 +1094,7 @@ function viewDash() {
     ...drawsBelowMin().length ? [["goto-draws", "", "期次数低于下限", "Draws below minimum", drawsBelowMin().map((x) => x.g.en + " " + x.n + "/" + DRAW_MIN(x.g)).join(", "), drawsBelowMin().map((x) => x.g.en + " " + x.n + "/" + DRAW_MIN(x.g)).join(", ") + " · Run daily top-up", "warn", "P2", "P2"]] : [],
     
     ["goto-sys", "", S.sysChg.filter((c) => c.st === "pending" && visChg(c) && isSysChg(c)).length + " 项变更申请待批准", "Change requests awaiting approval (" + S.sysChg.filter((c) => c.st === "pending" && visChg(c) && isSysChg(c)).length + ")", "系统管理 · 需另一位管理员批准", "System · needs approval by another admin", "warn", "P2", "P2"],
+    ...((myRole() === "finance" || demoAll()) && S.tmRecon.filter((x) => x.st === "open").length) ? [["goto-tm", "", S.tmRecon.filter((x) => x.st === "open").length + " 份交易监控报表核对差异待关闭", S.tmRecon.filter((x) => x.st === "open").length + " transaction monitoring reports with open reconciliation differences", "报表 · 仅财务复核可见并处理", "Reports · visible to and handled by Finance review only", "warn", "P2", "P2"]] : [],
     ...S.restores.filter((r) => r.st === "pending").length ? [["goto-rg", "", S.restores.filter((r) => r.st === "pending").length + " 笔自我排除恢复申请待审批", S.restores.filter((r) => r.st === "pending").length + " self-exclusion restoration requests awaiting approval", "理性购彩 · 由运营专员审批", "Play Responsibly · approved by Operations", "warn", "P2", "P2"]] : [],
     ["goto-draws", "", "统计未回传 · EZ2-20261012-2", "Statistics not returned · EZ2-20261012-2", "号码核对一致后超过 30 分钟仍未统计出线上中奖注数（示例）", "Numbers matched over 30 minutes ago and online winners are still not counted (sample)", "warn", "P2", "P2"],
     ["goto-draws", "", "封顶挂起待补算 · 1 张票", "Payout-cap hold waiting for recalculation · 1 ticket", "L649-20261008-2 · 人工确认后补算派奖（示例）", "L649-20261008-2 · recalculate the payout after confirmation (sample)", "warn", "P2", "P2"],
@@ -4873,6 +4874,7 @@ function onClick(e) {
     download("ilotto-ops-dashboard.csv", lines.map((r) => r.join(",")).join("\n"), "text/csv");
     return;
   }
+  if (act === "goto-tm") { S.page = "reports"; S.tab.report = "tm"; render(); return; }
   if (act === "goto-rg") { S.page = "rg"; S.rgFilter = "restore"; render(); return; }
   if (act === "goto-claim") { S.page = "claims"; S.tab.claims = "handle"; render(); return; }
   if (act === "goto-sys") { S.page = "sys"; render(); return; }
