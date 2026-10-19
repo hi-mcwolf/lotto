@@ -4951,6 +4951,7 @@ function onClick(e) {
     if (!A.title.trim()) err = t("请填写公告标题。", "Enter a title.");
     else if (!A.start) err = t("请选择开始日期。", "Choose a start date.");
     else if (A.end && A.end < A.start) err = t("结束日期不能早于开始日期。", "The end date cannot be before the start date.");
+    else if ((A.html || "").length > 2700) err = t("正文超过 2700 字符，请精简后再发布。", "The body is longer than 2700 characters. Please shorten it.");
     else if (A.pos === "popup" && !A.img) err = t("登录后弹窗必须选择图片。", "A pop-up needs an image.");
     else if (A.pos === "popup" && A.link && !/^https:\/\/\S+$/.test(A.link.trim())) err = t("请输入以 https:// 开头的有效链接。", "Enter a valid link starting with https://.");
     else if (A.pos === "popup" && A.link && !annLinkOk(A.link.trim())) err = t("该链接不在允许名单内。", "This link is not on the allowed list.");
