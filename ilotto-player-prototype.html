@@ -1236,7 +1236,7 @@ SC.result={html:()=>{const g=gm(S.res.game);const L=S.draws[g.id];latestDraw(g);
  ${watchLiveBtn(g)}
  <div class="card mt" style="background:linear-gradient(135deg,${g.c[0]}33,${g.c[1]}22),#fff"><div class="row sp"><div><div class="xs mu">${t('最新一期','Latest draw')}</div><div class="b" style="margin-top:2px">${d0.no}</div></div>${badge('b-gy',d0.date+' '+(d0.time||'21:00'))}</div><div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap">${ballsOf(d0,'win')}</div>
  ${g.t==='lotto'?`<div class="row sp mt2"><div><div class="xs mu">${t('头奖奖池','Jackpot pool')}</div><div class="b glowtxt" style="font-size:20px">${fm0(d0.jp)}</div></div><div style="text-align:right"><div class="xs mu">${t('头奖中奖人数','Jackpot winners')}</div><div class="b">${d0.winners}${d0.winners===0?' · '+t('滚存','Rolled over'):''}</div></div></div>`:''}</div>
- <h3 style="margin-top:22px">${t('中奖等级对照','Prize tiers')}</h3><div class="card mt" style="padding:6px 16px"><table class="tb"><tr><th>${t('等级','Tier')}</th><th style="text-align:right">${t('奖金','Prize')}</th></tr>${tiersOf(g).map(x=>`<tr><td>${t(x.m,x.mE)}</td><td style="text-align:right" class="b">${x.p}</td></tr>`).join('')}</table></div>
+ ${(()=>{const w=S.tickets.filter(k=>ownWin(k)&&k.g===g.id);return w.length?`<div class="card mt" id="mywin" style="border:1px solid rgba(34,197,94,.4)"><span class="badge b-gr">You won</span> <span class="xs mu">${[...new Set(w.map(k=>dno(g,k.draw,k.dtime)))].join(', ')}</span></div>`:''})()}<h3 style="margin-top:22px">${t('中奖等级对照','Prize tiers')}</h3><div class="card mt" style="padding:6px 16px"><table class="tb"><tr><th>${t('等级','Tier')}</th><th style="text-align:right">${t('奖金','Prize')}</th></tr>${tiersOf(g).map(x=>`<tr><td>${t(x.m,x.mE)}</td><td style="text-align:right" class="b">${x.p}</td></tr>`).join('')}</table></div>
  <h3 style="margin-top:22px">${t('历史开奖','Past draws')}</h3><div class="card mt" style="padding:6px 16px"><div class="list">${L.slice(1).map(d=>`<div style="flex-direction:column;align-items:flex-start;gap:8px"><div class="row sp" style="width:100%"><span class="b sm">${d.no}</span><span class="xs mu">${d.date}</span></div><div class="row" style="gap:6px;flex-wrap:wrap">${balls(d.nums)}</div></div>`).join('')}</div></div></div>`}};
 
 /* ================= TICKETS ================= */
@@ -2098,7 +2098,7 @@ A.sim=out=>{const k=S.tickets.find(x=>x.st==='await'&&!x.susp&&!x.tfz);if(!k)ret
  const top=R.tiers[0];k.tier=top?tierLbl(g,top.tier)+(R.tiers.length>1?' +'+(R.tiers.length-1):''):'';k.prize=R.gross;
  if(R.gross<=0){k.st='lost';addNotif('ticket','未中奖','Not won',`${gname(g)} ${k.draw} 期未中奖，再接再厉！`,`${gname(g)} draw ${k.draw}: no win this time.`)}
  else if(R.gross<=300000){k.st='claimed';k.paid='auto';S.bal.prize+=R.net;addTx('prize',R.net,'auto',gname(g)+(R.tax?' · '+t('已扣预扣税','net of tax'):''));addNotif('trophy','中奖啦！奖金已自动入账','You won! Prize credited',`${gname(g)} ${k.tier}，${fm0(R.net)} 已入账奖金余额。`,`${gname(g)} ${k.tier}: ${fm0(R.net)} credited to your prize balance.`)}
- else{k.st='winPending';k.code=claimCode();S.j.big=1;addNotif('trophy','恭喜中得大奖！','Jackpot!',`${gname(g)} ${fm0(R.gross)}，请在“我的彩票”查看申领码并到 PCSO 总部兑付。`,`${gname(g)} ${fm0(R.gross)} — see your claim code under My Tickets and claim at PCSO HQ.`)}
+ else{k.st='winPending';k.code=claimCode();S.j.big=1;k.pcSent=1;addNotif('trophy','恭喜中得大奖！','Jackpot!',`${gname(g)} ${fm0(R.gross)}，请在“我的彩票”查看申领码并到 PCSO 总部兑付。`,`${gname(g)} ${fm0(R.gross)} — see your claim code under My Tickets and claim at PCSO HQ.`);S.notifs[0].tpl='MSG_PRIZE_TO_CLAIM'}
  msgDrawResult(g,k,R.gross>0);
  const nx=S.tickets.filter(x=>x.g===k.g&&x.st==='pre').sort((a,b)=>a.draw<b.draw?-1:1)[0];if(nx)nx.st='await';S.j.draw=1;S.tkTab='all';
  toast(R.gross<=0?t('管理端已授权发布开奖结果：未中奖','The admin published the result: no win'):R.gross<=300000?t('管理端已授权发布开奖结果：系统算奖，自动入账','The admin published the result: settled and auto-credited'):t('管理端已授权发布开奖结果：大奖，已生成申领码','The admin published the result: jackpot + claim code'));render()};
@@ -2160,7 +2160,8 @@ S.pre=S.pre||{};S.fwSeen=S.fwSeen||{};
 
 /* ---------- 6.3.4 / 6.5.4 winning fireworks: once per draw, full screen, click-through, never over the Play Responsibly footer ---------- */
 const fwKey=k=>k.g+'|'+k.draw+'|'+(k.dtime||'');
-function fwWin(k){const key=fwKey(k);if(S.fwSeen[key])return false;S.fwSeen[key]=1;fwRun();return true}
+const ownWin=k=>(k.st==='claimed'||k.st==='winPending')&&!k.frzClaim&&!k.tfz;
+function fwWin(k){if(k.frzClaim||k.tfz)return false;const key=fwKey(k);if(S.fwSeen[key])return false;S.fwSeen[key]=1;fwRun();return true}
 function fwRun(){S.fwCount=(S.fwCount||0)+1;let c=document.getElementById('fwc');if(c)c.remove();
  c=document.createElement('canvas');c.id='fwc';c.width=innerWidth;c.height=innerHeight;c.setAttribute('aria-hidden','true');
  c.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:9000';document.body.appendChild(c);
@@ -2173,7 +2174,7 @@ function fwRun(){S.fwCount=(S.fwCount||0)+1;let c=document.getElementById('fwc')
   const f=document.querySelector('.gfoot')||document.getElementById('screen');if(f){const r=f.getBoundingClientRect();const h=f.classList.contains('gfoot')?r.height:56;ctx.clearRect(r.left,f.classList.contains('gfoot')?r.top:r.bottom-h,r.width,h)}
   requestAnimationFrame(frame)};requestAnimationFrame(frame);
  setTimeout(()=>{const e=document.getElementById('fwc');if(e){e.remove()}S.fwActive=false},4200)}
-function fwCheckResult(){const g=S.res&&S.res.game;const won=S.tickets.filter(k=>(k.st==='claimed'||k.st==='winPending')&&(!g||k.g===g));const fresh1=won.filter(k=>!S.fwSeen[fwKey(k)]);
+function fwCheckResult(){const g=S.res&&S.res.game;const won=S.tickets.filter(k=>ownWin(k)&&(!g||k.g===g));const fresh1=won.filter(k=>!S.fwSeen[fwKey(k)]);
  if(!fresh1.length)return;fresh1.forEach(k=>S.fwSeen[fwKey(k)]=1);fwRun()}
 {const _r=render;render=function(){_r.apply(this,arguments);if(S.screen==='result'&&S.logged)fwCheckResult()}}
 A.fwDemo=()=>{if(!S.logged)seedDemo();const k={g:'lotto',draw:fdt(S.clock)+'#'+(S.fwN=(S.fwN||0)+1),dtime:''};
@@ -2322,6 +2323,27 @@ function panelB4(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="
  <h4>Draw message with an alert-frozen ticket (6.13.1)</h4>${pb('Set up: one settled ticket + one frozen ticket',"A.tfzSetup()",'','tfz_setup')}${pb('Settle the first ticket: no win',"A.tfzLose()",'','tfz_lose')}${pb('Review passes: frozen ticket wins',"A.tfzReview()",'','tfz_review')}
  <h4>Draw message with both a capped and a frozen ticket (6.13.1)</h4>${pb('Set up: settled + capped + frozen tickets',"A.bothSetup()",'','both_setup')}${pb('Settle the first ticket: no win',"A.bothLose()",'','both_lose')}${pb('Capped ticket recalculated: wins',"A.bothSuspWin()",'','both_susp')}${pb('Review passes: frozen ticket wins',"A.bothReview()",'','both_review')}`}
 {const _pe4=panelExtra;panelExtra=function(){_pe4.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;if(el.querySelector('[data-b4]'))return;const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Jump to screen|跳转屏幕/.test(h.textContent));const html=`<div data-b4="1">${panelB4()}</div>`;if(k>=0)hs[k].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
+
+/* ================= BATCH 6 (player): a ticket frozen by an integrity alert after "Won · to claim" is not an own win (6.3.4, 6.5.4);
+   MSG_PRIZE_TO_CLAIM is not sent while frozen (6.13.1) ================= */
+function msgPrizeToClaim(k){if(k.frzClaim||k.tfz||k.pcSent||k.st!=='winPending'||!(k.prize>300000))return false;k.pcSent=1;
+ const g=gm(k.g);const m=`You have a prize to claim for ${gname(g)} draw ${dno(g,k.draw,k.dtime)}. Tap Start claim in My Tickets, then bring valid ID to PCSO.`;
+ addNotif('trophy','Prize to claim','Prize to claim',m,m);S.notifs[0].tpl='MSG_PRIZE_TO_CLAIM';S.notifs[0].nav='tickets';return true}
+const frzTk=()=>S.tickets.find(x=>x.frzDemo);
+/* a ticket that is already "Won · to claim" gets frozen at claim / counter check */
+A.frzWon=()=>{if(!S.logged)seedDemo();let k=frzTk();if(!k){const g=gm('super'),dl=drawList(g,1),ms=Date.parse('2026-10-10T09:00:00+08:00');
+  k=makeOrder(g,'STD',[21,22,23,24,25,26],[],1,dl,ms,'await')[0];k.frzDemo=1;k.st='winPending';k.prize=100000;k.tier='Prize';k.code=claimCode();S.tickets.push(k)}
+ if(k.st!=='winPending')return toast('The demo ticket is not awaiting claim.');k.frzClaim=1;S.res.game=k.g;toast('Ticket frozen by an integrity alert — it no longer counts as your win');render()};
+A.frzLift=()=>{const k=frzTk();if(!k||!k.frzClaim)return toast('Freeze a won ticket first.');k.frzClaim=0;const played=fwWin(k);msgPrizeToClaim(k);toast('Review passed — the win counts again'+(played?' (fireworks played)':''));render()};
+/* a jackpot ticket (> ₱300,000) frozen before the prize-to-claim message went out */
+A.pcFrozenWin=()=>{if(!S.logged)seedDemo();S.tickets=S.tickets.filter(x=>!x.frzDemo);const g=gm('super'),dl=drawList(g,1),ms=Date.parse('2026-10-10T09:00:00+08:00');
+ const k=makeOrder(g,'STD',[27,28,29,30,31,32],[],1,dl,ms,'await')[0];k.frzDemo=1;k.st='winPending';k.prize=500000;k.tier='Prize';k.code=claimCode();k.frzClaim=1;S.tickets.push(k);S.res.game=k.g;
+ const sent=msgPrizeToClaim(k);toast(sent?'Prize to claim sent':'Jackpot ticket is frozen — no Prize to claim message');render()};
+A.pcSettle=()=>{const k=frzTk();if(!k)return toast('Set up the jackpot ticket first.');k.frzClaim=0;const played=fwWin(k);const sent=msgPrizeToClaim(k);toast(sent?'Review passed — Prize to claim sent':'No message sent');render()};
+function panelB6(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
+ return `<h4>Won ticket frozen after pending claim (6.3.4 · 6.13.1)</h4>${pb('Freeze a won ticket after pending claim',"A.frzWon()",'','fz6_freeze')}${pb('Lift the review',"A.frzLift()",'','fz6_lift')}${pb('Jackpot ticket frozen (over ₱300,000)',"A.pcFrozenWin()",'','fz6_jackpot')}${pb('Lift the review: send Prize to claim',"A.pcSettle()",'','fz6_jackpot_lift')}`}
+{const _pe6=panelExtra;panelExtra=function(){_pe6.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;if(el.querySelector('[data-b6]'))return;const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Jump to screen|跳转屏幕/.test(h.textContent));const html=`<div data-b6="1">${panelB6()}</div>`;if(k>=0)hs[k].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}}
 render();
 </script>
 </body>
