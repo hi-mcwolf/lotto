@@ -1430,6 +1430,7 @@ function condKey(kind, c) { return kind === "lotto" ? "k" + Number(c.k) : Number
 function normRules(kind, r) {
   const N = (x) => Number(String(x).replace(/,/g, "").trim());
   const o = { pick: { n: N(r.pick.n), lo: N(r.pick.lo), hi: N(r.pick.hi), cs: r.pick.cs || "Numeric" }, params: {}, judge: r.judge, tiers: [] };
+  if (o.pick.cs === "Symbols") o.pick.sym = String(r.pick.sym == null || String(r.pick.sym).trim() === "" ? RD_SYM_DEF : r.pick.sym).trim().split(/\s+/).filter(Boolean).join(" ");
   const p = r.params;
   o.params = kind === "lotto" ? { sysMin: N(p.sysMin), sysMax: N(p.sysMax), rollFixed: N(p.rollFixed), qpDef: N(p.qpDef), qpMax: N(p.qpMax) } : { qpDef: N(p.qpDef), qpMax: N(p.qpMax) };
   r.tiers.forEach((x) => {
@@ -1463,6 +1464,7 @@ function ruleLines(r, kind) {
   const L = [], p = r.params;
   if (kind === "lotto") L.push("Numbers per line: " + r.pick.n, "Highest number: " + r.pick.hi, "System bet: " + p.sysMin + "–" + p.sysMax + " numbers", "5-Roll fixed numbers: " + p.rollFixed);
   else L.push("Digits per line: " + r.pick.n, "Value range per digit: " + r.pick.lo + "–" + r.pick.hi, "Character set: " + (r.pick.cs || "Numeric"));
+  if (kind !== "lotto" && r.pick.cs === "Symbols") L.push("Symbol Set: " + rsSymbols(r).join(" "));
   L.push("Quick Pick default lines: " + p.qpDef, "Quick Pick max lines: " + p.qpMax, "Judging mode: " + (r.judge === "all" ? "All tiers" : "Highest tier only"));
   r.tiers.forEach((x, i) => L.push("Tier " + (i + 1) + ": " + x.name + " | " + x.match + " | " + condText(kind, x.cond) + " | " + PT_LBL[x.type] + " " + peso(x.amt)));
   return L;
@@ -1473,9 +1475,9 @@ function ruleDiffHTML(a, b, kind, la, lb) {
   const n = A.filter((x) => !B.includes(x)).length + B.filter((x) => !A.includes(x)).length;
   return `<div class="tiny" style="margin:6px 0">${n} line(s) changed (highlighted)</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${col(A, B, "rgba(239,68,68,.22)", la)}${col(B, A, "rgba(34,197,94,.22)", lb)}</div>`;
 }
-function validateRules(kind, r) {
+function validateRules(kind, r, g) {
   const lotto = kind === "lotto", n = r.pick.n, p = r.params, isInt = (x) => Number.isInteger(x);
-  { const cs = r.pick.cs || "Numeric"; if (RS_CS.indexOf(cs) < 0) return "Choose a character set type."; if (lotto && cs !== "Numeric") return "Lotto games use the Numeric character set only."; }
+  { const cs = r.pick.cs || "Numeric"; if (RS_CS.indexOf(cs) < 0) return "Choose a character set type."; if (lotto && cs !== "Numeric") return "Lotto games use the Numeric character set only."; if (cs !== "Numeric" && rdHasTail(g)) return RD_TAIL_MSG; if (cs === "Symbols") { const e = rdSymErr(r.pick.sym); if (e) return e; } }
   if (!isInt(n) || n < 1 || n > 20) return (lotto ? "Numbers per line" : "Digits per line") + " must be a whole number from 1 to 20.";
   if (!isInt(r.pick.hi) || !isInt(r.pick.lo) || r.pick.lo < 0) return "Enter whole numbers for the number range.";
   if (lotto && r.pick.hi < n) return "Highest number must be at least the numbers per line (" + n + ").";
@@ -1647,7 +1649,7 @@ function egPvInner() {
   else if (tab === "sales") ph = pvOrderTop(d);
   else {
     if (!S.rs) S.rs = draftOf(g);
-    const nr = normRules(g.kind, S.rs), e = validateRules(g.kind, nr);
+    const nr = normRules(g.kind, S.rs), e = validateRules(g.kind, nr, g);
     if (e) ph = `<div class="pv-phone" style="padding:40px 20px;text-align:center;color:#fca5a5">The rules have errors, fix them to preview</div>`;
     else ph = pvOrderRules(d, nr);
     const up = S.issues.filter((x) => x.game === g.id && x.st === "gen").sort((a, b) => (a.draw < b.draw ? -1 : 1));
@@ -3561,7 +3563,7 @@ const A2_GROUPS = [
     ["tx", "Email · Transactional", "On"], ["acct", "Email · Account", "On"], ["rg", "Email · PlaySafe", "On"], ["mkt", "Email · Marketing", "Off"]]],
   ["claim", "Big prize claims", "大奖申领", "Claim Code Validity: from the moment a claim code is generated, 7 × 24 hours by default; the claim deadline is a hard cap. A change goes through a change request (Operations submits, Finance review approves) and affects only codes generated afterwards.", [["valid", "Claim Code Validity", "7 days"]]],
   ["live", "Live streams", "直播", "Live Stream Domain Allowlist: default empty. While it is empty a live stream link cannot be saved. A change goes through a change request (Operations submits, Finance review approves).", [["dom", "Live Stream Domain Allowlist", "Empty"]]],
-  ["rules", "Game rules", "游戏规则", "Symbol Set is the set of symbols a game can use when its character set type is Symbols. A game has one character set, shared by all of its plays; it applies to Straight and Rambolito plays and lotto games are always numeric. At least 2 symbols, no duplicates, each a single character, no upper limit. A change applies only to draws generated after it takes effect; draws already generated and tickets already issued do not change. The player symbol panel and the winning-number entry panel both follow this set.", [["sym", "Symbol Set", "★ ♥ ♦ ♣ ♠"]]],
+  ["rules", "Game rules", "游戏规则", "Symbol Set is the set of symbols a game can use when its character set type is Symbols. A game has one character set, shared by all of its plays; it applies to Straight and Rambolito plays and lotto games are always numeric. The Symbol Set is a setting of each game, not a global parameter: every game keeps its own set, saved with its rule version and snapshotted when a draw is generated. A new game starts with the initial value shown here. At least 2 symbols and at most 64, no duplicates, each a single character, none of 0–9 or A–Z (also lowercase). Games with a tail-match play (4D, 6D) can only use the Numeric character set; EZ2, Swertres and new games can use the other character sets. A change goes through a change request (Operations submits, Finance review approves) and applies only to draws generated after it takes effect; draws already generated and tickets already issued do not change. The player symbol panel and the winning-number entry panel both follow the game's own set, in the configured order.", [["sym", "Symbol Set (initial value for a new game)", "★ ♥ ♦ ♣ ♠"]]],
   ["duty", "Stamp duty", "印花税", "Stamp Duty Rate is a single percentage (0–100, up to 2 decimals). A draw records the rate when it is created and its net sales use that recorded rate; a change affects only draws created after it takes effect.", [["rate", "Stamp Duty Rate", "20%"]]]
 ];
 const A2_IND = [
@@ -3694,7 +3696,7 @@ function viewBetCompletion() {
     <div class="card"><div class="tools"><label class="f">${z("Terminal", "终端")}<select data-a2sel="bcTerm">${["all", "H5", "App"].map((x) => `<option value="${x}" ${S.a2.bcTerm === x ? "selected" : ""}>${x === "all" ? "All" : x}</option>`).join("")}</select></label>
       ${expBtns("a2-bc-export")}<span class="tiny">${z("Operations, Finance review and Compliance audit can view and export; every export is audited.", "运营专员、财务复核、合规审计可看可导出，导出写审计。")}</span></div>
       ${over ? `<div class="err">The date range cannot exceed 92 days.</div>` : ""}
-      ${table([z("Date", "日期"), z("Terminal", "终端"), z("Ticketing Request Count", "进入出票笔数"), z("Completed Bet Count", "出票成功笔数"), z("Failed Or Abandoned Count", "失败/放弃笔数"), z("Completion Rate", "完成率"), z("Abandonment Rate", "放弃/失败率"), z("Rejected Request Count", "被拒请求数")], rows.map((r) => `<tr><td class="mono">${r.d}</td><td>${r.tm}</td><td class="mono">${r.I.toLocaleString("en-US")}</td><td class="mono">${r.C.toLocaleString("en-US")}</td><td class="mono">${r.F.toLocaleString("en-US")}</td><td class="mono">${pc(r.C, r.I)}</td><td class="mono">${pc(r.F, r.I)}</td><td class="mono" data-x13="rej">${r.R.toLocaleString("en-US")}</td></tr>`))}
+      ${table([z("Date", "日期"), z("Terminal", "终端"), z("Ticketing Request Count", "进入出票笔数"), z("Completed Bet Count", "出票成功笔数"), `<span data-x14="fail-hint" title="${z("Includes ticketing rollbacks and bet orders rejected as a whole by a number-level concurrent limit.", "含出票失败回滚与号码级并发限额整单拒绝。")}">${z("Failed Or Abandoned Count", "失败/放弃笔数")}</span>`, z("Completion Rate", "完成率"), z("Abandonment Rate", "放弃/失败率"), `<span data-x14="rej-hint" title="${z("Requests rejected before ticketing: insufficient balance, limit exceeded, cool-off, draw closed, rate limit, system busy fast-reject, malformed request, device, channel suspended, wallet frozen, no payment account bound. A number-level concurrent limit rejection is a ticketing failure and is not counted here. Reference only; not in the Completion Rate denominator.", "出票前被拒：余额不足、超限额、冷静期、已封盘、频控、系统繁忙快速拒绝、格式错误、设备、渠道停售、钱包冻结、未绑支付账户；号码级并发限额整单拒绝算出票失败，不在此列；仅作参考，不进完成率分母。")}">${z("Rejected Request Count", "被拒请求数")}</span>`], rows.map((r) => `<tr><td class="mono">${r.d}</td><td>${r.tm}</td><td class="mono">${r.I.toLocaleString("en-US")}</td><td class="mono">${r.C.toLocaleString("en-US")}</td><td class="mono">${r.F.toLocaleString("en-US")}</td><td class="mono">${pc(r.C, r.I)}</td><td class="mono">${pc(r.F, r.I)}</td><td class="mono" data-x13="rej">${r.R.toLocaleString("en-US")}</td></tr>`))}
       <p class="tiny">${tag("muted", z("Sample data", "示例数据"))} ${z("Rows are shown for the dates in the selected range, up to today.", "显示所选范围内截至今天的日期。")}</p></div>`;
 }
 function viewRegPlayers() {
@@ -4696,32 +4698,47 @@ function rxwfModal() {
 }
 
 /* ---------- 6.7.2 character set ---------- */
-function rsSymbols() { return String(a2Gp("rules.sym")).split(/\s+/).filter(Boolean); }
-function rsCsChars(cs, lo, hi) {
+/* 6.7.2 / 6.13.1: the Symbol Set is a per-game setting stored in the game's rule version (snapshot bound when a draw is generated) */
+const RD_SYM_DEF = "★ ♥ ♦ ♣ ♠";
+const RD_TAIL_MSG = "This game has a tail-match play. Only the Numeric character set can be used.";
+const RD_SYM_MSG = "Enter 2 to 64 different symbols, one character each, separated by spaces. Digits 0–9 and letters A–Z (also lowercase) are not allowed.";
+function rdHasTail(g) { if (!g) return false; if (g.tail !== undefined) return !!g.tail; return /tail match/i.test(String(g.playEn || "")); }
+function rdSymErr(v) {
+  const a = String(v == null || String(v).trim() === "" ? RD_SYM_DEF : v).trim().split(/\s+/).filter(Boolean);
+  if (a.length < 2 || a.length > 64 || a.some((c) => Array.from(c).length !== 1 || /[0-9A-Za-z]/.test(c)) || new Set(a).size !== a.length) return RD_SYM_MSG;
+  return "";
+}
+function rsSymbols(src) { const x = src && src.pick ? src.pick.sym : src; return String(x == null || String(x).trim() === "" ? RD_SYM_DEF : x).trim().split(/\s+/).filter(Boolean); }
+function rsCsChars(cs, lo, hi, sym) {
   if (cs === "Letters") return "A–Z";
-  if (cs === "Symbols") return rsSymbols().join(" ");
+  if (cs === "Symbols") return rsSymbols(sym).join(" ");
   if (cs === "Mixed") return "0–9, A–Z";
   return lo !== undefined && hi !== undefined ? lo + "–" + hi : "0–9";
 }
 function rsCsField(lotto, r, dis) {
   const cs = r.pick.cs || "Numeric";
   const sel = lotto ? `<select data-rsro="cs" disabled><option>Numeric</option></select>` : `<select data-rs="pick.cs" ${dis}>${RS_CS.map((k) => `<option ${cs === k ? "selected" : ""}>${k}</option>`).join("")}</select>`;
-  return `<div style="margin-top:10px;max-width:520px" data-p="charset"><label class="f">${z("Character Set Type", "字符集类型")} ${lotto ? tag("muted", z("Fixed to Numeric for lotto games", "乐透类固定为数字")) : ""}</label>${sel}<p class="tiny" style="margin:4px 0 0">${z("Allowed characters", "允许的字符")}: <span class="mono" data-cs="chars">${esc(rsCsChars(cs, r.pick.lo, r.pick.hi))}</span>. ${z("Only equal-match plays can change the character set (a brand-new prize-judging mechanism needs development). The character set is part of the rule version and is bound when a draw is generated. Letters are uppercase A–Z only; Mixed is digits plus uppercase letters, with no symbols; Symbols use the Symbol Set under Global parameters · Game rules. Changing it goes through the same two-person approval as other play and prize rules (Finance review).", "仅等值匹配类玩法可改字符集；字符集随规则版本、期次生成时绑定；走财务复核批准。")}</p></div>`;
+  return `<div style="margin-top:10px;max-width:520px" data-p="charset"><label class="f">${z("Character Set Type", "字符集类型")} ${lotto ? tag("muted", z("Fixed to Numeric for lotto games", "乐透类固定为数字")) : ""}</label>${sel}<p class="tiny" style="margin:4px 0 0">${z("Allowed characters", "允许的字符")}: <span class="mono" data-cs="chars">${esc(rsCsChars(cs, r.pick.lo, r.pick.hi, r.pick.sym))}</span>. ${cs === "Symbols" ? `<span data-p="symset"><label class="f" style="margin-top:6px">${z("Symbol Set (this game)", "符号集合（本游戏）")}</label><input data-rs="pick.sym" class="mono" value="${esc(rsSymbols(r).join(" "))}" ${dis} style="max-width:420px" /><span class="tiny"> ${z("2–64 different single symbols separated by spaces; no 0–9 or A–Z (also lowercase). Snapshot when a draw is generated.", "2–64 个互不相同的单字符符号，空格分隔；不得含 0–9、A–Z（含小写）；期次生成时快照。")}</span></span> ` : ""}${z("Only equal-match plays can change the character set (a brand-new prize-judging mechanism needs development). The character set is part of the rule version and is bound when a draw is generated. Letters are uppercase A–Z only; Mixed is digits plus uppercase letters, with no symbols; Symbols use this game's own Symbol Set (set here, separate for each game; a new game starts with ★ ♥ ♦ ♣ ♠). A game with a tail-match play (4D, 6D) can only use Numeric. Changing it goes through the same two-person approval as other play and prize rules (Finance review).", "仅等值匹配类玩法可改字符集；字符集随规则版本、期次生成时绑定；走财务复核批准。")}</p></div>`;
 }
 function rsCsOf(i) {
   const g = gameBy(i.game); if (!g || g.kind === "lotto") return "Numeric";
   const v = gamePverList(g).find((x) => x.ver === pverOf(i));
   return (v && v.rules && v.rules.pick && v.rules.pick.cs) || "Numeric";
 }
-function rsCsAllowed(cs) {
+function rsSymOf(i) {
+  const g = gameBy(i.game); if (!g) return RD_SYM_DEF;
+  const v = gamePverList(g).find((x) => x.ver === pverOf(i));
+  return (v && v.rules && v.rules.pick && v.rules.pick.sym) || RD_SYM_DEF;
+}
+function rsCsAllowed(cs, sym) {
   if (cs === "Letters") return "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   if (cs === "Mixed") return "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-  if (cs === "Symbols") return rsSymbols();
+  if (cs === "Symbols") return rsSymbols(sym);
   return "0123456789".split("");
 }
 function rsCsCheck(i, arr) {
   const cs = rsCsOf(i), n = NUM_RULE[i.game][0], v = (arr || []).filter((x) => x != null && x !== "");
-  const ok = rsCsAllowed(cs);
+  const ok = rsCsAllowed(cs, rsSymOf(i));
   if (v.some((c) => ok.indexOf(c) < 0)) return "Winning numbers must use only the characters allowed for this game.";
   if (v.length < n) return "Please enter all " + n + " characters.";
   return "";
@@ -4730,7 +4747,7 @@ function rsCsPad(i) {
   const cs = rsCsOf(i), n = NUM_RULE[i.game][0], nums = S.pad.nums || [];
   const slots = Array.from({ length: n }, (_, k) => `<span class="slot ${nums[k] ? "f" : ""}">${nums[k] ? esc(nums[k]) : "–"}</span>`).join("");
   const bad = nums.length && rsCsCheck(i, nums) === "Winning numbers must use only the characters allowed for this game.";
-  return `<div class="padwrap" data-rx="cspad"><div class="slots" id="rx-cs-slots">${slots}</div><p class="tiny">${z("Type all", "输入全部")} ${n} ${z("characters. Allowed characters", "个字符。允许的字符")}: <span class="mono">${esc(rsCsChars(cs))}</span>. ${z("Letters are converted to uppercase.", "字母自动转为大写。")}</p><input class="mono" data-rxcsin="1" maxlength="${n}" autocomplete="off" value="${esc(nums.join(""))}" aria-label="Winning numbers" style="max-width:260px" /><p class="err" id="rx-cs-msg" style="margin:6px 0 0">${bad ? "Winning numbers must use only the characters allowed for this game." : ""}</p></div>`;
+  return `<div class="padwrap" data-rx="cspad"><div class="slots" id="rx-cs-slots">${slots}</div><p class="tiny">${z("Type all", "输入全部")} ${n} ${z("characters. Allowed characters", "个字符。允许的字符")}: <span class="mono">${esc(rsCsChars(cs, undefined, undefined, rsSymOf(i)))}</span>. ${z("Letters are converted to uppercase.", "字母自动转为大写。")}</p><input class="mono" data-rxcsin="1" maxlength="${n}" autocomplete="off" value="${esc(nums.join(""))}" aria-label="Winning numbers" style="max-width:260px" /><p class="err" id="rx-cs-msg" style="margin:6px 0 0">${bad ? "Winning numbers must use only the characters allowed for this game." : ""}</p></div>`;
 }
 document.addEventListener("input", (e) => {
   const el = e.target; if (!el.dataset || el.dataset.rxcsin === undefined) return;
@@ -5346,6 +5363,7 @@ function raNgModal() {
     <div><label class="f">${z("Judging algorithm", "判奖算法")}</label><select data-f="ngalgo">${(lotto ? ["Match count"] : ["By position (from the end)", "Any order"]).map((a) => `<option ${f.ngalgo === a ? "selected" : ""}>${a}</option>`).join("")}</select></div>
     ${inp("ngprice", z("Price per line (₱)", "单注价格（₱）"), "", "")}${lotto ? inp("nghi", z("Highest number (from 1)", "最大号码（从 1 起）"), "", "") : inp("ngn", z("Digits per line", "每注位数"), "", "")}
     <div><label class="f">${z("Character Set Type", "字符集类型")}</label>${lotto ? `<select disabled><option>Numeric</option></select>` : `<select data-f="ngcs">${RS_CS.map((c) => `<option ${f.ngcs === c ? "selected" : ""}>${c}</option>`).join("")}</select>`}</div>
+    ${lotto ? "" : `<div data-p="ng-sym"><label class="f">${z("Symbol Set (used when the character set is Symbols)", "符号集合（字符集为符号时使用）")}</label><input data-f="ngsym" class="mono" value="${esc(f.ngsym == null ? RD_SYM_DEF : f.ngsym)}" /></div>`}
     ${lotto ? inp("ngdef", z("Default number limit (empty = no limit)", "默认号码限额（空 = 不限）"), "", "") : ""}</div>
     <label class="f">${z("Change note (required)", "变更说明（必填）")}</label><input data-f="ngnote" value="${esc(f.ngnote || "")}" /><div class="err" id="ra-ng-err">${esc(f.err || "")}</div>
     <p class="tiny">${z("Needs approval by Finance review. Cover, play switches and the number limit travel in the same request.", "需财务复核批准；封面、玩法开关、号码限额随同一申请提交。")}</p>`,
@@ -5362,10 +5380,10 @@ function raNgSubmit() {
   if (lotto && !(Number.isInteger(hi) && hi > 6)) return fail("Highest number must be a whole number above 6.");
   if (!lotto && !(Number.isInteger(n) && n >= 1 && n <= 8)) return fail("Digits per line must be a whole number from 1 to 8.");
   const cs = lotto ? "Numeric" : (f.ngcs || "Numeric");
-  if (cs === "Symbols" && rsSymbols().length < 2) return fail("The Symbol Set needs at least 2 symbols first.");
+  if (cs === "Symbols") { const se = rdSymErr(f.ngsym); if (se) return fail(se); }
   if (!String(f.ngnote || "").trim()) return fail("Enter a change note.");
   if (S.sysChg.some((c) => c.kind === "newgame" && c.st === "pending" && c.ng.code === code)) return fail("A request for this game code is already pending.");
-  const ng = { code, name, kind, algo: f.ngalgo || (lotto ? "Match count" : "By position (from the end)"), price: Number(f.ngprice), n, hi: lotto ? hi : 9, cs, def: lotto && String(f.ngdef || "").trim() !== "" ? Number(f.ngdef) : null };
+  const ng = { sym: cs === "Symbols" ? rsSymbols(f.ngsym).join(" ") : "", code, name, kind, algo: f.ngalgo || (lotto ? "Match count" : "By position (from the end)"), price: Number(f.ngprice), n, hi: lotto ? hi : 9, cs, def: lotto && String(f.ngdef || "").trim() !== "" ? Number(f.ngdef) : null };
   const req = sysSubmitChange({ tier: "finance", kind: "newgame", param: "game:new:" + code, pz: "新增游戏 · " + code, pe: "New game · " + code + " " + name, old: "—", nw: code + " · " + name + " · " + (lotto ? "Lotto" : "Digits") + " · " + ng.algo + " · ₱" + ng.price + " · " + cs, eff: sysNow(), reason: String(f.ngnote).trim(), ng });
   S.modal = null; S.mf = {}; toast("Change request " + req.id + " submitted. Finance review approves it."); render(); return true;
 }
@@ -5373,7 +5391,7 @@ function raApplyNewGame(c) {
   const n = c.ng, tmpl = GAMES.find((g) => g.id === (n.kind === "lotto" ? "m645" : "d4")), id = n.code.toLowerCase();
   const g = JSON.parse(JSON.stringify(tmpl));
   const rules = JSON.parse(JSON.stringify(rulesOf(tmpl)));
-  rules.pick.cs = n.cs; if (n.kind === "lotto") rules.pick.hi = n.hi; else { rules.pick.n = n.n; rules.pick.lo = 0; rules.pick.hi = 9; }
+  rules.pick.cs = n.cs; if (n.cs === "Symbols") rules.pick.sym = n.sym || RD_SYM_DEF; g.tail = false; if (n.kind === "lotto") rules.pick.hi = n.hi; else { rules.pick.n = n.n; rules.pick.lo = 0; rules.pick.hi = 9; }
   delete g.rvers; delete g.rules;
   Object.assign(g, { id, zh: n.name, en: n.name, on: false, price: n.price, sort: 0, next: "—", pending: 0, cover: null, defLimit: n.def, advance: n.kind === "lotto" ? 12 : 90,
     pickZh: n.kind === "lotto" ? "1–" + n.hi + " 选 6" : "0–9 选 " + n.n + " 位", pickEn: n.kind === "lotto" ? "Pick 6 from 1–" + n.hi : "Pick " + n.n + " digits from 0–9" });
@@ -5409,6 +5427,7 @@ function raChkSim(no, mode) {
   render();
 }
 function raAlertClosed(a) {
+  if (["Ticket", "Bet order", "Prize order"].indexOf(a.obj) >= 0) { const seg = { from: String(a.found).slice(0, 10), to: A58.today() }; S.claimable.filter((c) => c.ticket === a.objId || c.order === a.objId).forEach((c) => rdExtendClaim(c, seg, "ticket alert freeze")); }
   if (a.src !== "Draw status check") return;
   const i = S.issues.find((x) => x.no === a.objId); if (!i) return;
   i.betPaused = false; i.chkAlert = "";
@@ -5432,7 +5451,8 @@ function raClaimBanner(c) {
 function raDlNote(c) {
   let s = "";
   if (c.ext) s += `<div class="tiny" data-claim="ext">${z("Extended by", "已顺延")} ${c.ext} ${z("day(s) for the wallet freeze", "天（钱包冻结）")}</div>`;
-  if (raFrozenP(c.player)) s += `<div class="tiny" data-claim="ext-live">${z("Wallet frozen: the deadline is extended and the ticket is not overdue until the wallet is unfrozen.", "钱包已冻结：兑奖截止日顺延，解冻前不判逾期。")}</div>`;
+  if (raFrozenP(c.player)) s += `<div class="tiny" data-claim="ext-live">${z("Wallet frozen: the deadline is extended and the ticket is not overdue until the wallet is unfrozen. The player sees On hold. The claim deadline will be extended after the hold is lifted.", "钱包已冻结：兑奖截止日顺延，解冻前不判逾期；玩家端显示“冻结中”。")}</div>`;
+  if (S.alerts.some((a) => a.st === "open" && ["Ticket", "Bet order", "Prize order"].indexOf(a.obj) >= 0 && (a.objId === c.ticket || a.objId === c.order))) s += `<div class="tiny" data-claim="ext-alert">${z("Frozen by an open ticket-type alert: the ticket is not overdue; the deadline is extended when the alert is closed.", "被未关闭的票类告警冻结：不判逾期，告警关闭时顺延截止日。")}</div>`;
   return s;
 }
 function raClaimReason(c, code) {
@@ -5443,14 +5463,34 @@ function raClaimReason(c, code) {
   if (c.deadline < NOWSTR().slice(0, 10)) return "Claim code has expired";
   return "";
 }
+/* 6.7.5 deadline extension: claimable period = settlement day .. current deadline; freeze days are UTC+8 calendar days (first and last counted);
+   when the deadline falls inside the freeze the count runs to the end of the freeze and the new deadline is not earlier than the unfreeze day;
+   several freezes are merged by calendar day (a day covered twice counts once) */
+function rdFreezeDays(c, segs) {
+  const start = String(c.settleAt || c.draw).slice(0, 10), seen = {};
+  let D = c.dl0 || c.deadline, total = 0;
+  segs.slice().sort((x, y) => (x.from < y.from ? -1 : 1)).forEach((g) => {
+    if (g.from > D) return;
+    let d = g.from < start ? start : g.from, n = 0;
+    for (; d <= g.to; d = A58.addDays(d, 1)) if (!seen[d]) { seen[d] = 1; n++; }
+    const inside = D <= g.to; D = A58.addDays(D, n); if (inside && D < g.to) D = g.to; total += n;
+  });
+  return { days: total, deadline: D };
+}
+function rdExtendClaim(c, seg, why) {
+  if (!c || c.status === "claimed") return false;
+  c.dl0 = c.dl0 || c.deadline; c.fz = (c.fz || []).concat([seg]);
+  const old = c.deadline, r = rdFreezeDays(c, c.fz);
+  if (r.deadline === old && !r.days) return false;
+  c.deadline = r.deadline; c.ext = r.days;
+  a2Aud(t("大奖申领", "Big prize claims"), "Claim deadline extended", c.ticket, old, c.deadline + " · " + why + " " + seg.from + " to " + seg.to + " · " + r.days + " calendar day(s) counted, first and last day included, days covered by several freezes counted once", "Change");
+  return true;
+}
 function raUnfreezeExtend(p, w) {
   if (!w || w.st !== "frozen") return;
-  const days = A58.span(String(w.at).slice(0, 10), A58.today()) + 1;
-  S.claimable.filter((c) => c.player === p.id && c.status !== "claimed").forEach((c) => {
-    const old = c.deadline; c.deadline = A58.addDays(c.deadline, days); c.ext = (c.ext || 0) + days;
-    a2Aud(t("大奖申领", "Big prize claims"), "Claim deadline extended", c.ticket, old, c.deadline + " · wallet frozen " + days + " calendar day(s) counted, first and last day included", "Change");
-  });
-  S.payRev.filter((r) => r.player === p.id && r.held && r.st === "approved").forEach((r) => { r.held = false; a2Aud(t("身份审核", "Identity review"), "Held withdrawal released", r.id, "On hold", "Payout continues after the wallet was unfrozen", "Audit"); });
+  const seg = { from: String(w.at).slice(0, 10), to: A58.today() };
+  S.claimable.filter((c) => c.player === p.id && c.status !== "claimed").forEach((c) => rdExtendClaim(c, seg, "wallet frozen"));
+  /* 6.8.4: a withdrawal waiting for manual review is not auto-released after the unfreeze; the reviewer clicks Approve again */
 }
 
 /* ---------- 6.8.3 player profile ---------- */
@@ -5573,6 +5613,8 @@ function raPayView() {
     <div class="filters">${card("all", z("All", "全部"), all.length)}${card("pending", z("Pending Manual Review Count", "待人工审核数"), pend.length)}${card("overdue", z("Overdue Pending Count", "超时待处理数"), over.length)}</div>
     ${table([z("Player Id", "玩家ID"), z("Full Name", "姓名"), z("Review Type", "复核类型"), z("Submitted At", "提交时间"), z("Review Status", "审核状态"), ""], list.map((r) => `<tr class="click" data-pr="${r.id}" data-act="ra-pay-open" data-id="${r.id}"><td class="mono">${r.player}</td><td>${esc(r.name)}</td><td>${z(RA_PT[r.type][0], RA_PT[r.type][1])}${r.both ? " " + tag("warn", z("+ face", "+ 人脸")) : ""}</td><td class="mono">${r.sub} UTC+8${raPayOverdue(r) ? " " + tag("rose", z("Overdue", "超时")) : ""}</td><td>${stT[r.st]}${r.st === "approved" && r.held ? " " + tag("warn", z("Payout on hold", "出款暂缓")) : ""}</td><td><button type="button" class="btn btn-sm" data-act="ra-pay-open" data-id="${r.id}">${z("Open", "打开")}</button></td></tr>`))}`;
 }
+const RD_WD_BLOCK_MSG = "The player's wallet is frozen or has an open integrity alert. Approval is not available until it is lifted.";
+function rdWdBlocked(r) { return !!r && r.type === "wd" && (raFrozenP(r.player) || S.alerts.some((a) => a.st === "open" && (a.obj === "Wallet" || a.obj === "Transaction") && (a.objId === r.player || (a.obj === "Wallet" && String(a.objId) === r.player)))); }
 function raPayDetail(r) {
   const p = S.players.find((x) => x.id === r.player), bad = 'style="background:rgba(244,63,94,.18);color:var(--rose);font-weight:700;padding:1px 6px;border-radius:6px"';
   const low = r.score < 70, nameBad = r.type === "bname";
@@ -5588,11 +5630,11 @@ function raPayDetail(r) {
     <div class="card" style="margin-bottom:10px"><h4>${z("Why it came here", "转人工原因")}</h4><p class="tiny">${reasons.join(" · ")}${r.both ? " · " + z("Both reasons are listed on this one request.", "两项原因列在同一张复核单上。") : ""}</p></div>
     ${names}
     <div class="card" style="margin-bottom:10px" data-pr="face"><h4>${z("Face match materials", "人脸比对材料")}</h4><div class="row-actions" style="gap:20px;align-items:center"><div><p class="tiny">${z("Selfie", "自拍照片")}</p><img class="face" src="${faceImg("self")}" alt="" /></div><div><p class="tiny">${z("ID portrait", "证件头像")}</p><img class="face" src="${faceImg("id")}" alt="" /></div><div><p class="tiny">${z("Face match score", "人脸相似度")}</p><div class="num mono" style="font-size:30px;font-weight:700;color:${low ? "var(--rose)" : "var(--ok)"}">${r.score}%</div></div><div><p class="tiny">${z("Liveness result", "活体检测结果")}</p><div>${r.live === "Passed" ? tag("ok", "Passed") : tag("rose", "Failed")}</div></div><div><p class="tiny">${z("Conclusion", "比对结论")}</p><div class="tiny">${esc(r.concl)}</div></div></div></div>
-    ${r.st !== "pending" ? `<div class="banner">${r.st === "approved" ? z("Approved", "已通过") : z("Rejected", "已驳回")} · ${esc(r.by)} · ${r.at} · ${esc(r.note || "")}${r.held ? " · " + z("Payout on hold while the wallet is frozen or a wallet alert is open", "钱包冻结或有钱包类告警期间出款暂缓") : ""}</div>` : `<div class="actbar"><span class="muted">${isKyc ? z("A review note is required; a rejection also needs a reason.", "须填写审核备注，驳回另须填原因。") : z("Read-only for your role.", "你的角色只读。")}</span><div class="row-actions"><button type="button" class="btn btn-rose" data-act="ra-pay-ask" data-id="${r.id}" data-arg="reject" ${isKyc ? "" : "disabled"}>${z("Reject", "驳回")}</button><button type="button" class="btn btn-ok" data-act="ra-pay-ask" data-id="${r.id}" data-arg="pass" ${isKyc ? "" : "disabled"}>${z("Approve", "通过")}</button></div></div>`}`;
+    ${r.st !== "pending" ? `<div class="banner">${r.st === "approved" ? z("Approved", "已通过") : z("Rejected", "已驳回")} · ${esc(r.by)} · ${r.at} · ${esc(r.note || "")}${r.held ? " · " + z("Payout on hold while the wallet is frozen or a wallet alert is open", "钱包冻结或有钱包类告警期间出款暂缓") : ""}</div>` : `<div class="actbar"><span class="muted">${isKyc ? z("A review note is required; a rejection also needs a reason.", "须填写审核备注，驳回另须填原因。") : z("Read-only for your role.", "你的角色只读。")}</span><div class="row-actions"><button type="button" class="btn btn-rose" data-act="ra-pay-ask" data-id="${r.id}" data-arg="reject" ${isKyc ? "" : "disabled"}>${z("Reject", "驳回")}</button><button type="button" class="btn btn-ok" data-act="ra-pay-ask" data-id="${r.id}" data-arg="pass" ${isKyc && !rdWdBlocked(r) ? "" : "disabled"}>${z("Approve", "通过")}</button></div></div>${rdWdBlocked(r) ? `<p class="tiny" data-x14="wd-block" style="color:var(--amber,#f59e0b);margin:6px 0 0">${RD_WD_BLOCK_MSG} ${z("Rejecting is still possible and returns the amount to the prize balance. After the wallet is unfrozen or the alert is closed, the reviewer clicks Approve again and only then is the payout sent to the payment centre. The player sees Processing in the meantime.", "仍可驳回（原路退回奖金余额）；解冻或告警关闭后由复核员再点一次“通过”，才提交支付中心出款；期间玩家端显示“处理中”。")}</p>` : ""}`}`;
 }
 function raPayModal() {
   const r = S.payRev.find((x) => x.id === S.modal.id), pass = S.modal.arg === "pass", f = S.mf;
-  return dialog((pass ? z("Approve", "通过") : z("Reject", "驳回")) + " · " + r.name, `<p class="muted">${pass ? (r.type === "wd" ? z("The withdrawal continues. If the player's wallet is frozen or a wallet alert is open, the payout stays on hold until the freeze is lifted or the alert is closed.", "通过则继续执行本次提现；钱包冻结或有钱包类告警期间出款暂缓，直到解冻或告警关闭。") : z("The binding takes effect.", "绑定生效。")) : (r.type === "wd" ? z("The withdrawal is not executed and the player is notified. The amount goes back to the prize balance.", "本次提现不执行并通知玩家，金额原路退回奖金余额。") : z("The binding does not take effect and the player is notified.", "绑定不生效并通知玩家。"))}</p>
+  return dialog((pass ? z("Approve", "通过") : z("Reject", "驳回")) + " · " + r.name, `<p class="muted">${pass ? (r.type === "wd" ? z("The withdrawal continues and the payout is sent to the payment centre.", "通过则继续执行本次提现，提交支付中心出款。") : z("The binding takes effect.", "绑定生效。")) : (r.type === "wd" ? z("The withdrawal is not executed and the player is notified. The amount goes back to the prize balance.", "本次提现不执行并通知玩家，金额原路退回奖金余额。") : z("The binding does not take effect and the player is notified.", "绑定不生效并通知玩家。"))}</p>
     <label class="f">${z("Review note (required)", "审核备注（必填）")}</label><textarea data-f="pnote">${esc(f.pnote || "")}</textarea>${pass ? "" : `<label class="f">${z("Reason (required)", "原因（必填）")}</label><textarea data-f="prea">${esc(f.prea || "")}</textarea>`}<div class="err">${esc(f.err || "")}</div>`,
     `<button type="button" class="btn" data-act="close">${z("Cancel", "取消")}</button><button type="button" class="btn ${pass ? "btn-ok" : "btn-rose"}" data-act="ra-pay-ok" data-id="${r.id}" data-arg="${S.modal.arg}">${z("Confirm", "确认")}</button>`);
 }
@@ -5601,8 +5643,9 @@ function raPayOk(id, arg) {
   if (!String(f.pnote || "").trim()) { f.err = "Enter a review note."; render(); return; }
   if (arg !== "pass" && !String(f.prea || "").trim()) { f.err = "Enter a reason."; render(); return; }
   if (p && (p.status === "closed" || p.status === "deleted")) { S.modal = null; S.mf = {}; toast("This account has been closed."); render(); return; }
+  if (arg === "pass" && rdWdBlocked(r)) { S.modal = null; S.mf = {}; toast(RD_WD_BLOCK_MSG); render(); return; }
   r.st = arg === "pass" ? "approved" : "rejected"; r.by = me0(); r.at = raNowFull().slice(0, 16); r.note = String(f.pnote).trim() + (arg === "pass" ? "" : " · reason: " + String(f.prea).trim());
-  if (arg === "pass" && r.type === "wd") r.held = raFrozenP(r.player) || S.alerts.some((a) => a.st === "open" && a.obj === "Wallet" && a.objId === r.player);
+  if (arg === "pass" && r.type === "wd") { r.held = false; r.paid = true; }
   a2Aud(t("身份审核", "Identity review"), (arg === "pass" ? "Approve " : "Reject ") + "payment account review", r.id + " · " + r.player, "Pending", (arg === "pass" ? "Approved" : "Rejected") + (r.held ? " · payout on hold" : "") + " · " + r.note, "Audit");
   S.modal = null; S.mf = {}; render();
 }
@@ -5884,7 +5927,7 @@ function rcPass() { const c = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz2
 
 /* ---------- 6.11.6 bet completion: ticketing request count and rejected request count ---------- */
 function rcBetBanner() {
-  return `<div class="banner" data-x13="bc-def">${z("Bet Completion Report: per terminal and day. Completion Rate = bet orders issued successfully ÷ requests that entered ticketing (issued + failed and rolled back). Requests rejected by a pre-check (insufficient balance, limit exceeded, cool-off, draw closed, rate limit, system busy fast-reject) are not in the denominator; they are shown separately as Rejected Request Count for reference. Abandonment Rate = 1 − Completion Rate. Failed and rejected requests feed this report only and never appear on the Bets tab. The data source is the bet order flow, the same as transactions.", "投注完成率报表：按终端 × 日。完成率 = 出票成功的投注单数 ÷ 进入出票环节的请求数（出票成功 + 出票失败回滚）；前置校验被拒的请求（余额不足、超限额、冷静期、已封盘、频控、系统繁忙快速拒绝）不进分母，单列被拒请求数供参考；放弃/失败率 = 1 − 完成率；失败与被拒请求只供本报表、不进下单 Tab。")}</div>`;
+  return `<div class="banner" data-x13="bc-def">${z("Bet Completion Report: per terminal and day. Completion Rate = bet orders issued successfully ÷ requests that entered ticketing (issued + failed and rolled back). Requests rejected before ticketing (insufficient balance, limit exceeded, cool-off, draw closed, rate limit, system busy fast-reject, and also malformed request, device, channel suspended, wallet frozen, no payment account bound) are not in the denominator; they are shown separately as Rejected Request Count for reference. A bet order rejected as a whole because a number-level concurrent limit was reached at submission happens inside ticketing, so it counts as a ticketing failure (in the denominator) and is not in Rejected Request Count. Abandonment Rate = 1 − Completion Rate. Failed and rejected requests feed this report only and never appear on the Bets tab. The data source is the bet order flow, the same as transactions.", "投注完成率报表：按终端 × 日。完成率 = 出票成功的投注单数 ÷ 进入出票环节的请求数（出票成功 + 出票失败回滚）；出票前被拒的请求（余额不足、超限额、冷静期、已封盘、频控、系统繁忙快速拒绝，以及格式错误、设备、渠道停售、钱包冻结、未绑支付账户）不进分母，单列被拒请求数供参考；号码级并发限额在提交时刚好达到限额而整单拒绝，发生在出票环节，算出票失败（进分母），不计入被拒请求数；放弃/失败率 = 1 − 完成率；失败与被拒请求只供本报表、不进下单 Tab。")}</div>`;
 }
 
 /* ---------- 6.11.7 daily reconciliation: auto credited / counter split, void offset, remittance comparison ---------- */
@@ -5944,7 +5987,7 @@ function rcMkRow(date) {
   return { date, sales: l.sales, refunds: l.voidOff, gross, tax: l.taxOn, total: gross - l.taxOn, net: l.sales - l.voidOff - l.auto, voucher: l.voucher };
 }
 function rcDates(a, b) { const out = []; for (let d = a; d <= b; d = A58.addDays(d, 1)) out.push(d); return out; }
-function rcStmtSum(s, k) { return s.rows.reduce((x, r) => x + r[k], 0); }
+function rcStmtSum(s, k) { const v = s.rows.reduce((x, r) => x + r[k], 0); return k === "net" ? rcR2(v + (s.adj || []).reduce((x, a) => x + a.amt, 0)) : v; }
 function rcMkStmt(a, b, gen, st) {
   S.rc.stmtN += 1;
   const s = { id: "RS" + gen.replace(/-/g, "") + String(S.rc.stmtN).padStart(2, "0"), gen, rows: rcDates(a, b).map(rcMkRow), st: st || "draft", prep: "", chk: "", appr: "", vch: null, rej: "" };
@@ -6013,23 +6056,28 @@ function rcStmtDetail(s) {
   const tot = (k) => rcStmtSum(s, k), net = tot("net");
   const ops = rcOpsOnly(), fin = rcFinOnly(), me = me0();
   const heads = [z("Sales Date", "销售日"), z("Daily Sales", "当日销售额"), z("Refunds", "退款"), z("Draw Sales Payout", "线上派奖总额（税前）"), z("Tax On Winnings", "中奖预扣税"), z("Total Payout", "净派奖"), z("Net Due To PCSO", "应汇净额"), z("Voucher Deduction", "券抵扣额")];
-  const body = s.rows.map((r) => `<tr data-srow="${r.date}"><td class="mono">${r.date}</td><td class="mono amt">${rcFmtP(r.sales)}</td><td class="mono amt">${rcFmtP(r.refunds)}</td><td class="mono amt">${rcFmtP(r.gross)}</td><td class="mono amt">${rcFmtP(r.tax)}</td><td class="mono amt">${rcFmtP(r.total)}</td><td class="mono amt" data-x13="rownet">${rcFmtP(r.net)}</td><td class="mono amt">${rcFmtP(r.voucher)}</td></tr>`).concat([`<tr style="font-weight:700;background:rgba(255,255,255,.05)" data-x13="totalrow"><td>${z("Total", "合计")}</td><td class="mono amt">${rcFmtP(tot("sales"))}</td><td class="mono amt">${rcFmtP(tot("refunds"))}</td><td class="mono amt">${rcFmtP(tot("gross"))}</td><td class="mono amt">${rcFmtP(tot("tax"))}</td><td class="mono amt">${rcFmtP(tot("total"))}</td><td class="mono amt" data-x13="totalnet">${rcFmtP(net)}</td><td class="mono amt">${rcFmtP(tot("voucher"))}</td></tr>`]);
+  const adjRows = (s.adj || []).map((a, i) => `<tr data-adj="${i}" data-x14="adjrow"><td colspan="6"><b>${z("Prior-period adjustment", "上期调整")}</b> · ${z("Original Statement No", "原计算书单号")} <span class="mono">${esc(a.orig)}</span> · ${z("Adjustment Reason", "调整原因")}: ${esc(a.reason)} <span class="tiny muted">(${esc(a.by)} · ${esc(a.at)})</span></td><td class="mono amt" data-x14="adjamt">${rcFmtP(a.amt)}</td><td></td></tr>`);
+  const body = s.rows.map((r) => `<tr data-srow="${r.date}"><td class="mono">${r.date}</td><td class="mono amt">${rcFmtP(r.sales)}</td><td class="mono amt">${rcFmtP(r.refunds)}</td><td class="mono amt">${rcFmtP(r.gross)}</td><td class="mono amt">${rcFmtP(r.tax)}</td><td class="mono amt">${rcFmtP(r.total)}</td><td class="mono amt" data-x13="rownet">${rcFmtP(r.net)}</td><td class="mono amt">${rcFmtP(r.voucher)}</td></tr>`).concat(adjRows).concat([`<tr style="font-weight:700;background:rgba(255,255,255,.05)" data-x13="totalrow"><td>${z("Total", "合计")}</td><td class="mono amt">${rcFmtP(tot("sales"))}</td><td class="mono amt">${rcFmtP(tot("refunds"))}</td><td class="mono amt">${rcFmtP(tot("gross"))}</td><td class="mono amt">${rcFmtP(tot("tax"))}</td><td class="mono amt">${rcFmtP(tot("total"))}</td><td class="mono amt" data-x13="totalnet">${rcFmtP(net)}</td><td class="mono amt">${rcFmtP(tot("voucher"))}</td></tr>`]);
   const mm = rcMismatches(s), opn = rcStmtOpenTodos(s);
   const btn = (act, label, ok, msg, cls) => `<button type="button" class="btn btn-sm ${cls || ""}" data-act="${act}" data-id="${s.id}"${ok ? "" : rcRO(msg)}>${label}</button>`;
   let acts = "";
   if (s.st === "draft") acts = btn("rc-submit", z("Submit For Review", "提交复核"), ops, RO_OPS_MSG, "btn-primary");
   if (s.st === "review") acts = btn("rc-approve", z("Approve", "批准"), fin && s.prep !== me, fin ? "The approver cannot be the preparer." : "Only Finance review can approve.", "btn-ok") + btn("rc-reject", z("Reject", "驳回"), fin && s.prep !== me, fin ? "The approver cannot be the preparer." : "Only Finance review can reject.");
-  if (s.st === "approved") acts = btn("rc-reg", z("Register Remittance Voucher", "登记汇缴凭证"), ops, RO_OPS_MSG, "btn-primary");
+  if (s.st === "draft") acts += btn("rc-adj-open", z("Add Prior-Period Adjustment", "添加上期调整行"), ops, RO_OPS_MSG);
+  if (s.st === "approved" && Math.round(net * 100) === 0) acts = btn("rc-nopay-open", z("No Payment Needed", "无需付款"), fin, "Only Finance review can close a statement with no payment.", "btn-primary");
+  else if (s.st === "approved") acts = btn("rc-reg", z("Register Remittance Voucher", "登记汇缴凭证"), ops, RO_OPS_MSG, "btn-primary");
   const ex = `<span data-x13="exp">${["pdf", "xlsx"].map((f) => `<button type="button" class="btn btn-sm" data-act="rc-st-export" data-id="${s.id}" data-arg="${f}">${f === "xlsx" ? "Excel" : "PDF"}</button>`).join("")}</span>`;
   const v = s.vch;
   return `<div class="page-h"><div><button type="button" class="link" data-act="rc-st-back">← ${z("Back to list", "返回列表")}</button><h3 class="mono">${s.id}</h3><p class="tiny">${z("Generated on", "生成日")} ${s.gen} · ${tag(RC_ST[s.st][0], RC_ST[s.st][1])} · ${z("Prepared By", "制单人")} <span class="mono">${s.prep || "—"}</span> · ${z("Checked By", "复核人")} <span class="mono">${s.chk || "—"}</span> · ${z("Approved By", "批准人")} <span class="mono">${s.appr || "—"}</span></p></div><div class="row-actions">${acts}${ex}</div></div>
+    ${s.noPay ? `<div class="banner" data-x14="nopay">${z("Closed without payment: the total is exactly ₱0.00, so there is no transfer and no voucher file.", "已无需付款关单：合计恰好为 ₱0.00，没有转账、没有凭证件。")} ${esc(s.noPay.by)} · ${esc(s.noPay.at)} · ${esc(s.noPay.reason)}</div>` : ""}
     ${net < 0 ? `<div class="banner amber" data-x13="neg">${z("The total is negative: payouts or refunds exceed sales, so PCSO owes the platform a top-up. A negative total is submitted and approved as usual; its voucher is registered as a PCSO payment (payer PCSO, receiving account = platform account).", "合计为负：派奖或退款超过销售，PCSO 应向平台补款；负数照常提交、批准，凭证登记为 PCSO 付款（付款方 PCSO，收款为平台账户）。")}</div>` : ""}
     ${table(heads, body)}
     <p class="tiny" data-x13="stmt-note">${z("Net Due To PCSO = Daily Sales − Refunds − Total Payout, and the total row is the sum of the sales dates; it can be negative. Refunds are the void offset by refund date, at the bet amount (a voucher bet counts at its bet amount). Draw Sales Payout counts online wallet payouts by credit date; prizes paid at the PCSO counter are not included. Tax On Winnings is withheld above the tax-table threshold and remitted with the net amount. The base is the bet amount including the voucher part; the Voucher Deduction column is shown only as an explanation and does not change the calculation. Each line is rounded to the cent. Export to PDF / Excel carries Prepared By, Checked By and Approved By signature blocks: the first two are filled by the system, Approved By is signed offline.", "应汇净额 = 当日销售额 − 退款 − 净派奖，合计行为各销售日之和，可为负；退款为作废冲减（按退款发生日、按投注金额）；线上派奖总额按入账日、不含柜台兑付；中奖预扣税随净额一并汇缴；汇缴基数按投注金额计、含券抵扣部分，“券抵扣额”仅作说明、不改变计算；逐行四舍五入到分；导出 PDF / Excel 含 Prepared By / Checked By / Approved By 三签栏，前两签系统记名，Approved 线下签字。")}</p>
     <div class="card" data-x13="precheck" style="margin-top:12px"><h4>${z("Comparison before submission", "提交前比对")}</h4>
       ${mm.length ? table([z("Sales Date", "销售日"), z("Item", "项目"), z("Statement", "计算书"), z("Daily reconciliation", "每日对账")], mm.map((m) => `<tr><td class="mono">${m[0]}</td><td>${m[1]}</td><td class="mono">${rcFmtP(m[2])}</td><td class="mono">${rcFmtP(m[3])}</td></tr>`)) : `<p class="tiny">${tag("ok", "Matched")} ${z("Sales, net payout (against Auto Credited) and refunds (against Void Offset) all agree with the daily reconciliation.", "销售、净派奖（比自动入账）与退款（比作废冲减）三项与每日对账一致。")}</p>`}
       ${opn.length ? `<p class="err" data-x13="blocked">${z("Submission is blocked: close the P2 reconciliation difference to-dos with a reason first.", "提交被拦：请先填原因关闭 P2 核对差异待办。")}</p>` : ""}</div>
-    <div class="card" data-x13="voucher" style="margin-top:12px"><h4>${z("Remittance voucher", "汇缴凭证")}</h4>${v ? `<table class="kv"><tbody><tr><td class="muted">${z("Bank Transfer Reference", "银行转账参考号")}</td><td class="mono">${esc(v.ref)}</td></tr><tr><td class="muted">${z("Transfer Time", "转账时间")}</td><td class="mono">${esc(v.time)}</td></tr><tr><td class="muted">${z("Actual Amount", "实际金额")}</td><td class="mono">${rcFmtP(v.amount)}</td></tr><tr><td class="muted">${z("Payer", "付款方")}</td><td>${esc(v.payer)}</td></tr><tr><td class="muted">${z("Receiving Account", "收款账户")}</td><td>${esc(v.acct)}</td></tr><tr><td class="muted">${z("Voucher File", "凭证件")}</td><td class="mono">${esc(v.file)}</td></tr></tbody></table><p class="tiny" data-x13="vlock">${z("The voucher cannot be corrected or deleted once registered; the original is kept.", "凭证登记后不可更正、不可删除，原凭证保留。")}</p>` : `<p class="tiny">${z("No voucher registered yet. Register it after the statement is approved and the money has moved.", "尚未登记凭证；批准并转账后登记。")}</p>`}</div>`;
+    <div class="card" data-x13="voucher" style="margin-top:12px"><h4>${z("Remittance voucher", "汇缴凭证")}</h4>${v ? `<table class="kv"><tbody><tr><td class="muted">${z("Bank Transfer Reference", "银行转账参考号")}</td><td class="mono">${esc(v.ref)}</td></tr><tr><td class="muted">${z("Transfer Time", "转账时间")}</td><td class="mono">${esc(v.time)}</td></tr><tr><td class="muted">${z("Actual Amount", "实际金额")}</td><td class="mono">${rcFmtP(v.amount)}</td></tr><tr><td class="muted">${z("Payer", "付款方")}</td><td>${esc(v.payer)}</td></tr><tr><td class="muted">${z("Receiving Account", "收款账户")}</td><td>${esc(v.acct)}</td></tr><tr><td class="muted">${z("Voucher File", "凭证件")}</td><td class="mono">${esc(v.file)}</td></tr></tbody></table><p class="tiny" data-x13="vlock">${z("The voucher cannot be corrected or deleted once registered; the original is kept.", "凭证登记后不可更正、不可删除，原凭证保留。")}</p>` : `<p class="tiny">${s.noPay ? z("No voucher is needed: the total is exactly ₱0.00.", "无需凭证：合计恰好为 ₱0.00。") : z("No voucher registered yet. Register it after the statement is approved and the money has moved.", "尚未登记凭证；批准并转账后登记。")}</p>`}</div>
+    <p class="tiny" data-x14="adj-note">${z("Prior-period adjustment: an approved or remitted statement is never changed. A mistake is corrected through an adjustment row on a later statement: Operations adds it to a draft (Original Statement No, Adjustment Amount with its sign, Adjustment Reason) and Finance review approves it with the statement. Net Due To PCSO (total) = the sum of the sales dates + the sum of the adjustment amounts. Adjustment rows are not compared with the daily reconciliation. When the total is exactly ₱0.00, Finance review closes the approved statement with No Payment Needed (reason required, audited, no voucher file).", "上期调整：已批准或已汇缴的计算书不改；差错通过后续计算书的调整行更正：运营专员在草稿里添加（原计算书单号、带正负号的调整金额、调整原因），随该张计算书由财务复核批准。应汇净额合计 = 各销售日之和 + 各调整金额之和；调整行不参与每日对账的逐日比对。合计恰好为 ₱0.00 时，批准后由财务复核点“无需付款”关单（原因必填、写审计、无凭证件）。")}</p>`;
 }
 function rcBillView() {
   const st = S.rc.st, b = st.bill ? S.rc.bills.find((x) => x.id === st.bill) : null;
@@ -6049,8 +6097,8 @@ function rcBillDetail(b) {
   const kv = [[z("Total Sales", "合计销售额"), c.sales], [z("Gross Fees", "佣金（含 VAT）"), c.gross], [z("Net Commission", "不含税佣金"), c.net], [z("VAT", "VAT"), c.vat], [z("Expanded Withholding Tax", "扩展预扣税"), c.ewt], [z("Withholding VAT", "预扣 VAT"), c.wv], [z("Net Amount Due From PCSO", "PCSO 应付净额"), c.due]];
   return `<div class="page-h"><div><button type="button" class="link" data-act="rc-st-back">← ${z("Back to list", "返回列表")}</button><h3 class="mono">${b.id}</h3><p class="tiny">${b.from} – ${b.to} · ${tag(RC_BST[s][0], RC_BST[s][1])} ${s === "overdue" ? z("No payment was registered by the payment term, so the bill is marked Overdue and a to-do is raised.", "超付款期限未登记收款，自动标记 Overdue 并生成待办。") : ""}</p></div><div class="row-actions">${acts}</div></div>
     <table class="kv"><tbody>${kv.map(([k, v], i) => `<tr data-bcalc="${i}"><td class="muted" style="width:260px">${k}</td><td class="mono amt">${rcFmtP(v)}</td></tr>`).join("")}</tbody></table>
-    <p class="tiny" data-x13="bill-note">${z("Total Sales is the sum of daily sales in the period at the bet amount, voucher part included, and the base does not deduct refunds (a different basis from the remittance statement's Net Due). Voucher Deduction in the period is shown as an explanation only:", "合计销售额为账期内逐日销售额之和，按投注金额计、含券抵扣部分，佣金基数不扣退款（与汇缴计算书的应汇净额是两套口径）；账期内券抵扣额仅作说明：")} <b class="mono">${rcFmtP(rcBillVoucher(b))}</b>. ${z("Gross Fees = Total Sales × Commission Rate; Net Commission = Gross Fees ÷ (1 + VAT Rate); VAT = Gross Fees − Net Commission; Expanded Withholding Tax = Net Commission × EWT Rate; Withholding VAT = Net Commission × Withholding VAT Rate; Net Amount Due From PCSO = Gross Fees − Expanded Withholding Tax − Withholding VAT. Each line is rounded to the cent. The bill PDF carries the header and contact from the global parameters, the amount in words and the payment term.", "计算公式：佣金（含 VAT）= 合计销售额 × 佣金率；不含税佣金 = 佣金 ÷ (1 + VAT)；VAT = 佣金 − 不含税佣金；扩展预扣税 = 不含税佣金 × EWT；预扣 VAT = 不含税佣金 × 预扣 VAT 率；PCSO 应付净额 = 佣金 − 扩展预扣税 − 预扣 VAT；逐行四舍五入到分。")}</p>
-    ${b.pay ? `<div class="card"><h4>${z("PCSO payment", "PCSO 付款")}</h4><p class="tiny mono">${esc(b.pay.method)} · ${esc(b.pay.ref)} · ${esc(b.pay.at)}</p></div>` : ""}`;
+    <p class="tiny" data-x13="bill-note">${z("Total Sales is the sum of daily sales in the period at the bet amount, voucher part included, and the base does not deduct refunds (a different basis from the remittance statement's Net Due). Voucher Deduction in the period is shown as an explanation only:", "合计销售额为账期内逐日销售额之和，按投注金额计、含券抵扣部分，佣金基数不扣退款（与汇缴计算书的应汇净额是两套口径）；账期内券抵扣额仅作说明：")} <b class="mono">${rcFmtP(rcBillVoucher(b))}</b>. ${z("Gross Fees = Total Sales × Commission Rate; Net Commission = Gross Fees ÷ (1 + VAT Rate); VAT = Gross Fees − Net Commission (so Net Commission + VAT always equals Gross Fees; VAT is not recalculated as Net Commission × VAT Rate); Expanded Withholding Tax = Net Commission × EWT Rate; Withholding VAT = Net Commission × Withholding VAT Rate; Net Amount Due From PCSO = Gross Fees − Expanded Withholding Tax − Withholding VAT. Each line is rounded to the cent. The bill PDF carries the header and contact from the global parameters, the amount in words and the payment term.", "计算公式：佣金（含 VAT）= 合计销售额 × 佣金率；不含税佣金 = 佣金 ÷ (1 + VAT)；VAT = 佣金 − 不含税佣金（Net Commission + VAT 恒等于 Gross Fees，不另用不含税佣金 × VAT 率重算）；扩展预扣税 = 不含税佣金 × EWT；预扣 VAT = 不含税佣金 × 预扣 VAT 率；PCSO 应付净额 = 佣金 − 扩展预扣税 − 预扣 VAT；逐行四舍五入到分。")}</p>
+    ${b.pay ? `<div class="card"><h4>${z("PCSO payment", "PCSO 付款")}</h4><p class="tiny mono">${esc(b.pay.method)} · ${esc(b.pay.ref)} · ${esc(b.pay.at)}</p><p class="tiny" data-x14="pay-lock">${z("A registered PCSO payment cannot be corrected or deleted; the original entry is kept and there is no edit button. If the amount was entered wrongly, write the correct value in the closing reason of the difference to-do.", "PCSO 付款登记后不可更正、不可删除，原登记保留，没有编辑入口；金额登错的，在差异待办的关闭原因里写明正确值。")}</p></div>` : ""}`;
 }
 function rcSettleAct(act, arg, id) {
   rcSeedSettle();
@@ -6117,12 +6165,41 @@ function rcSettleModal() {
       <label class="f">${z("Difference reason (required when the actual amount differs)", "差异原因（实际金额不符时必填）")}</label><textarea data-f="reason">${esc(f.reason || "")}</textarea>${err}`, cancel + `<button type="button" class="btn btn-primary" data-act="rc-vch-ok" data-id="${s.id}">${z("Register voucher", "登记凭证")}</button>`);
   }
   if (m.type === "rc_pay") return dialog(z("Register PCSO payment · ", "登记 PCSO 付款 · ") + m.id, `<label class="f">${z("Method", "方式")}</label><input data-f="method" value="${esc(f.method || "")}" /><label class="f">${z("Reference", "参考号")}</label><input data-f="ref" value="${esc(f.ref || "")}" /><label class="f">${z("Received On", "收款日")}</label><input data-f="at" value="${esc(f.at || "")}" placeholder="2026-10-23" />${err}`, cancel + `<button type="button" class="btn btn-primary" data-act="rc-pay-ok" data-id="${m.id}">${z("Register payment", "登记付款")}</button>`);
+  if (m.type === "rc_adj") {
+    const s = S.rc.stmts.find((x) => x.id === m.id), el = S.rc.stmts.filter((x) => x.id !== s.id && ["approved", "remitted", "closed"].indexOf(x.st) >= 0);
+    return dialog(z("Add prior-period adjustment · ", "添加上期调整行 · ") + s.id, `<p class="tiny">${z("Total before this adjustment", "本次调整前合计")}: <b class="mono">${rcFmtP(rcStmtSum(s, "net"))}</b></p>
+      <label class="f">${z("Original Statement No", "原计算书单号")}</label><select data-f="adjorig"><option value="">—</option>${el.map((x) => `<option ${f.adjorig === x.id ? "selected" : ""}>${x.id}</option>`).join("")}</select>
+      <label class="f">${z("Adjustment Amount (positive adds to Net Due, negative reduces it)", "调整金额（正数增加应汇净额，负数减少）")}</label><input data-f="adjamt" class="mono" value="${esc(f.adjamt || "")}" placeholder="-1,250.00" />
+      <label class="f">${z("Adjustment Reason", "调整原因")}</label><textarea data-f="adjrea">${esc(f.adjrea || "")}</textarea>${err}`, cancel + `<button type="button" class="btn btn-primary" data-act="rc-adj-ok" data-id="${s.id}">${z("Add adjustment row", "添加调整行")}</button>`);
+  }
+  if (m.type === "rc_nopay") return dialog(z("No Payment Needed · ", "无需付款 · ") + m.id, `<p class="muted">${z("The total is exactly ₱0.00: there is no transfer and no voucher file. The statement goes straight to Closed.", "合计恰好为 ₱0.00：没有转账、没有凭证件，计算书直接转 Closed。")}</p><label class="f">${z("Reason (required)", "原因（必填）")}</label><textarea data-f="reason">${esc(f.reason || "")}</textarea>${err}`, cancel + `<button type="button" class="btn btn-primary" data-act="rc-nopay-ok" data-id="${m.id}">${z("Close statement", "关单")}</button>`);
   if (m.type === "rc_enc") return rcEncModal();
   if (m.type === "rc_full") return rcFullModal();
   return "";
 }
 function rcSettleAct2(act, arg, id) {
   const me = me0(), f = S.mf, fail = (m) => { f.err = m; render(); return true; };
+  if (act === "rc-adj-open") { if (!rcOpsOnly()) { toast(RO_OPS_MSG); return true; } S.mf = { err: "" }; S.modal = { type: "rc_adj", id }; render(); return true; }
+  if (act === "rc-adj-ok") {
+    const s = S.rc.stmts.find((x) => x.id === id), o = S.rc.stmts.find((x) => x.id === f.adjorig);
+    if (!o || ["approved", "remitted", "closed"].indexOf(o.st) < 0 || o.id === s.id) return fail("Choose an approved or remitted statement as the original statement.");
+    const raw = String(f.adjamt || "").replace(/[,\s₱]/g, ""), amt = Number(raw);
+    if (raw === "" || !isFinite(amt) || amt === 0) return fail("Enter the adjustment amount as a number other than 0 (negative reduces the total).");
+    if (!String(f.adjrea || "").trim()) return fail("Enter the adjustment reason.");
+    const a = { orig: o.id, amt: rcR2(amt), reason: String(f.adjrea).trim(), by: me, at: raNowFull().slice(0, 16) };
+    s.adj = (s.adj || []).concat([a]);
+    rcAud("Add prior-period adjustment", s.id, "—", "Original " + a.orig + " · " + (a.amt > 0 ? "+" : "") + rcFmtP(a.amt) + " · " + a.reason);
+    S.modal = null; S.mf = {}; render(); return true;
+  }
+  if (act === "rc-nopay-open") { if (!rcFinOnly()) { toast("Only Finance review can close a statement with no payment."); return true; } S.mf = { err: "" }; S.modal = { type: "rc_nopay", id }; render(); return true; }
+  if (act === "rc-nopay-ok") {
+    const s = S.rc.stmts.find((x) => x.id === id);
+    if (s.st !== "approved" || Math.round(rcStmtSum(s, "net") * 100) !== 0) return fail("No Payment Needed is only available for an approved statement whose total is exactly ₱0.00.");
+    if (!String(f.reason || "").trim()) return fail("Enter the reason.");
+    s.st = "closed"; s.noPay = { by: me, at: raNowFull().slice(0, 16), reason: String(f.reason).trim() };
+    rcAud("Close statement without payment", s.id, "Approved", "Closed · no payment needed · " + s.noPay.reason);
+    S.modal = null; S.mf = {}; render(); return true;
+  }
   if (act === "rc-rej-ok") { if (!String(f.reason || "").trim()) return fail("Enter the reject reason."); const s = S.rc.stmts.find((x) => x.id === id); s.st = "draft"; s.rej = f.reason; rcAud("Reject remittance statement", s.id, "Pending Review", "Draft · " + f.reason); S.modal = null; S.mf = {}; render(); return true; }
   if (act === "rc-todo-ok") { if (!String(f.reason || "").trim()) return fail("Enter the reason for closing."); const x = S.rc.todos.find((q) => q.id === id); x.st = "closed"; x.reason = f.reason.trim(); x.by = me; rcAud("Close reconciliation difference", x.id, "Open", "Closed · " + x.reason); S.rc.recClosed[x.date] = "Closed by " + me; S.modal = null; S.mf = {}; render(); return true; }
   if (act === "rc-vch-ok") {
@@ -6184,10 +6261,22 @@ function rcVerSources() {
     ["Sign-in records, message send records and integrity alerts", "Row-by-row signature", S.sends.length + S.alerts.length + " rows", rcHex("logs" + S.alerts.length)]
   ].map((r) => ({ src: r[0], how: r[1], n: r[2], end: r[3], ok: true }));
 }
+/* 6.12 evidence export: the package includes the sadmin rows that the audit list hides, with a SHA-256 manifest and chain of custody */
+S.rc.evid = null; S.rc.evidN = 0;
+function rdEvidCard() {
+  const ok = rbAuditRole(), e = S.rc.evid;
+  const res = e ? `<div data-x14="evid-result" style="margin-top:8px"><p class="tiny"><b class="mono">${e.id}</b> · ${esc(e.at)} UTC+8 · ${z("Exported by", "导出人")} <span class="mono">${esc(e.by)}</span> · ${z("Scope", "范围")}: ${esc(e.scope)}</p>
+    ${table([z("File", "文件"), z("Rows", "行数"), z("SHA-256 (sample value)", "SHA-256（示例值）")], e.files.map((f) => `<tr data-evf="${f[0]}"><td class="mono">${f[0]}</td><td class="mono">${f[1]}</td><td class="mono tiny">${f[2]}</td></tr>`))}
+    <p class="tiny" data-x14="evid-sadmin">${z("This package contains", "本导出包含")} <b class="mono">${e.total}</b> ${z("audit rows, including", "条审计行，其中")} <b class="mono" data-x14="evid-sadmin-n">${e.sadmin}</b> ${z("rows of the built-in super-administrator account, which the audit list, the normal exports and the staff list do not show.", "条为内置超级管理员账号的行（审计日志页、普通导出、员工列表不显示）。")}</p>
+    <p class="tiny" data-x14="evid-custody">${z("Chain Of Custody", "保管链")}: ${z("exporter", "导出人")} ${esc(e.by)} · ${z("time", "时间")} ${esc(e.at)} · ${z("scope", "范围")} ${esc(e.scope)} · ${z("request ID", "请求 ID")} ${e.id} · ${z("hash", "哈希")} <span class="mono">${e.hash}</span></p></div>` : "";
+  return `<div class="card" data-x14="evid" style="margin-top:12px"><h4>${z("Evidence export", "证据导出")}</h4>
+    <p class="tiny">${z("Compliance audit can export evidence for a scope. The package carries a SHA-256 hash manifest for every file and a chain-of-custody record (Chain Of Custody: exporter, time, scope, request ID, hash), next to the export metadata and checksum of the normal export package. It includes the super-administrator rows, which stay hidden everywhere else, so the package agrees with the hash-chain verification. It can be exported and verified again at any time during the retention period, and every export is written to the audit log.", "合规审计可对指定范围执行证据导出；导出包随附逐文件 SHA-256 哈希清单与保管链记录（导出人、时间、范围、请求 ID、哈希），与普通导出的元数据和校验和一并输出。导出包含平台其他位置都隐藏的超级管理员行，与哈希链校验一致；保留期内可重复导出与验证，每次导出写审计日志。")}</p>
+    <div class="row-actions"><button type="button" class="btn btn-sm btn-primary" data-act="rc-evid-run"${ok ? "" : ` disabled title="Only Compliance audit can run an evidence export."`}>${z("Export Evidence Package", "导出证据包")}</button></div>${res}</div>`;
+}
 function rcAuditExtras() {
   const ver = S.rc.ver ? `<div class="card" data-x13="ver-src" style="margin-top:12px"><h4>${z("Verification by source", "按来源验真")} <span class="tiny mono">${S.rc.ver.time}</span></h4>${table([z("Source", "来源"), z("Method", "校验方式"), z("Covered", "覆盖"), z("Result", "结果"), z("Endpoint Value", "端点值")], S.rc.ver.rows.map((r) => `<tr data-vsrc="${esc(r.src)}"><td>${r.src}</td><td class="tiny">${r.how}</td><td class="tiny">${r.n}</td><td>${r.ok ? tag("ok", "Passed") : tag("rose", "Broken")}</td><td class="mono tiny">${r.end}</td></tr>`))}</div>` : "";
   const d = auditSumData(), types = d.types.map(([k, n]) => k + " " + n).join(" · ");
-  return ver + `<div class="card" data-x13="hourly" style="margin-top:12px"><h4>${z("Hourly audit digest", "每小时审计摘要")} ${tag("muted", z("Sample data", "示例数据"))}</h4>
+  return ver + rdEvidCard() + `<div class="card" data-x13="hourly" style="margin-top:12px"><h4>${z("Hourly audit digest", "每小时审计摘要")} ${tag("muted", z("Sample data", "示例数据"))}</h4>
     <p class="tiny">${z("Each hour the system builds a digest (window start and end, entry count per log type, endpoint value per source) and signs it. It is delivered to the endpoint PCSO designates (Webhook or SFTP) and is on by default. Entry counts do not include the hidden super-administrator rows; the hash chain covers them all.", "系统每小时生成审计摘要（窗口起止、各类型条数、按来源的端点值）并签名，投递至 PCSO 指定端点（Webhook 或 SFTP），默认启用；条数不含隐藏的超级管理员行，哈希链覆盖全部。")}</p>
     <p class="tiny mono" data-x13="digest-counts">${esc(types)}</p></div>
     <div class="card" data-x13="equiv" style="margin-top:12px"><h4>${z("Data change principle and the equivalent basis", "数据变更通用原则与等效口径")}</h4>
@@ -6327,7 +6416,7 @@ function rcAlertExtras() {
     ${table([z("Found At", "发现时间"), z("Step", "环节"), z("Object", "对象"), z("Alert", "告警"), z("Log Type", "日志类型")], rcDiscovery().map((a) => `<tr data-disc="${a.id}"><td class="mono">${a.found}</td><td>${a.src}</td><td class="mono">${a.obj} ${esc(a.objId)}</td><td class="mono tiny">${a.id}</td><td>Security</td></tr>`))}</div>
     <div class="card" data-x13="alert-freeze" style="margin-top:12px"><h4>${z("Object freeze and claim deadline extension", "对象冻结与兑奖截止日顺延")}</h4>
     <p class="tiny">${z("A freeze lasts as long as an alert on the object is open, and lifts when the alert is closed. A Wallet or Transaction alert blocks only that player's withdrawals; betting, prize credit and void refunds go on. The player sees: Your wallet is temporarily restricted. Please contact customer support. The integrity alert is never shown to the player. A Ticket, Bet order or Prize order alert freezes the payout, claim and payment of the linked tickets. Draw and Terminal alerts do not freeze player funds.", "冻结以存在未关闭告警为准，关闭后解除。钱包类告警（Wallet、Transaction）只禁该玩家提现，投注、派奖入账、作废退款照常，玩家端提示沿用钱包冻结句，不暴露完整性告警；票、投注单、派奖单类告警冻结关联票的派奖、申领与兑付；Draw、Terminal 类不冻结玩家资金。")}</p>
-    <p class="tiny" data-x13="alert-deadline">${z("Claim deadline extension: tickets in Prize to claim during the freeze are extended. The days are the UTC+8 calendar days that the freeze and the ticket's claimable period overlap, first and last day both counted, added up over several freezes. Before the freeze lifts the ticket is not judged overdue; when it lifts the new deadline is written and audited. A wallet-type alert blocks only withdrawals, so it does not extend deadlines. (Pending PCSO confirmation.)", "兑奖截止日顺延：冻结期间处于“中奖待申领”的票都顺延，天数 = 冻结与该票可申领期重叠部分所跨过的 UTC+8 自然日数，首尾都算，多次冻结累加；冻结未解除前不判逾期，解冻时写新截止日并写审计；钱包类告警只禁提现，不顺延（待 PCSO 确认）。")}</p></div>
+    <p class="tiny" data-x13="alert-deadline">${z("Claim deadline extension (the same rule applies to a wallet freeze in the player profile): tickets in Prize to claim during a freeze are extended. The claimable period starts at the draw settlement time and ends at the ticket's current deadline. The days are the UTC+8 calendar days that the freeze and the claimable period overlap, first and last day both counted; when the deadline falls inside the freeze the count runs to the end of the freeze, and the new deadline is not earlier than the unfreeze day. Several freezes are merged by calendar day, so a day covered by more than one freeze counts once. A Ticket, Bet order or Prize order alert that froze the payout before the ticket reached Prize to claim also adds the extension after the recalculation, by the days the freeze covered. Before the freeze lifts the ticket is not judged overdue and the player sees On hold. The claim deadline will be extended after the hold is lifted.; when it lifts the new deadline is written to the audit log with the freeze start and end. A wallet-type alert blocks only withdrawals, so it does not extend deadlines.", "兑奖截止日顺延（钱包冻结同此口径）：冻结期间处于“中奖待申领”的票都顺延。可申领期自开奖结算时间起，到该票当前截止日止；天数 = 冻结与可申领期重叠部分所跨过的 UTC+8 自然日数，首尾都算；截止日落在冻结期间时数到冻结结束，新截止日不早于解冻日；多次冻结按自然日取并集，同一天被多段覆盖只算一次；票类告警冻结派奖期间（中奖票尚未进入“中奖待申领”）补算后同样补顺延；冻结未解除前不判逾期，玩家端显示“冻结中”；解冻时写新截止日并写审计（含冻结起止）；钱包类告警只禁提现，不顺延。")}</p></div>
     <div class="card" data-x13="alert-notify" style="margin-top:12px"><h4>${z("Alert delivery and escalation", "告警送达与升级")}</h4>
     <p class="tiny">${z("Alerts go to the Security alert notification list (Global parameters · Reports and compliance, one list for P1 and one for P2). A list member can be a staff account or a registered external contact (email or mobile number; registering one goes through a change request). Staff are notified by an in-app reminder in the admin console; an outgoing message to an external contact carries only the alert number, severity and category, never player information. A P1 alert not handled within 30 minutes, or a P2 within 24 hours, escalates automatically to the escalation targets (by default Finance review and Compliance audit, by in-app reminder); escalation only notifies and does not change who handles the alert.", "告警送达“安全告警通知名单”（P1、P2 各一份）；名单成员可选员工账号或登记的外部联系人（邮箱 / 手机号，登记走变更申请）；员工通知为管理端站内提醒，外发只含告警编号、级别、类别、不含玩家信息；P1 超 30 分钟、P2 超 24 小时未处理自动升级通知升级对象（默认财务复核 + 合规审计，管理端站内提醒），只通知、不改变处理角色。")}</p></div>`;
 }
@@ -6359,7 +6448,7 @@ function rcIntScope() {
 const RC_APPLIES = { "acct.pwmin": "Player", "acct.pwmax": "Player", "acct.pwmix": "Player", "acct.lock": "Player", "acct.otp": "Player", "acct.idle": "Admin", "acct.alock": "Admin", "acct.apw": "Admin" };
 const RC_FIXED = { "acct.alock": 1, "acct.apw": 1 };
 function rcApplies(k) { return RC_APPLIES[k] ? ` ${tag(RC_APPLIES[k] === "Player" ? "cyan" : "muted", RC_APPLIES[k] + " side")}` : ""; }
-function rcParamBtn(gid, pid) { return RC_FIXED[gid + "." + pid] ? tag("muted", z("Fixed, not configurable", "固定值，不可配")) : raGpBtn(gid, pid); }
+function rcParamBtn(gid, pid) { if (gid + "." + pid === "rules.sym") return tag("muted", z("Set per game in Edit game", "在编辑游戏中按游戏配置")); return RC_FIXED[gid + "." + pid] ? tag("muted", z("Fixed, not configurable", "固定值，不可配")) : raGpBtn(gid, pid); }
 function rcLiveDomOk(url) {
   const raw = String(a2Gp("live.dom") || "").trim(); if (!raw || /^empty$/i.test(raw)) return false;
   let host = ""; try { host = new URL(url).hostname.toLowerCase(); } catch (e) { return false; }
@@ -6370,29 +6459,31 @@ function rcLiveDomOk(url) {
   const base = S.tpls.find((x) => x.id === "MSG_BET_REFUND"), clone = (o) => Object.assign(JSON.parse(JSON.stringify(base)), o);
   base.bodyEn = "Your bet for {game} draw {draw} was cancelled. {amount} was refunded to your wallet.";
   base.bodyZh = "您的{game}第{draw}期投注已取消，{amount}已退回钱包。";
-  base.trigEn = "Draw voided, no voucher used (four reasons: game unavailable at draw time, no-draw day, draw cancelled by Operations, selection no longer valid after a switch to an older rule version). {amount} is the amount returned to the wallet; the message is sent even when it is ₱0. The refund composition splits into four template codes and one ticket gets only one of them.";
-  base.trigZh = "期次作废退款，无券（四种原因）；{amount} 取退回钱包的金额；退款构成不同分四个模板编码，同一张票只发其中一个。";
+  base.trigEn = "Draw voided, no voucher used (four reasons: game unavailable at draw time, no-draw day, draw cancelled by Operations, selection no longer valid after a switch to an older rule version). {amount} is the amount returned to the wallet; the message is sent even when it is ₱0. The refund composition splits into five template codes and one ticket gets only one of them.";
+  base.trigZh = "期次作废退款，无券（四种原因）；{amount} 取退回钱包的金额；退款构成不同分五个模板编码，同一张票只发其中一个。";
   const i = S.tpls.indexOf(base);
   S.tpls.splice(i + 1, 0,
     clone({ id: "MSG_BET_REFUND_VOUCHER", en: "Cancel and refund (voucher)", zh: "取消退款（用券）", trigEn: "Draw voided, a voucher was used and part was refunded to the wallet", trigZh: "期次作废退款，用券且部分退钱包", bodyEn: "Your bet for {game} draw {draw} was cancelled. {amount} was refunded to your wallet, and the voucher part was returned to your vouchers.", bodyZh: "您的{game}第{draw}期投注已取消，{amount}已退回钱包，券的部分已退回您的投注券。", vers: [{ at: "2026-10-23 09:00", who: "noah.lim", note: "Initial version" }] }),
     clone({ id: "MSG_BET_REFUND_VOUCHER_ONLY", en: "Cancel and refund (voucher only)", zh: "取消退款（全额用券）", vars: ["game", "draw"], trigEn: "Draw voided, paid fully with a voucher (wallet refund ₱0; the message is still sent and never shows ₱0.00)", trigZh: "期次作废退款，全额用券（钱包退款 ₱0，站内信仍发）", bodyEn: "Your bet for {game} draw {draw} was cancelled. The voucher part was returned to your vouchers.", bodyZh: "您的{game}第{draw}期投注已取消，券的部分已退回您的投注券。", vers: [{ at: "2026-10-23 09:00", who: "noah.lim", note: "Initial version" }] }),
-    clone({ id: "MSG_BET_REFUND_VOUCHER_EXPIRED", en: "Cancel and refund (voucher expired)", zh: "取消退款（原券已过期）", trigEn: "Draw voided and the original voucher has expired, so the returned voucher is recorded as expired. Two forms: wallet refund > 0 (based on MSG_BET_REFUND_VOUCHER) and wallet refund = 0 (based on MSG_BET_REFUND_VOUCHER_ONLY), both with the new voucher sentence. {amount} appears only when the wallet refund is above ₱0.", trigZh: "期次作废退款，原券已过期、退回券直接记已过期；钱包退款 > 0 与 = 0 两种。", bodyEn: "Your bet for {game} draw {draw} was cancelled. {amount} was refunded to your wallet. The voucher part was returned as an expired voucher because the original voucher has expired.", bodyEnZero: "Your bet for {game} draw {draw} was cancelled. The voucher part was returned as an expired voucher because the original voucher has expired.", bodyZh: "您的{game}第{draw}期投注已取消，{amount}已退回钱包。券的部分因原券已过期，作为已过期券退回。", vers: [{ at: "2026-10-23 09:00", who: "noah.lim", note: "Initial version" }] }));
+    clone({ id: "MSG_BET_REFUND_VOUCHER_EXPIRED", en: "Cancel and refund (voucher expired)", zh: "取消退款（原券已过期）", trigEn: "Draw voided and the original voucher has expired, so the returned voucher is recorded as expired, and the wallet refund is above ₱0. Based on MSG_BET_REFUND_VOUCHER with the voucher sentence replaced. {amount} is the wallet refund. When the wallet refund is ₱0 MSG_BET_REFUND_VOUCHER_ONLY_EXPIRED is used instead.", trigZh: "期次作废退款，原券已过期、退回券直接记已过期，且钱包退款 > 0；基于 MSG_BET_REFUND_VOUCHER，把券句换成新句；钱包退款 = 0 用 MSG_BET_REFUND_VOUCHER_ONLY_EXPIRED。", bodyEn: "Your bet for {game} draw {draw} was cancelled. {amount} was refunded to your wallet. The voucher part was returned as an expired voucher because the original voucher has expired.", bodyZh: "您的{game}第{draw}期投注已取消，{amount}已退回钱包。券的部分因原券已过期，作为已过期券退回。", vers: [{ at: "2026-10-23 09:00", who: "noah.lim", note: "Initial version" }] }),
+    clone({ id: "MSG_BET_REFUND_VOUCHER_ONLY_EXPIRED", en: "Cancel and refund (voucher only, expired)", zh: "取消退款（全额用券，原券已过期）", vars: ["game", "draw"], trigEn: "Draw voided and the original voucher has expired, so the returned voucher is recorded as expired, and the wallet refund is ₱0 (based on MSG_BET_REFUND_VOUCHER_ONLY with the voucher sentence replaced; no amount; the message is still sent).", trigZh: "期次作废退款，原券已过期、退回券直接记已过期，且钱包退款 = 0（基于 MSG_BET_REFUND_VOUCHER_ONLY，把券句换成新句；无金额，站内信仍发）。", bodyEn: "Your bet for {game} draw {draw} was cancelled. The voucher part was returned as an expired voucher because the original voucher has expired.", bodyZh: "您的{game}第{draw}期投注已取消，券的部分因原券已过期，作为已过期券退回。", vers: [{ at: "2026-10-23 09:00", who: "noah.lim", note: "Initial version" }] }));
   const bp = S.tpls.find((x) => x.id === "MSG_BET_PLACED");
   bp.trigEn = "Sent in real time after a bet is placed and the ticket is issued (one message per bet order; a multi-draw advance bet is one message and {draw} reads first draw – last draw; in-app only, no SMS). Single draw: Your {game} bet for draw {draw} has been placed. See your tickets. Multi-draw: Your {game} bet for draws {draw} has been placed. See your tickets.";
   bp.trigZh = "投注成功出票后实时发送（一张投注单一条，多期预购合并为一条，多期单 {draw} 填“首期 – 末期”；仅站内信，不发短信）。";
   bp.bodyEnMulti = "Your {game} bet for draws {draw} has been placed. See your tickets.";
   const dr = S.tpls.find((x) => x.id === "MSG_DRAW_RESULT");
-  dr.trigEn = "A draw you bet on is drawn. Sent to winning and non-winning players ({result} is Won if any settled ticket of the player won that draw, otherwise Not won). A player whose tickets are only on hold because of a cap gets no message for this draw, and none is sent after the recalculation either; the result is in My Tickets. A player with both settled and held tickets: if a settled ticket won, the message is sent and {result} counts settled tickets only; if no settled ticket won and some are held, no message is sent for this draw.";
-  dr.trigZh = "已购彩票的期次开奖（中奖与未中奖玩家均发）；只有封顶挂起票的玩家本期不发、补算后也不补发；既有已结算票又有挂起票的玩家：已结算的票有中奖照发，{result} 只按已结算的票算；已结算的票都没中、还有挂起票则本期不发。";
+  dr.trigEn = "A draw you bet on is drawn. Sent to winning and non-winning players ({result} is Won if any settled ticket of the player won that draw, otherwise Not won). A player whose tickets are only on hold because of a cap gets no message for this draw, and none is sent after the recalculation either; the result is in My Tickets. A player with both settled and held tickets: if a settled ticket won, the message is sent and {result} counts settled tickets only; if no settled ticket won and some are held, no message is sent for this draw. Exception: when all settled tickets lost and another ticket of the player is frozen by a ticket-type integrity alert (tamper review pending), Not won is still sent; if the frozen ticket wins after the review, a prize notice is sent as well (the existing prize notice template).";
+  dr.trigZh = "已购彩票的期次开奖（中奖与未中奖玩家均发）；只有封顶挂起票的玩家本期不发、补算后也不补发；既有已结算票又有挂起票的玩家：已结算的票有中奖照发，{result} 只按已结算的票算；已结算的票都没中、还有挂起票则本期不发。例外：已结算的票都没中、另有被票类完整性告警冻结（篡改待复核）的票时，照发 Not won，复核后若冻结票中奖，另发中奖通知（沿用中奖通知模板）。";
   const sb = S.sms.find((x) => x.id === "NOTICE_BET_REFUND"), sc = (o) => Object.assign(JSON.parse(JSON.stringify(sb)), o);
   sb.bodyEn = "iLotto: your {game} draw {draw} bet was cancelled and refunded to your wallet. Sign in to view {link}";
   sb.bodyZh = "iLotto：您的{game}第{draw}期投注已取消并退回钱包，请登录查看 {link}";
-  sb.trigEn = "Draw voided, no voucher used (four reasons); the refund composition splits into four template codes, and one ticket gets only one of them";
+  sb.trigEn = "Draw voided, no voucher used (four reasons); the refund composition splits into five template codes, and one ticket gets only one of them";
   const si = S.sms.indexOf(sb);
   S.sms.splice(si + 1, 0,
     sc({ id: "NOTICE_BET_REFUND_VOUCHER", en: "Cancel and refund notice (voucher)", zh: "取消退款通知（用券）", trigEn: "Draw voided, a voucher was used and part was refunded to the wallet", trigZh: "期次作废退款，用券且部分退钱包", bodyEn: "iLotto: your {game} draw {draw} bet was cancelled. The refund went to your wallet. The voucher part was returned to your vouchers. Sign in to view {link}", bodyZh: "iLotto：您的{game}第{draw}期投注已取消，退款已退回钱包，券的部分已退回您的投注券，请登录查看 {link}" }),
     sc({ id: "NOTICE_BET_REFUND_VOUCHER_ONLY", en: "Cancel and refund notice (voucher only)", zh: "取消退款通知（全额用券）", trigEn: "Draw voided, paid fully with a voucher (wallet refund ₱0)", trigZh: "期次作废退款，全额用券（钱包退款 ₱0）", bodyEn: "iLotto: your {game} draw {draw} bet was cancelled. The voucher part was returned to your vouchers. Sign in to view {link}", bodyZh: "iLotto：您的{game}第{draw}期投注已取消，券的部分已退回您的投注券，请登录查看 {link}" }),
-    sc({ id: "NOTICE_BET_REFUND_VOUCHER_EXPIRED", en: "Cancel and refund notice (voucher expired)", zh: "取消退款通知（原券已过期）", trigEn: "Draw voided and the original voucher has expired, so the returned voucher is recorded as expired. Wallet refund > 0 is based on NOTICE_BET_REFUND_VOUCHER and wallet refund = 0 on NOTICE_BET_REFUND_VOUCHER_ONLY, both with the new voucher sentence", trigZh: "期次作废退款，原券已过期、退回券直接记已过期", bodyEn: "iLotto: your {game} draw {draw} bet was cancelled. The refund went to your wallet. The voucher part was returned as an expired voucher. Sign in to view {link}", bodyEnZero: "iLotto: your {game} draw {draw} bet was cancelled. The voucher part was returned as an expired voucher. Sign in to view {link}", bodyZh: "iLotto：您的{game}第{draw}期投注已取消，退款已退回钱包，券的部分已作为已过期券退回，请登录查看 {link}" }));
+    sc({ id: "NOTICE_BET_REFUND_VOUCHER_EXPIRED", en: "Cancel and refund notice (voucher expired)", zh: "取消退款通知（原券已过期）", trigEn: "Draw voided and the original voucher has expired, so the returned voucher is recorded as expired, and the wallet refund is above ₱0 (based on NOTICE_BET_REFUND_VOUCHER with the voucher sentence replaced; wallet refund = 0 uses NOTICE_BET_REFUND_VOUCHER_ONLY_EXPIRED)", trigZh: "期次作废退款，原券已过期、退回券直接记已过期，且钱包退款 > 0；钱包退款 = 0 用 NOTICE_BET_REFUND_VOUCHER_ONLY_EXPIRED", bodyEn: "iLotto: your {game} draw {draw} bet was cancelled. The refund went to your wallet. The voucher part was returned as an expired voucher. Sign in to view {link}", bodyZh: "iLotto：您的{game}第{draw}期投注已取消，退款已退回钱包，券的部分已作为已过期券退回，请登录查看 {link}" }),
+    sc({ id: "NOTICE_BET_REFUND_VOUCHER_ONLY_EXPIRED", en: "Cancel and refund notice (voucher only, expired)", zh: "取消退款通知（全额用券，原券已过期）", trigEn: "Draw voided and the original voucher has expired, so the returned voucher is recorded as expired, and the wallet refund is ₱0 (based on NOTICE_BET_REFUND_VOUCHER_ONLY with the voucher sentence replaced; no amount)", trigZh: "期次作废退款，原券已过期、退回券直接记已过期，且钱包退款 = 0（无金额）", bodyEn: "iLotto: your {game} draw {draw} bet was cancelled. The voucher part was returned as an expired voucher. Sign in to view {link}", bodyZh: "iLotto：您的{game}第{draw}期投注已取消，券的部分已作为已过期券退回，请登录查看 {link}" }));
 })();
 
 /* ---------- 6.2.2 / 6.8.2 review page: eighth check (document expiry), handheld ID selfie ---------- */
@@ -6419,6 +6510,14 @@ S.lives.forEach((l) => { l.ltype = l.ltype || "HLS"; });
 /* ---------- dispatcher ---------- */
 function rcAct(act, arg, id) {
   const f = S.mf, me = me0();
+  if (act === "rc-evid-run") {
+    if (!rbAuditRole()) { toast("Only Compliance audit can run an evidence export."); return true; }
+    S.rc.evidN += 1; const n = S.audits.length, hs = S.audits.filter((a) => a.who === "sadmin").length, at = raNowFull().slice(0, 16), idv = "EV-" + String(S.rc.evidN).padStart(4, "0");
+    const files = [["audit-log-evidence.csv", n, rcHex("ev1" + idv + n)], ["export-metadata.json", 1, rcHex("ev2" + idv)], ["checksums.sha256", 1, rcHex("ev3" + idv)]];
+    S.rc.evid = { id: idv, at, by: me, scope: "All audit rows to date", total: n, sadmin: hs, files, hash: rcHex("custody" + idv + n) };
+    a2Aud(z("Audit log", "审计日志"), "Evidence export", idv, "—", n + " rows (" + hs + " built-in super-administrator rows included) · scope: all audit rows to date", "Audit");
+    render(); return true;
+  }
   if (act === "rc-enc-open") { if (!reconRole()) return true; S.rc.enc = { pass: rcPass() }; S.modal = { type: "rc_enc" }; a2Aud(z("Reports", "报表"), "Encrypted export of completed sales data", "sales-completed.csv.enc", "—", "AES-256 CSV + SHA-256 checksum file · passphrase shown once", "Audit"); render(); return true; }
   if (act === "rc-enc-done") { S.rc.enc = null; S.modal = null; render(); return true; }
   if (act === "rc-full-open") { if (!(rcFinOnly() || rcComplianceOnly())) { toast("Only Finance review or Compliance audit can start a full export."); return true; } S.mf = { fmt: "CSV", reason: "", err: "" }; S.modal = { type: "rc_full" }; render(); return true; }
@@ -6452,7 +6551,6 @@ function rcModal() {
   if (ty === "rc_av") return rcAvModal();
   return rcSettleModal();
 }
-(function () { S.tpls.filter((x) => x.bodyEnZero).concat(S.sms.filter((x) => x.bodyEnZero)).forEach((x) => { x.trigEn += " Wallet refund = 0 form: " + x.bodyEnZero; }); })();
 
 function auditVerify() { S.rc.ver = { time: clockStr(), rows: rcVerSources() }; auditVerify0(); }
 
@@ -8007,7 +8105,7 @@ function onClick(e) {
   if (act === "eg-save-rules") {
     const g = gameBy(id), f = S.mf, fail = (m) => { f.err = m; render(); };
     if (myRole() !== "ops") return fail("Only Operations can submit rule changes.");
-    const nr = normRules(g.kind, S.rs), e = validateRules(g.kind, nr);
+    const nr = normRules(g.kind, S.rs), e = validateRules(g.kind, nr, g);
     if (e) return fail(e);
     const cur = rulesOf(g);
     if (JSON.stringify(nr) === JSON.stringify(cur)) return fail("Nothing was changed.");
