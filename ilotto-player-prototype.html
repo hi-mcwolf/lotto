@@ -2265,7 +2265,8 @@ S.holdSegs=S.holdSegs||[];
 
 /* ---------- 6.4.2 / 6.7.5 claim deadline: hold display and extension (UTC+8 calendar days, union of segments, first and last day both count) ---------- */
 const HOLD_MSG='On hold. The claim deadline will be extended after the hold is lifted.';
-const holdOn=k=>!!k&&k.st==='winPending'&&S.holdSegs.some(s=>!s.b);
+/* 6.4.2: the On hold label and sentence show only while a hold is active AND the (already extended by finished holds) claim deadline has passed; otherwise the deadline shows as usual */
+const holdOn=k=>!!k&&k.st==='winPending'&&S.holdSegs.some(s=>!s.b)&&fdt(S.clock)>claimExp(k.draw);
 const dayAdd=(d,n)=>{const x=new Date(d+'T12:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)};
 const dayDiff=(a,b)=>Math.round((Date.parse(b+'T12:00:00Z')-Date.parse(a+'T12:00:00Z'))/864e5);
 /* number of distinct UTC+8 days covered by finished hold segments, counted from the ticket's settlement day */
@@ -2295,11 +2296,21 @@ A.luckyAddNon=kind=>{const g=DG[0];const fr=luckyNon(g).sort((a,b)=>b.n-a.n||(a.
 
 /* ---------- 6.13.1 MSG_DRAW_RESULT with a ticket frozen by a ticket-class integrity alert: Not won still goes out; Won goes out after the review ---------- */
 A.tfzSetup=()=>{if(!S.logged)seedDemo();const g=gm('super');const dl=drawList(g,1),ms=Date.parse('2026-10-10T09:00:00+08:00');
- S.tickets=S.tickets.filter(x=>!x.tfzDemo);
+ S.tickets=S.tickets.filter(x=>!x.tfzDemo&&!x.bothDemo);
  const a=makeOrder(g,'STD',[1,2,3,4,5,6],[],1,dl,ms,'await'),b=makeOrder(g,'STD',[7,8,9,10,11,12],[],1,dl,ms,'await');
  a.forEach(x=>{x.tfzDemo=1;x.tfzA=1;x.tfz=1});b.forEach(x=>{x.tfzDemo=1;x.tfzB=1;x.tfz=1;x.frozenAlert=1});S.tickets.push(...a,...b);toast('One ticket is frozen by an integrity alert; another ticket of the same draw is ready to settle');render()};
 A.tfzLose=()=>{const k=S.tickets.find(x=>x.tfzA&&x.st==='await');if(!k)return toast('Set up the demo first.');k.st='lost';k.tfz=0;const sent=msgDrawResult(gm(k.g),k,false);toast(sent?'Draw result sent: Not won':'No draw result sent');render()};
 A.tfzReview=()=>{const k=S.tickets.find(x=>x.tfzB&&x.st==='await');if(!k)return toast('Set up the demo first.');k.st='claimed';k.tfz=0;k.frozenAlert=0;k.paid='auto';k.prize=100;k.tier='Prize';const sent=msgDrawResult(gm(k.g),k,true);toast(sent?'Review passed — Won notification sent':'No notification sent');render()};
+
+/* ---------- 6.13.1 MSG_DRAW_RESULT, same player and draw holds both a payout-capped suspended ticket and an alert-frozen ticket (R7-05) ---------- */
+A.bothSetup=()=>{if(!S.logged)seedDemo();const g=gm('super');const dl=drawList(g,1),ms=Date.parse('2026-10-10T09:00:00+08:00');
+ S.tickets=S.tickets.filter(x=>!x.tfzDemo&&!x.bothDemo);
+ const a=makeOrder(g,'STD',[1,2,3,4,5,6],[],1,dl,ms,'await'),b=makeOrder(g,'STD',[7,8,9,10,11,12],[],1,dl,ms,'await'),c=makeOrder(g,'STD',[13,14,15,16,17,18],[],1,dl,ms,'await');
+ a.forEach(x=>{x.bothDemo=1;x.bothA=1});b.forEach(x=>{x.bothDemo=1;x.bothS=1;x.susp=1});c.forEach(x=>{x.bothDemo=1;x.bothF=1;x.tfz=1;x.frozenAlert=1});S.tickets.push(...a,...b,...c);
+ toast('Set up: one settled ticket, one payout-capped suspended ticket, one alert-frozen ticket');render()};
+A.bothLose=()=>{const k=S.tickets.find(x=>x.bothA&&x.st==='await');if(!k)return toast('Set up the demo first.');k.st='lost';const sent=msgDrawResult(gm(k.g),k,false);toast(sent?'Draw result sent: Not won':'No draw result sent');render()};
+A.bothSuspWin=()=>{const k=S.tickets.find(x=>x.bothS&&x.st==='await');if(!k)return toast('Set up the demo first.');k.susp=0;k.st='claimed';k.paid='auto';k.prize=100;k.tier='Prize';const sent=msgDrawResult(gm(k.g),k,true);toast(sent?'Recalculated — Won notification sent':'No notification sent');render()};
+A.bothReview=()=>{const k=S.tickets.find(x=>x.bothF&&x.st==='await');if(!k)return toast('Set up the demo first.');k.st='claimed';k.tfz=0;k.frozenAlert=0;k.paid='auto';k.prize=100;k.tier='Prize';const sent=msgDrawResult(gm(k.g),k,true);toast(sent?'Review passed — Won notification sent':'No notification sent');render()};
 
 /* ---------- 6.7.2 Symbol Set is a game-level setting: the letter-demo game keeps its own set ---------- */
 const SYM_ALT=['☀','☾','✿','♪','☂','⚑'];
@@ -2308,7 +2319,8 @@ A.symOrder=()=>{const g=DG[0],cur=csSyms(g).join('');g.sym=cur===SYM_INIT.join('
 /* ---------- demo panel section ---------- */
 function panelB4(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
  return `<h4>Claim deadline hold (6.4.2 · 6.7.5)</h4>${pb('Freeze prize claims (hold starts today)',"A.holdStart()",S.holdSegs.some(s=>!s.b)?'on':'','hold_on')}${pb('Lift the hold (held 3 days)',"A.holdLift(3)",'','hold_off')}${pb('Add an earlier hold (overlaps 2 days)',"A.holdPast(-3,-1)",'','hold_past')}${pb('Clear holds',"A.holdClear()",'','hold_clear')}
- <h4>Draw message with an alert-frozen ticket (6.13.1)</h4>${pb('Set up: one settled ticket + one frozen ticket',"A.tfzSetup()",'','tfz_setup')}${pb('Settle the first ticket: no win',"A.tfzLose()",'','tfz_lose')}${pb('Review passes: frozen ticket wins',"A.tfzReview()",'','tfz_review')}`}
+ <h4>Draw message with an alert-frozen ticket (6.13.1)</h4>${pb('Set up: one settled ticket + one frozen ticket',"A.tfzSetup()",'','tfz_setup')}${pb('Settle the first ticket: no win',"A.tfzLose()",'','tfz_lose')}${pb('Review passes: frozen ticket wins',"A.tfzReview()",'','tfz_review')}
+ <h4>Draw message with both a capped and a frozen ticket (6.13.1)</h4>${pb('Set up: settled + capped + frozen tickets',"A.bothSetup()",'','both_setup')}${pb('Settle the first ticket: no win',"A.bothLose()",'','both_lose')}${pb('Capped ticket recalculated: wins',"A.bothSuspWin()",'','both_susp')}${pb('Review passes: frozen ticket wins',"A.bothReview()",'','both_review')}`}
 {const _pe4=panelExtra;panelExtra=function(){_pe4.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;if(el.querySelector('[data-b4]'))return;const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Jump to screen|跳转屏幕/.test(h.textContent));const html=`<div data-b4="1">${panelB4()}</div>`;if(k>=0)hs[k].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}}
 render();
 </script>
