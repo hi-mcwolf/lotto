@@ -2363,6 +2363,24 @@ A.nameReview=(k,no,nm)=>{S.accts.push({k,no,nm:nm.toUpperCase(),ok:false,pri:fal
  modal(()=>`<div style="text-align:center"><h3>Sent to manual review</h3><div class="mu sm mt3" id="nm_mis" style="line-height:1.6">${NM_MISMATCH}</div><button class="btn c mt2" onclick="A.close()">OK</button></div>`,true);renderKeep()};
 A.setPri=i=>{if(S.wFrozen)return toast(RMSG.frozen);const a=S.accts[i];if(!a||a.ok===false||a.pri)return;S.accts.forEach(x=>x.pri=false);a.pri=true;S.accts.splice(i,1);S.accts.unshift(a);S.wd.dest=null;toast('Primary account updated');renderKeep()};
 render();
+
+/* ================= BATCH 8 (player): two self-exclusion notices (6.13.1 MSG_SELF_EXCLUSION_CORRECTED / _LIFTED_SPECIAL, 6.9.2) ================= */
+const SXC_PERIOD='14 days'; /* demo sample period */
+A.sxCorrected=()=>{if(!S.logged)seedDemo();const end=S.clock+14*864e5,e=fts(end);
+ if(S.excl){S.excl.label=SXC_PERIOD;S.excl.perm=false;S.excl.endTs=end;S.excl.expired=false;S.excl.req=false}
+ const be=`Your self-exclusion record was corrected by our team. It now runs ${SXC_PERIOD}, ending ${e}.`;
+ addNotif('shield','自我排除已更正','Self-exclusion corrected',`您的自我排除记录已由我们更正，现为 ${SXC_PERIOD}，至 ${e} 结束。`,be);
+ S.notifs[0].tpl='MSG_SELF_EXCLUSION_CORRECTED';S.notifs[0].nav='playsafe';
+ toast(S.excl?'Record corrected. A message was sent.':'Message sent (demo: no self-exclusion is active).');render()};
+A.sxLiftedSpecial=()=>{if(!S.logged)seedDemo();
+ S.excl=null; /* the account is back to normal after the special approval */
+ addNotif('shield','自我排除已解除','Self-exclusion lifted','经我们特别审核，您的永久自我排除已解除，您可以再次使用 iLotto。','Your permanent self-exclusion has been lifted after a special review by our team. You can use iLotto again.');
+ S.notifs[0].tpl='MSG_SELF_EXCLUSION_LIFTED_SPECIAL';S.notifs[0].nav='playsafe';
+ toast('Self-exclusion lifted. A message was sent.');render()};
+function panelB8(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
+ return `<h4>Self-exclusion notices (6.9.2 · 6.13.1)</h4>${pb('Self-exclusion record corrected',"A.sxCorrected()",'','sx8_corr')}${pb('Permanent self-exclusion lifted (special)',"A.sxLiftedSpecial()",'','sx8_lift')}`}
+{const _pe8=panelExtra;panelExtra=function(){_pe8.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;if(el.querySelector('[data-b8]'))return;const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Jump to screen|跳转屏幕/.test(h.textContent));const html=`<div data-b8="1">${panelB8()}</div>`;if(k>=0)hs[k].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
 </script>
 </body>
 </html>
