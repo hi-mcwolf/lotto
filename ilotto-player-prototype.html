@@ -2401,7 +2401,7 @@ LIVE[3].draws=[{g:'super',date:'2026-10-10',time:'21:00'}];
  const sec=liveSection();if(!sec)return h;const mk='<div class="row sp" style="margin-top:20px"><h3>';const i=h.indexOf(mk);return i<0?h+sec:h.slice(0,i)+sec+h.slice(i)}}
 
 /* ---------- live page: multi-session pager ---------- */
-const lvOrder=()=>{const L=LIVE.filter(liveOk);const lv=L.filter(s=>s.status==='live').sort((a,b)=>Date.parse(b.startAt)-Date.parse(a.startAt));const up=L.filter(s=>s.status!=='live').sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));return lv.concat(up)};
+let lvOrder=()=>{const L=LIVE.filter(liveOk);const lv=L.filter(s=>s.status==='live').sort((a,b)=>Date.parse(b.startAt)-Date.parse(a.startAt));const up=L.filter(s=>s.status!=='live').sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));return lv.concat(up)};
 const lvCur=()=>LIVE.find(x=>x.id===S.p.id)||livePick();
 const LV_H=210;
 const lvMuteTxt=()=>S.lvMuted===false?'Sound on':'Muted';
@@ -2419,7 +2419,7 @@ const lvPos=(o,s)=>o.length>1?`${o.findIndex(x=>x.id===s.id)+1} / ${o.length}`:'
 /* ---------- My Tickets on the live page ---------- */
 const lkKey=d=>d.g+'|'+d.date+'|'+d.time;
 const lkMatch=(k,d)=>k.g===d.g&&k.draw===d.date&&(k.dtime||gm(k.g).sess[0])===d.time;
-const lkGroups=s=>{if(!S.logged||!s||!(s.draws||[]).length)return [];return s.draws.map(d=>({d,ks:S.tickets.filter(k=>!archived(k)&&lkMatch(k,d))})).filter(x=>x.ks.length)};
+let lkGroups=s=>{if(!S.logged||!s||!(s.draws||[]).length)return [];return s.draws.map(d=>({d,ks:S.tickets.filter(k=>!archived(k)&&lkMatch(k,d))})).filter(x=>x.ks.length)};
 function lkRes(k){if(k.tfz||holdOn(k))return ['On hold','var(--am)'];if(k.susp)return ['Your result is being finalized. Please check back later.','var(--am)'];
  if(k.st==='void')return ['Refunded','var(--mu)'];if(k.st==='winPending')return ['Prize to claim','var(--am)'];
  if(k.st==='claimed'&&k.prize)return ['Won '+fm2(k.prize),'var(--gr)'];if(k.st==='lost')return ['Not won','var(--mu)'];return ['Waiting for draw','var(--mu)']}
@@ -2500,6 +2500,87 @@ try{const ap=(id,zh,en)=>{const w=SPEC_D[id]&&SPEC_D[id].pos&&SPEC_D[id].pos.wha
  ap('p_live','多场（直播中、预告）时上下滑动切换，直播中开播最晚在前、预告最早在前，先静音、点画面切换静音；播放区下方 My Tickets (n) 按关联期次分组显示本人票，只读，跟随当前场。','With several sessions (live, upcoming) swipe up or down to switch (live: latest start first; upcoming: earliest first), starting muted with tap-to-toggle sound; below the player, My Tickets (n) lists your own tickets grouped by linked draw, read-only, following the current session.');
  ap('p_news','每行增加副标题与摘要（超长省略，为空不显示该行）。','Each row also shows a subtitle and a summary (truncated when long; an empty one hides its line).');
  ap('p_news_detail','顶部封面（有则显示）、标题、副标题；摘要不在详情页重复。','A cover on top (when present), the title and the subtitle; the summary is not repeated on the detail page.')}catch(_){}
+render();
+/* ================= BATCH 10 (player, spec batch 11): My Tickets mapping / 20-per-group cap / View all / Total won rule (6.3.6), live switch list scope (cap 20), live requires login ================= */
+
+/* ---------- switch list: every visible session (live, then upcoming), at most 20; the tapped one is always reachable ---------- */
+lvOrder=()=>{const L=LIVE.filter(liveOk);const lv=L.filter(s=>s.status==='live').sort((a,b)=>Date.parse(b.startAt)-Date.parse(a.startAt));const up=L.filter(s=>s.status!=='live').sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));
+ let o=lv.concat(up);if(o.length>20){const c=S.screen==='live'&&S.p&&S.p.id?o.find(x=>x.id===S.p.id):null;o=o.slice(0,20);if(c&&!o.some(x=>x.id===c.id))o[19]=c}return o};
+
+/* ---------- live list and page require login: signed-out taps go through the normal sign-in, then come back to the tapped session ---------- */
+{const _go=A.go;A.go=function(s,p){if(s==='live'&&!S.logged){S.afterLogin={s:'live',p:p||{}};S.stack=[];S.screen='login';S.p={};return render()}return _go.apply(this,arguments)}
+ const _ld=A.loginDone;A.loginDone=function(){const r=_ld.apply(this,arguments);const a=S.afterLogin;S.afterLogin=null;
+  if(a&&S.logged&&S.kyc==='approved'&&!S.selfDeact&&S.screen==='home'){const id=a.p&&a.p.id;const ok=id&&LIVE.some(x=>x.id===id&&liveOk(x));_go.call(A,'live',ok?a.p:{})}return r};
+ const _ab=A.back;A.back=function(){if(S.screen==='tickets')S.tkDraw=null;return _ab.apply(this,arguments)};
+ const _tab=A.tab;A.tab=function(){S.tkDraw=null;return _tab.apply(this,arguments)}}
+
+/* ---------- result row: mapped from the payout mode and the ticket state ---------- */
+lkRes=function(k){
+ if(holdOn(k))return ['On hold','var(--am)'];                                   /* only: win to claim + frozen */
+ if(k.susp)return ['Your result is being finalized. Please check back later.','var(--am)'];
+ if(k.st==='void')return ['Refunded','var(--mu)'];
+ if(k.st==='winPending')return ['Prize to claim','var(--am)'];                   /* offline claim, not claimed yet */
+ if(k.st==='claimed'&&k.prize)return ['Won '+fm2(k.prize),'var(--gr)'];          /* auto credit, or offline claim already claimed; pre-tax like the ticket page */
+ if(k.st==='lost')return ['Not won','var(--mu)'];
+ return ['Waiting for draw','var(--mu)']};                                       /* await, pre-sale, tampered and still waiting */
+const lkSettled=ks=>ks.every(k=>k.st!=='await'&&k.st!=='pre'&&!k.susp);
+const lkTotal=ks=>lkSettled(ks)?ks.filter(k=>k.st==='claimed'&&k.prize>0).reduce((a,k)=>a+k.prize,0):0;
+const LK_CAP=20;
+lkGroups=s=>{if(!S.logged||S.kyc!=='approved'||!s||!(s.draws||[]).length)return [];return s.draws.map(d=>({d,ks:S.tickets.filter(k=>!archived(k)&&lkMatch(k,d))})).filter(x=>x.ks.length)};
+lkHtml=function(s){const gs=lkGroups(s);const n=gs.reduce((a,x)=>a+x.ks.length,0);if(!n)return '';const open=S.lkOpen!==false;
+ const body=gs.map(({d,ks})=>{const g=gm(d.g);const tot=lkTotal(ks);const shown=ks.slice(0,LK_CAP);
+  return `<div class="lk_grp" data-draw="${lkKey(d)}" data-n="${ks.length}" style="padding:10px 0;border-top:1px solid var(--line)"><div class="b sm lk_gh">${gname(g)} · ${dno(g,d.date,d.time)} · ${d.date} ${d.time}</div>${tot>0?`<div class="xs lk_tot" style="margin-top:4px;color:var(--gr);font-weight:700">Total won on this draw: ${fm2(tot)}</div>`:''}
+  ${shown.map(k=>{const [rt,rc]=lkRes(k);return `<div class="lk_tk" data-tk="${k.id}" onclick="A.go('tkDetail',{id:'${k.id}'})" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;cursor:pointer"><div class="xs mu lk_no" style="font-family:ui-monospace,monospace">${k.id}</div>${linesOf(k).map(l=>`<div class="sm lk_ln" style="font-weight:600;margin-top:3px;font-family:ui-monospace,monospace">${lkLine(g,l)}</div>`).join('')}<div class="xs mu lk_pl" style="margin-top:3px">${playTxt(k)} · ×${k.mult||1}</div><div class="xs lk_rs" style="margin-top:3px;font-weight:700;color:${rc}">${rt}</div></div>`}).join('')}
+  ${ks.length>LK_CAP?`<div class="sm b lk_all" data-draw="${lkKey(d)}" onclick="A.lkAll('${lkKey(d)}')" style="margin-top:10px;text-align:center;color:var(--cy);cursor:pointer">View all</div>`:''}</div>`}).join('');
+ return `<div class="card mt" id="lv_tk" style="padding:12px 16px"><div class="row sp" style="cursor:pointer" onclick="A.lkTog()"><h3 style="font-size:15px">My Tickets (${n})</h3><span style="display:inline-flex;transform:rotate(${open?90:0}deg);transition:.2s">${I('chev',16)}</span></div>${open?body:''}</div>`};
+
+/* View all: My Tickets screen filtered to that one draw */
+A.lkAll=key=>{const [g,date,time]=key.split('|');S.tkDraw={g,date,time};S.tkTab='all';S.tkAdv=false;_goRaw('tickets')};
+const _goRaw=(s,p)=>{S.stack.push({s:S.screen,p:S.p});S.screen=s;S.p=p||{};render()};
+A.lkClear=()=>{S.tkDraw=null;renderKeep()};
+{const _t=SC.tickets.html;SC.tickets.html=function(){const f=S.tkDraw;if(!f)return _t.apply(this,arguments);const all=S.tickets;S.tickets=all.filter(k=>lkMatch(k,f));let h;try{h=_t.apply(this,arguments)}finally{S.tickets=all}
+ const g=gm(f.g);const bar=`<div class="card mt" id="tk_drawf" style="padding:10px 14px"><div class="row sp"><div class="sm"><span class="mu">Draw </span><b>${gname(g)} · ${dno(g,f.date,f.time)} · ${f.date} ${f.time}</b></div><button class="sm b" style="color:var(--cy)" onclick="A.lkClear()">Clear</button></div></div>`;
+ const i=h.indexOf('<div class="chips mt">');return i<0?bar+h:h.slice(0,i)+bar+h.slice(i)}}
+
+/* ---------- demo data (Demo data): a settled draw with every payout state, and one draw with more than 20 tickets ---------- */
+{const _f=fresh;fresh=function(){_f.apply(this,arguments);S.livePubDn={}};
+ const _sd=seedDemo;seedDemo=function(){_sd.apply(this,arguments);S.livePubDn={};
+  const c0=Date.parse('2026-10-10T09:30:00+08:00');const mkT=(g,st,o)=>{const gg=gm(g);const k=ticket(g,st,Object.assign({amt:gg.p*(o.mult||1),ms:c0-60*60e3,lkDemo:1,lk10:1},o));S.tickets.push(k);return k};
+  /* Grand Lotto 6/55, 2026-10-09 21:00: already settled (the void ticket of the base demo data sits in the same group) */
+  mkT('grand','claimed',{draw:'2026-10-09',dtime:'21:00',nums:[2,11,23,35,44,52],paid:'counter',prize:500000,tier:'Jackpot'});            /* offline claim, already claimed */
+  mkT('grand','winPending',{draw:'2026-10-09',dtime:'21:00',nums:[4,9,19,27,38,50],prize:400000,tier:'Jackpot',code:'DEMO0001'});             /* offline claim, to claim */
+  mkT('grand','claimed',{draw:'2026-10-09',dtime:'21:00',nums:[6,13,21,34,41,53],paid:'auto',prize:200,tier:'Prize'});                        /* auto credit */
+  mkT('grand','lost',{draw:'2026-10-09',dtime:'21:00',nums:[1,10,20,30,40,55]});
+  /* EZ2 2026-10-10 21:00: 23 tickets in one group (cap of 20 on the live page) */
+  for(let i=0;i<23;i++)mkT('ez2','await',{draw:'2026-10-10',dtime:'21:00',nums:[1+(i*3)%31,1+(i*7+5)%31],play:'Straight'});
+  LIVE[2].draws=[{g:'grand',date:'2026-10-09',time:'21:00'},{g:'ez2',date:'2026-10-10',time:'21:00'}]}}
+
+/* ---------- publish in batches (demo hook): draw numbers stay the same across batches, the group is settled only when the last batch lands ---------- */
+LK_LVL['ez2|2026-10-10|21:00']=1;
+lkPublish=function(d,part){const key=lkKey(d);const L=S.tickets.filter(k=>lkMatch(k,d)&&k.st==='await'&&!k.susp&&!k.tfz);if(!L.length)return 0;
+ S.livePubDn=S.livePubDn||{};const g=gm(d.g);const take=part?L.slice(0,part):L;take.forEach(k=>{k.pt=pcOf(k)});
+ if(!S.livePubDn[key]){S.livePubDn[key]=craftWin(L[0],LK_LVL[key]===undefined?1:LK_LVL[key]);S.livePub[key]=1;
+  S.draws[g.id].unshift({no:dno(g,d.date,d.time),date:d.date,nums:S.livePubDn[key],jp:g.pool,winners:0})}
+ const dn=S.livePubDn[key];
+ take.forEach(k=>{const R=settleTicket(k,dn);k.dn=R.win;k.res=R;const top=R.tiers[0];k.tier=top?tierLbl(g,top.tier)+(R.tiers.length>1?' +'+(R.tiers.length-1):''):'';k.prize=R.gross;
+  if(R.gross<=0)k.st='lost';
+  else if(R.gross<=300000){k.st='claimed';k.paid='auto';S.bal.prize+=R.net;addTx('prize',R.net,'auto',gname(g)+(R.tax?' · '+t('已扣预扣税','net of tax'):''))}
+  else{k.st='winPending';k.code=claimCode();S.j.big=1}
+  if(R.tiers.some(x=>x.tier==='JP')){const r=S.draws[g.id][0];if(r&&r.no===dno(g,d.date,d.time))r.winners=1}});
+ return take.length};
+A.livePublishPart=step=>{if(!S.logged)seedDemo();const s=S.screen==='live'?lvCur():livePick();const ds=s?(s.draws||[]):[];let n=0;
+ ds.forEach(d=>{const L=S.tickets.filter(k=>lkMatch(k,d)&&k.st==='await'&&!k.susp&&!k.tfz);if(!L.length)return;n+=lkPublish(d,step==='first'?Math.max(1,Math.floor(L.length/2)):0)});
+ toast(n?(step==='first'?'First batch published. Some tickets are still waiting.':'Remaining results published.'):'No tickets are waiting on these linked draws.');if(S.screen==='live'){const e=$('#lv_tkw'),c=lvCur();if(e&&c)e.innerHTML=lkHtml(c)}else render()};
+{const _ls=A.liveState;A.liveState=x=>{
+ if(x==='more'){_ls('multi');LIVE[2].status='upcoming';LIVE[2].startAt='2026-10-11T21:00:00+08:00';S.liveSt='more';toast('Live stream state: two live + two upcoming');render();return}
+ _ls(x)}}
+function panelB10(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
+ return `<h4>My Tickets batches (6.3.6 · Demo data)</h4>${pb('Two live + two upcoming',"A.liveState('more')",S.liveSt==='more'?'on':'','lk10_more')}${pb('Publish first batch (this session)',"A.livePublishPart('first')",'','lk10_first')}${pb('Publish remaining (this session)',"A.livePublishPart('rest')",'','lk10_rest')}`}
+{const _pe10=panelExtra;panelExtra=function(){_pe10.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;if(el.querySelector('[data-b10]'))return;const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Jump to screen|跳转屏幕/.test(h.textContent));const html=`<div data-b10="1">${panelB10()}</div>`;if(k>=0)hs[k].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}}
+
+/* ---------- page spec notes ---------- */
+try{const ap=(id,zh,en)=>{const w=SPEC_D[id]&&SPEC_D[id].pos&&SPEC_D[id].pos.what;if(w){w[0]+=' '+zh;w[1]+=' '+en}};
+ ap('p_live','要求登录；切换列表含全部可见场次（直播中、预告，最多 20 场）。My Tickets 每组最多 20 张，超出 View all 进我的彩票按该期筛选；结果行按派奖方式映射，On hold 仅用于中奖待申领且冻结，Total won 只合计 Won 行且期次全部算完才显示；未实名整块隐藏。','Requires sign-in; the switch list holds every visible session (live, then upcoming; at most 20). My Tickets shows at most 20 tickets per group, with View all opening My Tickets filtered to that draw; result rows follow the payout mode, On hold only for a win to claim that is frozen, Total won sums Won rows only and appears once every ticket of the draw is settled; hidden when identity is not verified.')}catch(_){}
 render();
 </script>
 </body>
