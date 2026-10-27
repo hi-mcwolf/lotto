@@ -2381,6 +2381,126 @@ function panelB8(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="
  return `<h4>Self-exclusion notices (6.9.2 · 6.13.1)</h4>${pb('Self-exclusion record corrected',"A.sxCorrected()",'','sx8_corr')}${pb('Permanent self-exclusion lifted (special)',"A.sxLiftedSpecial()",'','sx8_lift')}`}
 {const _pe8=panelExtra;panelExtra=function(){_pe8.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;if(el.querySelector('[data-b8]'))return;const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Jump to screen|跳转屏幕/.test(h.textContent));const html=`<div data-b8="1">${panelB8()}</div>`;if(k>=0)hs[k].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}}
 render();
+/* ================= BATCH 9 (player): home live card position (6.3.2), live page multi-session swipe + My Tickets (6.3.6), news subtitle/summary (6.3.5) ================= */
+
+/* ---------- data: a 4th session (two live + one upcoming by default), linked draws, news subtitle / summary. All demo data. ---------- */
+LIVE.push({id:'LS-004',title:'Super Lotto 6/49 Evening Draw',cover:['#22d3ee','#3b82f6'],playbackUrl:'https://www.pcso.gov.ph/live/super-649',startAt:'2026-10-10T20:00:00+08:00',game:'super',status:'live',visible:true});
+LIVE[0].draws=[{g:'ultra',date:'2026-10-10',time:'21:00'}];
+LIVE[1].draws=[{g:'ez2',date:'2026-10-10',time:'14:00'},{g:'ez2',date:'2026-10-10',time:'17:00'}];
+LIVE[2].draws=[{g:'grand',date:'2026-10-09',time:'21:00'}];
+LIVE[3].draws=[{g:'super',date:'2026-10-10',time:'21:00'}];
+{const X={
+ 'N-001':{sub:'Next draws move to a new time slot',sum:'Starting this week, Ultra Lotto 6/58 draws move to Tuesday, Friday and Sunday at 9:00 PM. Sales close 30 minutes before each draw. See the Results tab for the schedule of every game.'},
+ 'N-002':{sub:'No ticket matched all six numbers in the latest draw',sum:''},
+ 'N-003':{sub:'',sum:'A retiree from Cebu City claimed the Lotto 6/42 jackpot at the PCSO Main Office this week.'},
+ 'N-004':{sub:'Auto credit for smaller prizes, in-person claim for larger ones',sum:'Prizes up to ₱300,000 are credited automatically after the result is published. For larger prizes, start a claim in My Tickets, then bring a valid ID to PCSO. Each ticket is claimed separately.'}};
+ NEWS.forEach(a=>{const x=X[a.id]||{};a.sub=x.sub||'';a.sum=x.sum||''})}
+
+/* ---------- home: live card sits below the jackpot banner and above All Games ---------- */
+{const _h=SC.home.html;SC.home.html=function(){const keep=liveSection;liveSection=()=>'';let h;try{h=_h.apply(this,arguments)}finally{liveSection=keep}
+ const sec=liveSection();if(!sec)return h;const mk='<div class="row sp" style="margin-top:20px"><h3>';const i=h.indexOf(mk);return i<0?h+sec:h.slice(0,i)+sec+h.slice(i)}}
+
+/* ---------- live page: multi-session pager ---------- */
+const lvOrder=()=>{const L=LIVE.filter(liveOk);const lv=L.filter(s=>s.status==='live').sort((a,b)=>Date.parse(b.startAt)-Date.parse(a.startAt));const up=L.filter(s=>s.status!=='live').sort((a,b)=>Date.parse(a.startAt)-Date.parse(b.startAt));return lv.concat(up)};
+const lvCur=()=>LIVE.find(x=>x.id===S.p.id)||livePick();
+const LV_H=210;
+const lvMuteTxt=()=>S.lvMuted===false?'Sound on':'Muted';
+const lvMuteChip=s=>s.status==='live'?`<span class="lv_mute" style="position:absolute;left:10px;bottom:10px;z-index:2;display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.5);color:#fff;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="lv_wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg><span class="lv_mtxt">${lvMuteTxt()}</span></span>`:'';
+function lvSlide(s,cur){const live=s.status==='live';let a='';
+ if(S.liveErr&&live)a=`<div style="height:${LV_H}px;background:#0a1148;display:grid;place-items:center;text-align:center;padding:0 24px"><div><div style="color:#fff;opacity:.5;margin-bottom:10px">${I('warn',34,'#fff')}</div><div class="sm" style="color:#fff;line-height:1.55">The live stream is temporarily unavailable. Please try again later.</div><button class="btn c s mt2" style="width:auto;padding:0 22px;margin:14px auto 0;position:relative;z-index:5" onclick="A.liveRetry()">Retry</button></div></div>`;
+ else if(live)a=`<div style="height:${LV_H}px;background:#0a1148;position:relative;display:grid;place-items:center;overflow:hidden"><div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,rgba(51,198,255,.18),transparent 60%)"></div><div style="text-align:center;position:relative"><span style="display:inline-grid;place-items:center;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.4)">${I('play',30,'#fff')}</span><div class="xs" style="color:#fff;opacity:.65;margin-top:10px">PCSO official stream (embedded player)</div></div></div>`;
+ else a=`<div style="height:${LV_H}px;position:relative;overflow:hidden;background:linear-gradient(135deg,${s.cover[0]},${s.cover[1]})"><div style="position:absolute;inset:0;display:grid;place-items:center"><div style="text-align:center;color:#fff"><div class="xs" style="opacity:.85">Starts in</div><div class="b mono lv_cdx" data-id="${s.id}" ${s.id===cur.id?'id="lv_cd2"':''} style="font-size:30px;text-shadow:0 1px 6px rgba(0,0,0,.4)">${fcd(Date.parse(s.startAt)-nowEff())}</div></div></div></div>`;
+ return `<div class="lv_slide" data-id="${s.id}" style="height:${LV_H}px;position:relative;flex:none">${a}${S.liveErr&&live?'':lvMuteChip(s)}</div>`}
+const lvHead=s=>`<div class="row sp" style="align-items:flex-start;gap:10px"><h3 style="font-size:17px;line-height:1.35">${s.title}</h3>${liveBadge(s.status==='live')}</div>`;
+const lvInfo=s=>`<div class="card mt" style="padding:6px 16px">${rowKV('Start time',fts(Date.parse(s.startAt)))}${s.game?rowKV('Game',gname(gm(s.game))):''}</div>
+ <div class="xs mu mt" style="text-align:center;line-height:1.6">Live draw streamed from the PCSO official channel.</div>`;
+const lvPos=(o,s)=>o.length>1?`${o.findIndex(x=>x.id===s.id)+1} / ${o.length}`:'';
+
+/* ---------- My Tickets on the live page ---------- */
+const lkKey=d=>d.g+'|'+d.date+'|'+d.time;
+const lkMatch=(k,d)=>k.g===d.g&&k.draw===d.date&&(k.dtime||gm(k.g).sess[0])===d.time;
+const lkGroups=s=>{if(!S.logged||!s||!(s.draws||[]).length)return [];return s.draws.map(d=>({d,ks:S.tickets.filter(k=>!archived(k)&&lkMatch(k,d))})).filter(x=>x.ks.length)};
+function lkRes(k){if(k.tfz||holdOn(k))return ['On hold','var(--am)'];if(k.susp)return ['Your result is being finalized. Please check back later.','var(--am)'];
+ if(k.st==='void')return ['Refunded','var(--mu)'];if(k.st==='winPending')return ['Prize to claim','var(--am)'];
+ if(k.st==='claimed'&&k.prize)return ['Won '+fm2(k.prize),'var(--gr)'];if(k.st==='lost')return ['Not won','var(--mu)'];return ['Waiting for draw','var(--mu)']}
+const lkLine=(g,l)=>l.map(n=>(g.t==='lotto'||g.t==='ez2')?String(n).padStart(2,'0'):n).join('-');
+function lkHtml(s){const gs=lkGroups(s);const n=gs.reduce((a,x)=>a+x.ks.length,0);if(!n)return '';const open=S.lkOpen!==false;
+ const body=gs.map(({d,ks})=>{const g=gm(d.g);const tot=ks.filter(k=>!k.tfz&&!k.susp&&(k.st==='claimed'||k.st==='winPending')).reduce((a,k)=>a+(k.prize||0),0);
+  return `<div class="lk_grp" data-draw="${lkKey(d)}" style="padding:10px 0;border-top:1px solid var(--line)"><div class="b sm lk_gh">${gname(g)} · ${dno(g,d.date,d.time)} · ${d.date} ${d.time}</div>${tot>0?`<div class="xs lk_tot" style="margin-top:4px;color:var(--gr);font-weight:700">Total won on this draw: ${fm2(tot)}</div>`:''}
+  ${ks.map(k=>{const [rt,rc]=lkRes(k);return `<div class="lk_tk" data-tk="${k.id}" onclick="A.go('tkDetail',{id:'${k.id}'})" style="margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;cursor:pointer"><div class="xs mu lk_no" style="font-family:ui-monospace,monospace">${k.id}</div>${linesOf(k).map(l=>`<div class="sm lk_ln" style="font-weight:600;margin-top:3px;font-family:ui-monospace,monospace">${lkLine(g,l)}</div>`).join('')}<div class="xs mu lk_pl" style="margin-top:3px">${playTxt(k)} · ×${k.mult||1}</div><div class="xs lk_rs" style="margin-top:3px;font-weight:700;color:${rc}">${rt}</div></div>`}).join('')}</div>`}).join('');
+ return `<div class="card mt" id="lv_tk" style="padding:12px 16px"><div class="row sp" style="cursor:pointer" onclick="A.lkTog()"><h3 style="font-size:15px">My Tickets (${n})</h3><span style="display:inline-flex;transform:rotate(${open?90:0}deg);transition:.2s">${I('chev',16)}</span></div>${open?body:''}</div>`}
+A.lkTog=()=>{S.lkOpen=S.lkOpen===false;const s=lvCur(),e=$('#lv_tkw');if(e&&s)e.innerHTML=lkHtml(s)};
+
+{const _o=SC.live.html;
+SC.live.html=()=>{const s=lvCur();if(!s||!liveOk(s))return _o();const o=lvOrder(),idx=Math.max(0,o.findIndex(x=>x.id===s.id)),multi=o.length>1;
+ return `<div class="fade"><div id="lvhead">${lvHead(s)}</div>
+ <div class="mt" id="lvstage" style="position:relative;height:${LV_H}px;border-radius:18px;overflow:hidden;touch-action:none"><div id="lvtrack" style="display:flex;flex-direction:column;transform:translateY(${-idx*LV_H}px)">${o.map(x=>lvSlide(x,s)).join('')}</div>
+  <div id="lvgest" data-multi="${multi?1:0}" style="position:absolute;inset:0;z-index:3;touch-action:none;cursor:${multi?'ns-resize':'pointer'}"></div>
+  ${multi?`<span id="lv_pos" style="position:absolute;right:10px;bottom:10px;z-index:4;background:rgba(0,0,0,.5);color:#fff;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700">${lvPos(o,s)}</span><span id="lv_hint" style="position:absolute;left:50%;transform:translateX(-50%);top:8px;z-index:4;background:rgba(0,0,0,.4);color:#fff;border-radius:999px;padding:2px 10px;font-size:10.5px;font-weight:600;pointer-events:none">Swipe up for the next session</span>`:''}</div>
+ <div id="lvinfo">${lvInfo(s)}</div><div id="lv_tkw">${lkHtml(s)}</div></div>`};
+SC.live.mount=()=>{const s0=lvCur();if(s0)S.p.id=s0.id;const sig=()=>LIVE.map(x=>x.id+x.status+x.visible).join();S.liveSeen=sig();S.lvSig=sig();
+ const nowCd=()=>$$('.lv_cdx').forEach(e=>{const x=LIVE.find(l=>l.id===e.dataset.id);if(x)e.textContent=fcd(Date.parse(x.startAt)-nowEff())});
+ T(nowCd,1000,true);
+ /* results published (demo hook) refresh My Tickets by themselves */
+ T(()=>{const s=lvCur(),e=$('#lv_tkw');if(!s||!e)return;const h=lkHtml(s);if(e.innerHTML!==h)e.innerHTML=h},700,true);
+ /* the platform gets no end-of-stream signal: the page asks the server for the session status every 30 s */
+ T(()=>{S.livePolls=(S.livePolls||0)+1;const s=lvCur();if(!s||!liveOk(s)||sig()!==S.liveSeen)renderKeep()},LIVE_POLL_MS(),true);
+ const g=$('#lvgest');if(!g)return;let y0=null,lastW=0;
+ const swipe=d=>A.lvGo(d);
+ g.onpointerdown=e=>{y0=e.clientY;try{g.setPointerCapture(e.pointerId)}catch(_){}};
+ g.onpointerup=e=>{if(y0===null)return;const dy=e.clientY-y0;y0=null;if(g.dataset.multi==='1'&&Math.abs(dy)>40)return swipe(dy<0?1:-1);if(Math.abs(dy)<=10)A.lvMute()};
+ g.onpointercancel=()=>{y0=null};
+ g.addEventListener('wheel',e=>{if(g.dataset.multi!=='1')return;e.preventDefault();const n=Date.now();if(n-lastW<500||Math.abs(e.deltaY)<20)return;lastW=n;swipe(e.deltaY>0?1:-1)},{passive:false})}}
+A.lvMute=()=>{const s=lvCur();if(!s||s.status!=='live')return;S.lvMuted=S.lvMuted===false;$$('.lv_mtxt').forEach(e=>e.textContent=lvMuteTxt())};
+A.lvGo=d=>{const o=lvOrder(),s=lvCur();if(!s||o.length<2)return false;const i=o.findIndex(x=>x.id===s.id),n=Math.max(0,Math.min(o.length-1,i+d));if(n===i)return false;const t2=o[n];S.p.id=t2.id;
+ const tr=$('#lvtrack');if(tr){tr.style.transition='transform .3s ease';tr.style.transform=`translateY(${-n*LV_H}px)`}
+ $$('.lv_cdx').forEach(e=>e.removeAttribute('id'));const c=$(`.lv_cdx[data-id="${t2.id}"]`);if(c)c.id='lv_cd2';
+ const h=$('#lvhead');if(h)h.innerHTML=lvHead(t2);const f=$('#lvinfo');if(f)f.innerHTML=lvInfo(t2);const k=$('#lv_tkw');if(k)k.innerHTML=lkHtml(t2);const p=$('#lv_pos');if(p)p.textContent=lvPos(o,t2);
+ const hi=$('#lv_hint');if(hi)hi.textContent=n<o.length-1?'Swipe up for the next session':'Swipe down for the previous session';return true};
+
+/* ---------- demo data: tickets on the linked draws, settle hook, presets ---------- */
+{const _f=fresh;fresh=function(){_f.apply(this,arguments);S.livePub={}};
+ const _sd=seedDemo;seedDemo=function(){_sd.apply(this,arguments);S.livePub={};const c0=Date.parse('2026-10-10T09:30:00+08:00');
+  const mk=(g,o)=>{const gg=gm(g);S.tickets.push(ticket(g,'await',Object.assign({draw:'2026-10-10',amt:gg.p*(o.mult||1),ms:c0-30*60e3,lkDemo:1},o)))};
+  mk('ultra',{nums:[3,15,22,38,47,55],dtime:'21:00'});mk('ultra',{nums:[1,8,14,29,36,52],mult:2,dtime:'21:00'});
+  mk('super',{nums:[7,14,21,33,41,48],mult:2,dtime:'21:00'});
+  mk('ez2',{nums:[5,18],play:'Straight',dtime:'17:00'})}}
+const LK_LVL={'ultra|2026-10-10|21:00':4,'super|2026-10-10|21:00':1,'ez2|2026-10-10|14:00':0,'ez2|2026-10-10|17:00':1};
+function lkPublish(d){const key=lkKey(d);if(S.livePub[key])return 0;S.livePub[key]=1;const L=S.tickets.filter(k=>lkMatch(k,d)&&k.st==='await'&&!k.susp&&!k.tfz);if(!L.length)return 0;
+ const g=gm(d.g);L.forEach(k=>{k.pt=pcOf(k)});const dn=craftWin(L[0],LK_LVL[key]===undefined?1:LK_LVL[key]);
+ L.forEach(k=>{const R=settleTicket(k,dn);k.dn=R.win;k.res=R;const top=R.tiers[0];k.tier=top?tierLbl(g,top.tier)+(R.tiers.length>1?' +'+(R.tiers.length-1):''):'';k.prize=R.gross;
+  if(R.gross<=0)k.st='lost';
+  else if(R.gross<=300000){k.st='claimed';k.paid='auto';S.bal.prize+=R.net;addTx('prize',R.net,'auto',gname(g)+(R.tax?' · '+t('已扣预扣税','net of tax'):''))}
+  else{k.st='winPending';k.code=claimCode();S.j.big=1}});
+ S.draws[g.id].unshift({no:dno(g,d.date,d.time),date:d.date,nums:dn,jp:g.pool,winners:L.some(k=>k.res.tiers.some(x=>x.tier==='JP'))?1:0});return L.length}
+A.livePublish=all=>{if(!S.logged)seedDemo();const s=(!all&&S.screen==='live')?lvCur():null;const ds=all?LIVE.flatMap(x=>x.draws||[]):s?(s.draws||[]):(livePick()?(livePick().draws||[]):[]);let n=0;ds.forEach(d=>{n+=lkPublish(d)});
+ toast(n?'Results published for the linked draws. My Tickets updated.':'No tickets are waiting on these linked draws.');if(S.screen==='live'){const e=$('#lv_tkw'),c=lvCur();if(e&&c)e.innerHTML=lkHtml(c)}else render()};
+{const _ls=A.liveState;A.liveState=x=>{
+ if(x==='multi'){S.liveSt='multi';S.liveErr=0;LIVE.forEach(s=>s.visible=true);LIVE[0].status='live';LIVE[0].startAt='2026-10-10T21:00:00+08:00';LIVE[1].status='upcoming';LIVE[1].startAt='2026-10-10T17:00:00+08:00';LIVE[2].status='ended';LIVE[3].status='live';LIVE[3].startAt='2026-10-10T20:00:00+08:00';toast('Live stream state: two live + one upcoming');render();return}
+ if(x==='live'||x==='error'){LIVE[3].status='upcoming';LIVE[3].startAt='2026-10-12T20:00:00+08:00'}
+ else if(x==='upcoming'){LIVE[3].status='upcoming';LIVE[3].startAt='2026-10-10T19:00:00+08:00'}
+ _ls(x)}}
+function panelB9(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
+ return `<h4>Live sessions and My Tickets (6.3.6 · Demo data)</h4>${pb('Two live + one upcoming',"A.liveState('multi')",S.liveSt==='multi'?'on':'','lk9_multi')}${pb('Publish linked draw results (this session)',"A.livePublish(false)",'','lk9_pub')}${pb('Publish linked draw results (all sessions)',"A.livePublish(true)",'','lk9_pub_all')}`}
+{const _pe9=panelExtra;panelExtra=function(){_pe9.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;if(el.querySelector('[data-b9]'))return;const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Jump to screen|跳转屏幕/.test(h.textContent));const html=`<div data-b9="1">${panelB9()}</div>`;if(k>=0)hs[k].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}}
+
+/* ---------- news (6.3.5): subtitle + summary on the list, subtitle on the detail ---------- */
+SC.news.html=()=>{const cid=S.newsTab||'all';const cats=[...NEWS_CATS].filter(c=>c.on).sort((a,b)=>a.sort-b.sort);const L=newsList(cid);
+ return `<div class="chips">${[{id:'all',name:'All'},...cats].map(c=>`<button class="chip ${c.id===cid?'on':''}" onclick="S.newsTab='${c.id}';renderKeep()">${c.name}</button>`).join('')}</div>
+ ${L.length?L.map(a=>`<div class="card mt nw_row" data-news="${a.id}" style="cursor:pointer;padding:12px 14px" onclick="A.go('newsDetail',{id:'${a.id}'})"><div class="row sp" style="align-items:flex-start;gap:10px"><div class="fl1" style="min-width:0"><div class="b nw_t" style="font-size:14px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${a.pin?`<span class="badge b-am" style="margin-right:6px;vertical-align:1px">Pinned</span>`:''}${a.title}</div>${a.sub?`<div class="sm nw_s" style="margin-top:3px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.sub}</div>`:''}${a.sum?`<div class="xs mu nw_m" style="margin-top:4px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${a.sum}</div>`:''}<div class="xs mu nw_c" style="margin-top:5px">${newsCatName(a)?newsCatName(a)+' · ':''}${a.at}</div></div>${a.cover?`<div class="nw_cv" style="width:64px;height:44px;border-radius:10px;flex:none;background:linear-gradient(135deg,${a.cover[0]},${a.cover[1]})"></div>`:''}</div></div>`).join(''):`<div class="card mt" style="text-align:center;padding:30px"><div class="mu sm">No articles in this category yet.</div></div>`}
+ <div class="xs mu mt" style="text-align:center;line-height:1.6">Pinned articles stay on top. Articles are published from Admin › Operations › News.</div>`};
+{const _d=SC.newsDetail.html;SC.newsDetail.html=()=>{const a=NEWS.find(x=>x.id===S.p.id);if(!a||a.off)return _d();
+ return `<div class="fade">${a.cover?`<div class="nw_cv" style="height:140px;border-radius:18px;background:linear-gradient(135deg,${a.cover[0]},${a.cover[1]});margin-bottom:14px"></div>`:''}
+ <h3 class="nw_t" style="font-size:18px;line-height:1.4">${a.title}</h3>${a.sub?`<div class="sm nw_s" style="margin-top:4px;font-weight:600;line-height:1.5">${a.sub}</div>`:''}
+ <div class="xs mu" style="margin-top:6px">${newsCatName(a)?`<span class="badge b-cy" style="margin-right:6px">${newsCatName(a)}</span>`:''}${a.at}</div>
+ <div class="card mt" style="font-size:13.5px;line-height:1.75">${a.body.map(p=>`<p style="margin:0 0 10px">${p}</p>`).join('')}</div></div>`}}
+
+/* ---------- page spec notes ---------- */
+try{const ap=(id,zh,en)=>{const w=SPEC_D[id]&&SPEC_D[id].pos&&SPEC_D[id].pos.what;if(w){w[0]+=' '+zh;w[1]+=' '+en}};
+ ap('p_live','多场（直播中、预告）时上下滑动切换，直播中开播最晚在前、预告最早在前，先静音、点画面切换静音；播放区下方 My Tickets (n) 按关联期次分组显示本人票，只读，跟随当前场。','With several sessions (live, upcoming) swipe up or down to switch (live: latest start first; upcoming: earliest first), starting muted with tap-to-toggle sound; below the player, My Tickets (n) lists your own tickets grouped by linked draw, read-only, following the current session.');
+ ap('p_news','每行增加副标题与摘要（超长省略，为空不显示该行）。','Each row also shows a subtitle and a summary (truncated when long; an empty one hides its line).');
+ ap('p_news_detail','顶部封面（有则显示）、标题、副标题；摘要不在详情页重复。','A cover on top (when present), the title and the subtitle; the summary is not repeated on the detail page.')}catch(_){}
+render();
 </script>
 </body>
 </html>

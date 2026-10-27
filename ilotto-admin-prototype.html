@@ -479,7 +479,7 @@ const GAMES = [
     ["3 中 · 4 等", "Match 3 · 4th", "₱30 固定", "₱30 fixed"]
   ]},
   { id: "l642", zh: "乐透 6/42", en: "Lotto 6/42", kind: "lotto", on: true, price: 25, pickZh: "1–42 选 6", pickEn: "Pick 6 from 1–42", freqZh: "每周 3 场", freqEn: "3 draws / week", advance: 12, playZh: "标准 / 机选 / 复式 System 7–12 / 5 号轮转", playEn: "Standard / Quick Pick / System 7–12 / 5-Roll", v41: true, prizes: [
-    ["6 中 · 头奖", "Match 6 · Jackpot", "累计奖池，无保底，无人中滚存", "Rolling jackpot, No guarantee, rolls over if nobody wins"],
+    ["6 中 · 头奖", "Match 6 · Jackpot", "累计奖池，保底 ₱10,000,000，无人中滚存", "Rolling jackpot, floor ₱10,000,000, rolls over if nobody wins"],
     ["5 中 · 2 等", "Match 5 · 2nd", "₱24,000 固定", "₱24,000 fixed"],
     ["4 中 · 3 等", "Match 4 · 3rd", "₱800 固定", "₱800 fixed"],
     ["3 中 · 4 等", "Match 3 · 4th", "₱20 固定", "₱20 fixed"]
@@ -902,8 +902,8 @@ S.staff = [
 S.opq = { lvSt: "all", lvGame: "all", lvVis: "all", lvFrom: "", lvTo: "", nwSt: "all", nwCat: "all", nwQ: "", vcSt: "all", vcFace: "all", vcFrom: "", vcTo: "", vcQ: "" };
 S.lives = [
   { id: "LS20261021000018", title: "Swertres 9 PM Draw Night", cover: true, c1: "#0e7490", url: "https://pcso.example/live/sw3-2100.m3u8", start: "2026-10-21 21:00", game: "sw3", st: "live", vis: true, by: "mina.cruz", at: "2026-10-21 20:58" },
-  { id: "LS20261025000012", title: "Super Lotto 6/49 Draw Night", cover: true, c1: "#7c3aed", url: "https://pcso.example/live/s649.m3u8", start: "2026-10-25 21:00", game: "s649", st: "upcoming", vis: true, by: "mina.cruz", at: "2026-10-20 10:12" },
-  { id: "LS20261018000007", title: "Grand Lotto 6/55 Draw Night", cover: false, c1: "#334155", url: "https://pcso.example/live/g655.m3u8", start: "2026-10-18 21:00", game: "g655", st: "ended", vis: false, by: "carla.ong", at: "2026-10-18 21:40" }
+  { id: "LS20261025000012", title: "Super Lotto 6/49 Draw Night", cover: true, c1: "#7c3aed", url: "https://pcso.example/live/s649.m3u8", start: "2026-10-25 21:00", game: "s649", draws: ["L649-20261025-1"], st: "upcoming", vis: true, by: "mina.cruz", at: "2026-10-20 10:12" },
+  { id: "LS20261018000007", title: "Grand Lotto 6/55 Draw Night", cover: false, c1: "#334155", url: "https://pcso.example/live/g655.m3u8", start: "2026-10-18 21:00", game: "g655", draws: ["L655-20261018-1"], st: "ended", vis: false, by: "carla.ong", at: "2026-10-18 21:40" }
 ];
 S.newsCats = [
   { id: "CAT-0001", name: "Winner Stories", sort: 10, on: true },
@@ -911,8 +911,8 @@ S.newsCats = [
   { id: "CAT-0003", name: "Community", sort: 30, on: true }
 ];
 S.news = [
-  { id: "NEWS20261021000031", title: "New Super Lotto Draw Schedule", cat: "CAT-0002", st: "pub", pin: true, sched: "", schedBy: "", pubBy: "mina.cruz", pubAt: "2026-10-18 09:00", at: "2026-10-18 09:00", body: "Starting November, Super Lotto 6/49 draws move to 21:00 UTC+8 on Tuesday, Thursday and Sunday. Play Responsibly." },
-  { id: "NEWS20261021000030", title: "A Cebu Teacher Wins the 6/55 Jackpot", cat: "CAT-0001", st: "pub", pin: false, sched: "", schedBy: "", pubBy: "carla.ong", pubAt: "2026-10-15 14:00", at: "2026-10-15 14:00", body: "A public-school teacher from Cebu City claimed the Grand Lotto 6/55 jackpot at the PCSO main office. Play Responsibly." },
+  { id: "NEWS20261021000031", title: "New Super Lotto Draw Schedule", sub: "Next draws move to a new time slot", summ: "Starting next week, the evening draw will begin at a new time.", cat: "CAT-0002", st: "pub", pin: true, sched: "", schedBy: "", pubBy: "mina.cruz", pubAt: "2026-10-18 09:00", at: "2026-10-18 09:00", body: "Starting November, Super Lotto 6/49 draws move to 21:00 UTC+8 on Tuesday, Thursday and Sunday. Play Responsibly." },
+  { id: "NEWS20261021000030", title: "A Cebu Teacher Wins the 6/55 Jackpot", sub: "A public-school teacher claimed the prize", summ: "", cat: "CAT-0001", st: "pub", pin: false, sched: "", schedBy: "", pubBy: "carla.ong", pubAt: "2026-10-15 14:00", at: "2026-10-15 14:00", body: "A public-school teacher from Cebu City claimed the Grand Lotto 6/55 jackpot at the PCSO main office. Play Responsibly." },
   { id: "NEWS20261021000029", title: "October Charity Fund Report", cat: "", st: "pub", pin: false, sched: "", schedBy: "", pubBy: "mina.cruz", pubAt: "2026-10-12 10:00", at: "2026-10-12 10:00", body: "A summary of the charity allocations funded by October lottery sales. Play Responsibly." },
   { id: "NEWS20261021000026", title: "Draw Night Viewing Guide", cat: "CAT-0002", st: "pub", pin: false, sched: "", schedBy: "", pubBy: "carla.ong", pubAt: "2026-10-09 18:00", at: "2026-10-09 18:00", body: "How to follow the official PCSO draw stream inside the app, and where to find the winning numbers afterwards. Play Responsibly." },
   { id: "NEWS20261021000025", title: "Playing Responsibly: Set Your Limits", cat: "", st: "pub", pin: false, sched: "", schedBy: "", pubBy: "mina.cruz", pubAt: "2026-10-03 09:30", at: "2026-10-03 09:30", body: "A reminder of the deposit, session and self-exclusion tools available in your account. Play Responsibly." },
@@ -1484,6 +1484,7 @@ function validateRules(kind, r, g) {
   if (!lotto && r.pick.lo > r.pick.hi) return "Lowest value cannot be higher than the highest value.";
   if (!isInt(p.qpDef) || p.qpDef < 1) return "Quick Pick default lines must be at least 1.";
   if (!isInt(p.qpMax) || p.qpMax < p.qpDef) return "Quick Pick max lines must be at least the default.";
+  if (p.qpMax > 10) return "Quick Pick max lines cannot exceed 10.";
   if (lotto) {
     if (!isInt(r.pick.hi) || r.pick.hi > 58) return "Highest number cannot exceed 58.";
     if (!isInt(p.sysMin) || p.sysMin <= n) return "System bet minimum must be greater than the numbers per line (" + n + ").";
@@ -1713,6 +1714,8 @@ S.issues = [
   { no: "L642-20261011-1", game: "l642", open: "2026-10-08 09:00", cut: "2026-10-12 19:00", draw: "2026-10-12 21:00", st: "postponed", was: "sale", sales: 2210000, reason: "PCSO studio delay" },
   { no: "EZ2-20261010-2", game: "ez2", open: "2026-10-09 09:00", cut: "2026-10-10 12:00", draw: "2026-10-10 14:00", st: "settled", firstAt: "2026-10-10 14:06", pubAt: "2026-10-10 14:31", sales: 395000 },
   { no: "6D-20261011-2", game: "d6", open: "2026-10-09 09:00", cut: "2026-10-11 19:00", draw: "2026-10-11 21:00", st: "void", sales: 0, voidKind: "cancel", refT: 0, reason: "PCSO studio closed" },
+  { no: "L649-20261025-1", game: "s649", open: "2026-10-12 09:00", cut: "2026-10-25 19:00", draw: "2026-10-25 21:00", st: "gen", sales: 0 },
+  { no: "L655-20261018-1", game: "g655", open: "2026-10-12 09:00", cut: "2026-10-18 19:00", draw: "2026-10-18 21:00", st: "gen", sales: 0 },
   { no: "L655-20261022-1", game: "g655", open: "2026-10-12 09:00", cut: "2026-10-22 19:00", draw: "2026-10-22 21:00", st: "gen", sales: 410000 },
   { no: "L655-20261026-1", game: "g655", open: "2026-10-12 09:00", cut: "2026-10-26 19:00", draw: "2026-10-26 21:00", st: "gen", sales: 180000 },
   { no: "L655-20261029-1", game: "g655", open: "2026-10-12 09:00", cut: "2026-10-29 19:00", draw: "2026-10-29 21:00", st: "gen", sales: 0 },
@@ -2006,38 +2009,68 @@ function wzPrepare(i, g, w, steps) {
   entTierRows(i, g).filter((r) => r.isPool).forEach((r) => { S.mf["pl" + r.k] = w.vals["pl" + r.k] || ""; S.mf["pb" + r.k] = w.vals["pb" + r.k] || ""; });
   S.mf.njp = w.vals.njp || ""; S.mf.jp_reason = steps.some((s) => s.id === "jpr") ? w.vals.jpr || "" : "";
 }
-function wzView(i, g, kind) {
-  const who = actor().who; const second = kind === "num" ? i.st === "review" : !!i.prz1;
-  if (second && ((kind === "num" && i.first && i.first.by === who) || (kind === "prz" && i.prz1 && i.prz1.by === who))) {
-    if (S.wiz) wzDrop(S.wiz.key); S.wiz = null;
-    return `<div class="card wz"><h4>${second ? t("第二次独立录入（财务复核）", "Second independent entry (Finance review)") : ""}</h4><div class="banner amber">${t("第一次录入是你本人提交的。第二次独立录入必须由另一人（财务复核）完成，请换账号。", "You made the first entry. The second independent entry must be made by a different person (Finance review). Sign in with another account.")}</div></div>`;
+/* ===== batch 10: immersive full-screen entry layer (6.7.4): same steps, validation, drafts and roles; the summary page and its checkbox became the confirm layer ===== */
+function wzCanOps() { return myRole() === "ops" || demoAll(); }
+function wzCanFin() { return myRole() === "finance" || demoAll(); }
+function wzRoute(i, g) {
+  const who = actor().who; const pool = entTierRows(i, g).some((r) => r.isPool);
+  const wait = (role, what) => ({ kind: "wait", role, msg: "Waiting for " + role + " to enter " + what + "." });
+  const waitSame = (what) => ({ kind: "wait", role: "Finance review", msg: "Waiting for Finance review to enter " + what + ". The second entry must be made by a different person." });
+  const waitAuth = { kind: "wait", role: "Finance review", msg: "Waiting for Finance review to authorize and publish." };
+  if (i.st === "entry") return wzCanOps() ? { kind: "num" } : wait("Operations", "the winning numbers");
+  if (i.st === "review") { if (!wzCanFin()) return wait("Finance review", "the winning numbers again"); if (i.first && i.first.by === who) return waitSame("the winning numbers again"); return { kind: "num" }; }
+  if (i.st === "prize") {
+    if (!pool || i.przOk) return wzCanFin() ? { kind: "auth" } : waitAuth;
+    if (!i.prz1) return wzCanOps() ? { kind: "prz" } : wait("Operations", "the pool amounts and prizes");
+    if (!wzCanFin()) return wait("Finance review", "the pool amounts and prizes again");
+    if (i.prz1.by === who) return waitSame("the pool amounts and prizes again");
+    return { kind: "prz" };
   }
-  const w = wzGet(i, g, kind); const { steps, k, st } = wzCur(); const N = steps.length;
-  const seg = kind === "num" ? (second ? t("第二次独立录入（财务复核）", "Second independent entry (Finance review)") : t("第一次录入（运营专员）", "First entry (Operations)")) : (second ? t("第二次奖金录入（财务复核）", "Second prize entry (Finance review)") : t("第一次奖金录入（运营专员）", "First prize entry (Operations)"));
-  const hd = `<div class="wz-hd"><div><div class="tiny">${seg} · ${kind === "num" ? t("号码", "Numbers") : t("奖金", "Prizes")}</div><div class="wz-game"><b>${esc(gname(g))}</b> · <span class="mono">${i.no}</span> · ${t("开奖", "Draw")} <span class="mono">${i.draw}</span>${st.row ? ` · ${t("线上中奖注数", "Online winners")} <b class="mono">${st.row.on}</b>` : ""}</div></div><div class="wz-prog mono" data-wz-prog="1">${t(`第 ${k + 1} 步 / 共 ${N} 步`, `Step ${k + 1} of ${N}`)}</div></div>`;
-  let body = ""; let nextLbl = t("下一步", "Next"); const rows = entTierRows(i, g);
-  const err = w.err || S.mf.err || "";
+  return null;
+}
+function wzLayerOn(i, g) { return !drawRo() && ((S.wzRes && S.wzRes.no === i.no) || !!wzRoute(i, g)); }
+function wzFlow(cur) {
+  const L = [["First entry", "第一次录入"], ["Second independent entry", "第二次独立录入"], ["Winners and prizes", "中奖与奖金"], ["Second prize entry", "第二次奖金录入"], ["Authorize and publish", "授权发布"]];
+  return `<ol class="wzl-flow">${L.map((x, k) => `<li class="${k + 1 < cur ? "done" : k + 1 === cur ? "cur" : ""}"><b>${k + 1 < cur ? "\u2713" : k + 1}</b><span>${z(x[0], x[1])}</span></li>`).join("")}</ol>`;
+}
+function wzFlowCur(i) { return i.st === "settled" || i.st === "pub" ? 6 : i.st === "entry" ? 1 : i.st === "review" ? 2 : i.st === "prize" ? (i.przOk ? 5 : i.prz1 ? 4 : 3) : 1; }
+function wzRefHtml(i, g) {
+  const rows = entTierRows(i, g); const ref = przRef(i, g); const lotto = g.kind === "lotto";
+  return `<p class="tiny" style="margin:0 0 6px">Reference only, not used in calculations</p><div class="table-wrap fit"><table><tbody>
+      ${lotto ? `<tr><td>${t("上一期头奖奖池", "Previous draw jackpot pool")}</td><td class="mono amt">${peso(ref.pool)}</td><td>${ref.won ? t("上期头奖有人中", "Jackpot was won") : t("上期头奖无人中，滚存", "Jackpot not won, rolled over")}</td></tr>` : ""}
+      <tr><td>${t("本期线上销售额", "This draw online sales")}</td><td class="mono amt">${peso(ref.sales)}</td><td></td></tr>
+      <tr><td>${t("本期线上奖金基金贡献", "Online prize-fund contribution")}</td><td class="mono amt">${peso(ref.contrib)}</td><td class="tiny">${t("净销售（线上销售额 − 印花税）× 奖金占比：", "Net sales (online sales − DST) × prize share: ")}${peso(ref.sales)} × (1 − ${Math.round(BILL.dst * 100)}%) × ${Math.round(BILL.prize * 100)}%</td></tr>
+      <tr><td>${t("线上各奖级中奖注数", "Online winners per tier")}</td><td colspan="2" class="mono">${rows.map((r) => r.on).join(" / ")}</td></tr></tbody></table></div>`;
+}
+function wzStrip(i, g, cur) {
+  const rows = entTierRows(i, g); const open = S.wzStats === undefined ? cur === 3 : !!S.wzStats;
+  const slots = (i.nums || "").split(",").filter(Boolean).map((n) => `<span class="slot f">${rsCsOf(i) !== "Numeric" ? n : n.padStart(2, "0")}</span>`).join("");
+  return `<div class="wzl-strip" id="ent-online"><div class="wzl-strip-h"><span id="ent-match"><b>${t("两份号码一致", "Both entries match")}</b> <span class="slots">${slots}</span></span><button type="button" class="btn btn-sm" data-act="draw-wz-stats" aria-expanded="${open}">${t("线上中奖统计", "Online winners by tier")} ${open ? "\u25b4" : "\u25be"}</button></div>
+    <div class="wzl-strip-b" ${open ? "" : "hidden"}><p class="tiny" style="margin:0 0 6px">${t("系统统计，仅供 PCSO 查看，不发布", "System statistics. PCSO only, not published")}</p><div class="banner">${t("线下中奖注数由 PCSO 线下处理，不进系统。", "Offline winners are handled by PCSO offline and are not entered in the system.")}</div><div class="table-wrap fit"><table id="ent-online-tbl"><thead><tr><th>${t("奖级", "Tier")}</th><th>${t("线上中奖注数", "Online winners")}</th></tr></thead><tbody>${rows.map((r) => `<tr data-tier="${r.k}"><td>${r.name}</td><td class="mono">${r.on}</td></tr>`).join("")}</tbody></table></div></div></div>`;
+}
+function wzConfirmRows(i, g, w, steps, kind) {
+  const rows = entTierRows(i, g); const rowsH = []; const edit = (id) => `<button type="button" class="btn btn-sm" data-act="draw-wz-edit" data-arg="${id}">${t("改", "Edit")}</button>`;
+  if (kind === "num") rowsH.push(`<tr><td>${t("开奖号码", "Winning numbers")}</td><td><span class="mono">${(NUM_RULE[i.game][3] ? (w.vals.nums || []).filter((x) => x != null).sort((a, b) => a - b) : Array.from({ length: NUM_RULE[i.game][0] }, (_, q) => (w.vals.nums || [])[q])).map((n) => (n == null ? "–" : rsCsOf(i) !== "Numeric" ? String(n) : String(n).padStart(NUM_RULE[i.game][1] > 9 ? 2 : 1, "0"))).join(" ")}</span></td><td>${edit("nums")}</td></tr>`);
+  else {
+    rows.filter((r) => r.isPool).forEach((r) => {
+      rowsH.push(`<tr><td>${r.name}</td><td>${t("本期奖池金额", "Pool amount")}</td><td class="mono amt">${wzBig(w.vals["pl" + r.k])}</td><td>${edit("pl" + r.k)}</td></tr>`);
+      if (steps.some((s2) => s2.id === "jpr" && s2.row.k === r.k)) rowsH.push(`<tr><td>${r.name}</td><td>${t("低于保底原因", "Below-minimum reason")}</td><td>${esc(w.vals.jpr || "")}</td><td>${edit("jpr")}</td></tr>`);
+      rowsH.push(`<tr><td>${r.name}</td><td>${t("单注奖金", "Prize per winning bet")}</td><td class="mono amt">${r.on === 0 && !w.vals["pb" + r.k] ? wzBig("0") : wzBig(w.vals["pb" + r.k])}</td><td>${edit("pb" + r.k)}</td></tr>`);
+    });
+    if (g.kind === "lotto") rowsH.push(`<tr><td>${t("下一期头奖奖池（预估）", "Next draw jackpot (estimate)")}</td><td></td><td class="mono amt">${wzBig(w.vals.njp)}</td><td>${edit("njp")}</td></tr>`);
+  }
+  return rowsH.join("");
+}
+function wzFieldBody(i, g, kind, st, w, second) {
+  const r = st.row; let body = "", nextLbl = t("下一步", "Next");
   if (st.id === "confirm") {
     body = `<p>${t("请核对上方的游戏、期号和开奖日期时间，确认就是要录入的这一期。", "Check the game, draw number and draw date and time above. Confirm this is the draw you are entering.")}</p><div class="wz-confirm"><div><span class="tiny">${t("游戏", "Game")}</span><b>${esc(gname(g))}</b></div><div><span class="tiny">${t("期号", "Draw no.")}</span><b class="mono">${i.no}</b></div><div><span class="tiny">${t("开奖日期时间", "Draw date and time")}</span><b class="mono">${i.draw}</b></div></div>`;
     nextLbl = t("就是这一期", "This is the draw");
   } else if (st.id === "nums") {
     body = `<p class="muted">${kind === "num" && second ? t("看不到第一次录入的内容，请对照开奖结果单独立录入。", "The first entry is hidden. Enter the result independently from the official draw sheet.") : t("用号码盘逐个点选，上面一排大球实时显示。", "Tap the numbers on the pad; the balls above show your pick as you go.")}</p><div class="wz-balls">${numPad(i)}</div>`;
     nextLbl = t("确认号码", "Confirm numbers");
-  } else if (st.id === "sum") {
-    const rowsH = []; const edit = (id) => `<button type="button" class="btn btn-sm" data-act="draw-wz-edit" data-arg="${id}">${t("改", "Edit")}</button>`;
-    if (kind === "num") rowsH.push(`<tr><td>${t("开奖号码", "Winning numbers")}</td><td><span class="mono">${(NUM_RULE[i.game][3] ? (w.vals.nums || []).filter((x) => x != null).sort((a, b) => a - b) : Array.from({ length: NUM_RULE[i.game][0] }, (_, q) => (w.vals.nums || [])[q])).map((n) => (n == null ? "–" : rsCsOf(i) !== "Numeric" ? String(n) : String(n).padStart(NUM_RULE[i.game][1] > 9 ? 2 : 1, "0"))).join(" ")}</span></td><td>${edit("nums")}</td></tr>`);
-    else {
-      rows.filter((r) => r.isPool).forEach((r) => {
-        rowsH.push(`<tr><td>${r.name}</td><td>${t("本期奖池金额", "Pool amount")}</td><td class="mono amt">${wzBig(w.vals["pl" + r.k])}</td><td>${edit("pl" + r.k)}</td></tr>`);
-        if (steps.some((s) => s.id === "jpr" && s.row.k === r.k)) rowsH.push(`<tr><td>${r.name}</td><td>${t("低于保底原因", "Below-minimum reason")}</td><td>${esc(w.vals.jpr || "")}</td><td>${edit("jpr")}</td></tr>`);
-        rowsH.push(`<tr><td>${r.name}</td><td>${t("单注奖金", "Prize per winning bet")}</td><td class="mono amt">${r.on === 0 && !w.vals["pb" + r.k] ? wzBig("0") : wzBig(w.vals["pb" + r.k])}</td><td>${edit("pb" + r.k)}</td></tr>`);
-      });
-      if (g.kind === "lotto") rowsH.push(`<tr><td>${t("下一期头奖奖池（预估）", "Next draw jackpot (estimate)")}</td><td></td><td class="mono amt">${wzBig(w.vals.njp)}</td><td>${edit("njp")}</td></tr>`);
-    }
-    wzPrepare(i, g, w, steps);
-    body = `<div class="table-wrap fit"><table class="wz-sum"><tbody>${rowsH.join("")}</tbody></table></div><label class="wz-chk"><input type="checkbox" data-wz="chk" ${w.chk ? "checked" : ""} /> ${t("已对照开奖结果单核对", "I have checked against the official draw result sheet")}</label><p class="tiny">${t("提交后不能再改。", "After submitting, nothing can be changed.")}</p>`;
   } else {
-    const r = st.row; const v = w.vals[st.id === "jpr" ? "jpr" : st.id === "njp" ? "njp" : st.f + r.k] || "";
+    const v = w.vals[st.id === "jpr" ? "jpr" : st.id === "njp" ? "njp" : st.f + r.k] || "";
     if (st.f === "jpr") {
       body = `<div class="banner amber">${jpWarnTxt(jpMin(g))}</div><input data-wz="jpr" maxlength="100" value="${esc(v)}" aria-label="${t("原因", "Reason")}" />`;
     } else {
@@ -2047,10 +2080,74 @@ function wzView(i, g, kind) {
       body = `${info}${ref}<div class="wz-amt"><span class="wz-peso">₱</span><input class="mono" data-wz="amt" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(wzFmt(v))}" aria-label="${stepNameAttr(st)}" /></div><div class="wz-big mono" id="wz-big">${wzBig(v)}</div>`;
     }
   }
-  const foot = st.id === "sum"
-    ? `<button type="button" class="btn" style="width:auto;flex:none" data-act="draw-wz-back">${t("上一步", "Back")}</button><button type="button" class="btn btn-primary" id="wz-submit" style="width:auto;flex:none" data-act="${kind === "num" ? "draw-entry-save" : "draw-prz-save"}" data-id="${i.no}" ${w.chk ? "" : "disabled"}>${kind === "num" ? (second ? t("提交并比对", "Submit and compare") : t("提交第一次录入", "Submit first entry")) : (second ? t("提交并比对", "Submit and compare") : t("提交奖金录入", "Submit prize entry"))}</button>`
-    : `<button type="button" class="btn" style="width:auto;flex:none" data-act="draw-wz-back" ${k === 0 ? "disabled" : ""}>${t("上一步", "Back")}</button>${st.id === "nums" ? `<button type="button" class="btn" style="width:auto;flex:none" data-act="pad-clear">${t("清空号码", "Clear")}</button>` : ""}<button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-wz-next">${nextLbl}</button>`;
-  return `<div class="card wz" data-wz-step="${st.id}">${hd}<h4 class="wz-t">${wzStepName(st, i, kind)}</h4>${body}<div class="err" id="wz-err" style="margin:10px 0;${err ? "" : "display:none"}">${esc(err)}</div><div class="row-actions wz-ft" style="margin-top:12px">${foot}</div><p class="tiny wz-draft">${w.resumed ? t("已恢复你上次保存的草稿。", "Your saved draft was restored.") + " " : ""}${t("每一步自动保存草稿，仅本人可见；回车进入下一步。", "Each step saves a draft automatically, visible only to you. Press Enter for the next step.")}</p></div>`;
+  return { body, nextLbl };
+}
+function wzStepView(i, g, kind, cur) {
+  const who = actor().who; const second = kind === "num" ? i.st === "review" : !!i.prz1;
+  const w = wzGet(i, g, kind); let { steps, k, st } = wzCur(); const N = steps.length - 1; /* the confirm layer is not a step */
+  if (st.id === "sum" && S.mf.err) { w.err = S.mf.err; S.mf.err = ""; w.step = steps[k - 1].id; w.ret = false; w.chk = false; ({ steps, k, st } = wzCur()); }
+  const isSum = st.id === "sum"; const kk = isSum ? N : k + 1;
+  const err = w.err || S.mf.err || "";
+  const seg = kind === "num" ? (second ? t("第二次独立录入（财务复核）", "Second independent entry (Finance review)") : t("第一次录入（运营专员）", "First entry (Operations)")) : (second ? t("第二次奖金录入（财务复核）", "Second prize entry (Finance review)") : t("第一次奖金录入（运营专员）", "First prize entry (Operations)"));
+  const prog = `<span class="wz-prog mono" data-wz-prog="1">${t(`第 ${kk} 步 / 共 ${N} 步`, `Step ${kk} of ${N}`)}</span>`;
+  const online = st.row ? `<div class="wzl-facts"><span>${t("线上中奖注数", "Online winners")}</span> <b class="mono" data-wz-online="1">${st.row.on}</b></div>` : "";
+  let main;
+  if (isSum) {
+    wzPrepare(i, g, w, steps);
+    main = `<div class="card wz wzl-confirm" data-wz-step="sum"><h2 class="wz-t">Please check these against the draw result sheet.</h2><div class="table-wrap fit"><table class="wz-sum"><tbody>${wzConfirmRows(i, g, w, steps, kind)}</tbody></table></div><p class="tiny">${t("提交后不能再改。", "After submitting, nothing can be changed.")}</p><div class="row-actions" style="margin-top:14px"><button type="button" class="btn" data-act="draw-wz-back">Back to edit</button><button type="button" class="btn btn-primary" id="wz-submit" data-act="draw-wz-confirm">Confirm and submit</button></div></div>`;
+  } else {
+    const fb = wzFieldBody(i, g, kind, st, w, second);
+    const foot = `<button type="button" class="btn" data-act="draw-wz-back" ${k === 0 ? "disabled" : ""}>${t("上一步", "Back")}</button>${st.id === "nums" ? `<button type="button" class="btn" data-act="pad-clear">${t("清空号码", "Clear")}</button>` : ""}<button type="button" class="btn btn-primary" data-act="draw-wz-next">${fb.nextLbl}</button>`;
+    main = `<div class="card wz" data-wz-step="${st.id}"><div class="tiny wzl-seg">${seg}</div><h2 class="wz-t">${wzStepName(st, i, kind)}</h2>${online}${fb.body}<div class="err" id="wz-err" style="margin:10px 0;${err ? "" : "display:none"}">${esc(err)}</div><div class="row-actions wz-ft" style="margin-top:12px">${foot}</div><p class="tiny wz-draft">${w.resumed ? t("已恢复你上次保存的草稿。", "Your saved draft was restored.") + " " : ""}${t("每一步自动保存草稿，仅本人可见；回车进入下一步。", "Each step saves a draft automatically, visible only to you. Press Enter for the next step.")}</p></div>`;
+  }
+  return { main, prog };
+}
+function wzAuthView(i, g) {
+  const rows = entTierRows(i, g); const per = (r) => (r.isPool ? Number(((i.prz && i.prz.pb) || {})[r.k] || 0) : r.fixed);
+  const tot = rows.reduce((a, r) => a + r.on * per(r), 0);
+  const tr = rows.map((r) => `<tr><td>${r.name}</td><td class="mono">${r.on}</td><td class="mono amt">${peso(per(r))}</td><td class="mono amt">${peso(r.on * per(r))}</td></tr>`).join("");
+  const nj = g.kind === "lotto" && i.prz && i.prz.nj ? `<p class="wzl-facts">${t("下一期头奖奖池（预估）", "Next draw jackpot (estimate)")}: <b class="mono">${peso(Number(i.prz.nj))}</b></p>` : "";
+  return `<div class="wzl-card wzl-auth" data-wz-step="auth"><h2 class="wz-t">${z("Authorize and publish", "授权发布")}</h2><div class="table-wrap fit"><table class="wzl-auth-tbl"><thead><tr><th>${t("奖级", "Tier")}</th><th>${t("线上中奖注数", "Online winners")}</th><th>${t("单注奖金", "Prize per winning bet")}</th><th>${t("应派金额", "Amount to pay")}</th></tr></thead><tbody>${tr}</tbody><tfoot><tr><td colspan="3"><b>${t("合计", "Total")}</b></td><td class="mono amt" id="wzl-total"><b>${peso(tot)}</b></td></tr></tfoot></table></div>${nj}<div class="err" id="wz-err" style="margin:10px 0;${S.mf.err ? "" : "display:none"}">${esc(S.mf.err || "")}</div><div class="row-actions" style="margin-top:14px"><button type="button" class="btn btn-primary btn-lg" data-act="draw-auth" data-id="${i.no}">Authorize and publish</button></div></div>`;
+}
+function wzResView(i, g, res, route) {
+  let h = "", btns = `<button type="button" class="btn" data-act="draw-wz-done">${t("关闭", "Close")}</button>`;
+  if (res.res === "pub") h = `<div class="wzl-big-t">Results published.</div><p class="tiny">${t("系统已逐票算奖派奖。", "The system has judged and paid out every ticket.")}</p>`;
+  else if (res.res === "mismatch") { h = `<div class="wzl-big-t err-t">${esc(res.msg)}</div>`; btns = `<button type="button" class="btn btn-primary" data-act="draw-wz-restart">Start again</button>` + btns; }
+  else {
+    h = `<div class="wzl-big-t">Submitted.</div>${res.res === "match" ? `<div class="wzl-big-2">The two entries match.</div>` : ""}`;
+    if (route && route.kind === "wait") h += `<p class="wzl-wait">${esc(route.msg)}</p>`;
+    else if (route) btns = `<button type="button" class="btn btn-primary" data-act="draw-wz-continue">${t("继续", "Continue")}</button>` + btns;
+  }
+  return `<div class="card wz wz-res" data-wz-step="result">${h}<div class="row-actions" style="margin-top:16px">${btns}</div></div>`;
+}
+function wzLayer() {
+  if (!S.authed || S.page !== "draws" || !S.sub || S.sub.type !== "entry") return "";
+  const i = S.issues.find((x) => x.no === S.sub.no); if (!i) return ""; const g = gameBy(i.game);
+  if (drawRo()) return "";
+  if (S.wzRes && S.wzRes.no !== i.no) S.wzRes = null;
+  const res = S.wzRes && S.wzRes.no === i.no ? S.wzRes : null; const route = wzRoute(i, g);
+  if (!res && !route) return "";
+  if (S.wiz && S.wiz.no === i.no && S.wiz.snap !== wzSnap(i)) { wzDrop(S.wiz.key); S.wiz = null; } /* the step was submitted or voided: the draft is spent */
+  const cur = wzFlowCur(i); let main = "", prog = "", strip = "", editing = false;
+  if (res) { main = wzResView(i, g, res, route); prog = z("Done", "完成"); if (S.wiz) { wzDrop(S.wiz.key); S.wiz = null; } }
+  else if (route.kind === "wait") { if (S.wiz) S.wiz = null; main = `<div class="card wz wz-res" data-wz-step="wait"><p class="wzl-wait">${esc(route.msg)}</p><div class="row-actions" style="margin-top:16px"><button type="button" class="btn" data-act="draw-wz-done">${t("关闭", "Close")}</button></div></div>`; prog = z("Waiting", "等待中"); }
+  else if (route.kind === "auth") { if (S.wiz) S.wiz = null; main = wzAuthView(i, g); prog = z("Final step", "最后一步"); }
+  else { const v = wzStepView(i, g, route.kind, cur); main = v.main; prog = v.prog; editing = true; if (route.kind === "prz") strip = wzStrip(i, g, cur); }
+  const showRef = editing ? route.kind === "prz" : (route && route.kind === "auth");
+  const bar = `<div class="wzl-bar"><span><b>${esc(gname(g))}</b> · <span class="mono">${i.no}</span> · ${t("开奖", "Draw")} <span class="mono">${i.draw}</span></span><span class="wzl-bar-r">${prog}${showRef ? ` <button type="button" class="btn btn-sm" data-act="draw-wz-ref">Reference</button>` : ""}</span></div>`;
+  const drawer = S.wzRef && showRef ? `<aside class="wzl-drawer" id="wzl-drawer"><div class="wzl-drawer-h"><b>Reference</b><button type="button" class="btn btn-sm" data-act="draw-wz-ref" aria-label="Close">\u00d7</button></div>${wzRefHtml(i, g)}</aside>` : "";
+  const exit = S.wzExit && editing ? `<div class="wzl-dlg-back"><div class="wzl-dlg" role="dialog"><h3>Exit entry? Your draft is saved.</h3><div class="row-actions" style="margin-top:14px"><button type="button" class="btn btn-primary" data-act="draw-wz-keep">Keep editing</button><button type="button" class="btn" data-act="draw-wz-exit">Exit</button></div></div></div>` : "";
+  return `<div class="wzl" id="wzl" role="dialog" aria-modal="true" aria-label="${t("开奖结果录入", "Draw result entry")}"><div class="wzl-top">${wzFlow(cur)}<button type="button" class="wzl-x" data-act="draw-wz-close" aria-label="Close" title="Close">\u00d7</button></div>${bar}${strip}<main class="wzl-main" id="wzl-main">${main}</main>${drawer}${exit}</div>`;
+}
+function wzMount() {
+  let host = $("wz-host"); if (!host) { host = document.createElement("div"); host.id = "wz-host"; document.body.appendChild(host); }
+  const html = wzLayer(); const prev = host.querySelector("#wzl-main"); const sc = prev ? prev.scrollTop : 0; const had = !!host.firstChild;
+  host.innerHTML = html; document.body.classList.toggle("wzl-on", !!html);
+  if (!html) return;
+  const m = $("wzl-main"); if (m && had) m.scrollTop = sc;
+  const f = document.querySelector("#wz-host [data-wz=amt],#wz-host [data-wz=jpr],#wz-host input[data-rxcsin]");
+  if (f) { f.focus(); const n = f.value.length; if (f.setSelectionRange) f.setSelectionRange(n, n); }
+  else if (!document.querySelector("#wz-host .wzl-confirm,#wz-host .wzl-dlg")) { const b = document.querySelector("#wz-host .wz-ft .btn-primary,#wz-host .wzl-auth .btn-primary,#wz-host .wz-res .btn-primary"); if (b) b.focus(); }
 }
 function stepNameAttr(st) { return esc(st.row ? (st.f === "pl" ? t("本期奖池金额", "Pool amount") : t("单注奖金", "Prize per winning bet")) : t("下一期预估头奖奖池", "Next draw jackpot (estimate)")); }
 function wzNext() {
@@ -2079,12 +2176,12 @@ function wzInput(el) {
   } else { raw = el.value; w.vals.jpr = raw; }
   const e = raw === "" ? "" : wzCheck(i, g, w.kind, st, raw, w.vals); w.err = e;
   const eb = $("wz-err"); if (eb) { eb.textContent = e; eb.style.display = e ? "" : "none"; }
-  if (st.f === "pl" && st.row.jp) { /* jackpot below the guaranteed minimum adds a reason step */ const k = wzSteps(i, g, w.kind, w.vals).length; const pg = document.querySelector("[data-wz-prog]"); if (pg) pg.textContent = t(`第 ${wzCur().k + 1} 步 / 共 ${k} 步`, `Step ${wzCur().k + 1} of ${k}`); }
+  if (st.f === "pl" && st.row.jp) { /* jackpot below the guaranteed minimum adds a reason step */ const k = wzSteps(i, g, w.kind, w.vals).length - 1; const pg = document.querySelector("[data-wz-prog]"); if (pg) pg.textContent = t(`第 ${wzCur().k + 1} 步 / 共 ${k} 步`, `Step ${wzCur().k + 1} of ${k}`); }
   wzSave();
 }
 document.addEventListener("input", (e) => { const el = e.target; if (el.dataset && el.dataset.wz && S.wiz) wzInput(el); }, true);
 document.addEventListener("change", (e) => { const el = e.target; if (el.dataset && el.dataset.wz === "chk" && S.wiz) { S.wiz.chk = el.checked; const b = $("wz-submit"); if (b) b.disabled = !el.checked; } }, true);
-document.addEventListener("keydown", (e) => { const el = e.target; if (e.key === "Enter" && el.dataset && (el.dataset.wz === "amt" || el.dataset.wz === "jpr") && S.wiz) { e.preventDefault(); wzNext(); } }, true);
+document.addEventListener("keydown", (e) => { const el = e.target; if (e.key === "Enter" && el.dataset && (el.dataset.wz === "amt" || el.dataset.wz === "jpr" || el.dataset.rxcsin !== undefined) && S.wiz) { e.preventDefault(); wzNext(); } }, true);
 /* ===== end entry wizard ===== */
 function entMatchCard(slots) { return `<div class="card" id="ent-match"><h4>${t("两份号码一致", "Both entries match")}</h4><div class="slots">${slots}</div></div>`; }
 function entOnlineCard(rows, offline) {
@@ -2100,6 +2197,7 @@ function viewEntryPage() {
     <div class="page-h"><div><h3>${t("开奖结果录入", "Draw result entry")}</h3><p class="muted">${gname(g)} · <span class="mono">${i.no}</span> · ${t("开奖时间", "Draw time")} <span class="mono">${i.draw}</span> · ${t("规则版本", "Rule version")} <span class="mono">${pverOf(i)}</span> ${tag(ISSUE_ST[i.st][2], t(ISSUE_ST[i.st][0], ISSUE_ST[i.st][1]))}</p></div><button type="button" class="btn" style="width:auto;flex:none" data-act="entry-back">${t("返回期次与开奖", "Back to draws")}</button></div>
     ${stepper([["第一次录入", "First entry", "运营专员录开奖号码", "Operations enters the numbers"], ["第二次独立录入", "Second independent entry", "财务复核，看不到第一次内容", "Finance review, first entry hidden"], ["中奖与奖金", "Winners and prizes", "系统统计 + 运营专员录入奖金", "System statistics + Operations enters prizes"], ["第二次奖金录入", "Second prize entry", "财务复核独立再录奖金", "Finance enters prizes again"], ["授权发布", "Authorize and publish", "财务复核授权，系统自动算奖派奖", "Finance authorizes, system judges and pays"]], cur)}`;
   const trace = `<div class="card"><h4>${t("操作留痕", "Operation trace")}</h4>${traceTable(i)}</div>` + drawChangeCard(i) + nrNo("The draw machine is not used: the winning numbers of this draw are keyed in by hand, and Finance review keys them in again independently.", "不使用开奖机：本期开奖号码手工录入，财务复核独立再录。");
+  if (wzLayerOn(i, g)) return head + trace;
   const slots = (i.nums || "").split(",").filter(Boolean).map((n) => `<span class="slot f">${n.padStart(2, "0")}</span>`).join("");
   const rows = entTierRows(i, g); const lotto = g.kind === "lotto"; const poolRows = rows.filter((r) => r.isPool);
   const pbOf = (r) => (i.prz && i.prz.pb ? i.prz.pb[r.k] : undefined); const plOf = (r) => (i.prz && i.prz.pl ? i.prz.pl[r.k] : undefined);
@@ -2111,7 +2209,7 @@ function viewEntryPage() {
       <p class="tiny">${t("已发布的结果不可修改或撤回。系统已逐票算奖：≤ ₱300,000 自动入奖金余额；> ₱300,000 生成申领码，到“大奖申领”办理。", "A published result cannot be edited or withdrawn. The system has judged every ticket: prizes up to ₱300,000 were credited automatically; larger prizes got a claim code and are handled under Big prize claims.")}</p></div>${trace}`;
   }
   if (i.st === "prize") {
-    if (!i.przOk && poolRows.length) return head + entMatchCard(slots) + entOnlineCard(rows, true) + wzView(i, g, "prz") + trace;
+    if (!i.przOk && poolRows.length) return head + entMatchCard(slots) + entOnlineCard(rows, true) + trace;
     const m = S.mf; const second = !!i.prz1 && !i.przOk; const ref = przRef(i, g);
     const plCell = (r) => {
       if (!r.isPool) return `<span class="mono">—</span>`;
@@ -2149,7 +2247,7 @@ function viewEntryPage() {
       ${tbl}${poolRows.length ? njCell : ""}
       ${i.przOk ? err + entry : poolRows.length ? sub : entry}</div>${trace}`;
   }
-  return head + wzView(i, g, "num") + trace;
+  return head + trace;
 }
 
 function viewDraws() {
@@ -2699,6 +2797,17 @@ function viewSalesTerm() {
     <p class="tiny" data-sales="byterm-foot">${z("Net Sales on this view = Sales Amount − Refunds. It is different from Net Sales in Performance (= Sales Amount − Documentary Stamp Tax).", "本视图的净销售 = 销售额 − 退款，不同于业绩与分成中的净销售（= 销售额 − 印花税）。")}</p>
     <p class="tiny" data-sales="byterm-remit">${z("Remittance is on a whole-platform basis, not split by terminal.", "汇缴按全平台口径，不分终端。")}</p></div>`;
 }
+const SALES_DUE = [
+  { date: "2026-10-08", sales: 4200000, refunds: 12500, pay: 2310000, wht: 0 },
+  { date: "2026-10-09", sales: 3950000, refunds: 0, pay: 2172500, wht: 0 },
+  { date: "2026-10-10", sales: 120000, refunds: 0, pay: 127069, wht: 0 }
+];
+function salesDueRows(tm) {
+  const k = tFac("sales", tm), c = (v) => Math.round(v * k * 100) / 100;
+  const rows = SALES_DUE.map((r) => { const o = { date: r.date, sales: c(r.sales), refunds: c(r.refunds), pay: c(r.pay), wht: c(r.wht), vat: 0 }; o.dst = Math.round(o.sales * BILL.dst * 100) / 100; o.net = Math.round((o.sales - o.refunds - o.pay) * 100) / 100; return o; });
+  const sum = (key) => Math.round(rows.reduce((x, r) => x + r[key], 0) * 100) / 100;
+  return { rows, total: { date: "Total", sales: sum("sales"), refunds: sum("refunds"), pay: sum("pay"), wht: sum("wht"), vat: 0, dst: sum("dst"), net: sum("net") } };
+}
 function viewSales0() {
   const f = periodFactor(), tm = tfv("sales"), tv = (v, k) => tVal(v, k, tm), tfc = tFac("sales", tm);
   const sg = S.rf.sales.game, sgr = GAME_SALES.find((x) => x.id === sg), sgk = sg ? (gameBy(sg).kind === "lotto" ? "lotto" : "digit") : "";
@@ -2724,7 +2833,8 @@ function viewSales0() {
     </div>
     <div class="card"><h4>${t("销售趋势", "Sales trend")}</h4>${lineChart(TREND[S.salesGrain].map((v) => v * sc * tfc), labels)}<p class="tiny">${t("金额单位：百万比索。", "Amounts in millions of pesos.")}</p></div>
     <div class="card"><h4>${t("按游戏", "By game")}</h4>${table([t("游戏", "Game"), t("销售额", "Sales"), t("占比", "Share"), t("出票数", "Tickets"), t("投注玩家", "Players"), t("环比", "Change")], games)}</div>
-    <div class="card"><h4>${t("按玩法", "By play type")}</h4><p class="tiny">${t("玩法指 Straight / Rambolito 这类数字类投注方式。不按渠道。地域细分一期不做。", "Play type means Straight / Rambolito and the other digit bets. There is no channel split.")} ${tag("muted", t("[二期]", "[Phase 2]"))}</p>${table([t("玩法", "Play"), t("销售额", "Sales"), t("占比", "Share"), t("平均每单", "Average slip"), t("说明", "Note")], plays)}</div>`;
+    <div class="card"><h4>${t("按玩法", "By play type")}</h4><p class="tiny">${t("玩法指 Straight / Rambolito 这类数字类投注方式。不按渠道。地域细分一期不做。", "Play type means Straight / Rambolito and the other digit bets. There is no channel split.")} ${tag("muted", t("[二期]", "[Phase 2]"))}</p>${table([t("玩法", "Play"), t("销售额", "Sales"), t("占比", "Share"), t("平均每单", "Average slip"), t("说明", "Note")], plays)}</div>
+    <div class="card" data-sales="due"><h4>${t("税务与应缴 PCSO（按销售日）", "Tax and Net Due To PCSO (by sales date)")} ${tag("muted", t("演示数据", "Demo data"))}</h4>${table([t("销售日", "Sales Date"), t("销售额", "Sales"), t("退款", "Refunds"), t("净派奖", "Total Payout"), t("预扣税", "Withholding Tax"), "VAT", t("印花税", "Documentary Stamp Tax"), "Net Due To PCSO"], (() => { const d = salesDueRows(tm), tr = (o, b) => `<tr data-due="${o.date}" ${b ? 'style="font-weight:700;background:rgba(255,255,255,.05)"' : ""}><td class="mono">${o.date}</td><td class="mono amt">${rcFmtP(o.sales)}</td><td class="mono amt">${rcFmtP(o.refunds)}</td><td class="mono amt">${rcFmtP(o.pay)}</td><td class="mono amt">${rcFmtP(o.wht)}</td><td class="mono amt">${rcFmtP(o.vat)}</td><td class="mono amt">${rcFmtP(o.dst)}</td><td class="mono amt" data-c="net">${rcFmtP(o.net)}</td></tr>`; return d.rows.map((r) => tr(r)).concat([tr(d.total, true)]); })())}<p class="tiny">${t("应缴 PCSO 净额 = 销售额 − 退款 − 净派奖，合计行为各行之和；派奖大于销售时显示负数。以上金额为演示数。", "Net Due To PCSO = Sales − Refunds − Total Payout, and the total row is the sum of the rows. When payouts exceed sales the value shows as a negative number. The figures above are demo data.")}</p></div>`;
 }
 function catRow(kind, labelZh, labelEn) {
   const s = salesOf(kind, tfv("share"));
@@ -6615,8 +6725,8 @@ function viewOperLive() {
       <label class="f">${z("Start Time Range", "开播时间")}<span style="display:flex;gap:6px;align-items:center"><input type="date" data-opq="lvFrom" value="${esc(q.lvFrom)}" /> <span class="tiny">\u2013</span> <input type="date" data-opq="lvTo" value="${esc(q.lvTo)}" /></span></label>
       <button type="button" class="btn btn-primary btn-sm" style="margin-left:auto" data-act="lv-new" ${roBtn()}>${z("New live stream", "新建直播")}</button></div>
     <p class="tiny">${z("PCSO official stream embedded in the app; the platform never produces a stream. Players see a session only while it is online and Upcoming or Live; End Live removes it at once (no replay this phase). Upcoming turns Live automatically at the start time (demo button here); ending is always manual. Create, edit, online/offline, end and status fixes all write the audit log (Operations module).", "站内嵌播 PCSO 官方流，平台不产流。玩家端可见 = 上线且预告/直播中；结束直播立即从玩家端移除（本期不做回看）。到点自动预告转直播中（此处用演示按钮模拟），结束一律手动。新建、编辑、上下线、结束、状态修正全部写审计日志（运营管理模块）。")}</p></div>`
-    + table([z("Session Id", "直播编号"), z("Title", "标题"), z("Cover", "封面"), z("Playback URL", "播放链接"), z("Start time", "开播时间"), z("Game", "关联游戏"), z("Status", "状态"), z("Visible", "上下线"), z("Updated by", "更新人"), z("Updated at", "更新时间"), ""],
-      rows.map((l) => `<tr><td class="mono">${l.id}</td><td>${esc(l.title)}</td><td>${lvCover(l)}</td><td class="mono tiny">${esc(l.url)}</td><td class="mono">${l.start} UTC+8</td><td>${l.game ? esc(gname(gameBy(l.game))) : "—"}</td><td>${lvStTag(l.st)}</td><td>${l.vis ? tag("ok", z("Online", "上线")) : tag("muted", z("Offline", "下线"))}</td><td class="mono">${l.by}</td><td class="mono">${l.at}</td><td class="row-actions">
+    + table([z("Session Id", "直播编号"), z("Title", "标题"), z("Cover", "封面"), z("Playback URL", "播放链接"), z("Start time", "开播时间"), z("Game", "关联游戏"), z("Linked Draws", "关联期次"), z("Status", "状态"), z("Visible", "上下线"), z("Updated by", "更新人"), z("Updated at", "更新时间"), ""],
+      rows.map((l) => `<tr><td class="mono">${l.id}</td><td>${esc(l.title)}</td><td>${lvCover(l)}</td><td class="mono tiny">${esc(l.url)}</td><td class="mono">${l.start} UTC+8</td><td>${l.game ? esc(gname(gameBy(l.game))) : "—"}</td><td class="mono tiny" data-lv-draws="${l.id}">${(l.draws || []).length ? (l.draws || []).map((n) => `<div title="${esc(lvDrawName(n))}">${n}</div>`).join("") : "—"}</td><td>${lvStTag(l.st)}</td><td>${l.vis ? tag("ok", z("Online", "上线")) : tag("muted", z("Offline", "下线"))}</td><td class="mono">${l.by}</td><td class="mono">${l.at}</td><td class="row-actions">
         <button type="button" class="btn btn-sm" data-act="lv-edit" data-id="${l.id}" ${roBtn()}>${z("Edit", "编辑")}</button>
         ${l.st === "upcoming" ? `<button type="button" class="btn btn-sm" data-act="lv-golive" data-id="${l.id}" ${roBtn()} title="Demo: simulate the start time being reached">${z("Go live (demo)", "到点开播（演示）")}</button>` : ""}
         ${l.st === "live" ? `<button type="button" class="btn btn-rose btn-sm" data-act="lv-end" data-id="${l.id}" ${roBtn()}>${z("End Live", "结束直播")}</button><button type="button" class="btn btn-sm" data-act="lv-fix" data-arg="upcoming" data-id="${l.id}" ${roBtn()} title="Correct the status back to Upcoming">${z("Back to Upcoming", "改回预告")}</button>` : ""}
@@ -6640,8 +6750,8 @@ function viewOperArts() {
       <label class="f">${z("Title", "标题")}<input data-opq="nwQ" value="${esc(q.nwQ)}" placeholder="${z("Search title", "搜索标题")}" /></label>
       <button type="button" class="btn btn-primary btn-sm" style="margin-left:auto" data-act="nw-new" ${roBtn()}>${z("New article", "新建文章")}</button></div>
     <p class="tiny">${z("Draft \u2192 Published \u2192 Offline; an offline article can be published again (publish time refreshes). Pinned works only for a published article and shows first on the player list; taking an article offline removes the pin. Only a draft can be scheduled; at the set time it publishes automatically (audit operator System, publisher = who set it). An opened offline detail page shows: This article is no longer available. All actions write the audit log.", "草稿 \u2192 已发布 \u2192 已下线；已下线可重新发布（刷新发布时间）。置顶仅已发布生效、玩家端列表置前，下线自动取消置顶。定时发布仅草稿可设，到点自动发布（审计操作人记 System，发布人记设定人）。已打开的下线详情页提示 This article is no longer available.。全部动作写审计日志。")}</p></div>`
-    + table([z("Id", "文章 ID"), z("Title", "标题"), z("Category", "分类"), z("Status", "状态"), z("Pinned", "置顶"), z("Scheduled at", "定时发布"), z("Published by", "发布人"), z("Published at", "发布时间"), z("Updated at", "更新时间"), ""],
-      rows.map((a) => `<tr><td class="mono">${a.id}</td><td>${esc(a.title)}</td><td>${nwCatName(a.cat)}</td><td>${nwStTag(a.st)}</td><td>${a.pin ? tag("cyan", z("Pinned", "置顶")) : "—"}</td><td class="mono">${a.sched ? a.sched + " UTC+8" : "—"}</td><td class="mono">${a.pubBy || "—"}</td><td class="mono">${a.pubAt || "—"}</td><td class="mono">${a.at}</td><td class="row-actions">
+    + table([z("Id", "文章 ID"), z("Title", "标题"), z("Subtitle", "副标题"), z("Category", "分类"), z("Status", "状态"), z("Pinned", "置顶"), z("Scheduled at", "定时发布"), z("Published by", "发布人"), z("Published at", "发布时间"), z("Updated at", "更新时间"), ""],
+      rows.map((a) => `<tr><td class="mono">${a.id}</td><td>${esc(a.title)}</td><td data-nw-sub="${a.id}">${a.sub ? esc(a.sub) : "—"}</td><td>${nwCatName(a.cat)}</td><td>${nwStTag(a.st)}</td><td>${a.pin ? tag("cyan", z("Pinned", "置顶")) : "—"}</td><td class="mono">${a.sched ? a.sched + " UTC+8" : "—"}</td><td class="mono">${a.pubBy || "—"}</td><td class="mono">${a.pubAt || "—"}</td><td class="mono">${a.at}</td><td class="row-actions">
         <button type="button" class="btn btn-sm" data-act="nw-edit" data-id="${a.id}" ${roBtn()}>${z("Edit", "编辑")}</button>
         ${a.st !== "pub" ? `<button type="button" class="btn btn-ok btn-sm" data-act="nw-pub" data-id="${a.id}" ${roBtn()}>${z("Publish", "发布")}</button>` : ""}
         ${a.st === "pub" ? `<button type="button" class="btn btn-sm" data-act="nw-pin" data-id="${a.id}" ${roBtn()}>${a.pin ? z("Unpin", "取消置顶") : z("Pin", "置顶")}</button><button type="button" class="btn btn-rose btn-sm" data-act="nw-off" data-id="${a.id}" ${roBtn()}>${z("Take offline", "下线")}</button>` : ""}
@@ -6658,6 +6768,30 @@ function viewOperCats() {
         <button type="button" class="btn btn-rose btn-sm" data-act="nc-del" data-id="${c.id}" ${operRo() ? `disabled title="${OPER_RO_MSG}"` : (n > 0 ? `title="${z("This category still has articles.", "该分类仍有文章。")}"` : "")}>${z("Delete", "删除")}</button></td></tr>`; }));
 }
 
+/* ---------- batch 10: news subtitle / summary, live linked draws ---------- */
+const NW_SUB_MAX = 100, NW_SUM_MAX = 200;
+function nwLen(v) { return Array.from(String(v == null ? "" : v)).length; }
+function nwCount(id, v, max) { const n = nwLen(v); return `<span class="tiny mono" id="${id}" data-over="${n > max ? 1 : 0}" style="${n > max ? "color:#c62828;font-weight:700" : ""}">${n} / ${max}</span>`; }
+function lvDrawName(no) { const i = S.issues.find((x) => x.no === no); return i ? gname(gameBy(i.game)) + " \u00b7 " + i.no + " \u00b7 " + i.draw + " UTC+8" : no; }
+function lvDrawCands(start, game) {
+  const d = String(start || "").trim().slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return [];
+  return S.issues.filter((i) => i.draw.slice(0, 10) === d && i.st !== "void" && (!game || i.game === game)).sort((a, b) => (a.draw + a.no < b.draw + b.no ? -1 : 1)).map((i) => i.no);
+}
+function lvDrawBox(f) {
+  const sel = f.draws || []; const cands = lvDrawCands(f.start, f.game);
+  const all = cands.concat(sel.filter((n) => cands.indexOf(n) < 0));
+  if (!all.length) return `<p class="tiny muted">${z("No draws on the start date. Enter a start time to list the draws drawn that day (UTC+8).", "开播日当天没有期次。填写开播时间后列出当天开奖的期次（UTC+8）。")}</p>`;
+  return all.map((n) => `<label class="f" style="flex-direction:row;align-items:center;gap:8px;margin:2px 0"><input type="checkbox" data-lvd="${n}" ${sel.indexOf(n) >= 0 ? "checked" : ""} style="width:auto" /> <span>${esc(lvDrawName(n))}${cands.indexOf(n) < 0 ? ` <span class="tiny muted">(${z("not on the start date", "不在开播日")})</span>` : ""}</span></label>`).join("");
+}
+function lvDrawText(l) { return (l.draws || []).length ? (l.draws || []).join(", ") : "\u2014"; }
+document.addEventListener("input", (e) => { const el = e.target; if (!el.dataset) return;
+  if (el.dataset.f === "sub" || el.dataset.f === "summ") { const max = el.dataset.f === "sub" ? NW_SUB_MAX : NW_SUM_MAX; const c = $(el.dataset.f === "sub" ? "nw-sub-n" : "nw-summ-n"); if (c) { const n = nwLen(el.value); c.textContent = n + " / " + max; c.dataset.over = n > max ? "1" : "0"; c.style.cssText = n > max ? "color:#c62828;font-weight:700" : ""; } }
+  if (S.modal && S.modal.type === "liveed" && (el.dataset.f === "start" || el.dataset.f === "game")) { setTimeout(() => { const b = $("lv-draw-box"); if (b) b.innerHTML = lvDrawBox(S.mf); }, 0); }
+}, true);
+document.addEventListener("change", (e) => { const el = e.target; if (!el.dataset) return;
+  if (S.modal && S.modal.type === "liveed" && el.dataset.f === "game") { const b = $("lv-draw-box"); if (b) b.innerHTML = lvDrawBox(S.mf); }
+  if (el.dataset.lvd && S.modal && S.modal.type === "liveed") { const a = (S.mf.draws || []).slice(); const k = a.indexOf(el.dataset.lvd); if (el.checked && k < 0) a.push(el.dataset.lvd); if (!el.checked && k >= 0) a.splice(k, 1); S.mf.draws = a; }
+}, true);
 /* ---------- batch 8: "not in this release" notes (product-proposed wording) ---------- */
 function nrDep(x, zh, extra) { return `<p class="tiny" data-nr="dep" style="margin:8px 0">${z("Not in this release: depends on " + x + ". It will be scheduled once available." + (extra ? " " + extra[0] : ""), "本期不做：依赖" + zh + "，具备后另行排期。" + (extra ? extra[1] : ""))}</p>`; }
 function nrNo(en, zh) { return `<p class="tiny" data-nr="no" style="margin:8px 0">${z("Not in this release. " + en, "本期不做。" + zh)}</p>`; }
@@ -6689,6 +6823,8 @@ function operLiveModal() {
     <label class="f">${z("Link Type", "链接类型")}</label><select data-f="ltype"><option value="">${z("Select a link type", "请选择链接类型")}</option>${["Embed", "HLS"].map((x) => `<option value="${x}" ${f.ltype === x ? "selected" : ""}>${x}</option>`).join("")}</select>
     <label class="f">${z("Start time (UTC+8; a future time makes it Upcoming)", "开播时间（UTC+8；未来时间即预告）")}</label><input data-f="start" value="${esc(f.start || "")}" placeholder="2026-10-25 21:00" />
     <label class="f">${z("Game (optional, matches the Watch Live Draw entry on draw results)", "关联游戏（选填，用于开奖结果页入口匹配）")}</label><select data-f="game">${gSel}</select>
+    <label class="f">${z("Linked Draws (optional; draws drawn on the start date, UTC+8; only this game if one is selected)", "关联期次（选填；开播日当天开奖的期次，UTC+8；已选关联游戏则只列该游戏）")}</label><div id="lv-draw-box" data-lv="draws" style="border:1px solid #dfe5f1;border-radius:10px;padding:8px 12px;max-height:180px;overflow:auto">${lvDrawBox(f)}</div>
+    <p class="tiny">${z("Used for My Tickets on the player live page. Selected draws stay when the start time is changed. Editable in any status; every change writes the audit log.", "用于玩家端直播播放页的 My Tickets。改开播时间不会自动清除已选期次。任何状态都可编辑，编辑写审计。")}</p>
     <label class="f" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" data-f="vis" ${f.vis !== false ? "checked" : ""} style="width:auto" /> ${z("Online (visible to players; new sessions default to online)", "上线（玩家端可见；新建默认上线）")}</label>
     <div class="err">${esc(f.err || "")}</div>`,
     `<button type="button" class="btn" data-act="close">${z("Cancel", "取消")}</button><button type="button" class="btn btn-primary" data-act="lv-save">${z("Save", "保存")}</button>`);
@@ -6700,6 +6836,8 @@ function operNewsModal() {
   const cSel = `<option value="">${z("Uncategorized (shown under All only)", "未分类（玩家端仅 All 下出现）")}</option>` + S.newsCats.filter((c) => c.on).map((c) => `<option value="${c.id}" ${f.cat === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("");
   return dialog((a ? z("Edit article \u00b7 ", "编辑文章 \u00b7 ") + a.id : z("New article", "新建文章")),
     operMkBanner() + `<label class="f">${z("Title (1-100 characters, shown to players)", "标题（1-100 字符，玩家端展示）")}</label><input data-f="title" maxlength="100" value="${esc(f.title || "")}" />
+    <label class="f">${z("Subtitle (optional, \u2264 100 characters, English)", "副标题（选填，\u2264 100 字符，英文）")} ${nwCount("nw-sub-n", f.sub, NW_SUB_MAX)}</label><input data-f="sub" value="${esc(f.sub || "")}" />
+    <label class="f">${z("Summary (optional, \u2264 200 characters, plain English text; shown in the player list only)", "摘要（选填，\u2264 200 字符，英文纯文本；只在玩家端列表展示）")} ${nwCount("nw-summ-n", f.summ, NW_SUM_MAX)}</label><textarea data-f="summ" rows="3">${esc(f.summ || "")}</textarea>
     <label class="f">${z("Category (single choice, enabled categories only)", "分类（单选，取启用中的分类）")}</label><select data-f="cat">${cSel}</select>
     <label class="f">${z("Body (\u2264 2,700 characters)", "正文（\u2264 2,700 字符）")}</label><textarea data-f="body" maxlength="2700" rows="5">${esc(f.body || "")}</textarea>
     <p class="tiny">${z("Simplified rich text in this prototype; the real editor follows the announcement body rules: toolbar, whitelist clean-up, character count with tags, image-library inline pictures and over-length blocking.", "原型为简化富文本；实际编辑器沿用公告正文规则：工具栏、白名单清洗、字符计数（标签计入）、图片库插图与超长拦截。")}</p>
@@ -6738,7 +6876,7 @@ function operAct(act, arg, id) {
   const fail = (m) => { S.mf.err = m; render(); return true; };
   /* --- live streams --- */
   if (act === "lv-new") { S.mf = { vis: true, err: "" }; S.modal = { type: "liveed", id: null }; render(); return true; }
-  if (act === "lv-edit") { const l = S.lives.find((x) => x.id === id); S.mf = { title: l.title, url: l.url, ltype: l.ltype || "HLS", start: l.start, game: l.game || "", vis: l.vis, cover: l.cover, err: "" }; S.modal = { type: "liveed", id }; render(); return true; }
+  if (act === "lv-edit") { const l = S.lives.find((x) => x.id === id); S.mf = { title: l.title, url: l.url, ltype: l.ltype || "HLS", start: l.start, game: l.game || "", draws: (l.draws || []).slice(), vis: l.vis, cover: l.cover, err: "" }; S.modal = { type: "liveed", id }; render(); return true; }
   if (act === "lv-cover") { S.mf.cover = !S.mf.cover; render(); return true; }
   if (act === "lv-save") {
     const f = S.mf, title = String(f.title || "").trim(), url = String(f.url || "").trim(), start = String(f.start || "").trim();
@@ -6749,16 +6887,16 @@ function operAct(act, arg, id) {
     if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(start)) return fail("Enter the start time as YYYY-MM-DD HH:MM (UTC+8).");
     if (S.modal.id) {
       const l = S.lives.find((x) => x.id === S.modal.id);
-      const before = l.title + " \u00b7 " + l.start + " \u00b7 " + (l.vis ? "Online" : "Offline");
-      l.title = title; l.url = url; l.ltype = f.ltype; l.start = start; l.game = f.game || ""; l.vis = f.vis !== false; l.cover = !!f.cover;
+      const before = l.title + " \u00b7 " + l.start + " \u00b7 " + (l.vis ? "Online" : "Offline") + " \u00b7 Linked Draws: " + lvDrawText(l);
+      l.title = title; l.url = url; l.ltype = f.ltype; l.start = start; l.game = f.game || ""; l.vis = f.vis !== false; l.cover = !!f.cover; l.draws = (f.draws || []).slice();
       if (l.st !== "ended") l.st = start > now ? "upcoming" : "live";
       l.by = me; l.at = now;
-      operAud("Edit live stream", l.id, before, l.title + " \u00b7 " + l.start + " \u00b7 " + (l.vis ? "Online" : "Offline"));
+      operAud("Edit live stream", l.id, before, l.title + " \u00b7 " + l.start + " \u00b7 " + (l.vis ? "Online" : "Offline") + " \u00b7 Linked Draws: " + lvDrawText(l));
       toast("Saved. Players see it while it is online and Upcoming or Live.");
     } else {
       const lid = "LS" + now.slice(0, 10).replace(/-/g, "") + String(S.lives.length + 101).padStart(6, "0");
-      S.lives.unshift({ id: lid, title, url, ltype: f.ltype, start, game: f.game || "", st: start > now ? "upcoming" : "live", vis: f.vis !== false, cover: !!f.cover, c1: "#0e7490", by: me, at: now });
-      operAud("Create live stream", lid, "—", title + " \u00b7 " + start + " \u00b7 " + (f.vis !== false ? "Online" : "Offline"));
+      S.lives.unshift({ id: lid, title, url, ltype: f.ltype, start, game: f.game || "", draws: (f.draws || []).slice(), st: start > now ? "upcoming" : "live", vis: f.vis !== false, cover: !!f.cover, c1: "#0e7490", by: me, at: now });
+      operAud("Create live stream", lid, "—", title + " \u00b7 " + start + " \u00b7 " + (f.vis !== false ? "Online" : "Offline") + " \u00b7 Linked Draws: " + lvDrawText({ draws: f.draws }));
       toast("Live stream created. New sessions default to online.");
     }
     S.modal = null; S.mf = {}; render(); return true;
@@ -6769,25 +6907,27 @@ function operAct(act, arg, id) {
   if (act === "lv-vis") { const l = S.lives.find((x) => x.id === id); l.vis = !l.vis; l.by = me; l.at = now; operAud(l.vis ? "Put live stream online" : "Take live stream offline", l.id, l.vis ? "Offline" : "Online", l.vis ? "Online" : "Offline"); toast(l.vis ? "Online. Players see it while it is Upcoming or Live." : "Offline. Hidden from players."); render(); return true; }
   /* --- news articles --- */
   if (act === "nw-new") { S.mf = { cat: "", pin: false, schedOn: false, err: "" }; S.modal = { type: "newsed", id: null }; render(); return true; }
-  if (act === "nw-edit") { const a = S.news.find((x) => x.id === id); S.mf = { title: a.title, cat: a.cat, body: a.body, pin: a.pin, schedOn: !!a.sched, sched: a.sched, err: "" }; S.modal = { type: "newsed", id }; render(); return true; }
+  if (act === "nw-edit") { const a = S.news.find((x) => x.id === id); S.mf = { title: a.title, sub: a.sub || "", summ: a.summ || "", cat: a.cat, body: a.body, pin: a.pin, schedOn: !!a.sched, sched: a.sched, err: "" }; S.modal = { type: "newsed", id }; render(); return true; }
   if (act === "nw-save") {
     const f = S.mf, title = String(f.title || "").trim(), body = String(f.body || "").trim();
     if (!title || title.length > 100) return fail("Enter a title of 1-100 characters.");
     if (!body) return fail("Enter the body.");
+    { const sb = String(f.sub || "").trim(), sm = String(f.summ || "").trim(); if (nwLen(sb) > NW_SUB_MAX) return fail("Subtitle is " + nwLen(sb) + " characters. The limit is " + NW_SUB_MAX + "."); if (nwLen(sm) > NW_SUM_MAX) return fail("Summary is " + nwLen(sm) + " characters. The limit is " + NW_SUM_MAX + "."); }
     const a0 = S.modal.id ? S.news.find((x) => x.id === S.modal.id) : null;
     const isDraft = !a0 || a0.st === "draft";
     if (isDraft && f.schedOn && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(String(f.sched || "").trim())) return fail("Enter the scheduled publish time as YYYY-MM-DD HH:MM (UTC+8), later than now.");
     if (a0) {
-      const before = a0.title;
-      a0.title = title; a0.cat = f.cat || ""; a0.body = body; a0.at = now;
+      const nwTxt = (x) => x.title + " \u00b7 Subtitle: " + (x.sub || "\u2014") + " \u00b7 Summary: " + (x.summ || "\u2014");
+      const before = nwTxt(a0);
+      a0.title = title; a0.sub = String(f.sub || "").trim(); a0.summ = String(f.summ || "").trim(); a0.cat = f.cat || ""; a0.body = body; a0.at = now;
       if (a0.st === "pub" || a0.st === "draft") a0.pin = !!f.pin;
       if (a0.st === "draft") { a0.sched = f.schedOn ? String(f.sched).trim() : ""; a0.schedBy = f.schedOn ? me : ""; }
-      operAud("Edit article", a0.id, before, title);
+      operAud("Edit article", a0.id, before, nwTxt(a0));
       toast(a0.st === "pub" ? "Saved. The published article is updated for players right away." : "Saved.");
     } else {
       const nid = "NEWS" + now.slice(0, 10).replace(/-/g, "") + String(S.news.length + 101).padStart(6, "0");
-      S.news.unshift({ id: nid, title, cat: f.cat || "", st: "draft", pin: !!f.pin, sched: f.schedOn ? String(f.sched).trim() : "", schedBy: f.schedOn ? me : "", pubBy: "", pubAt: "", at: now, body });
-      operAud("Create article (draft)", nid, "—", title);
+      S.news.unshift({ id: nid, title, sub: String(f.sub || "").trim(), summ: String(f.summ || "").trim(), cat: f.cat || "", st: "draft", pin: !!f.pin, sched: f.schedOn ? String(f.sched).trim() : "", schedBy: f.schedOn ? me : "", pubBy: "", pubAt: "", at: now, body });
+      operAud("Create article (draft)", nid, "—", title + " \u00b7 Subtitle: " + (String(f.sub || "").trim() || "\u2014") + " \u00b7 Summary: " + (String(f.summ || "").trim() || "\u2014"));
       toast("Draft saved. Publish it or set a scheduled time.");
     }
     S.modal = null; S.mf = {}; render(); return true;
@@ -6900,6 +7040,7 @@ function render() {
   }
   host.innerHTML = renderModal();
   translateDom();
+  wzMount();
 }
 function focusField(sel) {
   const el = document.querySelector(sel);
@@ -8051,6 +8192,7 @@ function onClick(e) {
     return;
   }
   if (act === "logout") {
+    if (S.sub && S.sub.type === "entry") { S.sub = null; S.wiz = null; S.wzRes = null; S.wzExit = false; }
     S.authed = false;
     S.step = "creds";
     S.login.otp = ["1", "2", "3", "4"];
@@ -8244,17 +8386,17 @@ function onClick(e) {
     if (!i.prz1) {
       i.prz1 = { pool: p.pool, pl: p.pl, pb: p.pb, nj: p.nj, by: actor().who, minReason }; stamp(i, "win", 0);
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Prize first entry", obj: i.no, before: "prize", after: "submitted" });
-      S.mf = { err: "" }; toast(t("第一次奖金录入已提交，请财务复核独立再录一遍。", "Prize entry submitted. Finance review now enters it independently.")); render(); return;
+      S.mf = { err: "" }; S.wzRes = { no: i.no, res: "sub", seg: "prz" }; toast(t("第一次奖金录入已提交，请财务复核独立再录一遍。", "Prize entry submitted. Finance review now enters it independently.")); render(); return;
     }
     if (i.prz1.by === actor().who) return fail("The second entry must be made by a different person");
     if (JSON.stringify([i.prz1.pl, i.prz1.pb, i.prz1.nj || ""]) !== JSON.stringify([p.pl, p.pb, p.nj || ""])) {
       delete i.prz1; if (i.trace) delete i.trace.win;
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Prize entries do not match", obj: i.no, before: "prize", after: "prize entry (both discarded)" });
-      S.mf = { err: "The two prize entries do not match. Both entries were discarded." }; render(); return;
+      S.mf = {}; S.wzRes = { no: i.no, res: "mismatch", seg: "prz", msg: "The two prize entries do not match. Both entries were discarded." }; render(); return;
     }
     i.przOk = true; i.prz = { pool: p.pool, pl: p.pl, pb: p.pb, nj: p.nj, won: onlineWinners(g)[0] > 0, minReason2: minReason }; stamp(i, "win", 1);
     logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Second prize entry matches", obj: i.no, before: "prize", after: "ready to authorize" });
-    S.mf = {}; render(); return;
+    S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "prz" }; render(); return;
   }
   if (act === "draw-auth-go") {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const rows = entTierRows(i, g); const nums = i.nums;
@@ -8272,13 +8414,25 @@ function onClick(e) {
     pushHist(i, "status", i.st, "settled", "", 0); i.st = "settled"; i.pubAt = NOWSTR(); S.modal = null;
     S.draws.unshift({ date: i.draw, issue: i.no, game: i.game, nums: nums.split(",").map((n) => n.padStart(2, "0")).join(" "), winners: rows.map((r) => r.on).join(" / "), payout, rollZh: g.kind === "lotto" && rows[0].on === 0 ? "头奖滚存" : "—", rollEn: g.kind === "lotto" && rows[0].on === 0 ? "Jackpot rolls over" : "—" });
     logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("授权发布开奖结果", "Authorize and publish result"), obj: i.no, before: "ready", after: nums });
-    S.mf = {}; toast(t("已发布，系统已逐票算奖派奖。", "Published. The system has judged and paid out every ticket.")); render(); return;
+    S.mf = {}; S.wzRes = { no: i.no, res: "pub" }; toast(t("已发布，系统已逐票算奖派奖。", "Published. The system has judged and paid out every ticket.")); render(); return;
+  }
+  if (act === "draw-wz-close") { const i0 = S.issues.find((x) => x.no === (S.sub && S.sub.no)); const rt = i0 ? wzRoute(i0, gameBy(i0.game)) : null; if (S.wzRes || !rt || rt.kind === "wait" || rt.kind === "auth") { S.sub = null; S.wiz = null; S.wzRes = null; S.mf = {}; } else S.wzExit = true; render(); return; }
+  if (act === "draw-wz-keep") { S.wzExit = false; render(); return; }
+  if (act === "draw-wz-exit") { S.wzExit = false; S.wiz = null; S.sub = null; S.wzRes = null; S.mf = {}; render(); return; }
+  if (act === "draw-wz-done") { S.wiz = null; S.sub = null; S.wzRes = null; S.wzExit = false; S.mf = {}; render(); return; }
+  if (act === "draw-wz-restart" || act === "draw-wz-continue") { S.wzRes = null; S.wiz = null; S.mf = {}; S.pad = { nums: [] }; render(); return; }
+  if (act === "draw-wz-stats") { const i0 = S.issues.find((x) => x.no === S.sub.no); S.wzStats = S.wzStats === undefined ? !(wzFlowCur(i0) === 3) : !S.wzStats; render(); return; }
+  if (act === "draw-wz-ref") { S.wzRef = !S.wzRef; render(); return; }
+  if (act === "draw-wz-confirm") {
+    if (!S.wiz) return; const i0 = S.issues.find((x) => x.no === S.wiz.no); S.wiz.chk = true;
+    logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Entry confirmed for submission", obj: i0.no, before: "—", after: (S.wiz.kind === "num" ? "Numbers segment" : "Prize segment") + " · " + NOWSTR() });
+    const fb = document.createElement("button"); fb.dataset.act = S.wiz.kind === "num" ? "draw-entry-save" : "draw-prz-save"; fb.dataset.id = i0.no; onClick({ target: fb }); return;
   }
   if (act === "draw-wz-next") { if (S.wiz) wzNext(); return; }
   if (act === "draw-wz-back") { if (S.wiz) { const c = wzCur(); if (c.k > 0) { S.wiz.step = c.steps[c.k - 1].id; S.wiz.ret = false; S.wiz.err = ""; S.mf.err = ""; wzSave(); render(); } } return; }
   if (act === "draw-wz-edit") { if (S.wiz) { S.wiz.step = arg; S.wiz.ret = true; S.wiz.chk = false; S.wiz.err = ""; S.mf.err = ""; wzSave(); render(); } return; }
-  if (act === "draw-ent-open") { S.wiz = null; S.mf = {}; S.pad = { nums: [] }; S.sub = { type: "entry", no: id }; render(); return; }
-  if (act === "entry-back") { S.wiz = null; S.sub = null; S.mf = {}; render(); return; }
+  if (act === "draw-ent-open") { S.wiz = null; S.mf = {}; S.pad = { nums: [] }; S.wzRes = null; S.wzExit = false; S.wzRef = false; S.wzStats = undefined; S.sub = { type: "entry", no: id }; render(); return; }
+  if (act === "entry-back") { S.wiz = null; S.sub = null; S.mf = {}; S.wzRes = null; S.wzExit = false; render(); return; }
   if (act === "pad-clear") { S.pad.nums = []; S.mf.err = ""; if (S.wiz) S.wiz.err = ""; wzSync(); render(); return; }
   if (act === "pad-pick") {
     const i = S.issues.find((x) => x.no === S.sub.no); const r = NUM_RULE[i.game]; const n = Number(arg); S.mf.err = "";
@@ -8301,20 +8455,21 @@ function onClick(e) {
     if (i.st === "entry") {
       i.first = { nums: norm, by: actor().who, src: srcKeep || "manual" }; pushHist(i, "status", "entry", "review", "", 0); i.st = "review"; i.firstAt = NOWSTR(); if (!i.firstEver) i.firstEver = i.firstAt; stamp(i, "enc", 0); /* 6.7.3: First Entry Time = the earliest submission, kept after a discarded re-entry */
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("开奖结果第一次录入", "Draw result first entry"), obj: i.no, before: "—", after: "submitted" });
-      S.pad = { nums: [] }; S.mf = { err: "" }; toast(t("第一次录入已提交，请财务复核独立录入。", "First entry submitted. Finance review now enters it independently.")); render(); return;
+      S.pad = { nums: [] }; S.mf = { err: "" }; S.wzRes = { no: i.no, res: "sub", seg: "num" }; toast(t("第一次录入已提交，请财务复核独立录入。", "First entry submitted. Finance review now enters it independently.")); render(); return;
     }
     if (i.first.by === actor().who) return fail("The second entry must be made by a different person");
     if (i.first.nums !== norm) {
       delete i.first; pushHist(i, "status", "review", "entry", "Entries did not match, both discarded", 0, "System"); i.st = "entry"; S.pad = { nums: [] }; delete i.trace;
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("两份录入不一致", "Entries do not match"), obj: i.no, before: "review", after: "entry (both discarded)" });
-      S.mf = { err: "The two entries do not match. Both entries were discarded." }; render(); return;
+      S.mf = {}; S.wzRes = { no: i.no, res: "mismatch", seg: "num", msg: "The two entries do not match. Both entries were discarded." }; render(); return;
     }
     logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("开奖结果第二次录入，两份一致", "Second entry matches"), obj: i.no, before: "review", after: "prize" });
     stamp(i, "enc", 1); stamp(i, "chk", 0, "system"); stamp(i, "chk", 1);
-    i.nums = norm; delete i.first; pushHist(i, "status", "review", "prize", "", 0); i.st = "prize"; delete i.prz1; delete i.przOk; delete i.prz; S.mf = {}; render(); return;
+    i.nums = norm; delete i.first; pushHist(i, "status", "review", "prize", "", 0); i.st = "prize"; delete i.prz1; delete i.przOk; delete i.prz; S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "num" }; render(); return;
   }
   if (act === "draw-auth") {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const rows = entTierRows(i, g);
+    if (!i.przOk && !rows.some((r) => r.isPool)) { i.prz1 = { pool: "", pl: {}, pb: {}, by: actor().who }; i.przOk = true; i.prz = { pool: "", pl: {}, pb: {}, won: false }; stamp(i, "win", 0); stamp(i, "win", 1); logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Prize step passed (fixed prizes)", obj: i.no, before: "prize", after: "ready to authorize" }); }
     { const ov = przOver(rows, i.prz || { pl: {}, pb: {} }); if (ov.over) { przVoidBoth(i, ov.tier); render(); return; } }
     S.mf = {}; S.modal = { type: "authgo", id }; render(); return;
   }
@@ -8514,6 +8669,7 @@ function onClick(e) {
   if (act === "export-sales") {
     if (salesSpanBad()) { toast(SALES_SPAN_MSG); return; }
     const tm = tfv("sales"), lines = [["game", "sales", "Terminal"]].concat(GAME_SALES.map((r) => [gameBy(r.id).zh, tVal(r.sales, "sales", tm), tLab(tm)]));
+    const dd = salesDueRows(tm); lines.push([""], ["Sales Date", "Sales", "Refunds", "Total Payout", "Withholding Tax", "VAT", "Documentary Stamp Tax", "Net Due To PCSO"]); dd.rows.concat([dd.total]).forEach((r) => lines.push([r.date, r.sales.toFixed(2), r.refunds.toFixed(2), r.pay.toFixed(2), r.wht.toFixed(2), r.vat.toFixed(2), r.dst.toFixed(2), r.net.toFixed(2)]));
     download("ilotto-sales.csv", lines.map((r) => r.join(",")).join("\n"), "text/csv");
     logAudit({ who: actor().who, role: actor().role, mod: t("报表", "Reports"), cat: "Audit", evt: "Export sales", obj: "sales · Terminal: " + tLab(tm) });
     return;
@@ -9780,6 +9936,54 @@ html{scroll-behavior:smooth}@media (prefers-reduced-motion:reduce){html{scroll-b
 .login-panel [data-dev] select{display:block;width:100%;height:40px;padding:0 36px 0 12px;border:1px solid var(--sk-line,#dfe5f1);border-radius:12px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7694' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center;appearance:none;-webkit-appearance:none;font:inherit;font-size:14px;color:var(--sk-text,#0a1148);cursor:pointer}
 .login-panel [data-dev] select:focus{outline:none;border-color:var(--sk-blue,#004bc9);box-shadow:0 0 0 3px rgba(0,75,201,.15)}
 .login-panel [data-dev]{width:min(560px,100%)!important;max-width:560px!important;margin:14px auto 0!important}
+
+/* ===== batch 10: immersive draw-entry layer (6.7.4) ===== */
+body.wzl-on{overflow:hidden}
+#wz-host .wzl{position:fixed;inset:0;z-index:30;background:#f3f6fb;display:flex;flex-direction:column;overflow:hidden;color:var(--sk-text)}
+#wz-host .wzl-top{display:flex;align-items:center;gap:16px;padding:14px 24px 12px 28px;background:#fff;border-bottom:1px solid var(--sk-line)}
+#wz-host .wzl-flow{flex:1;display:flex;gap:6px;list-style:none;margin:0;padding:0;overflow:hidden}
+#wz-host .wzl-flow li{flex:1;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#f1f4fa;color:var(--sk-muted);font-size:14px;font-weight:600;white-space:nowrap;min-width:0}
+#wz-host .wzl-flow li b{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#dfe5f1;color:var(--sk-muted);font-size:13px}
+#wz-host .wzl-flow li span{overflow:hidden;text-overflow:ellipsis}
+#wz-host .wzl-flow li.cur{background:var(--sk-blue);color:#fff}#wz-host .wzl-flow li.cur b{background:#fff;color:var(--sk-blue)}
+#wz-host .wzl-flow li.done{background:#e8f6ee;color:#17803f}#wz-host .wzl-flow li.done b{background:#1fa45a;color:#fff}
+#wz-host .wzl-x{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--sk-line);background:#fff;font-size:26px;line-height:1;cursor:pointer;color:var(--sk-muted);margin-right:24px}
+#wz-host .wzl-x:hover{background:#f1f4fa;color:var(--sk-text)}
+#wz-host .wzl-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 28px;background:#eef2fa;border-bottom:1px solid var(--sk-line);font-size:14px}
+#wz-host .wzl-bar-r{display:flex;align-items:center;gap:10px}
+#wz-host .wzl-strip{padding:8px 28px;background:#fff;border-bottom:1px solid var(--sk-line)}
+#wz-host .wzl-strip-h{display:flex;justify-content:space-between;align-items:center;gap:12px}
+#wz-host .wzl-strip-h .slot{width:30px;height:30px;font-size:13px}#wz-host .wzl-strip-h .slots{display:inline-flex;gap:4px;vertical-align:middle}
+#wz-host .wzl-strip-b{margin-top:8px;max-height:240px;overflow:auto}
+#wz-host .wzl-main{flex:1;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:36px 28px 60px}
+#wz-host .wzl-main>.card,#wz-host .wzl-main>.wzl-card{width:min(900px,100%);margin:0;padding:32px 40px;background:#fff;border:1px solid var(--sk-line);border-radius:18px;box-shadow:var(--sk-shadow)}
+#wz-host .wz-t{font-size:30px;font-weight:800;margin:6px 0 14px;line-height:1.2}
+#wz-host .wzl-main p{font-size:17px}#wz-host .wzl-main p.tiny{font-size:14px}
+#wz-host .wzl-seg{text-transform:uppercase;letter-spacing:.06em;font-size:12px}
+#wz-host .wzl-facts{font-size:18px;margin:4px 0 12px;color:var(--sk-muted)}#wz-host .wzl-facts b{font-size:30px;color:var(--sk-text)}
+#wz-host .wz-confirm{display:grid;gap:12px;margin:18px 0}#wz-host .wz-confirm div{display:flex;justify-content:space-between;font-size:22px;padding:10px 0;border-bottom:1px solid var(--sk-line)}
+#wz-host .wz-balls .slot{width:68px;height:68px;font-size:30px}#wz-host .wz-balls .slots{gap:14px;margin-bottom:6px}
+#wz-host .wz-balls .pad{grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:10px;max-width:760px}#wz-host .wz-balls .pad button{height:60px;font-size:22px}
+#wz-host .wz-amt{display:flex;align-items:center;gap:10px;border:2px solid var(--sk-blue);border-radius:16px;padding:6px 18px;margin:10px 0}
+#wz-host .wz-peso{font-size:40px;font-weight:700;color:var(--sk-muted)}
+#wz-host .wz-amt input{flex:1;border:0;box-shadow:none;font-size:44px;font-weight:700;padding:8px 0;background:transparent;min-width:0}
+#wz-host .wz-amt input:focus{box-shadow:none}
+#wz-host .wz-big{font-size:38px;font-weight:800;margin:4px 0 14px;color:var(--sk-navy)}
+#wz-host .wzl-main input[data-wz=jpr],#wz-host .wzl-main input[data-rxcsin]{font-size:26px;padding:12px 16px;width:100%}
+#wz-host .wz-sum{font-size:22px}#wz-host .wz-sum td{padding:14px 10px}
+#wz-host .wzl-auth-tbl{font-size:20px}#wz-host .wzl-auth-tbl td,#wz-host .wzl-auth-tbl th{padding:12px 10px}#wz-host .wzl-auth-tbl tfoot td{font-size:26px;border-top:2px solid var(--sk-line)}
+#wz-host .btn-lg{font-size:20px;padding:14px 28px}
+#wz-host .wz-ft .btn,#wz-host .wzl-confirm .btn,#wz-host .wz-res .btn{font-size:18px;padding:12px 24px;width:auto;flex:none}
+#wz-host .wzl-big-t{font-size:44px;font-weight:800;margin:6px 0}#wz-host .wzl-big-t.err-t{font-size:30px;color:var(--sk-red)}
+#wz-host .wzl-big-2{font-size:28px;font-weight:700;color:#17803f;margin:4px 0 10px}
+#wz-host .wzl-wait{font-size:24px;font-weight:600;color:var(--sk-muted);margin:6px 0}
+#wz-host .wzl-confirm{border:2px solid var(--sk-blue)!important}
+#wz-host .wzl-drawer{position:absolute;top:0;right:0;bottom:0;width:min(460px,92vw);background:#fff;border-left:1px solid var(--sk-line);box-shadow:-12px 0 32px rgba(16,24,64,.12);padding:18px 20px;overflow:auto;z-index:5}
+#wz-host .wzl-drawer-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:18px}
+#wz-host .wzl-dlg-back{position:absolute;inset:0;background:rgba(2,6,16,.55);display:grid;place-items:center;z-index:8}
+#wz-host .wzl-dlg{background:#fff;border-radius:16px;padding:26px 30px;width:min(460px,92vw);box-shadow:var(--sk-shadow)}
+#wz-host .wzl-dlg h3{margin:0;font-size:22px}
+@media (max-width:900px){#wz-host .wzl-flow li span{display:none}#wz-host .wzl-x{margin-right:0}}
 
 </style>
 <script id="skin-js">
