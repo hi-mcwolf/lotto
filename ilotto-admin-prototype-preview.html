@@ -1766,7 +1766,7 @@ function minusMin(dt, m) {
 }
 /* ===== batch 12: Draw Desk (standalone page for entering and authorizing draw results) ===== */
 S.ddTheme = (function () { try { return localStorage.getItem("ilotto_admin_dd_theme") === "light" ? "light" : "dark"; } catch (_) { return "dark"; } })();
-S.deskQ = { game: "all" }; S.deskFocus = ""; S.deskScroll = false; S.deskUpOpen = false;
+S.deskQ = { game: "all", status: "all", date: "" }; S.deskFocus = ""; S.deskScroll = false; S.deskUpOpen = false;
 function ddNowMs() { return Date.parse(NOWSTR().replace(" ", "T") + ":00+08:00"); }
 function ddDrawMs(i) { return Date.parse(String(i.draw).replace(" ", "T") + ":00+08:00"); }
 function ddToday() { return NOWSTR().slice(0, 10); }
@@ -1822,32 +1822,41 @@ function ddCard(i, done) {
   }
   return `<article class="dd-card${done ? " done" : ""}${!done && ddElapsed(i).late ? " late" : ""}${S.deskFocus === i.no ? " focus" : ""}" data-no="${i.no}" data-dd-st="${i.st}"><div class="dd-l"><div class="dd-gl"><span class="dd-gdot" style="background:linear-gradient(135deg,${g.c1},${g.c2})">${ddDot(g)}</span><div class="dd-meta"><div class="dd-gn">${esc(gname(g))}</div><div class="dd-sub">${meta}</div></div></div>${ddProg(i)}</div><div class="dd-r">${right}</div></article>`;
 }
+/* status filter values: all / entry / review / prize (entering prizes) / auth (waiting for authorization) / pub */
+function ddStatKey(i) { return i.st === "entry" ? "entry" : i.st === "review" ? "review" : i.st === "prize" ? (ddStep(i) === 5 ? "auth" : "prize") : (i.st === "pub" || i.st === "settled") ? "pub" : "up"; }
 function ddLists() {
-  const gm = S.deskQ.game; const now = ddNowMs(); const day = ddToday();
+  const gm = S.deskQ.game; const stq = S.deskQ.status || "all"; const pick = S.deskQ.date || ""; const now = ddNowMs(); const day = pick || ddToday();
   const okG = (i) => gm === "all" || i.game === gm;
-  const live = S.issues.filter((i) => okG(i) && ["entry", "review", "prize"].includes(i.st) && ddDrawMs(i) <= now);
+  const okS = (i) => stq === "all" || ddStatKey(i) === stq;
+  const okD = (i) => !pick || i.draw.slice(0, 10) === pick;
+  const byDrawDesc = (a, b) => ddDrawMs(b) - ddDrawMs(a);
+  const live = S.issues.filter((i) => okG(i) && okS(i) && okD(i) && ["entry", "review", "prize"].includes(i.st) && ddDrawMs(i) <= now);
   const ord = { go: 0, wait: 1, ro: 2 };
-  live.sort((a, b) => (ord[ddAct(a).kind] - ord[ddAct(b).kind]) || (ddDrawMs(a) - ddDrawMs(b)));
-  const up = S.issues.filter((i) => okG(i) && i.draw.slice(0, 10) === day && ddDrawMs(i) > now && ["gen", "sale", "closed"].includes(i.st)).sort((a, b) => ddDrawMs(a) - ddDrawMs(b));
-  const done = S.issues.filter((i) => okG(i) && (i.st === "pub" || i.st === "settled") && String(i.pubAt || "").slice(0, 10) === day).sort((a, b) => String(b.pubAt).localeCompare(String(a.pubAt)));
+  /* my turn first, then newest draw first inside each group */
+  live.sort((a, b) => (ord[ddAct(a).kind] - ord[ddAct(b).kind]) || byDrawDesc(a, b));
+  const up = stq !== "all" ? [] : S.issues.filter((i) => okG(i) && i.draw.slice(0, 10) === day && ddDrawMs(i) > now && ["gen", "sale", "closed"].includes(i.st)).sort(byDrawDesc);
+  const done = S.issues.filter((i) => okG(i) && okS(i) && (i.st === "pub" || i.st === "settled") && (pick ? i.draw.slice(0, 10) === pick : String(i.pubAt || "").slice(0, 10) === day)).sort(byDrawDesc);
   return { live, up, done };
 }
 function viewDrawDesk() {
-  const L = ddLists(); const day = ddToday(); const ro = drawRo();
+  const L = ddLists(); const day = S.deskQ.date || ddToday(); const ro = drawRo();
   const nToday = S.issues.filter((i) => i.draw.slice(0, 10) === day && i.st !== "void").length;
   const dt = new Date(day + "T00:00:00+08:00");
   const dlabel = dt.toLocaleDateString("en-US", { timeZone: "Asia/Manila", weekday: "short", day: "numeric", month: "short", year: "numeric" });
   const inGames = S.issues.filter((i) => ["entry", "review", "prize", "pub", "settled", "gen", "sale", "closed"].includes(i.st)).map((i) => i.game);
   const chips = [["all", t("全部游戏", "All games")]].concat(gamesSorted().filter((g) => inGames.includes(g.id)).map((g) => [g.id, gname(g)])).map(([id, n]) => `<button type="button" class="dd-chip${S.deskQ.game === id ? " on" : ""}" data-act="desk-game" data-arg="${id}" aria-pressed="${S.deskQ.game === id}">${esc(n)}</button>`).join("");
+  const cnt = (k) => S.issues.filter((i) => (S.deskQ.game === "all" || i.game === S.deskQ.game) && (!S.deskQ.date || i.draw.slice(0, 10) === S.deskQ.date) && (k === "all" ? ["entry", "review", "prize", "pub", "settled"].includes(i.st) && (S.deskQ.date || ddDrawMs(i) <= ddNowMs()) && (["pub", "settled"].includes(i.st) ? (S.deskQ.date || String(i.pubAt || "").slice(0, 10) === ddToday()) : true) : ddStatKey(i) === k && (k !== "pub" || S.deskQ.date || String(i.pubAt || "").slice(0, 10) === ddToday()) && (k === "pub" || ddDrawMs(i) <= ddNowMs()))).length;
+  const schips = [["all", t("全部状态", "All statuses")], ["entry", "Awaiting entry"], ["review", "Awaiting review"], ["prize", "Awaiting prize entry"], ["auth", "Awaiting authorization"], ["pub", "Published"]].map(([id, n]) => `<button type="button" class="dd-chip${(S.deskQ.status || "all") === id ? " on" : ""}" data-act="desk-status" data-arg="${id}" aria-pressed="${(S.deskQ.status || "all") === id}">${n} <em class="dd-cn">${cnt(id)}</em></button>`).join("");
   const light = S.ddTheme === "light";
   const upBlock = L.up.length ? `<details class="dd-up" id="dd-up" ${S.deskUpOpen ? "open" : ""}><summary>${t("今日待开奖", "Upcoming today")} (${L.up.length})</summary><ul>${L.up.map((i) => { const g = gameBy(i.game); return `<li><span class="dd-gdot sm" style="background:linear-gradient(135deg,${g.c1},${g.c2})">${ddDot(g)}</span><b>${esc(gname(g))}</b> <span class="mono">${i.no}</span> <span>${t("开奖时间", "Draw time")} <b class="mono">${i.draw}</b></span></li>`; }).join("")}</ul></details>` : "";
-  return `<div class="dd" data-dd-theme="${S.ddTheme}"><div class="dd-head"><div><h3>${t("开奖工作台", "Draw Desk")}</h3><p>${dlabel} · ${nToday} ${nToday === 1 ? "draw" : "draws"} today <em class="dd-demo">Demo data</em></p></div><div class="dd-tools">${ro ? `<span class="dd-ro" id="draw-ro">Read only</span>` : ""}</div></div>
+  return `<div class="dd" data-dd-theme="${S.ddTheme}"><div class="dd-head"><div><h3>${t("开奖工作台", "Draw Desk")}</h3><p>${dlabel} · ${nToday} ${nToday === 1 ? "draw" : "draws"} ${S.deskQ.date ? "on this date" : "today"} <em class="dd-demo">Demo data</em></p></div><div class="dd-tools">${ro ? `<span class="dd-ro" id="draw-ro">Read only</span>` : ""}</div></div>
     <div class="dd-chips" role="group" aria-label="${t("按游戏筛选", "Filter by game")}">${chips}</div>
+    <div class="dd-chips dd-chips2" id="dd-status" role="group" aria-label="${t("按状态筛选", "Filter by status")}">${schips}<span class="dd-datebox"><label for="dd-date">${t("开奖日期", "Draw date")}</label><input type="date" id="dd-date" class="dd-date" data-act="desk-date" value="${S.deskQ.date || ddToday()}"><button type="button" class="dd-chip${S.deskQ.date ? "" : " on"}" data-act="desk-today" aria-pressed="${!S.deskQ.date}">${t("今天", "Today")}</button></span></div>
     <h4 class="dd-sect">${t("需要你处理", "Needs your action")} <span class="dd-n" id="dd-n-act">(${L.live.length})</span></h4>
     <div id="dd-live">${L.live.length ? L.live.map((i) => ddCard(i, false)).join("") : `<div class="dd-empty">Nothing to enter right now.</div>`}</div>
     ${upBlock}
-    <h4 class="dd-sect">${t("今日已完成", "Done today")} <span class="dd-n" id="dd-n-done">(${L.done.length})</span></h4>
-    <div id="dd-done">${L.done.length ? L.done.map((i) => ddCard(i, true)).join("") : `<div class="dd-empty">${t("今天还没有已发布的开奖。", "No result has been published today.")}</div>`}</div>
+    <h4 class="dd-sect">${S.deskQ.date ? t("当日已发布", "Published on this date") : t("今日已完成", "Done today")} <span class="dd-n" id="dd-n-done">(${L.done.length})</span></h4>
+    <div id="dd-done">${L.done.length ? L.done.map((i) => ddCard(i, true)).join("") : `<div class="dd-empty">${S.deskQ.date ? "No published draw on this date." : t("今天还没有已发布的开奖。", "No result has been published today.")}</div>`}</div>
   </div>`;
 }
 /* Draw Desk is a full-screen page like the entry layer: no side menu, no page header; refresh and close sit top right */
@@ -2283,8 +2292,9 @@ function wzMatchView(i, g, res) {
     + (g.kind === "lotto" && sn.nj ? `<tr><td>${t("下一期头奖奖池（预估）", "Next draw jackpot (estimate)")}</td><td class="mono amt">${wzBig(sn.nj)}</td><td class="mono amt">${wzBig(sn.nj)}</td><td></td><td></td><td class="wzl-mck">\u2713</td></tr>` : "");
   return `<div class="wzl-mtbl"><table><thead><tr><th rowspan="2">${t("奖级", "Tier")}</th><th colspan="2" class="wzl-mg">${hd("First entry", sn.firstBy, sn.firstAt)}</th><th colspan="2" class="wzl-mg">${hd("Second entry", sn.secondBy, sn.secondAt)}</th><th rowspan="2">${t("比对", "Check")}</th></tr><tr><th>${t("本期奖池金额", "Pool amount")}</th><th>${t("单注奖金", "Prize per bet")}</th><th>${t("本期奖池金额", "Pool amount")}</th><th>${t("单注奖金", "Prize per bet")}</th></tr></thead><tbody>${tr}</tbody></table></div>`;
 }
+const RFBTN = `<button type="button" class="btn" data-act="draw-wz-refresh">${"Refresh"}</button>`;
 function wzResView(i, g, res, route) {
-  let h = "", btns = `<button type="button" class="btn" data-act="draw-wz-done">${t("关闭", "Close")}</button>`;
+  let h = "", btns = `${RFBTN}<button type="button" class="btn" data-act="draw-wz-done">${t("关闭", "Close")}</button>`;
   if (res.res === "pub") h = `<div class="wzl-big-t">Results published.</div><p class="tiny">${t("系统已逐票算奖派奖。", "The system has judged and paid out every ticket.")}</p>`;
   else if (res.res === "mismatch") { h = `<div class="wzl-big-t err-t">${esc(res.msg)}</div>`; btns = `<button type="button" class="btn btn-primary" data-act="draw-wz-restart">Start again</button>` + btns; }
   else {
@@ -2304,14 +2314,14 @@ function wzLayer() {
   if (S.wiz && S.wiz.no === i.no && S.wiz.snap !== wzSnap(i)) { wzDrop(S.wiz.key); S.wiz = null; } /* the step was submitted or voided: the draft is spent */
   const cur = wzFlowCur(i); let main = "", prog = "", strip = "", editing = false;
   if (res) { main = wzResView(i, g, res, route); prog = z("Done", "完成"); if (S.wiz) { wzDrop(S.wiz.key); S.wiz = null; } }
-  else if (route.kind === "wait") { if (S.wiz) S.wiz = null; main = `<div class="card wz wz-res" data-wz-step="wait"><p class="wzl-wait">${esc(route.msg)}</p><div class="row-actions" style="margin-top:16px"><button type="button" class="btn" data-act="draw-wz-done">${t("关闭", "Close")}</button></div></div>`; prog = z("Waiting", "等待中"); }
+  else if (route.kind === "wait") { if (S.wiz) S.wiz = null; main = `<div class="card wz wz-res" data-wz-step="wait"><p class="wzl-wait">${esc(route.msg)}</p><div class="row-actions" style="margin-top:16px">${RFBTN}<button type="button" class="btn" data-act="draw-wz-done">${t("关闭", "Close")}</button></div></div>`; prog = z("Waiting", "等待中"); }
   else if (route.kind === "auth") { if (S.wiz) S.wiz = null; main = wzAuthView(i, g); prog = z("Final step", "最后一步"); }
   else { const v = wzStepView(i, g, route.kind, cur); main = v.main; prog = v.prog; editing = true; if (route.kind === "prz") strip = wzStrip(i, g, cur); }
   const showRef = editing ? route.kind === "prz" : (route && route.kind === "auth");
-  const bar = `<div class="wzl-bar"><span><b>${esc(gname(g))}</b> · <span class="mono">${i.no}</span> · ${t("开奖", "Draw")} <span class="mono">${i.draw}</span></span><span class="wzl-bar-r">${prog}${showRef ? ` <button type="button" class="btn btn-sm" data-act="draw-wz-ref">Reference</button>` : ""}</span></div>`;
+  const bar = `<div class="wzl-top wzl-bar"><span><b>${esc(gname(g))}</b> · <span class="mono">${i.no}</span> · ${t("开奖", "Draw")} <span class="mono">${i.draw}</span></span><span class="wzl-bar-r">${prog}${showRef ? ` <button type="button" class="btn btn-sm" data-act="draw-wz-ref">Reference</button>` : ""} <button type="button" class="wzl-rf" data-act="draw-wz-refresh" aria-label="Refresh" title="Refresh">\u21bb</button><button type="button" class="wzl-x" data-act="draw-wz-close" aria-label="Close" title="Close">\u00d7</button></span></div>`;
   const drawer = S.wzRef && showRef ? `<aside class="wzl-drawer" id="wzl-drawer"><div class="wzl-drawer-h"><b>Reference</b><button type="button" class="btn btn-sm" data-act="draw-wz-ref" aria-label="Close">\u00d7</button></div>${wzRefHtml(i, g)}</aside>` : "";
   const exit = S.wzExit && editing ? `<div class="wzl-dlg-back"><div class="wzl-dlg" role="dialog"><h3>Exit entry? Your draft is saved.</h3><div class="row-actions" style="margin-top:14px"><button type="button" class="btn btn-primary" data-act="draw-wz-keep">Keep editing</button><button type="button" class="btn" data-act="draw-wz-exit">Exit</button></div></div></div>` : "";
-  return `<div class="wzl" id="wzl" role="dialog" aria-modal="true" aria-label="${t("开奖结果录入", "Draw result entry")}"><div class="wzl-top">${wzFlow(cur)}<button type="button" class="wzl-rf" data-act="draw-wz-refresh" aria-label="Refresh" title="Refresh">\u21bb</button><button type="button" class="wzl-x" data-act="draw-wz-close" aria-label="Close" title="Close">\u00d7</button></div>${bar}${ddGuide(i, route, res, (/data-wz-step="(\w+)"/.exec(main) || [])[1])}${strip}<main class="wzl-main" id="wzl-main">${main}</main>${drawer}${exit}</div>`;
+  return `<div class="wzl" id="wzl" role="dialog" aria-modal="true" aria-label="${t("开奖结果录入", "Draw result entry")}">${bar}${ddGuide(i, route, res, (/data-wz-step="(\w+)"/.exec(main) || [])[1])}${strip}<main class="wzl-main" id="wzl-main">${main}</main><footer class="wzl-foot" aria-label="${t("五步流程", "Five-step flow")}">${wzFlow(cur)}</footer>${drawer}${exit}</div>`;
 }
 function wzMount() {
   let host = $("wz-host"); if (!host) { host = document.createElement("div"); host.id = "wz-host"; document.body.appendChild(host); }
@@ -2357,6 +2367,7 @@ function wzInput(el) {
   wzSave();
 }
 document.addEventListener("input", (e) => { const el = e.target; if (el.dataset && el.dataset.wz && S.wiz) wzInput(el); }, true);
+document.addEventListener("change", (e) => { const el = e.target; if (el.dataset && el.dataset.act === "desk-date") { S.deskQ.date = /^\d{4}-\d{2}-\d{2}$/.test(el.value) && el.value !== ddToday() ? el.value : ""; render(); } }, true);
 document.addEventListener("focusin", (e) => { const el = e.target; if (el.dataset && el.dataset.wz === "cell" && S.wiz && S.wiz.step === "tbl" && S.wiz.cell !== el.dataset.cell) { S.wiz.cell = el.dataset.cell; wzTblRefresh(); } }, true);
 document.addEventListener("change", (e) => { const el = e.target; if (el.dataset && el.dataset.wz === "chk" && S.wiz) { S.wiz.chk = el.checked; const b = $("wz-submit"); if (b) b.disabled = !el.checked; } }, true);
 document.addEventListener("keydown", (e) => { const el = e.target; if (e.key === "Enter" && el.dataset && (el.dataset.wz === "amt" || el.dataset.wz === "jpr" || el.dataset.wz === "cell" || el.dataset.rxcsin !== undefined) && S.wiz) { e.preventDefault(); if (el.dataset.wz === "cell") wzTblGo(true); else wzNext(); } }, true);
@@ -8895,6 +8906,8 @@ function onClick(e) {
   if (act === "reg-open") { S.regOpen = S.regOpen || {}; S.regOpen[arg] = !S.regOpen[arg]; render(); return; }
   if (act === "desk-goto") { const no = arg || id || ""; S.sub = null; S.wiz = null; S.wzRes = null; S.wzExit = false; S.modal = null; S.mf = {}; if (S.page !== "drawdesk") S.deskFrom = S.page; S.page = "drawdesk"; S.deskQ.game = "all"; S.deskFocus = no; S.deskScroll = !!no; render(); return; }
   if (act === "desk-game") { S.deskQ.game = arg; render(); return; }
+  if (act === "desk-status") { S.deskQ.status = arg; render(); return; }
+  if (act === "desk-today") { S.deskQ.date = ""; render(); return; }
   if (act === "desk-refresh") { render(); toast(t("已刷新", "Refreshed.")); return; }
   if (act === "desk-exit") { S.sub = null; S.wiz = null; S.wzRes = null; S.wzExit = false; S.mf = {}; S.page = (S.deskFrom && S.deskFrom !== "drawdesk" && !menuHidden(S.deskFrom)) ? S.deskFrom : "dash"; render(); return; }
   if (act === "dd-theme") { S.ddTheme = S.ddTheme === "light" ? "dark" : "light"; try { localStorage.setItem("ilotto_admin_dd_theme", S.ddTheme); } catch (_) {} render(); return; }
@@ -10425,6 +10438,24 @@ body.ddfs-on{overflow:hidden}
 #wz-host .wzl-mtbl td:first-child{min-width:0;white-space:normal}
 #wz-host .wzl-mtbl th.wzl-mg{border-bottom:1px solid var(--d-line);text-align:center}
 #wz-host .wzl-mtbl th.wzl-mg .wzl-mwho{align-items:center}
+
+/* batch 14: flow bar at the bottom of the entry layer; info and tools on top */
+#wz-host .wzl-top{justify-content:space-between;padding:10px 24px 10px 28px;font-size:14px;background:#eef2fa}
+#wz-host .wzl-top .wzl-bar-r{display:flex;align-items:center;gap:10px}
+#wz-host .wzl-top .wzl-x{margin-right:0}
+#wz-host .wzl-top{background:var(--d-surface2);color:var(--d-mid);border-bottom:1px solid var(--d-line)}#wz-host .wzl-top b{color:var(--d-ink)}
+#wz-host .wzl-foot{flex:none;padding:12px 24px;background:var(--d-surface);border-top:1px solid var(--d-line)}
+#wz-host .wzl-foot .wzl-flow{max-width:1200px;margin:0 auto}
+#wz-host .wzl-main{padding-bottom:24px}
+/* Draw Desk status row and date */
+.dd-chips2{margin-top:8px;align-items:center}
+.dd-cn{font-style:normal;opacity:.8;margin-left:4px;font-family:var(--d-mono)}
+.dd-datebox{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--d-mid)}
+.dd-date{background:var(--d-surface);color:var(--d-ink);border:1px solid var(--d-line2);border-radius:10px;padding:5px 10px;font:inherit;font-size:13px;color-scheme:dark}
+[data-dd-theme=light] .dd-date{color-scheme:light}
+#wz-host .wzl-foot{padding-right:280px}
+#wz-host .wzl-foot .wzl-flow{max-width:none;margin:0}
+.dd-datebox label{white-space:nowrap}
 
 </style>
 <script id="skin-js">
