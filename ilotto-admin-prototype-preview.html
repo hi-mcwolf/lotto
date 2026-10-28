@@ -1841,7 +1841,7 @@ function viewDrawDesk() {
   const chips = [["all", t("全部游戏", "All games")]].concat(gamesSorted().filter((g) => inGames.includes(g.id)).map((g) => [g.id, gname(g)])).map(([id, n]) => `<button type="button" class="dd-chip${S.deskQ.game === id ? " on" : ""}" data-act="desk-game" data-arg="${id}" aria-pressed="${S.deskQ.game === id}">${esc(n)}</button>`).join("");
   const light = S.ddTheme === "light";
   const upBlock = L.up.length ? `<details class="dd-up" id="dd-up" ${S.deskUpOpen ? "open" : ""}><summary>${t("今日待开奖", "Upcoming today")} (${L.up.length})</summary><ul>${L.up.map((i) => { const g = gameBy(i.game); return `<li><span class="dd-gdot sm" style="background:linear-gradient(135deg,${g.c1},${g.c2})">${ddDot(g)}</span><b>${esc(gname(g))}</b> <span class="mono">${i.no}</span> <span>${t("开奖时间", "Draw time")} <b class="mono">${i.draw}</b></span></li>`; }).join("")}</ul></details>` : "";
-  return `<div class="dd" data-dd-theme="${S.ddTheme}"><div class="dd-head"><div><h3>${t("开奖工作台", "Draw Desk")}</h3><p>${dlabel} · ${nToday} ${nToday === 1 ? "draw" : "draws"} today <em class="dd-demo">Demo data</em></p></div><div class="dd-tools">${ro ? `<span class="dd-ro" id="draw-ro">Read only</span>` : ""}<button type="button" class="dd-theme" data-act="dd-theme" aria-label="${light ? "Switch to dark theme" : "Switch to light theme"}">${light ? "Dark" : "Light"}</button></div></div>
+  return `<div class="dd" data-dd-theme="${S.ddTheme}"><div class="dd-head"><div><h3>${t("开奖工作台", "Draw Desk")}</h3><p>${dlabel} · ${nToday} ${nToday === 1 ? "draw" : "draws"} today <em class="dd-demo">Demo data</em></p></div><div class="dd-tools">${ro ? `<span class="dd-ro" id="draw-ro">Read only</span>` : ""}</div></div>
     <div class="dd-chips" role="group" aria-label="${t("按游戏筛选", "Filter by game")}">${chips}</div>
     <h4 class="dd-sect">${t("需要你处理", "Needs your action")} <span class="dd-n" id="dd-n-act">(${L.live.length})</span></h4>
     <div id="dd-live">${L.live.length ? L.live.map((i) => ddCard(i, false)).join("") : `<div class="dd-empty">Nothing to enter right now.</div>`}</div>
@@ -1850,7 +1850,13 @@ function viewDrawDesk() {
     <div id="dd-done">${L.done.length ? L.done.map((i) => ddCard(i, true)).join("") : `<div class="dd-empty">${t("今天还没有已发布的开奖。", "No result has been published today.")}</div>`}</div>
   </div>`;
 }
+/* Draw Desk is a full-screen page like the entry layer: no side menu, no page header; refresh and close sit top right */
+function ddFull(inner) {
+  const light = S.ddTheme === "light";
+  return `<div class="ddfs" id="ddfs" data-dd-theme="${S.ddTheme}"><div class="ddfs-top"><div class="ddfs-brand"><span class="ddfs-logo"></span><b>iLotto</b><span>${t("开奖工作台", "Draw Desk")}</span></div><div class="ddfs-tools"><button type="button" class="dd-theme" data-act="dd-theme" aria-label="${light ? "Switch to dark theme" : "Switch to light theme"}">${light ? "Dark" : "Light"}</button><button type="button" class="ddfs-rf" data-act="desk-refresh" aria-label="Refresh" title="Refresh">\u21bb</button><button type="button" class="ddfs-x" data-act="desk-exit" aria-label="Close" title="Close">\u00d7</button></div></div><div class="ddfs-body">${inner}</div></div>`;
+}
 function ddAfterRender() {
+  document.body.classList.toggle("ddfs-on", !!(S.authed && S.page === "drawdesk"));
   document.body.dataset.dd = (S.authed && (S.page === "drawdesk" || document.body.classList.contains("wzl-on"))) ? S.ddTheme : "";
   if (S.page === "drawdesk" && S.deskScroll) { S.deskScroll = false; const el = document.querySelector('.dd-card[data-no="' + S.deskFocus + '"]'); if (el && el.scrollIntoView) el.scrollIntoView({ block: "center" }); }
 }
@@ -2290,7 +2296,7 @@ function wzLayer() {
   const bar = `<div class="wzl-bar"><span><b>${esc(gname(g))}</b> · <span class="mono">${i.no}</span> · ${t("开奖", "Draw")} <span class="mono">${i.draw}</span></span><span class="wzl-bar-r">${prog}${showRef ? ` <button type="button" class="btn btn-sm" data-act="draw-wz-ref">Reference</button>` : ""}</span></div>`;
   const drawer = S.wzRef && showRef ? `<aside class="wzl-drawer" id="wzl-drawer"><div class="wzl-drawer-h"><b>Reference</b><button type="button" class="btn btn-sm" data-act="draw-wz-ref" aria-label="Close">\u00d7</button></div>${wzRefHtml(i, g)}</aside>` : "";
   const exit = S.wzExit && editing ? `<div class="wzl-dlg-back"><div class="wzl-dlg" role="dialog"><h3>Exit entry? Your draft is saved.</h3><div class="row-actions" style="margin-top:14px"><button type="button" class="btn btn-primary" data-act="draw-wz-keep">Keep editing</button><button type="button" class="btn" data-act="draw-wz-exit">Exit</button></div></div></div>` : "";
-  return `<div class="wzl" id="wzl" role="dialog" aria-modal="true" aria-label="${t("开奖结果录入", "Draw result entry")}"><div class="wzl-top">${wzFlow(cur)}<button type="button" class="wzl-x" data-act="draw-wz-close" aria-label="Close" title="Close">\u00d7</button></div>${bar}${ddGuide(i, route, res, (/data-wz-step="(\w+)"/.exec(main) || [])[1])}${strip}<main class="wzl-main" id="wzl-main">${main}</main>${drawer}${exit}</div>`;
+  return `<div class="wzl" id="wzl" role="dialog" aria-modal="true" aria-label="${t("开奖结果录入", "Draw result entry")}"><div class="wzl-top">${wzFlow(cur)}<button type="button" class="wzl-rf" data-act="draw-wz-refresh" aria-label="Refresh" title="Refresh">\u21bb</button><button type="button" class="wzl-x" data-act="draw-wz-close" aria-label="Close" title="Close">\u00d7</button></div>${bar}${ddGuide(i, route, res, (/data-wz-step="(\w+)"/.exec(main) || [])[1])}${strip}<main class="wzl-main" id="wzl-main">${main}</main>${drawer}${exit}</div>`;
 }
 function wzMount() {
   let host = $("wz-host"); if (!host) { host = document.createElement("div"); host.id = "wz-host"; document.body.appendChild(host); }
@@ -7232,7 +7238,7 @@ function render() {
   document.documentElement.lang = S.lang === "en" ? "en" : "zh-CN";
   if (S.authed && menuHidden(S.page)) { S.sub = null; S.page = (myRole() === "admin" && !demoAll() && !menuHidden("sys")) ? "sys" : (NAV.find((n) => !menuHidden(n[0])) || NAV[0])[0]; }
   const pages = { dash: viewDash, games: viewGames, draws: () => (S.sub && S.sub.type === "entry" ? viewEntryPage() : viewDraws() + raDrawCheck()), drawdesk: () => { const di = S.sub && S.sub.type === "entry" ? S.issues.find((x) => x.no === S.sub.no) : null; return di && (di.st === "pub" || di.st === "settled") ? viewEntryPage() : viewDrawDesk(); }, kyc: viewKyc, players: viewPlayers, rg: viewRg, claims: viewClaimsMenu, txn: viewTxn, reports: viewReports, audit: viewAudit, oper: viewOper, sys: viewSys };
-  $("app").innerHTML = (S.authed ? shell(pages[S.page]()) : viewLogin()) + langSwitch();
+  $("app").innerHTML = (S.authed ? (S.page === "drawdesk" ? ddFull(pages[S.page]()) : shell(pages[S.page]())) : viewLogin()) + langSwitch();
   let host = $("modal-host");
   if (!host) {
     host = document.createElement("div");
@@ -8403,7 +8409,7 @@ function onClick(e) {
     render();
     return;
   }
-  if (act === "nav") { S.plRo = null; if (arg === "audit") S.auditView = "list"; S.plExcl = null; S.sub = null; S.page = arg; if (arg === "drawdesk") S.deskFocus = ""; S.playerId = null; S.kycId = null; S.modal = null; render(); return; }
+  if (act === "nav") { S.plRo = null; if (arg === "audit") S.auditView = "list"; S.plExcl = null; S.sub = null; if (arg === "drawdesk" && S.page !== "drawdesk") S.deskFrom = S.page; S.page = arg; if (arg === "drawdesk") S.deskFocus = ""; S.playerId = null; S.kycId = null; S.modal = null; render(); return; }
   if (act === "goto-oper") { S.tab.oper = arg; S.sub = null; S.page = "oper"; S.modal = null; render(); return; }
   if (act === "tab") { if (S.tab.games === "limits" && actEl.dataset.group === "games") { /* keep */ } S.tab[actEl.dataset.group] = arg; a2OnTab(actEl.dataset.group, arg); render(); return; }
   if (act.indexOf("bl-") === 0 || act.indexOf("nd-") === 0) { if (blNdAct(act, arg, id)) return; }
@@ -8620,6 +8626,7 @@ function onClick(e) {
     S.mf = {}; S.wzRes = { no: i.no, res: "pub" }; toast(t("已发布，系统已逐票算奖派奖。", "Published. The system has judged and paid out every ticket.")); render(); return;
   }
   if (act === "draw-wz-close") { const i0 = S.issues.find((x) => x.no === (S.sub && S.sub.no)); const rt = i0 ? wzRoute(i0, gameBy(i0.game)) : null; if (S.wzRes || !rt || rt.kind === "wait" || rt.kind === "auth") { S.sub = null; S.wiz = null; S.wzRes = null; S.mf = {}; } else S.wzExit = true; render(); return; }
+  if (act === "draw-wz-refresh") { S.wzRes = null; S.wzExit = false; render(); toast(t("已刷新", "Refreshed.")); return; }
   if (act === "draw-wz-keep") { S.wzExit = false; render(); return; }
   if (act === "draw-wz-exit") { S.wzExit = false; S.wiz = null; S.sub = null; S.wzRes = null; S.mf = {}; render(); return; }
   if (act === "draw-wz-done") { S.wiz = null; S.sub = null; S.wzRes = null; S.wzExit = false; S.mf = {}; render(); return; }
@@ -8871,8 +8878,10 @@ function onClick(e) {
   if (act === "draw-open-tier") { S.drawOpen = S.drawOpen === arg ? null : arg; render(); return; }
   if (act === "pay-sub") { S.paySub = arg; render(); return; }
   if (act === "reg-open") { S.regOpen = S.regOpen || {}; S.regOpen[arg] = !S.regOpen[arg]; render(); return; }
-  if (act === "desk-goto") { const no = arg || id || ""; S.sub = null; S.wiz = null; S.wzRes = null; S.wzExit = false; S.modal = null; S.mf = {}; S.page = "drawdesk"; S.deskQ.game = "all"; S.deskFocus = no; S.deskScroll = !!no; render(); return; }
+  if (act === "desk-goto") { const no = arg || id || ""; S.sub = null; S.wiz = null; S.wzRes = null; S.wzExit = false; S.modal = null; S.mf = {}; if (S.page !== "drawdesk") S.deskFrom = S.page; S.page = "drawdesk"; S.deskQ.game = "all"; S.deskFocus = no; S.deskScroll = !!no; render(); return; }
   if (act === "desk-game") { S.deskQ.game = arg; render(); return; }
+  if (act === "desk-refresh") { render(); toast(t("已刷新", "Refreshed.")); return; }
+  if (act === "desk-exit") { S.sub = null; S.wiz = null; S.wzRes = null; S.wzExit = false; S.mf = {}; S.page = (S.deskFrom && S.deskFrom !== "drawdesk" && !menuHidden(S.deskFrom)) ? S.deskFrom : "dash"; render(); return; }
   if (act === "dd-theme") { S.ddTheme = S.ddTheme === "light" ? "dark" : "light"; try { localStorage.setItem("ilotto_admin_dd_theme", S.ddTheme); } catch (_) {} render(); return; }
   if (act === "desk-result") { S.wiz = null; S.wzRes = null; S.wzExit = false; S.mf = {}; S.sub = { type: "entry", no: id }; render(); return; }
   if (act === "goto-draws") { S.page = "draws"; S.drawQ.game = arg || "all"; render(); return; }
@@ -10222,7 +10231,7 @@ body.wzl-on{overflow:hidden}
 @media (max-width:900px){#wz-host .wzl-flow li span{display:none}#wz-host .wzl-x{margin-right:0}}
 
 /* ===== batch 12: Draw Desk page + full-screen layer theme (dark first, light switch; other admin pages keep the light skin) ===== */
-.dd,#wz-host .wzl,body[data-dd] .modal-back .modal{
+.dd,.ddfs,#wz-host .wzl,body[data-dd] .modal-back .modal{
   --d-bg:#0c1220;--d-surface:#141c2e;--d-surface2:#0f1626;--d-surface3:#1d2840;--d-raise:#243355;
   --d-ink:#eef3fb;--d-mid:#9fb0ca;--d-faint:#7d8ca8;--d-line:rgba(255,255,255,.09);--d-line2:rgba(255,255,255,.18);
   --d-cyan:#38d6ee;--d-cyan-ink:#06222b;--d-cyan-wash:rgba(56,214,238,.13);
@@ -10230,7 +10239,7 @@ body.wzl-on{overflow:hidden}
   --d-warn:#f5b342;--d-warn-wash:rgba(245,179,66,.16);--d-rose:#ff5f73;--d-rose-wash:rgba(255,95,115,.14);--d-gold:#ffd23f;--d-gold-wash:rgba(255,210,63,.12);
   --d-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
-body[data-dd=light] .dd,body[data-dd=light] #wz-host .wzl,body[data-dd=light] .modal-back .modal{
+body[data-dd=light] .dd,body[data-dd=light] .ddfs,body[data-dd=light] #wz-host .wzl,body[data-dd=light] .modal-back .modal{
   --d-bg:#eef1f7;--d-surface:#ffffff;--d-surface2:#f4f6fb;--d-surface3:#e9edf5;--d-raise:#dde4f0;
   --d-ink:#172238;--d-mid:#53617d;--d-faint:#6f7c93;--d-line:rgba(23,34,56,.1);--d-line2:rgba(23,34,56,.2);
   --d-cyan:#0e8fae;--d-cyan-ink:#ffffff;--d-cyan-wash:rgba(14,159,192,.1);
@@ -10354,6 +10363,28 @@ body[data-dd] .modal-back{z-index:60}
 #wz-host .wzl-auth .wz-t{margin-bottom:8px}
 #wz-host .wz-confirm{background:var(--d-surface2);border:1px solid var(--d-line);color:var(--d-ink)}#wz-host .wz-confirm b{color:var(--d-ink)}
 #wz-host .wzl td{background:transparent}
+
+#wz-host .wzl-rf{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--sk-line);background:#fff;font-size:20px;line-height:1;cursor:pointer;color:var(--sk-muted);margin-right:0}
+#wz-host .wzl-rf:hover{background:#f1f4fa;color:var(--sk-text)}
+#wz-host .wzl-rf:active{transform:rotate(180deg)}
+#wz-host .wzl-rf{background:var(--d-surface2);border-color:var(--d-line2);color:var(--d-mid)}#wz-host .wzl-rf:hover{background:var(--d-surface3);color:var(--d-ink)}
+
+/* Draw Desk full-screen page (no side menu); the entry layer (z-index 30) opens on top of it */
+body.ddfs-on{overflow:hidden}
+.ddfs{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;background:var(--d-bg);color:var(--d-ink);overflow:hidden}
+.ddfs-top{display:flex;align-items:center;gap:16px;padding:14px 24px 12px 28px;background:var(--d-surface);border-bottom:1px solid var(--d-line2)}
+.ddfs-brand{display:flex;align-items:center;gap:10px;margin-right:auto;font-size:15px;color:var(--d-mid)}
+.ddfs-brand b{font-size:17px;font-weight:800;color:var(--d-ink)}
+.ddfs-logo{width:11px;height:11px;border-radius:50%;background:var(--d-gold);box-shadow:0 0 10px var(--d-gold)}
+.ddfs-tools{display:flex;align-items:center;gap:10px}
+.ddfs-body{flex:1;overflow:auto;padding:22px 28px 110px}
+.ddfs-body .dd{max-width:1060px;margin:0 auto;background:transparent;border:0;border-radius:0;padding:0;min-height:0}
+.ddfs .ddfs-x{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--d-line2);background:var(--d-surface2);font-size:26px;line-height:1;cursor:pointer;color:var(--d-mid)}
+.ddfs .ddfs-x:hover{background:var(--d-surface3);color:var(--d-ink)}
+.ddfs .ddfs-rf{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--d-line2);background:var(--d-surface2);font-size:20px;line-height:1;cursor:pointer;color:var(--d-mid)}
+.ddfs .ddfs-rf:hover{background:var(--d-surface3);color:var(--d-ink)}
+.ddfs .ddfs-rf:active{transform:rotate(180deg)}
+@media (max-width:900px){.ddfs-top{padding:12px 14px}.ddfs-body{padding:16px 14px 32px}}
 
 </style>
 <script id="skin-js">
