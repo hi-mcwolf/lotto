@@ -294,6 +294,9 @@ table.tb td,table.tb th{border-bottom:1px solid var(--line)}
 .gcard .ga{font-size:16.5px;font-weight:900;color:var(--nv);margin-top:1px;white-space:nowrap}
 .gcard .gd{font-size:11px;margin-top:3px}
 .gcard .gp{margin-top:auto;display:flex;align-items:center;justify-content:space-between;height:34px;padding:0 10px;border-radius:9px;background:#e8f0fd;color:var(--bl);font-weight:800;font-size:12.5px;margin-top:10px}
+.gcard.soon{border:1.5px dashed #c5cde0;background:#f6f8fc;box-shadow:none;pointer-events:none;cursor:default}
+.gcard.soon .soonbox{width:112px;height:62px;border-radius:12px;border:1.5px dashed #c5cde0;display:grid;place-items:center;font-size:30px;font-weight:300;color:#9aa6c0}
+.gcard.soon .gn{color:#5a6684}
 .tile{flex-direction:row;align-items:center;gap:12px;min-height:0;padding:12px 14px;justify-content:flex-start}
 .tile .tic{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:none}
 .tile .tx{flex:1;min-width:0}
@@ -1053,6 +1056,8 @@ function sessRow(g){if(g.sess.length<2)return '';const st=sessState(g),lab={done
 const noEst=g=>g.t==='lotto'&&S.noEst===g.id;const jpAmt=g=>noEst(g)?'Jackpot to be announced':fm0(g.pool);
 function gcard(g){const off=isOff(g);const nd=isND(g,fdt(Date.parse(g.nx)));
  return `<button class="gcard ${off?'off':''}" onclick="A.playGame('${g.id}')"><div class="gl">${glogo(g,112)}${off?`<span class="badge b-gy" style="position:absolute;top:8px;right:8px">${t('暂停销售','Paused')}</span>`:''}</div><div class="gb"><div class="gn">${gname(g)}</div><div class="gj mu">${g.t==='lotto'?(noEst(g)?'&nbsp;':t('奖池','Jackpot')):t('开奖','Draws')}</div>${g.t==='lotto'?`<div class="ga"${noEst(g)?' style="font-size:14px;line-height:1.35"':''}>${jpAmt(g)}</div>`:`<div class="ga" style="font-size:14px;line-height:1.35">${t(g.sch,g.schEn)}</div>`}${nd?`<div class="xs" style="margin-top:3px;color:var(--am);font-weight:600;line-height:1.4">No draw on this date<div class="mu" style="font-weight:500">${t('下次开奖 ','Next draw ')}${effDate(g).slice(5)}</div></div>`:g.sess.length>1?'':`<div class="gd mu">${dlab(sessMs(g,0),true)}</div>`}${sessRow(g)}<span class="gp">${fm0(g.p)} / ${t('注','bet')}${I('chev',16)}</span>${resultRow(g)}</div></button>`}
+/* odd number of games: the empty slot of the last row is a same-size placeholder card */
+const soonCard=()=>`<div class="gcard soon" data-soon="1" aria-disabled="true"><div class="gl"><div class="soonbox" aria-hidden="true">+</div></div><div class="gb"><div class="gn">More games</div><div class="gj mu">Coming soon</div><div class="ga" style="font-size:14px;line-height:1.35">Stay tuned</div></div></div>`;
 const todayDrawLotto=()=>G.filter(g=>g.t==='lotto'&&!isOff(g)&&effDate(g)===todayStr()).sort((a,b)=>(noEst(a)?1:0)-(noEst(b)?1:0)||b.pool-a.pool);
 const annOf=pos=>ANN.map((a,i)=>({...a,i})).filter(a=>a.pos===pos);
 SC.home={html:()=>{const top3=todayDrawLotto();const botA=annOf('top').concat(annOf('bottom')).map(a=>({...a,img:a.img||['#0e7490','#1e293b']}));const cat=S.homeCat;const gl=G.filter(g=>cat==='lotto'?g.t==='lotto':g.t!=='lotto');const nL=G.filter(g=>g.t==='lotto').length,nD=G.length-nL;
@@ -1063,7 +1068,7 @@ SC.home={html:()=>{const top3=todayDrawLotto();const botA=annOf('top').concat(an
  <div class="dots" id="dts" style="${top3.length?'':'display:none'}">${top3.map((_,i)=>`<i class="${i===S.bnIdx?'on':''}"></i>`).join('')}</div>
  <div class="row sp" style="margin-top:20px"><h3>${t('全部游戏','All games')}</h3><span class="sm mu">${t('9 款在售','9 games')}</span></div>
  <div class="seg mt"><button class="${cat==='lotto'?'on':''}" onclick="A.hcat('lotto')">${t('乐透类','Lotto')} (${nL})</button><button class="${cat==='dig'?'on':''}" onclick="A.hcat('dig')">${t('数字类','Digit')} (${nD})</button></div>
- <div class="fade" id="gl" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">${gl.map(gcard).join('')}</div>
+ <div class="fade" id="gl" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">${gl.map(gcard).join('')}${gl.length%2?soonCard():''}</div>
  <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px">${tile('g_mega',t('公告','Notices'),t(botA[0]?botA[0].zh:ANN[0].zh,botA[0]?botA[0].en:ANN[0].en),"S.nTab='ann';A.go('notif')",'annsub','#a86400','#fff1c2')}${tile('g_pin',t('网点','Outlets'),t('查找附近 PCSO 网点','Find nearby PCSO outlets'),"A.go('outlets')",null,'#004bc9','#e3edfd')}</div>
  ${liveSection()}${newsCard()}
  </div>`},
@@ -2582,6 +2587,27 @@ function panelB10(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id=
 try{const ap=(id,zh,en)=>{const w=SPEC_D[id]&&SPEC_D[id].pos&&SPEC_D[id].pos.what;if(w){w[0]+=' '+zh;w[1]+=' '+en}};
  ap('p_live','要求登录；切换列表含全部可见场次（直播中、预告，最多 20 场）。My Tickets 每组最多 20 张，超出 View all 进我的彩票按该期筛选；结果行按派奖方式映射，On hold 仅用于中奖待申领且冻结，Total won 只合计 Won 行且期次全部算完才显示；未实名整块隐藏。','Requires sign-in; the switch list holds every visible session (live, then upcoming; at most 20). My Tickets shows at most 20 tickets per group, with View all opening My Tickets filtered to that draw; result rows follow the payout mode, On hold only for a win to claim that is frozen, Total won sums Won rows only and appears once every ticket of the draw is settled; hidden when identity is not verified.')}catch(_){}
 render();
+/* batch 11 (player): news body font-size tags and image width tiers (6.3.5). Allowed in the body: <h2> big heading, <h3> small heading, <small> small text, and one image tag with a width tier of 25/50/75/100 (% of the body width, default 100, height follows). A body without tags shows in the default style, which is also how an old App shows a new format. */
+(function(){
+const nwBlock=p=>{
+  let m;
+  if(m=/^<h2>([\s\S]*)<\/h2>$/.exec(p))return `<p class="nw_h2" style="margin:8px 0 10px;font-size:19px;font-weight:800;line-height:1.4">${m[1]}</p>`;
+  if(m=/^<h3>([\s\S]*)<\/h3>$/.exec(p))return `<p class="nw_h3" style="margin:8px 0 8px;font-size:15.5px;font-weight:700;line-height:1.45">${m[1]}</p>`;
+  if(m=/^<small>([\s\S]*)<\/small>$/.exec(p))return `<p class="nw_sm mu" style="margin:0 0 10px;font-size:11.5px;line-height:1.6">${m[1]}</p>`;
+  if(m=/^<img data-w="(25|50|75|100)" data-c="([^"]+)" data-d="([^"]+)">$/.exec(p))return `<div class="nw_img" data-w="${m[1]}" style="width:${m[1]}%;aspect-ratio:16/9;border-radius:10px;margin:2px 0 10px;background:linear-gradient(135deg,${m[2]},${m[3]})" role="img" aria-label="Article image"></div>`;
+  return `<p style="margin:0 0 10px">${p}</p>`;
+};
+window.nwBlock=nwBlock;
+const _d=SC.newsDetail.html;
+SC.newsDetail.html=()=>{const a=NEWS.find(x=>x.id===S.p.id);if(!a||a.off)return _d();
+ return `<div class="fade">${a.cover?`<div class="nw_cv" style="height:140px;border-radius:18px;background:linear-gradient(135deg,${a.cover[0]},${a.cover[1]});margin-bottom:14px"></div>`:''}
+ <h3 class="nw_t" style="font-size:18px;line-height:1.4">${a.title}</h3>${a.sub?`<div class="sm nw_s" style="margin-top:4px;font-weight:600;line-height:1.5">${a.sub}</div>`:''}
+ <div class="xs mu" style="margin-top:6px">${newsCatName(a)?`<span class="badge b-cy" style="margin-right:6px">${newsCatName(a)}</span>`:''}${a.at}</div>
+ <div class="card mt nw_body" style="font-size:13.5px;line-height:1.75">${a.body.map(nwBlock).join('')}</div></div>`};
+/* demo article body that uses the new formats (illustration is a colour block, demo only) */
+const n4=NEWS.find(x=>x.id==='N-004');
+if(n4&&!n4.body.some(p=>/^<h3>/.test(p))){n4.body=[n4.body[0],'<h3>Larger prizes</h3>',n4.body[1],'<img data-w="50" data-c="#15803d" data-d="#052e16">','<small>Demo illustration. Each ticket is claimed on its own.</small>'];}
+})();
 </script>
 </body>
 </html>
