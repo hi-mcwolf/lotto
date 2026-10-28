@@ -2268,12 +2268,27 @@ function wzAuthView(i, g) {
   const nj = g.kind === "lotto" && i.prz && i.prz.nj ? `<p class="wzl-facts">${t("下一期头奖奖池（预估）", "Next draw jackpot (estimate)")}: <b class="mono">${peso(Number(i.prz.nj))}</b></p>` : "";
   return `<div class="wzl-card wzl-auth" data-wz-step="auth"><h2 class="wz-t">${z("Authorize and publish", "授权发布")}</h2><div class="table-wrap fit"><table class="wzl-auth-tbl"><thead><tr><th>${t("奖级", "Tier")}</th><th>${t("线上中奖注数", "Online winners")}</th><th>${t("单注奖金", "Prize per winning bet")}</th><th>${t("应派金额", "Amount to pay")}</th></tr></thead><tbody>${tr}</tbody><tfoot><tr><td colspan="3"><b>${t("合计", "Total")}</b></td><td class="mono amt" id="wzl-total"><b>${peso(tot)}</b></td></tr></tfoot></table></div>${nj}<div class="err" id="wz-err" style="margin:10px 0;${S.mf.err ? "" : "display:none"}">${esc(S.mf.err || "")}</div>${ddChecklist(i, g)}<div class="row-actions" style="margin-top:14px"><button type="button" class="btn btn-primary btn-lg" id="dd-auth" data-act="draw-auth" data-id="${i.no}" ${ddChecks(i, g).every((c) => c[1]) ? "" : "disabled"}>Authorize and publish</button>${ddChecks(i, g)[2][1] ? "" : `<button type="button" class="btn btn-lg" data-act="draw-auth-discard" data-id="${i.no}">Discard prize entries</button>`}</div></div>`;
 }
+/* the match page shows both entries side by side (they are equal, so nothing leaks); a mismatch still shows no content */
+function wzMatchView(i, g, res) {
+  const sn = res.snap; if (!sn) return "";
+  const who = (u) => esc(u || "");
+  const hd = (lbl, by, at) => `<div class="wzl-mwho"><b>${lbl}</b><span>${who(by)}${at ? " \u00b7 " + esc(at) : ""}</span></div>`;
+  if (res.seg === "num") {
+    const cs = rsCsOf(i); const pad = NUM_RULE[i.game][1] > 9 ? 2 : 1;
+    const balls = (sn.nums || []).map((n) => `<span class="wzl-mball">${cs !== "Numeric" ? esc(String(n)) : String(n).padStart(pad, "0")}</span>`).join("");
+    return `<div class="wzl-mcmp">${["First entry|" + sn.firstBy + "|" + sn.firstAt, "Second entry|" + sn.secondBy + "|" + sn.secondAt].map((x) => { const q = x.split("|"); return `<div class="wzl-mside">${hd(q[0], q[1], q[2])}<div class="wzl-mballs">${balls}</div><div class="wzl-mok">\u2713 Matched</div></div>`; }).join("")}</div>`;
+  }
+  const rows = entTierRows(i, g).filter((r) => r.isPool);
+  const tr = rows.map((r) => `<tr><td>${r.name}</td><td class="mono amt">${wzBig(sn.pl && sn.pl[r.k])}</td><td class="mono amt">${wzBig(sn.pl && sn.pl[r.k])}</td><td class="mono amt">${wzBig(sn.pb && sn.pb[r.k])}</td><td class="mono amt">${wzBig(sn.pb && sn.pb[r.k])}</td><td class="wzl-mck">\u2713</td></tr>`).join("")
+    + (g.kind === "lotto" && sn.nj ? `<tr><td>${t("下一期头奖奖池（预估）", "Next draw jackpot (estimate)")}</td><td class="mono amt">${wzBig(sn.nj)}</td><td class="mono amt">${wzBig(sn.nj)}</td><td></td><td></td><td class="wzl-mck">\u2713</td></tr>` : "");
+  return `<div class="wzl-mtbl"><table><thead><tr><th rowspan="2">${t("奖级", "Tier")}</th><th colspan="2" class="wzl-mg">${hd("First entry", sn.firstBy, sn.firstAt)}</th><th colspan="2" class="wzl-mg">${hd("Second entry", sn.secondBy, sn.secondAt)}</th><th rowspan="2">${t("比对", "Check")}</th></tr><tr><th>${t("本期奖池金额", "Pool amount")}</th><th>${t("单注奖金", "Prize per bet")}</th><th>${t("本期奖池金额", "Pool amount")}</th><th>${t("单注奖金", "Prize per bet")}</th></tr></thead><tbody>${tr}</tbody></table></div>`;
+}
 function wzResView(i, g, res, route) {
   let h = "", btns = `<button type="button" class="btn" data-act="draw-wz-done">${t("关闭", "Close")}</button>`;
   if (res.res === "pub") h = `<div class="wzl-big-t">Results published.</div><p class="tiny">${t("系统已逐票算奖派奖。", "The system has judged and paid out every ticket.")}</p>`;
   else if (res.res === "mismatch") { h = `<div class="wzl-big-t err-t">${esc(res.msg)}</div>`; btns = `<button type="button" class="btn btn-primary" data-act="draw-wz-restart">Start again</button>` + btns; }
   else {
-    h = `<div class="wzl-big-t">Submitted.</div>${res.res === "match" ? `<div class="wzl-big-2">The two entries match.</div>` : ""}`;
+    h = `<div class="wzl-big-t">Submitted.</div>${res.res === "match" ? `<div class="wzl-big-2">The two entries match.</div>${wzMatchView(i, g, res)}` : ""}`;
     if (route && route.kind === "wait") h += `<p class="wzl-wait">${esc(route.msg)}</p>`;
     else if (route) btns = `<button type="button" class="btn btn-primary" data-act="draw-wz-continue">${t("继续", "Continue")}</button>` + btns;
   }
@@ -8605,7 +8620,7 @@ function onClick(e) {
     }
     i.przOk = true; i.prz = { pool: p.pool, pl: p.pl, pb: p.pb, nj: p.nj, won: onlineWinners(g)[0] > 0, minReason2: minReason }; stamp(i, "win", 1);
     logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Second prize entry matches", obj: i.no, before: "prize", after: entTxt(i, "prz", 2, "submitted, ready to authorize") });
-    S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "prz" }; render(); return;
+    S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "prz", snap: { firstBy: i.prz1.by, firstAt: (i.trace && i.trace.win && i.trace.win[0] && i.trace.win[0][1]) || "", secondBy: actor().who, secondAt: NOWSTR(), pl: Object.assign({}, p.pl), pb: Object.assign({}, p.pb), nj: p.nj || "" } }; render(); return;
   }
   if (act === "draw-auth-go") {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const rows = entTierRows(i, g); const nums = i.nums;
@@ -8675,7 +8690,7 @@ function onClick(e) {
     }
     logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("开奖结果第二次录入，两份一致", "Second entry matches"), obj: i.no, before: "review", after: entTxt(i, "num", 2, "submitted, entries match") });
     stamp(i, "enc", 1); stamp(i, "chk", 0, "system"); stamp(i, "chk", 1);
-    i.nums = norm; delete i.first; pushHist(i, "status", "review", "prize", "", 0); i.st = "prize"; delete i.prz1; delete i.przOk; delete i.prz; S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "num" }; render(); return;
+    const fsnap = { by: i.first.by, at: i.firstAt || "" }; i.nums = norm; delete i.first; pushHist(i, "status", "review", "prize", "", 0); i.st = "prize"; delete i.prz1; delete i.przOk; delete i.prz; S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "num", snap: { firstBy: fsnap.by, firstAt: fsnap.at, secondBy: actor().who, secondAt: NOWSTR(), nums: raw.slice() } }; render(); return;
   }
   if (act === "draw-auth") {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const rows = entTierRows(i, g);
@@ -10385,6 +10400,31 @@ body.ddfs-on{overflow:hidden}
 .ddfs .ddfs-rf:hover{background:var(--d-surface3);color:var(--d-ink)}
 .ddfs .ddfs-rf:active{transform:rotate(180deg)}
 @media (max-width:900px){.ddfs-top{padding:12px 14px}.ddfs-body{padding:16px 14px 32px}}
+
+/* match page: both entries side by side, all green (only shown when they are equal) */
+#wz-host .wzl-mcmp{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0 6px}
+#wz-host .wzl-mside{border:1px solid var(--d-ok);background:var(--d-ok-wash);border-radius:16px;padding:16px;text-align:center}
+#wz-host .wzl-mwho{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--d-mid);margin-bottom:12px}
+#wz-host .wzl-mwho b{color:var(--d-ink);font-size:14px}
+#wz-host .wzl-mballs{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+#wz-host .wzl-mball{min-width:52px;height:52px;padding:0 6px;border-radius:999px;background:var(--d-ok);color:var(--d-ok-ink);display:grid;place-items:center;font-family:var(--d-mono);font-weight:800;font-size:22px}
+#wz-host .wzl-mok{margin-top:12px;color:var(--d-ok);font-weight:800;font-size:15px}
+#wz-host .wzl-mtbl{margin:14px 0 6px;overflow:auto}
+#wz-host .wzl-mtbl table{width:100%;border-collapse:collapse}
+#wz-host .wzl-mtbl th,#wz-host .wzl-mtbl td{padding:12px 10px;border-bottom:1px solid var(--d-line);text-align:right;font-size:16px;color:var(--d-ink)}
+#wz-host .wzl-mtbl th{color:var(--d-mid);font-size:13px;font-weight:700}
+#wz-host .wzl-mtbl th:first-child,#wz-host .wzl-mtbl td:first-child{text-align:left}
+#wz-host .wzl-mtbl .wzl-mwho{margin:0;align-items:flex-end}
+#wz-host .wzl-mtbl td.amt{font-weight:800}
+#wz-host .wzl-mtbl .wzl-mck{text-align:center;color:var(--d-ok);font-weight:900;font-size:20px}
+@media (max-width:900px){#wz-host .wzl-mcmp{grid-template-columns:1fr}}
+#wz-host .wzl-mtbl td:first-child{white-space:nowrap;min-width:190px}
+#wz-host .wzl-mtbl .wzl-mwho span{white-space:nowrap;font-size:12px}
+#wz-host .wzl-mcmp{margin-bottom:16px}
+#wz-host .wzl-mtbl td,#wz-host .wzl-mtbl th{font-size:15px;padding:12px 8px}
+#wz-host .wzl-mtbl td:first-child{min-width:0;white-space:normal}
+#wz-host .wzl-mtbl th.wzl-mg{border-bottom:1px solid var(--d-line);text-align:center}
+#wz-host .wzl-mtbl th.wzl-mg .wzl-mwho{align-items:center}
 
 </style>
 <script id="skin-js">
