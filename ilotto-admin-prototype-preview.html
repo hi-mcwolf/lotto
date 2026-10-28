@@ -1846,17 +1846,18 @@ function viewDrawDesk() {
   const inGames = S.issues.filter((i) => ["entry", "review", "prize", "pub", "settled", "gen", "sale", "closed"].includes(i.st)).map((i) => i.game);
   const chips = [["all", t("全部游戏", "All games")]].concat(gamesSorted().filter((g) => inGames.includes(g.id)).map((g) => [g.id, gname(g)])).map(([id, n]) => `<button type="button" class="dd-chip${S.deskQ.game === id ? " on" : ""}" data-act="desk-game" data-arg="${id}" aria-pressed="${S.deskQ.game === id}">${esc(n)}</button>`).join("");
   const cnt = (k) => S.issues.filter((i) => (S.deskQ.game === "all" || i.game === S.deskQ.game) && (!S.deskQ.date || i.draw.slice(0, 10) === S.deskQ.date) && (k === "all" ? ["entry", "review", "prize", "pub", "settled"].includes(i.st) && (S.deskQ.date || ddDrawMs(i) <= ddNowMs()) && (["pub", "settled"].includes(i.st) ? (S.deskQ.date || String(i.pubAt || "").slice(0, 10) === ddToday()) : true) : ddStatKey(i) === k && (k !== "pub" || S.deskQ.date || String(i.pubAt || "").slice(0, 10) === ddToday()) && (k === "pub" || ddDrawMs(i) <= ddNowMs()))).length;
-  const schips = [["all", t("全部状态", "All statuses")], ["entry", "Awaiting entry"], ["review", "Awaiting review"], ["prize", "Awaiting prize entry"], ["auth", "Awaiting authorization"], ["pub", "Published"]].map(([id, n]) => `<button type="button" class="dd-chip${(S.deskQ.status || "all") === id ? " on" : ""}" data-act="desk-status" data-arg="${id}" aria-pressed="${(S.deskQ.status || "all") === id}">${n} <em class="dd-cn">${cnt(id)}</em></button>`).join("");
+  const schips = [["all", t("全部状态", "All statuses")], ["entry", "Awaiting entry"], ["review", "Awaiting review"], ["prize", "Awaiting prize entry"], ["auth", "Awaiting authorization"], ["pub", "Published"]].map(([id, n]) => `<button type="button" class="dd-sbtn${(S.deskQ.status || "all") === id ? " on" : ""}" data-act="desk-status" data-arg="${id}" aria-pressed="${(S.deskQ.status || "all") === id}">${n} <em class="dd-cn">${cnt(id)}</em></button>`).join("");
   const light = S.ddTheme === "light";
   const upBlock = L.up.length ? `<details class="dd-up" id="dd-up" ${S.deskUpOpen ? "open" : ""}><summary>${t("今日待开奖", "Upcoming today")} (${L.up.length})</summary><ul>${L.up.map((i) => { const g = gameBy(i.game); return `<li><span class="dd-gdot sm" style="background:linear-gradient(135deg,${g.c1},${g.c2})">${ddDot(g)}</span><b>${esc(gname(g))}</b> <span class="mono">${i.no}</span> <span>${t("开奖时间", "Draw time")} <b class="mono">${i.draw}</b></span></li>`; }).join("")}</ul></details>` : "";
   return `<div class="dd" data-dd-theme="${S.ddTheme}"><div class="dd-head"><div><h3>${t("开奖工作台", "Draw Desk")}</h3><p>${dlabel} · ${nToday} ${nToday === 1 ? "draw" : "draws"} ${S.deskQ.date ? "on this date" : "today"} <em class="dd-demo">Demo data</em></p></div><div class="dd-tools">${ro ? `<span class="dd-ro" id="draw-ro">Read only</span>` : ""}</div></div>
+    <div class="dd-layout"><aside class="dd-side" id="dd-status" role="group" aria-label="${t("按状态筛选", "Filter by status")}"><div class="dd-side-h">${t("状态", "Status")}</div>${schips}<div class="dd-side-h dd-side-d">${t("开奖日期", "Draw date")}</div><input type="date" id="dd-date" class="dd-date" data-act="desk-date" aria-label="Draw date" value="${S.deskQ.date || ddToday()}"><button type="button" class="dd-chip dd-today${S.deskQ.date ? "" : " on"}" data-act="desk-today" aria-pressed="${!S.deskQ.date}">${t("今天", "Today")}</button></aside><div class="dd-main">
     <div class="dd-chips" role="group" aria-label="${t("按游戏筛选", "Filter by game")}">${chips}</div>
-    <div class="dd-chips dd-chips2" id="dd-status" role="group" aria-label="${t("按状态筛选", "Filter by status")}">${schips}<span class="dd-datebox"><label for="dd-date">${t("开奖日期", "Draw date")}</label><input type="date" id="dd-date" class="dd-date" data-act="desk-date" value="${S.deskQ.date || ddToday()}"><button type="button" class="dd-chip${S.deskQ.date ? "" : " on"}" data-act="desk-today" aria-pressed="${!S.deskQ.date}">${t("今天", "Today")}</button></span></div>
     <h4 class="dd-sect">${t("需要你处理", "Needs your action")} <span class="dd-n" id="dd-n-act">(${L.live.length})</span></h4>
     <div id="dd-live">${L.live.length ? L.live.map((i) => ddCard(i, false)).join("") : `<div class="dd-empty">Nothing to enter right now.</div>`}</div>
     ${upBlock}
     <h4 class="dd-sect">${S.deskQ.date ? t("当日已发布", "Published on this date") : t("今日已完成", "Done today")} <span class="dd-n" id="dd-n-done">(${L.done.length})</span></h4>
     <div id="dd-done">${L.done.length ? L.done.map((i) => ddCard(i, true)).join("") : `<div class="dd-empty">${S.deskQ.date ? "No published draw on this date." : t("今天还没有已发布的开奖。", "No result has been published today.")}</div>`}</div>
+    </div></div>
   </div>`;
 }
 /* Draw Desk is a full-screen page like the entry layer: no side menu, no page header; refresh and close sit top right */
@@ -10456,6 +10457,22 @@ body.ddfs-on{overflow:hidden}
 #wz-host .wzl-foot{padding-right:280px}
 #wz-host .wzl-foot .wzl-flow{max-width:none;margin:0}
 .dd-datebox label{white-space:nowrap}
+
+/* batch 16: status filter as a left column */
+.ddfs-body .dd{max-width:1280px}
+.dd-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start;margin-top:18px}
+.dd-main{min-width:0}
+.dd-main .dd-chips{margin-top:0}
+.dd-side{position:sticky;top:0;display:flex;flex-direction:column;gap:6px;background:var(--d-surface);border:1px solid var(--d-line);border-radius:14px;padding:14px 12px}
+.dd-side-h{font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--d-mid);text-transform:uppercase;margin:2px 6px 4px}
+.dd-side-d{margin-top:12px}
+.dd-sbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;border:1px solid transparent;background:transparent;color:var(--d-mid);border-radius:10px;padding:9px 10px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.dd-sbtn:hover{background:var(--d-surface2);color:var(--d-ink)}
+.dd-sbtn.on{background:var(--d-cyan);color:var(--d-cyan-ink)}
+.dd-sbtn .dd-cn{margin:0;font-style:normal;font-family:var(--d-mono);opacity:.85}
+.dd-side .dd-date{width:100%}
+.dd-side .dd-today{margin-top:6px;width:100%;text-align:center}
+@media (max-width:900px){.dd-layout{grid-template-columns:1fr}.dd-side{position:static;flex-direction:row;flex-wrap:wrap}.dd-side-h{width:100%}.dd-sbtn{width:auto}}
 
 </style>
 <script id="skin-js">
