@@ -294,9 +294,10 @@ table.tb td,table.tb th{border-bottom:1px solid var(--line)}
 .gcard .ga{font-size:16.5px;font-weight:900;color:var(--nv);margin-top:1px;white-space:nowrap}
 .gcard .gd{font-size:11px;margin-top:3px}
 .gcard .gp{margin-top:auto;display:flex;align-items:center;justify-content:space-between;height:34px;padding:0 10px;border-radius:9px;background:#e8f0fd;color:var(--bl);font-weight:800;font-size:12.5px;margin-top:10px}
-.gcard.soon{border:1.5px dashed #c5cde0;background:#f6f8fc;box-shadow:none;pointer-events:none;cursor:default}
-.gcard.soon .soonbox{width:112px;height:62px;border-radius:12px;border:1.5px dashed #c5cde0;display:grid;place-items:center;font-size:30px;font-weight:300;color:#9aa6c0}
-.gcard.soon .gn{color:#5a6684}
+.gcard.soon{background:linear-gradient(180deg,#f4f8ff 0%,#fff 62%);border:1px solid #d7e2f7;pointer-events:none;cursor:default}
+.gcard.soon .soonart{display:block}
+.gcard.soon .gn{color:var(--nv)}
+.gcard.soon .gp.soonpill{background:#eef1f8;color:#7a86a6;justify-content:center;font-weight:700;letter-spacing:.02em}
 .tile{flex-direction:row;align-items:center;gap:12px;min-height:0;padding:12px 14px;justify-content:flex-start}
 .tile .tic{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:none}
 .tile .tx{flex:1;min-width:0}
@@ -313,6 +314,8 @@ table.tb td,table.tb th{border-bottom:1px solid var(--line)}
 .gh-n{font-weight:800;font-size:15px;color:var(--nv)}
 .gh-j{margin-top:3px;font-size:13px}.gh-j b{font-size:19px;font-weight:900;color:var(--nv);letter-spacing:-.2px}
 .gh-d{margin-top:3px;font-size:12px}
+.ndbtn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 10px;border-radius:999px;border:1px solid #c7d6f2;background:#fff;color:#1e4fa8;font-size:12px;font-weight:700}
+.ndbtn svg{stroke:currentColor}
 .cdrow{margin-top:10px;gap:10px;flex-wrap:wrap}
 .cdchip{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:999px;background:#e8f0fd;border:1px solid #cfe0fa;color:var(--bl);font-size:12px;font-weight:600}
 .cdchip b{font-weight:800}
@@ -1057,7 +1060,7 @@ const noEst=g=>g.t==='lotto'&&S.noEst===g.id;const jpAmt=g=>noEst(g)?'Jackpot to
 function gcard(g){const off=isOff(g);const nd=isND(g,fdt(Date.parse(g.nx)));
  return `<button class="gcard ${off?'off':''}" onclick="A.playGame('${g.id}')"><div class="gl">${glogo(g,112)}${off?`<span class="badge b-gy" style="position:absolute;top:8px;right:8px">${t('暂停销售','Paused')}</span>`:''}</div><div class="gb"><div class="gn">${gname(g)}</div><div class="gj mu">${g.t==='lotto'?(noEst(g)?'&nbsp;':t('奖池','Jackpot')):t('开奖','Draws')}</div>${g.t==='lotto'?`<div class="ga"${noEst(g)?' style="font-size:14px;line-height:1.35"':''}>${jpAmt(g)}</div>`:`<div class="ga" style="font-size:14px;line-height:1.35">${t(g.sch,g.schEn)}</div>`}${nd?`<div class="xs" style="margin-top:3px;color:var(--am);font-weight:600;line-height:1.4">No draw on this date<div class="mu" style="font-weight:500">${t('下次开奖 ','Next draw ')}${effDate(g).slice(5)}</div></div>`:g.sess.length>1?'':`<div class="gd mu">${dlab(sessMs(g,0),true)}</div>`}${sessRow(g)}<span class="gp">${fm0(g.p)} / ${t('注','bet')}${I('chev',16)}</span>${resultRow(g)}</div></button>`}
 /* odd number of games: the empty slot of the last row is a same-size placeholder card */
-const soonCard=()=>`<div class="gcard soon" data-soon="1" aria-disabled="true"><div class="gl"><div class="soonbox" aria-hidden="true">+</div></div><div class="gb"><div class="gn">More games</div><div class="gj mu">Coming soon</div><div class="ga" style="font-size:14px;line-height:1.35">Stay tuned</div></div></div>`;
+const soonCard=()=>`<div class="gcard soon" data-soon="1" aria-disabled="true"><div class="gl"><svg class="soonart" width="112" height="62" viewBox="0 0 112 62" aria-hidden="true"><defs><radialGradient id="sb1" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#5b9bff"/><stop offset="1" stop-color="#004bc9"/></radialGradient><radialGradient id="sb2" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#f2b705"/></radialGradient><radialGradient id="sb3" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ff6b83"/><stop offset="1" stop-color="#d60021"/></radialGradient></defs><circle cx="21" cy="36" r="18" fill="url(#sb1)"/><circle cx="91" cy="36" r="18" fill="url(#sb3)"/><circle cx="56" cy="29" r="25" fill="url(#sb2)" stroke="#fff" stroke-width="3"/><text x="56" y="39" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="28" fill="#0a1148">?</text><text x="16" y="42" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="15" fill="#fff">6</text><text x="96" y="42" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="15" fill="#fff">9</text></svg></div><div class="gb"><div class="gn">More games</div><div class="gj mu">Coming soon</div><span class="gp soonpill">Stay tuned</span></div></div>`;
 const todayDrawLotto=()=>G.filter(g=>g.t==='lotto'&&!isOff(g)&&effDate(g)===todayStr()).sort((a,b)=>(noEst(a)?1:0)-(noEst(b)?1:0)||b.pool-a.pool);
 const annOf=pos=>ANN.map((a,i)=>({...a,i})).filter(a=>a.pos===pos);
 SC.home={html:()=>{const top3=todayDrawLotto();const botA=annOf('top').concat(annOf('bottom')).map(a=>({...a,img:a.img||['#0e7490','#1e293b']}));const cat=S.homeCat;const gl=G.filter(g=>cat==='lotto'?g.t==='lotto':g.t!=='lotto');const nL=G.filter(g=>g.t==='lotto').length,nD=G.length-nL;
@@ -1147,7 +1150,7 @@ SC.play={notop:true,html:()=>{plInit();const P=PL(),g=gm(P.game),p=curPlay(g);co
  return `<div class="fade"><div class="phd"><button class="pback" onclick="A.back()" aria-label="Back">${I('back',22)}</button><h2>${t('投注','Play')}</h2><span class="pper">${fm0(g.p)} / ${t('注','bet')}</span></div>
  ${sessStrip()}
  <div class="chips gpills" id="gpills">${GL().map(x=>`<button class="chip ${x.id===g.id?'on':''}" style="${isOff(x)?'opacity:.4':''}" onclick="A.pgame('${x.id}')">${gname(x).replace(' Lotto','')}</button>`).join('')}</div>
- <div class="ghead">${glogo(g,96)}<div class="gh-r"><div class="gh-n">${gname(g)}</div>${g.t==='lotto'?`<div class="gh-j"><span class="mu">${noEst(g)?'':t('奖池','Jackpot')}</span> <b>${jpAmt(g)}</b></div>`:`<div class="gh-j mu">${t(g.sch,g.schEn)}</div>`}<div class="gh-d mu">${dlab(sessMs(g),false)}${g.t==='lotto'?'':''}</div></div></div>
+ <div class="ghead">${glogo(g,96)}<div class="gh-r"><div class="gh-n">${gname(g)}</div>${g.t==='lotto'?`<div class="gh-j"><span class="mu">${noEst(g)?'':t('奖池','Jackpot')}</span> <b>${jpAmt(g)}</b></div>`:`<div class="gh-j mu">${t(g.sch,g.schEn)}</div>`}<div class="gh-d mu">${dlab(sessMs(g),false)}${g.t==='lotto'?'':''}</div>${ndBtn(g)}</div></div>
  ${g.t!=='lotto'?drawChips(g):''}<div class="row cdrow" id="cd">${cdHTML(g)}</div>
  ${isND(g,fdt(Date.parse(g.nx)))?`<div class="card c2 mt" style="border:1px solid #efcb6b;background:#fff4d6"><div class="b sm" style="color:var(--am)">No draw on this date</div><div class="xs mu" style="margin-top:4px;line-height:1.5">${t(`${fdt(Date.parse(g.nx))} 没有开奖，已自动跳过；您的第一期为 ${effDate(g)}。`,`There is no draw on ${fdt(Date.parse(g.nx))}. It is skipped; your first draw is ${effDate(g)}.`)}</div></div>`:''}
  <div class="b" style="margin-top:14px;font-size:14px">${t('玩法','Play type')}</div><div class="chips mt3 ptypes">${playsOf(g).map((x,i)=>`<button class="chip ${x.c===p.c?'on':''}" onclick="A.ppt(${i})">${pName(x)}</button>`).join('')}</div>
@@ -1238,7 +1241,7 @@ SC.result={html:()=>{const g=gm(S.res.game);const L=S.draws[g.id];latestDraw(g);
  const ballsOf=(d,cls)=>d.nums.map((n,i)=>`<span class="ball ${cls||''} pop" style="animation-delay:${i*70}ms;${g.t==='lotto'?'':'width:44px;height:44px;font-size:18px'}">${n}</span>`).join('');
  return `<div class="fade"><div class="row sp" style="margin-top:6px"><h1>${t('开奖结果','Results')}</h1><button class="back" onclick="A.go('lucky')">${I('star',18)}</button></div>
  <div class="chips mt">${GL().map(x=>`<button class="chip ${x.id===g.id?'on':''}" onclick="S.res.game='${x.id}';renderKeep()">${gname(x)}</button>`).join('')}</div>
- ${watchLiveBtn(g)}
+ ${watchLiveBtn(g)}${ndBtn(g,true)}
  <div class="card mt" style="background:linear-gradient(135deg,${g.c[0]}33,${g.c[1]}22),#fff"><div class="row sp"><div><div class="xs mu">${t('最新一期','Latest draw')}</div><div class="b" style="margin-top:2px">${d0.no}</div></div>${badge('b-gy',d0.date+' '+(d0.time||'21:00'))}</div><div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap">${ballsOf(d0,'win')}</div>
  ${g.t==='lotto'?`<div class="row sp mt2"><div><div class="xs mu">${t('头奖奖池','Jackpot pool')}</div><div class="b glowtxt" style="font-size:20px">${fm0(d0.jp)}</div></div><div style="text-align:right"><div class="xs mu">${t('头奖中奖人数','Jackpot winners')}</div><div class="b">${d0.winners}${d0.winners===0?' · '+t('滚存','Rolled over'):''}</div></div></div>`:''}</div>
  ${(()=>{const w=S.tickets.filter(k=>ownWin(k)&&k.g===g.id);return w.length?`<div class="card mt" id="mywin" style="border:1px solid rgba(34,197,94,.4)"><span class="badge b-gr">You won</span> <span class="xs mu">${[...new Set(w.map(k=>dno(g,k.draw,k.dtime)))].join(', ')}</span></div>`:''})()}<h3 style="margin-top:22px">${t('中奖等级对照','Prize tiers')}</h3><div class="card mt" style="padding:6px 16px"><table class="tb"><tr><th>${t('等级','Tier')}</th><th style="text-align:right">${t('奖金','Prize')}</th></tr>${tiersOf(g).map(x=>`<tr><td>${t(x.m,x.mE)}</td><td style="text-align:right" class="b">${x.p}</td></tr>`).join('')}</table></div>
@@ -2608,6 +2611,16 @@ SC.newsDetail.html=()=>{const a=NEWS.find(x=>x.id===S.p.id);if(!a||a.off)return 
 const n4=NEWS.find(x=>x.id==='N-004');
 if(n4&&!n4.body.some(p=>/^<h3>/.test(p))){n4.body=[n4.body[0],'<h3>Larger prizes</h3>',n4.body[1],'<img data-w="50" data-c="#15803d" data-d="#052e16">','<small>Demo illustration. Each ticket is claimed on its own.</small>'];}
 })();
+/* batch 12: No-draw dates calendar entry on Play (game info) and Results (PRD 6.3.3 / 6.3.4, tender 2.4.2.6). Demo dates are demo data. */
+(function(){
+if(!S.noDraw.mega.includes('2026-10-05'))S.noDraw.mega.push('2026-10-05','2026-12-25','2026-12-30');
+})();
+const ndToday=()=>fdt(nowEff());
+const ndDates=(g,fut)=>(S.noDraw[g.id]||[]).filter(d=>fut?d>=ndToday():d<ndToday()).slice().sort(fut?undefined:(a,b)=>a<b?1:-1);
+const ndBtn=(g,res)=>`<button class="ndbtn" data-nd="${res?'res':'play'}" onclick="A.ndInfo('${g.id}',${res?1:0})" aria-label="No-draw dates">${I('g_cal',16)}<span>No-draw dates</span></button>`;
+A.ndInfo=(gid,res)=>{const g=gm(gid);modal(()=>{const up=ndDates(g,true),past=res?ndDates(g,false):[];
+ const row=d=>`<div class="row sp ndrow" style="padding:9px 0;border-bottom:1px solid var(--line)"><span class="b">${d}</span><span class="xs mu">No draw on this date</span></div>`;
+ return `<h3>No-draw dates</h3><div class="xs mu mt3">${gname(g)}</div><div id="ndlist" style="max-height:52vh;overflow-y:auto;margin-top:8px">${up.length?up.map(row).join(''):`<div class="mu" style="padding:14px 0" data-nd-empty="1">No upcoming no-draw dates</div>`}${past.length?`<div class="xs mu" style="margin-top:14px">Past no-draw dates</div>${past.map(row).join('')}`:''}</div><button class="btn c mt2" onclick="A.close()">${t('完成','Done')}</button>`})};
 </script>
 </body>
 </html>
