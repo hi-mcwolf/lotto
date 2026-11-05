@@ -1490,7 +1490,7 @@ function msgRefund(g,k,w){const d=dno(g,k.draw,k.dtime),a=fm2(w);let code,m;
 
 /* ================= WALLET / FUNDS ================= */
 const TXI={deposit:['down','#0f8a55',t=>t('充值','Deposit')],withdraw:['up','#d60021',t=>t('提现','Withdraw')],bet:['ticket','#004bc9',t=>t('下单','Bet')],prize:['trophy','#a86400',t=>t('兑奖','Prize')],refund:['down','#5b3fd0',t=>t('退款','Refund')]};
-const TXS=(ty,s)=>({deposit:{ok:['b-gr',t('成功','Success')],proc:['b-am',t('处理中','Processing')],fail:['b-ro',t('失败','Failed')]},withdraw:{ok:['b-gr',t('已到账','Paid out')],proc:['b-am',t('处理中','Processing')],rej:['b-ro',t('已拒绝','Rejected')]},bet:{ok:['b-gr',t('登记成功','Registered')],ref:['b-gy',t('已退款','Refunded')]},prize:{auto:['b-gr',t('自动入账','Auto-credited')],cnt:['b-cy',t('已兑付','Paid')]},refund:{ok:['b-gr',t('已退款','Refunded')]}}[ty][s]);
+const TXS=(ty,s)=>({deposit:{ok:['b-gr',t('成功','Success')],proc:['b-am',t('处理中','Processing')],fail:['b-ro',t('失败','Failed')]},withdraw:{ok:['b-gr',t('已到账','Paid out')],proc:['b-am',t('处理中','Processing')],rev:['b-am',t('复核中','Under review')],rej:['b-ro',t('已拒绝','Rejected')]},bet:{ok:['b-gr',t('登记成功','Registered')],ref:['b-gy',t('已退款','Refunded')]},prize:{auto:['b-gr',t('自动入账','Auto-credited')],cnt:['b-cy',t('已兑付','Paid')]},refund:{ok:['b-gr',t('已退款','Refunded')]}}[ty][s]);
 function txRow(x){const [ic,col,nm]=TXI[x.type];const [bc,bt]=TXS(x.type,x.st);const pos=x.amt>0;const bv=x.type==='bet'&&x.bet!=null?`<div class="xs mu" style="margin-top:3px;line-height:1.5">Bet Amount ${fm2(x.bet)}${x.vd?` · Voucher Deduction ${fm2(x.vd)} (Bet voucher, not a wallet transaction)`:''} · Amount Paid ${fm2(-x.amt)}<br>${'Bet balance '}${fm2(x.pb)} · Prize balance ${fm2(x.pp)}</div>`:'';return `<div class="txr"><span class="ico txi" style="background:${col}14;color:${col}">${I(ic,18)}</span><div class="fl1" style="min-width:0"><div class="b txt">${nm(t)}<span class="mu" style="font-weight:500"> · ${x.note}</span></div><div class="xs mu">${fts(x.ms)} · ${x.id}</div>${x.type==='refund'?`<div class="xs mu" style="margin-top:3px;line-height:1.5">${t('原票号 ','Ticket ')}${x.tk} · ${x.reason}<br>${t('退回投注余额 ','To bet balance ')}${fm2(x.sb)} · ${t('奖金余额 ','prize balance ')}${fm2(x.sp)}${x.vret?`<br><span class="vret">${x.vret}</span>`:''}</div>`:''}${bv}${x.mr?`<div class="xs mu mrnote" style="margin-top:3px">${(S.wFrozen||S.wAlert)?'Processing':'Under manual review'}</div>`:''}</div><div style="text-align:right"><div class="b txa" style="color:${pos?'var(--gr)':'var(--nv)'}">${pos?'+':x.amt?'−':''}${fm2(Math.abs(x.amt))}</div>${badge(bc,bt)}</div></div>`}
 const txTabs=()=>`<div class="chips">${['deposit','withdraw','bet','prize','refund'].map(k=>`<button class="chip ${S.txTab===k?'on':''}" onclick="S.txTab='${k}';renderKeep()">${TXI[k][2](t)}</button>`).join('')}</div>`;
 const ACN={gcash:['GCash','#004bc9'],maya:['Maya','#0f8a55'],bank:['Bank','#0a1148']};
@@ -1557,7 +1557,7 @@ A.depGo=()=>{const am=Math.floor(Number(String(S.p.amt||'').replace(/\D/g,''))||
   modal(()=>`<div style="text-align:center"><div style="width:100px;height:100px;margin:0 auto" class="float">${illo('coin')}</div><h3>${t('充值成功','Deposit successful')}</h3><div class="big grad" style="font-size:34px;margin:8px 0">${fm0(am)}</div><div class="mu sm">${t('已计入投注余额','Credited to bet balance')}</div><div class="row g8 mt2"><button class="btn d" onclick="A.close();S.p={};A.back()">${t('完成','Done')}</button><button class="btn c" onclick="A.close();S.p={};A.tab('play')">${t('去投注','Play now')}</button></div></div>`,true,true);renderKeep()},1700)};
 
 const wdTips=no=>{const c=CHN();let l;if(c.loadFail)return `<div class="ferr" id="ch_load" style="margin-top:10px">${MSG_LOAD}</div>`;
- if(c.noTips)l=[MSG_GEN];else l=no?['This channel is temporarily unavailable.','Please try again later.']:['Withdrawals are processed instantly.'];
+ if(c.noTips)l=[MSG_GEN];else l=no?['This channel is temporarily unavailable.','Please try again later.']:['Withdrawals are processed instantly.','Large withdrawals may need manual review.'];
  return `<div class="card c2 mt" id="wd_tips" style="font-size:12.5px;color:var(--mu);line-height:1.6">${l.map(x=>`<div class="wd-tip">${I('help',13)} ${x}</div>`).join('')}</div>`};
 SC.withdraw={title:()=>t('提现','Withdraw'),html:()=>{const W=S.wd,left=W.lock-Date.now();
  if(left>0){const m=Math.floor(left/60000),s=Math.floor(left%60000/1000);return `<div class="card" style="text-align:center;padding:32px 20px"><div style="width:110px;height:110px;margin:0 auto;opacity:.9">${illo('shield')}</div>${badge('b-ro','🔒 '+t('提现已锁定','Withdrawals locked'))}<div class="big" id="lk" style="font-size:46px;margin:14px 0 6px">${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</div><div class="mu sm" style="line-height:1.6">${t('连续 3 次 MFA 验证失败，提现功能已自动锁定 30 分钟，到点自动解锁。','Three failed MFA attempts locked withdrawals for 30 minutes. They unlock automatically.')}</div></div>`}
@@ -1696,7 +1696,7 @@ A.deact=()=>modal(()=>`<h3>Temporarily deactivate account?</h3><div class="mu sm
 A.deactGo=()=>{if(!A.pwCheck('dc_pw'))return;A.deactDo()};
 A.deactDo=()=>{S.prevState={excl:S.excl?JSON.parse(JSON.stringify(S.excl)):null,cool:S.cool||null,label:S.excl?'Restricted':'Active'};S.selfDeact=true;S.deactAt=S.clock;S.audit=S.audit||[];S.audit.push({ev:'self-deactivate',at:S.clock});A.trustClear('account self-deactivated');addNotif('lock','账号已停用','Account suspended','您已临时停用账号，再次登录并重新认证后可恢复。','You temporarily suspended your account. Sign in and re-authenticate to reactivate it.');A.close();S.logged=false;S.show=false;clearTimeout(S.show30);toast(t('账号已临时停用（玩家自助）','Account temporarily deactivated (self-service)'));A.reset('login')};
 A.closeBlockers=()=>{const b=[];if(S.wFrozen)b.push(['wallet restricted',"Cannot delete: the account's wallet is temporarily restricted. Please contact customer support."]);if(S.tickets.some(k=>k.st==='winPending'))b.push(['pending prize claim',t('有一张中奖待申领的彩票：请先完成申领（到 PCSO 总部兑付）。','A winning ticket is waiting to be claimed: finish the claim at PCSO HQ first.')]);
- if(S.tx.some(x=>x.type==='withdraw'&&x.st==='proc'))b.push(['pending withdrawal',t('有一笔处理中的提现：请等待到账或联系客服。','A withdrawal is still processing: wait for it to be paid or contact support.')]);
+ if(S.tx.some(x=>x.type==='withdraw'&&(x.st==='proc'||x.st==='rev')))b.push(['pending withdrawal',t('有一笔处理中的提现：请等待到账或联系客服。','A withdrawal is still processing: wait for it to be paid or contact support.')]);
  if(S.tx.some(x=>x.type==='deposit'&&x.st==='proc'))b.push(['pending deposit',t('有一笔处理中的充值：请等待到账后再注销。','A deposit is still processing: wait for it to complete first.')]);
  if(totBal()>0)b.push(['wallet balance','Cannot delete: the account has a wallet balance. Withdraw it first.']);
  if(S.tickets.some(k=>k.st==='await'||k.st==='pre'))b.push(['tickets waiting for a draw','Cannot delete: the account has tickets waiting for a draw.']);
@@ -2900,6 +2900,27 @@ A.luckyAddDig=(gid,k)=>{const g=gm(gid),st=dgStats(g);S.play={game:gid,mode:'man
  const mg=gm('mega'),os=makeOrder(mg,'S7',[2,8,15,21,30,37,44],[],1,['2026-08-26'],c0-45*D,'lost');
  os.forEach((k,i)=>{k.dn=[1,2,3,4,5,6];k.st=i<3?'void':'lost'});
  S.tickets.push(...os)}}
+/* ===== batch 17 (PROTO16 part B, player). Demo withdrawals below are invented demo data. ===== */
+
+/* ---------- B1: 5-Roll summary card + ticket detail: the 5 chosen numbers followed by * (the 6th number differs per ticket) ---------- */
+const isR5=k=>!!(k&&k.pt==='R5'&&k.sysSel);
+{const _tg=tkGroup;tkGroup=function(gr0){const h=_tg.apply(this,arguments);if(!isR5(gr0[0])||!isSysOrd(gr0[0]))return h;
+ return h.replace(/(<div class="row tkchosen"[^>]*>)(.*?)(<\/div>)/,'$1$2<span class="tkstar b" style="font-size:20px;line-height:1;padding:0 4px" title="'+t('第 6 个号码因票而异','The 6th number differs on each ticket')+'">*</span>$3')}}
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){const h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!isR5(k)||archived(k))return h;
+ const g=gm(k.g),L=linesOf(k);
+ const top=`<div class="row" id="tk_r5top" style="gap:6px;flex-wrap:wrap">${balls(k.sysSel)}<span class="b" style="font-size:20px;padding:0 4px">*</span></div><div class="xs mu" style="margin-top:8px;line-height:1.5">${t('5 个固定号码，* 是第 6 个号码，每张票不同。','Your 5 fixed numbers. * is the 6th number, different on each ticket.')}</div><div class="xs mu" style="margin-top:10px">${t('本票号码','This ticket')}</div><div class="row" id="tk_r5line" style="gap:6px;flex-wrap:wrap;margin-top:4px">${balls(L[0],'',null)}</div>`;
+ return h.replace(/(Your numbers<\/h3><div class="card mt">)<div class="row"[^>]*>.*?<\/div>/,(m,a)=>a+top)}}
+
+/* ---------- B2: withdrawal history: Under review / Rejected with reason (demo rows; the review mode itself lives in the admin app) ---------- */
+{const _tr=txRow;txRow=function(x){const h=_tr.apply(this,arguments);if(x.type!=='withdraw')return h;
+ let extra='';
+ if(x.st==='rev')extra=`<div class="xs mu wdrev" style="margin-top:3px;line-height:1.5">${t('审核中，金额已冻结，通过后出款。','Under review. The amount is held and will be paid out once approved.')}</div>`;
+ else if(x.st==='rej'&&x.why)extra=`<div class="xs wdrej" style="margin-top:3px;line-height:1.5;color:var(--ro)">Your withdrawal was not approved. The amount has been returned to your balance.<br>${t('原因：','Reason: ')}${x.why}</div>`;
+ if(x.demo)extra+=`<div style="margin-top:3px">${badge('b-am','Demo data')}</div>`;
+ return extra?h.replace(/(<div class="xs mu">[^<]*<\/div>)/,'$1'+extra.replace(/\$/g,'$$$$')):h}}
+{const _sd=seedDemo;seedDemo=function(){_sd.apply(this,arguments);const c0=Date.parse('2026-10-10T09:30:00+08:00'),D=86400e3;
+ S.tx.push({id:'TXN'+(++TID),type:'withdraw',amt:-12000,st:'rev',ms:c0-3*3600e3,note:'GCash',demo:1});
+ S.tx.push({id:'TXN'+(++TID),type:'withdraw',amt:-15000,st:'rej',ms:c0-D*7,note:'Maya',why:'Account name does not match the registered name.',demo:1})}}
 </script>
 </body>
 </html>

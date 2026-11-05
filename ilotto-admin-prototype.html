@@ -2346,6 +2346,7 @@ function wzPrev(i, kind) {
 }
 function wzCheck(i, g, kind, st, v, vals) {
   const rows = kind === "prz" ? entTierRows(i, g) : []; v = String(v == null ? "" : v).trim();
+  if (st.id === "nums" && i.st === "entry" && !String(i.pcso || "").trim()) return RV_PCSO_MSG;
   if (st.id === "nums" && rsCsOf(i) !== "Numeric") return rsCsCheck(i, vals.nums);
   if (st.id === "nums") { const r = NUM_RULE[i.game]; const n = (vals.nums || []).filter((x) => x != null); if (r[3] ? n.length < r[0] : Array.from({ length: r[0] }).some((_, q) => (vals.nums || [])[q] == null)) return raLenMsg(i.game, r[0]); if (r[3] && new Set(n).size !== n.length) return t("号码不能重复。", "Numbers cannot repeat."); return ""; }
   if (st.f === "jpr") return v ? "" : t("请填写原因。", "Enter a reason.");
@@ -4156,7 +4157,7 @@ const A2_GROUPS = [
     ["ver", "App minimum version", "Not set"], ["force", "Force upgrade switch", "Not set"], ["halt", "Terminal auto-halt notification list", "Not set"], ["cert", "Certificate and domain check frequency", "Daily"], ["dual", "Auto-halt post-hoc dual confirmation window", "24 hours"], ["probe", "Terminal health probe interval", "Not set"], ["pfail", "Terminal health probe consecutive failure threshold", "Not set"]]],
   ["esc", "Alert escalation", "告警升级", "Escalation time limits and targets for integrity alerts. A target can be a staff account or a registered external contact (email or mobile number; registering one goes through a change request). Staff are notified by an in-app reminder in the admin console; an outgoing message carries only the alert number, severity and category.", [["p1", "P1 escalation time limit", "30 minutes"], ["p2", "P2 escalation time limit", "24 hours"], ["t1", "P1 escalation targets and channels", "Finance review, Compliance audit · Admin in-app reminder"], ["t2", "P2 escalation targets and channels", "Finance review, Compliance audit · Admin in-app reminder"]]],
   ["settle", "PCSO settlement", "PCSO 结算", "Used by the remittance statement and the commission bill. Voucher deduction part: whether it counts toward the remittance base follows the points scheme approved by PCSO. Remittance is on a whole-platform basis, not split by terminal.", [
-    ["comm", "Commission Rate", "14%"], ["vat", "VAT Rate", "12%"], ["ewt", "EWT Rate", "15%"], ["wvat", "Withholding VAT Rate", "5%"], ["remit", "Remittance T+n", "2"], ["cycle", "Billing Cycle", "Weekly"], ["term", "Payment Term", "7 days"], ["acc", "Receiving account text", "Not set"], ["head", "Bill header text", "Not set"]]],
+    ["comm", "Commission Rate", "14%"], ["vat", "VAT Rate", "12%"], ["ewt", "EWT Rate", "15%"], ["wvat", "Withholding VAT Rate", "5%"], ["cas", "CAS Commission And Tax Columns", "Off", "Off: in the CAS Daily Sales and Draw Sales files, CANCELS, NETSALES, SALCOM, COMTAX, DST and the Draw Sales commission and tax columns are 0.00. On: they are calculated from the rates in this group. A change applies to files exported afterwards."], ["remit", "Remittance T+n", "2"], ["cycle", "Billing Cycle", "Weekly"], ["term", "Payment Term", "7 days"], ["acc", "Receiving account text", "Not set"], ["head", "Bill header text", "Not set"]]],
   ["rep", "Reports and compliance", "报表与合规", "Targets, CTR threshold, notification lists and reconciliation settings. Notification list members can be staff accounts or registered external contacts.", [
     ["tgt", "Monthly Sales Target", "Not set"], ["ctr", "CTR threshold", "₱500,000"], ["ctrl", "CTR notification list", "Not set"], ["act", "Player active / dormant thresholds", "30 / 90 days"], ["aml", "AML alert notification list", "Not set"], ["rec", "Reconciliation frequency", "Daily + per draw"], ["arc", "Archive restore time limit", "24 hours"], ["sec1", "Security alert notification list · P1", "Not set"], ["sec2", "Security alert notification list · P2", "Not set"], ["rel", "Online query / export limit (100,000 rows / 92 days) release", "Not released"]]],
   ["rgm", "PlaySafe risk monitoring", "理性购彩风险监测", "Indicator switches, thresholds and windows are under PlaySafe · Risk indicators.", [
@@ -4166,6 +4167,9 @@ const A2_GROUPS = [
   ["notif", "Notification channels", "通知渠道", "Email tiering defaults.", [
     ["tx", "Email · Transactional", "On"], ["acct", "Email · Account", "On"], ["rg", "Email · PlaySafe", "On"], ["mkt", "Email · Marketing", "Off"]]],
   ["wlive", "Withdrawal liveness", "提现活体比对", "Liveness Amount Threshold controls the amount-based trigger of the withdrawal liveness match. 0 means every withdrawal does the liveness match. When it is above 0, a single withdrawal above the threshold triggers the amount-based match (a withdrawal equal to the threshold does not). The other triggers (first withdrawal, flagged behaviour, newly bound or changed account) and the frequency exemption window are unchanged. The amount is provided by PCSO. Operations submits a change, Finance review approves it, and it needs an effective time.", [["amt", "Liveness Amount Threshold", "₱0", "0 = every withdrawal does the liveness match."]]],
+  ["wappr", "Withdrawal review", "提现复核", "Manual review of large withdrawals. Operations submits a change, Finance review approves it, and it needs an effective time. A change affects only requests made after it takes effect.", [
+    ["mode", "Withdrawal Approval Mode", "Automatic", "Automatic: withdrawals are paid out without manual review. Manual Above Threshold: a withdrawal at or above the Withdrawal Review Threshold waits for Finance review before payout."],
+    ["thr", "Withdrawal Review Threshold", "₱10,000", "Used when the mode is Manual Above Threshold. A request at or above this amount goes to review; each request keeps the threshold that applied when it was made."]]],
   ["claim", "Big prize claims", "大奖申领", "Claim Code Validity: from the moment a claim code is generated, 7 × 24 hours by default; the claim deadline is a hard cap. A change goes through a change request (Operations submits, Finance review approves) and affects only codes generated afterwards.", [["valid", "Claim Code Validity", "7 days"]]],
   ["live", "Live streams", "直播", "Live Stream Domain Allowlist: default empty. While it is empty a live stream link cannot be saved. A change goes through a change request (Operations submits, Finance review approves).", [["dom", "Live Stream Domain Allowlist", "Empty"]]],
   ["rules", "Game rules", "游戏规则", "Symbol Set is set per game in Edit game.", []],
@@ -7686,7 +7690,7 @@ function pqMatch(p, q) {
 function delBlockers(p) {
   const r = [];
   if (S.claimable.some((c) => c.player === p.id && c.status === "pending")) r.push("Cannot delete: the player has a pending prize claim.");
-  if (S.withdraws.some((w) => w.player === p.id && w.st === "pending")) r.push("Cannot delete: the player has a pending withdrawal.");
+  if (S.withdraws.some((w) => w.player === p.id && (w.st === "pending" || w.st === "review"))) r.push("Cannot delete: the player has a pending withdrawal.");
   if (S.deposits.some((d) => d.player === p.id && d.st === "pending")) r.push("Cannot delete: the player has a pending deposit.");
   if (p.dispute) r.push("Cannot delete: the player has an open dispute.");
   if (woBal(p) > S.woLimit.value) r.push("Cannot delete: the balance exceeds the write-off limit. The player must use it for bets first, or Finance review must raise the limit.");
@@ -7696,7 +7700,7 @@ function delBlockers(p) {
 }
 function woBal(p) { return Math.round(((Number(p.cash) || 0) + (Number(p.prize) || 0)) * 100) / 100; }
 function delSummary(p) {
-  return { cash: p.cash, prize: p.prize, claims: S.claimable.filter((c) => c.player === p.id && c.status === "pending").length, wds: S.withdraws.filter((w) => w.player === p.id && w.st === "pending").length, deps: S.deposits.filter((d) => d.player === p.id && d.st === "pending").length };
+  return { cash: p.cash, prize: p.prize, claims: S.claimable.filter((c) => c.player === p.id && c.status === "pending").length, wds: S.withdraws.filter((w) => w.player === p.id && (w.st === "pending" || w.st === "review")).length, deps: S.deposits.filter((d) => d.player === p.id && d.st === "pending").length };
 }
 function delReqOf(p) { return S.delReqs.find((r) => r.player === p.id && r.st === "pending"); }
 function viewPlayers() {
@@ -8970,6 +8974,7 @@ function onClick(e) {
     const ent = i.st === "entry" ? 1 : 2;
     const fail = (m) => { logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Entry submission blocked", obj: i.no, before: "—", after: entTxt(i, "num", ent, "blocked: " + m) }); S.mf.err = m; render(); };
     if (i.draw > NOWSTR()) return fail("Draw time not reached");
+    if (i.st === "entry" && !String(i.pcso || "").trim()) return fail(RV_PCSO_MSG);
 
     if (i.st === "pub" || i.st === "settled") return fail("This draw has already been published");
     { const ce = rsCsOf(i) !== "Numeric" ? rsCsCheck(i, S.pad.nums) : ""; if (ce) return fail(ce); }
@@ -10072,6 +10077,248 @@ function ruTermInfo(a) { const x = a && a.term; return x ? `${x.ch} · ${x.model
 S.audits.forEach((a) => { if (/^PL-/.test(a.who) && !a.term) { const k = /\(H5\)|H5/.test(String(a.evt) + " " + String(a.after)) ? 2 : /App/.test(String(a.evt) + " " + String(a.after)) ? 0 : (Number(a.who.slice(-1)) % 4); a.term = Object.assign({}, RU_DEVS[k]); } });
 (function () { const f0 = a2AuditExtra; a2AuditExtra = function (a) { return f0(a) + `<p class="tiny mono" data-aud="terminfo">${z("Terminal Information", "终端信息")}: ${esc(ruTermInfo(a))}</p>`; }; })();
 /* ===== end RU block ===== */
+/* ===== RV block (batch 16 · admin): CAS D1–D7 (POSC, game names, gross PAYOUT, Off/On mode, CSV per day), PCSO Draw Number (D8), withdrawal review (D9) ===== */
+S.rv = { rej: null, reason: "", err: "", errNo: "", wdErr: "", pcsoErr: "", sim: { player: "PL-104482", amt: "" } };
+/* ---- CAS game names (D2): this table is the only place to rename them; 6D is a product proposal ---- */
+const RV_CAS_NAMES = { l642: "Lotto 6/42", m645: "Mega Lotto 6/45", s649: "Super Lotto 6/49", g655: "Grand Lotto 6/55", u658: "Ultra Lotto 6/58", ez2: "2D Lotto", sw3: "3D Lotto", d4: "4D Lotto", d6: "6D Lotto" };
+function rvCasName(id) { return RV_CAS_NAMES[id] || gname(gameBy(id)); }
+function rvCasOn() { return a2Gp("settle.cas") === "On"; }
+function rvIso(d) { return String(d).slice(0, 10); }
+/* ---- PCSO Draw Number (D8) ---- */
+const RV_PCSO_MSG = "Enter the PCSO Draw Number before submitting the result.";
+const RV_CANCELLED = "L642-20261013-1"; /* the cancelled draw of the CAS Draw Sales demo rows: no PCSO Draw Number */
+const RV_PCSO_BASE = { L642: 1810, L645: 1790, L649: 1650, L655: 1480, L658: 1120, EZ2: 5300, S3D: 6100, "4D": 2400, "6D": 900 }; /* Demo data */
+function rvPcsoGen(issue) {
+  const m = /^([A-Z0-9]+)-(\d{8})-(\d+)$/.exec(String(issue)); if (!m || RV_PCSO_BASE[m[1]] === undefined) return "";
+  const day = Math.round((Date.parse(m[2].slice(0, 4) + "-" + m[2].slice(4, 6) + "-" + m[2].slice(6) + "T00:00:00Z") - Date.parse("2026-01-01T00:00:00Z")) / 864e5);
+  return String(RV_PCSO_BASE[m[1]] + day * 10 + Number(m[3])).padStart(5, "0");
+}
+function rvPcso(issue) { if (issue === RV_CANCELLED) return ""; const i = S.issues.find((x) => x.no === issue); return i ? i.pcso || "" : rvPcsoGen(issue); }
+const RV_PCSO_EMPTY = ["L658-20261014-1", "L649-20261025-1", "L655-20261102-1", "L655-20261029-1"]; /* Demo data: draws that have no number yet (all still Generated), besides the cancelled one */
+S.issues.forEach((i) => { i.pcso = i.st === "void" || RV_PCSO_EMPTY.indexOf(i.no) >= 0 ? "" : rvPcsoGen(i.no); });
+function rvPcsoEditable(i) { return !operRo() && !drawRo() && ["gen", "sale", "closed", "postponed", "entry"].indexOf(i.st) >= 0 && !i.first; }
+function rvPcsoUsed(i, v) {
+  const g = i.game, same = (no) => { const m = /^([A-Z0-9]+)-/.exec(no); return m && GCODE[g] === m[1]; };
+  const all = new Set(S.issues.filter((x) => x.no !== i.no && x.game === g).map((x) => x.pcso || "").concat(S.draws.filter((x) => x.game === g && x.issue !== i.no && !S.issues.some((y) => y.no === x.issue)).map((x) => rvPcsoGen(x.issue)), pdData().filter((x) => x.game === g && x.issue !== i.no && !S.issues.some((y) => y.no === x.issue)).map((x) => rvPcsoGen(x.issue))));
+  return v !== "" && all.has(v);
+}
+function rvPcsoCard(i) {
+  const ed = rvPcsoEditable(i), v = i.pcso || "", err = S.rv.errNo === i.no && S.rv.pcsoErr ? `<div class="err" data-rv="pcso-err">${esc(S.rv.pcsoErr)}</div>` : "";
+  const body = ed ? `<div class="tools"><label class="f">PCSO Draw Number<input class="mono" data-rv-pcso="${esc(i.no)}" value="${esc(v)}" inputmode="numeric" placeholder="e.g. 02057" /></label><button type="button" class="btn btn-sm" data-rv-act="pcso-save" data-id="${esc(i.no)}">Save</button></div>${err}`
+    : `<p><span class="mono" data-rv="pcso-val">${v ? esc(v) : "—"}</span> ${tag("muted", i.st === "void" ? "Cancelled draw" : (i.first || ["review", "prize", "settled", "pub"].indexOf(i.st) >= 0) ? "Locked: the result has been entered" : "Read only")}</p>`;
+  return `<div class="card" data-rv="pcso"><h4>PCSO Draw Number</h4>${body}<p class="tiny">Demo data. The draw number PCSO uses for this game, digits only, unique within the game. It is the DRAWID in the CAS Draw Sales and Draw Result files. Operations can change it until the result is entered, and it must be filled in before the result is submitted. Every change is audited.</p></div>`;
+}
+(function () { const f0 = viewDrawDetail; viewDrawDetail = function () { const h = f0(), i = S.issues.find((x) => x.no === (S.sub && S.sub.no)); return i ? h.replace('<div class="card" data-draw-facts="1">', rvPcsoCard(i) + '<div class="card" data-draw-facts="1">') : h; }; })();
+/* ---- Global parameters (A2): approval mechanics are the generic gp change request; values are picked from a list ---- */
+const RV_SEL = { "settle.cas": ["Off", "On"], "wappr.mode": ["Automatic", "Manual Above Threshold"] };
+(function () {
+  const m0 = a2Modal; a2Modal = function () {
+    let h = m0(); const m = S.modal;
+    if (m && m.type === "a2gp" && RV_SEL[m.key]) h = h.replace(/<input data-f="nw"[^>]*\/>/, `<select data-f="nw">${RV_SEL[m.key].map((o) => `<option value="${o}" ${S.mf.nw === o ? "selected" : ""}>${o}</option>`).join("")}</select>`);
+    if (m && m.type === "a2gp" && m.key === "wappr.thr") h = h.replace(/(New value)/, "$1 (₱, 100 or more)");
+    return h;
+  };
+  const a0 = a2Act; a2Act = function (act, arg, id, el) {
+    if (act === "a2-gp-sub" && S.modal && S.modal.key) {
+      const k = S.modal.key, f = S.mf;
+      if (RV_SEL[k] && RV_SEL[k].indexOf(String(f.nw || "").trim()) < 0) { f.err = "Select the new value."; render(); return true; }
+      if (k === "wappr.thr") {
+        const v = String(f.nw || "").replace(/[₱,\s]/g, "");
+        if (!/^\d+(\.\d{1,2})?$/.test(v) || Number(v) < 100) { f.err = "Enter an amount of ₱100 or more with up to 2 decimals."; render(); return true; }
+        f.nw = "₱" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 });
+      }
+    }
+    const r = a0(act, arg, id, el);
+    if (act === "a2-gp-open" && S.modal && S.modal.type === "a2gp" && RV_SEL[S.modal.key]) { S.mf.nw = RV_SEL[S.modal.key].find((o) => o !== a2Gp(S.modal.key)); render(); }
+    return r;
+  };
+})();
+/* ---- CAS reports (D1–D7) ---- */
+function casDailyRows() {
+  const R = casRates(), on = rvCasOn(), out = [];
+  CAS_DAYS.forEach((date) => {
+    const d = rcDay(date); let rs = 0, rc = 0, rp = 0;
+    CAS_SPLIT.forEach((s, i) => {
+      const last = i === CAS_SPLIT.length - 1;
+      const sg = last ? d.sales - rs : Math.round(d.sales * s[1] / 25) * 25, cancels = last ? d.voidOff - rc : Math.round(d.voidOff * s[1] / 25) * 25, payout = last ? d.paid - rp : Math.round(d.paid * s[1] / 25) * 25; /* PAYOUT is the gross prize (before winnings tax) */
+      rs += sg; rc += cancels; rp += payout;
+      let sales, net, salcom, comtax, dst, canc, due;
+      if (on) { sales = casR2(sg); canc = casR2(cancels); net = casR2(sg - cancels); salcom = casR2(net * R.comm); comtax = casComTax(salcom, R); dst = casR2(sg * R.duty); due = casR2(net - payout - salcom + comtax); }
+      else { sales = casR2(sg - cancels); canc = 0; net = 0; salcom = 0; comtax = 0; dst = 0; due = casR2(sales - payout); }
+      out.push({ date, system: "ELOTTO", game: s[0], gname: rvCasName(s[0]), region: s[2], area: s[3], agent: "POSC", name: "POSC", sales, cancels: canc, net, payout: casR2(payout), salcom, comtax, dst, due });
+    });
+  });
+  return out;
+}
+function casDsRows() {
+  const R = casRates(), on = rvCasOn();
+  const mk = (d, i, sc, sa, rc, ra) => {
+    const base = { date: d.date.slice(0, 10), game: d.game, gname: rvCasName(d.game), issue: d.issue, pcso: rvPcso(d.issue) };
+    if (!on) { const nc = sc - rc, na = casR2(sa - ra); return Object.assign(base, { sc: nc, sa: na, rc: 0, ra: 0, nc, na, comm: 0, wtax: 0 }); }
+    const net = casR2(sa - ra), comm = casR2(net * R.comm);
+    return Object.assign(base, { sc, sa: casR2(sa), rc, ra: casR2(ra), nc: sc - rc, na: net, comm, wtax: casComTax(comm, R) });
+  };
+  const out = S.draws.map((d, i) => { const sc = 18000 + i * 2300, sa = d.payout * 3 + 400000 + i * 90000, rc = i % 3 === 0 ? 4 + i : 0, ra = rc ? rc * 50 + (i % 2) * 75 : 0; return mk(d, i, sc, sa, rc, ra); });
+  out.push(mk({ date: "2026-10-13 21:00", game: "l642", issue: RV_CANCELLED }, 99, 1240, 31000, 1240, 31000)); /* cancelled draw: whole sales refunded, net 0 */
+  return out;
+}
+function casDrawSalesView() {
+  const f = S.cas, q = String(f.draw || "").trim().toLowerCase();
+  return casDsRows().filter((r) => inRange(r.date) && (!f.game || r.game === f.game) && (!q || r.issue.toLowerCase().indexOf(q) >= 0 || r.pcso.toLowerCase() === q));
+}
+const RV_TIER = ["Jackpot/Frist", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Nineth", "Tenth"]; /* spelling as in the partner sample */
+function casResHead() {
+  return ["Draw ID", "Draw Date", "Draw Result", "Game"].concat(RV_TIER.map((o) => o + "PrizeAmt"), RV_TIER.map((o, i) => (i === 0 ? "No. of Jackpot/FirstPrize Winners" : "No. of " + o + "PrizeAmt Winners")));
+}
+function casResultView() {
+  const f = S.cas, q = String(f.draw || "").trim().toLowerCase();
+  return pdAll().filter((r) => inRange(r.date) && (!f.game || r.game === f.game) && (!q || r.issue.toLowerCase().indexOf(q) >= 0 || rvPcso(r.issue).toLowerCase() === q))
+    .sort((a, b) => b.date.localeCompare(a.date) || (a.issue < b.issue ? -1 : 1))
+    .map((r) => ({ date: r.date, issue: r.issue, pcso: rvPcso(r.issue), game: r.game, gname: rvCasName(r.game), ord: String(casOrdFor(r.game, r.issue)).replace(/-/g, " "), amts: Array.from({ length: 10 }, (_, i) => (r.tiers[i] ? casR2(r.tiers[i].n === 0 && i === 0 && r.jackpotTier ? r.pool : r.tiers[i].prize) : 0)), wins: Array.from({ length: 10 }, (_, i) => (r.tiers[i] ? r.tiers[i].n : 0)) }));
+}
+const RV_DATE_COL = { daily: 0, draws: 2, result: 1 };
+const RV_AMT_COLS = { daily: [7, 8, 9, 10, 11, 12, 13, 14], draws: [6, 8, 10, 11, 12], result: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13] };
+function casData(view) {
+  const f2 = (x) => casR2(x).toFixed(2);
+  if (view === "draws") {
+    const rs = casDrawSalesView(), rows = rs.map((r) => ["POSC", "POSC", rvIso(r.date), r.gname, r.pcso, r.sc, f2(r.sa), r.rc, f2(r.ra), r.nc, f2(r.na), f2(r.comm), f2(r.wtax)]);
+    const sum = (k) => casR2(rs.reduce((s, r) => s + r[k], 0));
+    return { heads: CAS_HEAD_DRAWSALES, rows, total: rs.length ? ["Total", "", "", "", "", sum("sc"), f2(sum("sa")), sum("rc"), f2(sum("ra")), sum("nc"), f2(sum("na")), f2(sum("comm")), f2(sum("wtax"))] : null };
+  }
+  if (view === "result") {
+    const rs = casResultView();
+    return { heads: casResHead(), rows: rs.map((r) => [r.pcso, rvIso(r.date), r.ord, r.gname].concat(r.amts.map((a) => f2(a)), r.wins.map(String))), total: null };
+  }
+  const rs = casDailyView(), rows = rs.map((r) => [rvIso(r.date), r.system, r.gname, r.region, r.area, r.agent, r.name, f2(r.sales), f2(r.cancels), f2(r.net), f2(r.payout), f2(r.salcom), f2(r.comtax), f2(r.dst), f2(r.due)]);
+  const sum = (k) => casR2(rs.reduce((s, r) => s + r[k], 0));
+  return { heads: CAS_HEAD_DAILY, rows, total: rs.length ? ["Total", "", "", "", "", "", "", f2(sum("sales")), f2(sum("cancels")), f2(sum("net")), f2(sum("payout")), f2(sum("salcom")), f2(sum("comtax")), f2(sum("dst")), f2(sum("due"))] : null };
+}
+function casFilters(view) {
+  const sel = `<label class="f">${z("Game")}<select data-cas-f="game"><option value="">${z("All games")}</option>${GAMES.map((g) => `<option value="${g.id}" ${S.cas.game === g.id ? "selected" : ""}>${esc(rvCasName(g.id))}</option>`).join("")}</select></label>`;
+  if (view === "daily") return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Region")}<select data-cas-f="region"><option value="">${z("All regions")}</option>${CAS_SPLIT.map((s) => `<option value="${esc(s[2])}" ${S.cas.region === s[2] ? "selected" : ""}>${esc(s[2])}</option>`).join("")}</select></label></div>`;
+  return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Draw")}<input type="text" data-cas-f="draw" value="${esc(S.cas.draw)}" placeholder="${z("Draw number or PCSO Draw Number")}" /></label></div>`;
+}
+const RV_NOTES = {
+  daily: "One row per day, game and region. One file per day: a period of several days downloads one CSV file per day. SYSTEM is ELOTTO; AGENTNR and NAME are POSC (there are no outlets). PAYOUT is the prize before winnings tax: prizes up to the big prize limit (₱{CAP}) count on the draw day, when they are credited automatically; larger prizes count on the day the payment is registered. Winnings tax is reported separately under Prizes. CANCELS is refunds of void bets by refund date. When commission and tax columns are Off, SALES is net of refunded and void tickets, CANCELS, NETSALES, SALCOM, COMTAX and DST are 0.00, and NETDUE = SALES − PAYOUT. When On: NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. Rates are taken as of the row\u2019s date (that day 23:59:59) and the mode is read when the file is exported. REGION is the bet location (region and district, Unknown when not captured); AREA is empty except overseas rows, which show 999. Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes, no totals row.",
+  draws: "One row per draw. AGENCYID and NAME are POSC. DRAWID is the PCSO Draw Number of the draw (empty when a cancelled draw has none). One file per day, by draw date: a period of several days downloads one CSV file per day. SALESCOUNT, CANCELCOUNT and NETCOUNT count bet slips: a System or 5-Roll order is one count, not the number of combinations, and a multi-draw order counts 1 in each of its draws. Rows are by draw date and include cancelled draws (sales fully refunded, net 0). When commission and tax columns are Off, SALESCOUNT and SALESAMT are net of refunded and void tickets, CANCELCOUNT, CANCELAMT, COMMISSION and WTAX are 0.00 (0 for the count), NETCOUNT = SALESCOUNT and NETAMT = SALESAMT. When On: CANCELCOUNT is the number of orders with at least one refunded ticket in the draw (a partial void counts 1) and CANCELAMT is the amount actually refunded. Rates are taken as of the draw date 23:59:59 and the mode is read when the file is exported. NETCOUNT = SALESCOUNT − CANCELCOUNT, NETAMT = SALESAMT − CANCELAMT. COMMISSION = NETAMT × Commission Rate. WTAX = COMMISSION ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes, no totals row.",
+  result: "One row per published draw, filtered by draw date; cancelled draws are not listed. Draw ID is the PCSO Draw Number. Draw Result lists the winning numbers in draw order, separated by a space. There are always 10 prize amount columns and 10 winner columns, with the headings of the partner\u2019s sample. A tier the game does not have shows 0.00 and 0. A prize-pool tier with no winner shows the entered pool amount and 0 winners; fixed tiers show the rule-version prize. Prize amounts are per winning bet and winner counts are online winners only (winning bets). One file per day, by draw date: a period of several days downloads one CSV file per day, and the result of a draw day is provided the next day. Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes."
+};
+(function () {
+  const v0 = viewCas;
+  viewCas = function () {
+    let h = v0(); if (h.indexOf('data-cas="page"') < 0) return h;
+    const v = S.tab.casv === "draws" || S.tab.casv === "result" ? S.tab.casv : "daily", R = casRates(), pc = (x) => Math.round(x * 10000) / 100 + "%";
+    const rates = v === "result" ? "" : ` Current rates: Commission Rate ${pc(R.comm)} · VAT Rate ${pc(R.vat)} · EWT Rate ${pc(R.ewt)} · Withholding VAT Rate ${pc(R.wvat)}${v === "daily" ? " · Stamp Duty Rate " + pc(R.duty) : ""}.`;
+    const mode = `<p class="tiny" data-cas="mode"><b>CAS commission and tax columns: ${rvCasOn() ? "On" : "Off"}</b> (Global parameters · PCSO settlement). A change applies to files exported afterwards.</p>`;
+    h = h.replace(/<p class="tiny" data-cas="note">[\s\S]*?<\/p>/, mode + `<p class="tiny" data-cas="note">${esc(RV_NOTES[v].replace("{CAP}", BILL.autoCap.toLocaleString("en-US")) + rates)}</p>`);
+    return h.replace(/<button[^>]*data-arg="xlsx"[^>]*>Excel<\/button>/, "");
+  };
+})();
+function rvCsvCell(c, amt) { c = String(c); return amt ? '"' + c.replace(/"/g, '""') + '"' : /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }
+function casExport(fmt) {
+  if (!casRole()) { toast("Your role cannot export this report."); return true; }
+  if (fmt !== "csv") { toast("CAS reports are exported as CSV files."); return true; }
+  const v = S.tab.casv === "draws" || S.tab.casv === "result" ? S.tab.casv : "daily", d = casData(v), di = RV_DATE_COL[v], am = RV_AMT_COLS[v];
+  const days = {}; d.rows.forEach((r) => { (days[r[di]] = days[r[di]] || []).push(r); });
+  const keys = Object.keys(days).sort();
+  if (!keys.length) { toast("There are no rows in the selected period."); return true; }
+  const pre = { daily: "DAILYSALES", draws: "DRAWSALES", result: "DRAWRESULT" }[v];
+  keys.forEach((k, n) => {
+    const text = [d.heads.map((h) => rvCsvCell(h, false)).join(",")].concat(days[k].map((r) => r.map((c, i) => rvCsvCell(am.indexOf(i) >= 0 ? casNum(c) : c, am.indexOf(i) >= 0)).join(","))).join("\r\n") + "\r\n";
+    const run = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })); a.download = pre + "_" + k + ".csv"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); };
+    if (n === 0) run(); else setTimeout(run, n * 400); /* sequential downloads, one CSV per day */
+  });
+  logAudit({ who: actor().who, role: actor().role, mod: z("CAS reports"), evt: "Export CAS " + pre, obj: pre, type: "Audit", before: "—", after: `CSV · ${keys.length} file${keys.length === 1 ? "" : "s"} · ${d.rows.length} rows · ${S.rr.from} to ${S.rr.to} · CAS commission and tax columns: ${rvCasOn() ? "On" : "Off"}` });
+  toast("Download started: " + keys.length + (keys.length === 1 ? " file" : " files") + " (" + pre + "_" + keys[0] + ".csv" + (keys.length > 1 ? " …" : "") + ")");
+  return true;
+}
+/* ---- Withdrawals (D9): four statuses, review queue for Finance review ---- */
+S.withdraws.unshift(
+  { time: "2026-10-10 06:05", player: "PL-102901", ch: "Maya", amt: 25000, mfa: "ok", st: "review", locked: false, ref: "WD-330934", thr: 10000, frozen: true },
+  { time: "2026-10-10 03:40", player: "PL-101552", ch: "GCash", amt: 10000, mfa: "ok", st: "review", locked: false, ref: "WD-330927", thr: 10000, frozen: true },
+  { time: "2026-10-10 02:15", player: "PL-103300", ch: "银行卡", amt: 15000, mfa: "ok", st: "review", locked: false, ref: "WD-330919", thr: 10000, frozen: true }
+); /* Demo data: requests that were already waiting for review */
+function rvThr() { return Number(String(a2Gp("wappr.thr")).replace(/[₱,\s]/g, "")) || 0; }
+function rvWdRole() { return myRole() === "finance" || demoAll(); }
+function wdTag(st) {
+  if (st === "review") return tag("cyan", "Pending Review");
+  if (st === "paid") return tag("ok", t("已到账", "Paid"));
+  if (st === "pending") return tag("warn", t("处理中", "Processing"));
+  return tag("rose", t("已拒绝", "Rejected"));
+}
+function rvWdNote(d) {
+  if (d.locked) return `<button type="button" class="link" data-act="open-player" data-id="${d.player}">${t("账号提现锁定中，查看倒计时", "Account withdrawal lock, view countdown")}</button>`;
+  if (d.st === "review") return `Frozen ${peso2(d.amt)} · threshold at request ${peso2(d.thr || 0)}`;
+  if (d.rvReason) return `Rejected by ${esc(d.rvBy)} at ${esc(d.rvAt)}: ${esc(d.rvReason)} · ${peso2(d.amt)} returned to the withdrawable balance`;
+  if (d.rvBy) return `Approved by ${esc(d.rvBy)} at ${esc(d.rvAt)}`;
+  return d.st === "rejected" && d.mfa === "fail" ? t("MFA 验证失败", "MFA failed") : "—";
+}
+function rvWdQueue() {
+  const q = S.withdraws.filter((d) => d.st === "review"), can = rvWdRole();
+  const rows = q.map((d) => {
+    const open = S.rv.rej === d.ref;
+    const act = can ? (open ? `<div data-rv="rej-box"><textarea data-rv-reason placeholder="Reason (required)">${esc(S.rv.reason)}</textarea><div class="row-actions"><button type="button" class="btn btn-sm btn-rose" data-rv-act="wd-reject-ok" data-ref="${d.ref}">Confirm reject</button><button type="button" class="btn btn-sm" data-rv-act="wd-reject-cancel">Cancel</button></div>${S.rv.err ? `<div class="err" data-rv="rej-err">${esc(S.rv.err)}</div>` : ""}</div>` : `<div class="row-actions"><button type="button" class="btn btn-sm btn-primary" data-rv-act="wd-approve" data-ref="${d.ref}">Approve</button><button type="button" class="btn btn-sm" data-rv-act="wd-reject-open" data-ref="${d.ref}">Reject</button></div>`) : `<span class="tiny">Read only</span>`;
+    return `<tr data-rv="wd-q" data-ref="${d.ref}"><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? "Bank card" : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt">${peso2(d.thr || 0)}</td><td>${act}</td></tr>`;
+  });
+  return `<div class="card" data-rv="wd-queue"><h4>Review queue</h4><p class="tiny">Demo data. Requests that need Finance review wait here; the amount is frozen out of the withdrawable balance. Approve sends the request to Processing. Reject needs a reason and returns the frozen amount to the withdrawable balance. Only Finance review can approve or reject; other roles see the queue read-only. Both actions are audited.</p>${q.length ? table(["Time", "Player Id", "Destination", "Amount", "Frozen Amount", "Threshold At Request", "Action"], rows) : `<p class="muted" data-rv="wd-empty">No withdrawals are waiting for review.</p>`}</div>`;
+}
+function rvWdSim() {
+  const s = S.rv.sim;
+  return `<div class="card" data-rv="wd-sim"><h4>Demo: new withdrawal request</h4><p class="tiny">Demo data. Creates a request that has passed MFA, liveness and account checks. With Withdrawal Approval Mode = Manual Above Threshold, an amount at or above the Withdrawal Review Threshold becomes Pending Review; otherwise it goes to Processing. The mode only decides the status of new requests.</p><div class="tools"><label class="f">Player Id<select data-rv-sim="player">${["PL-104482", "PL-102901", "PL-101552", "PL-103300"].map((p) => `<option ${s.player === p ? "selected" : ""}>${p}</option>`).join("")}</select></label><label class="f">Amount (₱)<input class="mono" data-rv-sim="amt" value="${esc(s.amt)}" placeholder="12000" /></label><button type="button" class="btn btn-sm" data-rv-act="wd-sim">Create request</button></div>${S.rv.wdErr ? `<div class="err" data-rv="sim-err">${esc(S.rv.wdErr)}</div>` : ""}</div>`;
+}
+function rcWithdrawals() {
+  const rows = S.withdraws.filter((d) => S.txnQ.wd === "all" || d.st === S.txnQ.wd);
+  const mode = a2Gp("wappr.mode");
+  return txExpBar() + `<div class="banner" data-rv="wd-note">${t("提现记录有待复核、处理中、已到账、已拒绝四种状态。", "A withdrawal is Pending Review, Processing, Paid or Rejected.")} Pending Review appears only when Withdrawal Approval Mode is Manual Above Threshold and the amount is at or above the Withdrawal Review Threshold. A lock sits on the account, not as a fifth status. A failed MFA is recorded as rejected. After MFA passes, a request that needs no review is paid out through the payment gateway call-back. <b data-rv="wd-mode">Withdrawal Approval Mode: ${esc(mode)} · Withdrawal Review Threshold: ${esc(a2Gp("wappr.thr"))}</b></div>
+    ${rvWdQueue()}${rvWdSim()}
+    <div class="tabs" style="margin-bottom:12px">${txnChip("wd", "all", "全部", "All")}${txnChip("wd", "review", "待复核", "Pending Review")}${txnChip("wd", "pending", "处理中", "Processing")}${txnChip("wd", "paid", "已到账", "Paid")}${txnChip("wd", "rejected", "已拒绝", "Rejected")}</div>
+    ${table([z("Transaction Id", "流水号"), t("时间", "Time"), z("Player Id", "玩家ID"), z("Destination", "目的地"), z("Amount", "金额"), z("Primary Account", "主账户"), z("MFA Method", "MFA 方式"), z("MFA Result", "MFA 结果"), t("状态", "Status"), t("说明", "Note"), ""],
+      rows.map((d) => { const tx = rcTxnId(d); return `<tr class="${d.locked ? "alert" : ""}" data-rv="wd-row" data-ref="${d.ref}"><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td>${z("Yes", "是")}</td><td>SMS OTP</td><td>${d.mfa === "ok" ? tag("ok", t("通过", "Passed")) : tag("rose", t("失败", "Failed"))}</td><td>${wdTag(d.st)}</td><td data-rv="wd-note-cell">${rvWdNote(d)}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }))}`;
+}
+document.addEventListener("input", (e) => {
+  const el = e.target; if (!el.dataset) return;
+  if (el.dataset.rvReason !== undefined) S.rv.reason = el.value;
+  if (el.dataset.rvSim) S.rv.sim[el.dataset.rvSim] = el.value;
+}, true);
+document.addEventListener("change", (e) => { const el = e.target; if (el.dataset && el.dataset.rvSim) S.rv.sim[el.dataset.rvSim] = el.value; }, true);
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("[data-rv-act]"); if (!b) return;
+  const act = b.dataset.rvAct, W = (ref) => S.withdraws.find((x) => x.ref === ref), ac = () => ({ who: actor().who, role: actor().role, mod: t("交易流水", "Transactions"), type: "Transaction" });
+  if (act === "pcso-save") {
+    const i = S.issues.find((x) => x.no === b.dataset.id), inp = document.querySelector('[data-rv-pcso="' + b.dataset.id + '"]'); if (!i || !inp || !rvPcsoEditable(i)) return;
+    const v = inp.value.trim(); S.rv.errNo = i.no; S.rv.pcsoErr = "";
+    if (v !== "" && !/^\d+$/.test(v)) S.rv.pcsoErr = "PCSO Draw Number can contain digits only.";
+    else if (rvPcsoUsed(i, v)) S.rv.pcsoErr = "This PCSO Draw Number is already used by another draw of this game.";
+    if (S.rv.pcsoErr) { render(); return; }
+    if (v !== (i.pcso || "")) { const old = i.pcso || ""; i.pcso = v; logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), type: "Change", evt: old ? "Update PCSO Draw Number" : "Enter PCSO Draw Number", obj: i.no, before: old || "—", after: v || "—" }); toast("PCSO Draw Number saved."); } else toast("No change.");
+    S.rv.errNo = ""; render(); return;
+  }
+  if (act === "wd-sim") {
+    const s = S.rv.sim, v = String(s.amt || "").replace(/[₱,\s]/g, "");
+    if (!/^\d+(\.\d{1,2})?$/.test(v) || Number(v) < 100) { S.rv.wdErr = "Enter an amount of ₱100 or more (minimum withdrawal is ₱100)."; render(); return; }
+    S.rv.wdErr = ""; const amt = Number(v), need = a2Gp("wappr.mode") === "Manual Above Threshold" && amt >= rvThr();
+    const n = S.withdraws.reduce((m, x) => Math.max(m, Number(String(x.ref).replace(/\D/g, ""))), 0) + 1;
+    S.withdraws.unshift({ time: NOWSTR(), player: s.player, ch: "GCash", amt, mfa: "ok", st: need ? "review" : "pending", locked: false, ref: "WD-" + n, thr: rvThr(), frozen: true, mode: a2Gp("wappr.mode") });
+    s.amt = ""; render(); return;
+  }
+  if (!rvWdRole()) { toast("Read-only for your role: only Finance review can do this."); return; }
+  if (act === "wd-reject-open") { S.rv.rej = b.dataset.ref; S.rv.reason = ""; S.rv.err = ""; render(); return; }
+  if (act === "wd-reject-cancel") { S.rv.rej = null; S.rv.reason = ""; S.rv.err = ""; render(); return; }
+  const d = W(b.dataset.ref); if (!d || d.st !== "review") return;
+  if (act === "wd-approve") {
+    d.st = "pending"; d.rvBy = actor().who; d.rvAt = NOWSTR();
+    logAudit(Object.assign(ac(), { evt: "Approve withdrawal review", obj: d.ref + " · " + d.player, before: "Pending Review · " + peso2(d.amt), after: "Processing · reviewed by " + d.rvBy }));
+    toast("Approved. " + d.ref + " is now Processing."); render(); return;
+  }
+  if (act === "wd-reject-ok") {
+    const r = String(S.rv.reason || "").trim();
+    if (!r) { S.rv.err = "Enter the reason for rejecting this withdrawal."; render(); return; }
+    d.st = "rejected"; d.rvBy = actor().who; d.rvAt = NOWSTR(); d.rvReason = r; d.frozen = false; d.refunded = d.amt; S.rv.rej = null; S.rv.reason = ""; S.rv.err = "";
+    logAudit(Object.assign(ac(), { evt: "Reject withdrawal review", obj: d.ref + " · " + d.player, before: "Pending Review · frozen " + peso2(d.amt), after: "Rejected · " + peso2(d.amt) + " returned to the withdrawable balance · " + r }));
+    toast("Rejected. " + peso2(d.amt) + " returned to the withdrawable balance."); render(); return;
+  }
+}, true);
+/* ===== end RV block ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">
