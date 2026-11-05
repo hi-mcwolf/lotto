@@ -2222,7 +2222,7 @@ function stepper(steps, cur) {
 }
 function padVal() {
   const i = S.issues.find((x) => x.no === S.sub.no); const r = NUM_RULE[i.game]; const nums = S.pad.nums;
-  return i.game && (r[3] ? nums.slice().sort((a, b) => a - b) : nums);
+  return i.game && nums; /* batch 17: lotto numbers are shown in the order they were entered (draw order) */
 }
 function numPad(i) {
   if (rsCsOf(i) !== "Numeric") return rsCsPad(i);
@@ -2434,7 +2434,7 @@ function wzStrip(i, g, cur) {
 }
 function wzConfirmRows(i, g, w, steps, kind) {
   const rows = entTierRows(i, g); const rowsH = []; const edit = (id) => `<button type="button" class="btn btn-sm" data-act="draw-wz-edit" data-arg="${id}">${t("改", "Edit")}</button>`;
-  if (kind === "num") rowsH.push(`<tr><td>${t("开奖号码", "Winning numbers")}</td><td><span class="mono">${(NUM_RULE[i.game][3] ? (w.vals.nums || []).filter((x) => x != null).sort((a, b) => a - b) : Array.from({ length: NUM_RULE[i.game][0] }, (_, q) => (w.vals.nums || [])[q])).map((n) => (n == null ? "–" : rsCsOf(i) !== "Numeric" ? String(n) : String(n).padStart(NUM_RULE[i.game][1] > 9 ? 2 : 1, "0"))).join(" ")}</span></td><td>${edit("nums")}</td></tr>`);
+  if (kind === "num") rowsH.push(`<tr><td>${t("开奖号码", "Winning numbers")}</td><td><span class="mono">${(NUM_RULE[i.game][3] ? (w.vals.nums || []).filter((x) => x != null) : Array.from({ length: NUM_RULE[i.game][0] }, (_, q) => (w.vals.nums || [])[q])).map((n) => (n == null ? "–" : rsCsOf(i) !== "Numeric" ? String(n) : String(n).padStart(NUM_RULE[i.game][1] > 9 ? 2 : 1, "0"))).join(" ")}</span></td><td>${edit("nums")}</td></tr>`);
   else {
     rows.forEach((r) => {
       if (!r.isPool) { rowsH.push(`<tr class="wz-fixed-row" data-fixed="1"><td>${r.name} ${FIXED_TAG}</td><td>${t("固定单注奖金", "Fixed prize per winning bet")}</td><td class="mono amt">${wzBig(String(r.fixed))}</td><td></td></tr>`); return; }
@@ -2453,7 +2453,7 @@ function wzFieldBody(i, g, kind, st, w, second) {
     body = `<p>${t("请核对上方的游戏、期号和开奖日期时间，确认就是要录入的这一期。", "Check the game, draw number and draw date and time above. Confirm this is the draw you are entering.")}</p><div class="wz-confirm"><div><span class="tiny">${t("游戏", "Game")}</span><b>${esc(gname(g))}</b></div><div><span class="tiny">${t("期号", "Draw no.")}</span><b class="mono">${i.no}</b></div><div><span class="tiny">${t("开奖日期时间", "Draw date and time")}</span><b class="mono">${i.draw}</b></div></div>`;
     nextLbl = t("就是这一期", "This is the draw");
   } else if (st.id === "nums") {
-    body = `<p class="muted">${kind === "num" && second ? t("看不到第一次录入的内容，请对照开奖结果单独立录入。", "The first entry is hidden. Enter the result independently from the official draw sheet.") : t("用号码盘逐个点选，上面一排大球实时显示。", "Tap the numbers on the pad; the balls above show your pick as you go.")}</p><div class="wz-balls">${numPad(i)}</div>`;
+    body = `<p class="muted">${kind === "num" && second ? t("看不到第一次录入的内容，请对照开奖结果单独立录入。", "The first entry is hidden. Enter the result independently from the official draw sheet.") : t("用号码盘逐个点选，上面一排大球实时显示。", "Tap the numbers on the pad; the balls above show your pick as you go.")}</p>${rwOrdNote(i)}<div class="wz-balls">${numPad(i)}</div>`;
     nextLbl = t("确认号码", "Confirm numbers");
   } else {
     const v = w.vals[st.f === "jpr" ? st.id : st.id === "njp" ? "njp" : st.f + r.k] || "";
@@ -4319,7 +4319,7 @@ const A2_CTR = [
   ["PL-1098**", "2026-10-18", "Bet order", 210000, 610000, 7, "Daily total", "Pending"]
 ];
 const A2_COL = [
-  ["Device", "DEV-7F3A****", 2, "PL-1044**, PL-1051**", "2026-10-12 09:05"],
+  ["Device", "7F3A5C0E2D91A3F9", 2, "PL-1044**, PL-1051**", "2026-10-12 09:05"],
   ["Payment Account", "GCash 0917****44", 2, "PL-1032**, PL-1077**", "2026-10-14 18:20"],
   ["IP", "49.145.12.***", 3, "PL-1098**, PL-1101**, PL-1102**", "2026-10-17 21:42"]
 ];
@@ -4339,7 +4339,7 @@ function viewAml0() {
   const inR = (d) => (!S.rr.from || d >= S.rr.from) && (!S.rr.to || d <= S.rr.to);
   let body = "";
   if (v === "ltl") body = `<p class="tiny">${z("Daily list of transactions that reach the CTR threshold (₱500,000 by default, the same global parameter as CTR). Fields match the CTR table. A large transaction does not raise a to-do of its own: the CTR to-do covers it (same threshold), so one transaction never produces two.", "按日列出达到 CTR 阈值（默认 ₱500,000，与 CTR 同一全局参数）的交易，字段同 CTR 表。")}</p>` + table(["Player ID", "Date", "Transaction Type", "Amount", "Daily Total", "Daily Transaction Count", "Trigger Basis", "Alert Status", "P2 To-Do"].map((h) => z(h)), A2_CTR.filter((r) => inR(r[1])).map((r) => `<tr><td class="mono">${r[0]}</td><td class="mono">${r[1]}</td><td>${r[2]}</td><td class="mono">${peso(r[3])}</td><td class="mono">${peso(r[4])}</td><td class="mono">${r[5]}</td><td>${r[6]}</td><td>${tag(r[7] === "Pending" ? "warn" : "ok", r[7])}</td><td>${tag("muted", "Via CTR to-do")}</td></tr>`));
-  else if (v === "col") body = `<p class="tiny">${z("Groups of two or more registered accounts linked by the same device ID (collected at registration), the same payment account (binding check) or the same IP (sign-in and order records). Whenever a new group is first identified, or a new account joins an existing group, a P2 to-do is raised and the AML alert notification list is notified instantly. One player, one indicator, one day: one to-do. Operations handles the to-do; Compliance audit is read-only.", "按同一设备 ID、同一支付账户、同一 IP 三个维度列出关联 ≥ 2 个注册账号的关联组。首次识别出新的关联组、或已有关联组内新增账号时实时生成 P2 待办（同一玩家同一指标同一天只一条；运营专员处置，合规审计只读），并向 AML 告警通知名单即时推送。")}</p>` + table(["Link Dimension", "Link Key", "Account Count", "Accounts", "Last Active At", "P2 To-Do"].map((h) => z(h)), A2_COL.filter((r) => inR(r[4].slice(0, 10))).map((r) => `<tr><td>${r[0]}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td class="mono">${r[3]}</td><td class="mono">${r[4]}</td><td>${tag("cyan", "P2 raised")}</td></tr>`));
+  else if (v === "col") body = `<p class="tiny">${z("Groups of two or more registered accounts linked by the same device ID (collected at registration), the same payment account (binding check) or the same IP (sign-in and order records). Whenever a new group is first identified, or a new account joins an existing group, a P2 to-do is raised and the AML alert notification list is notified instantly. One player, one indicator, one day: one to-do. Operations handles the to-do; Compliance audit is read-only.", "按同一设备 ID、同一支付账户、同一 IP 三个维度列出关联 ≥ 2 个注册账号的关联组。首次识别出新的关联组、或已有关联组内新增账号时实时生成 P2 待办（同一玩家同一指标同一天只一条；运营专员处置，合规审计只读），并向 AML 告警通知名单即时推送。")}</p>` + table(["Link Dimension", "Link Key", "Account Count", "Accounts", "Last Active At", "P2 To-Do"].map((h) => z(h)), A2_COL.filter((r) => inR(r[4].slice(0, 10))).map((r) => `<tr><td>${r[0]}</td><td class="mono" data-col="key">${r[0] === "Device" ? devMask(r[1]) : r[1]}</td><td class="mono">${r[2]}</td><td class="mono">${r[3]}</td><td class="mono">${r[4]}</td><td>${tag("cyan", "P2 raised")}</td></tr>`));
   else body = `<p class="tiny">${z("Fixed-rule view: one hit per row. Rules are fixed and threshold parameters are set in global parameters, no code change needed. An advanced analytics engine is not part of this release.", "固定规则视图，一命中一行；识别规则固定，阈值类参数走全局参数，无需改代码。高级分析引擎本期不做。")}</p>` + table(["Indicator Category", "Player ID", "Hit At", "Hit Detail", "Handling Status", "P2 To-Do"].map((h) => z(h)), A2_SUS.filter((r) => inR(r[2].slice(0, 10))).map((r) => `<tr><td>${r[0]}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td class="tiny">${r[3]}</td><td>${tag(r[4] === "Pending" ? "warn" : "ok", r[4])}</td><td>${tag("cyan", "P2 raised")}</td></tr>`))
     + `<h4 style="margin-top:14px">${z("Indicator category and covering view", "指标类别与承接视图")}</h4>` + table([z("Indicator category", "指标类别"), z("Covering view", "承接视图")], A2_MAP.map((r) => `<tr><td>${r[0]}</td><td class="tiny">${r[1]}</td></tr>`)) + nrDep("the data sources for the identity anomaly, money laundering, bonus abuse and network anomaly indicators, and for the deviation-from-historical-baseline rules", "身份异常、洗钱、奖励滥用、网络异常指标及偏离历史基线规则的数据源");
   return `${tb}<div class="card"><div class="row-actions" style="margin-bottom:8px">${expBtns("a2-aml-export")}<span class="tiny">${z("Read-only; filter by the date range above. Exports are audited. Player IDs are masked.", "只读；按上方日期范围筛选；导出写审计；玩家 ID 脱敏。")}</span></div>${body} <p class="tiny">${tag("muted", z("Sample data", "示例数据"))}</p></div>`;
@@ -4819,7 +4819,7 @@ function a2Act(act, arg, id, el) {
     const q = (c) => '"' + String(c).replace(/"/g, '""') + '"';
     let rows = [];
     if (act === "a2-bc-export") rows = [["Date", "Terminal", "Ticketing Request Count", "Completed Bet Count", "Failed Or Abandoned Count", "Rejected Request Count"]].concat(a2BetRows().map((r) => [r.d, r.tm, r.I, r.C, r.F, r.R]));
-    else if (act === "a2-aml-export") rows = S.a2.amlV === "ltl" ? [["Player ID", "Date", "Transaction Type", "Amount", "Daily Total", "Daily Transaction Count", "Trigger Basis", "Alert Status"]].concat(A2_CTR) : S.a2.amlV === "col" ? [["Link Dimension", "Link Key", "Account Count", "Accounts", "Last Active At"]].concat(A2_COL) : [["Indicator Category", "Player ID", "Hit At", "Hit Detail", "Handling Status"]].concat(A2_SUS);
+    else if (act === "a2-aml-export") rows = S.a2.amlV === "ltl" ? [["Player ID", "Date", "Transaction Type", "Amount", "Daily Total", "Daily Transaction Count", "Trigger Basis", "Alert Status"]].concat(A2_CTR) : S.a2.amlV === "col" ? [["Link Dimension", "Link Key", "Account Count", "Accounts", "Last Active At"]].concat(A2_COL.map((r) => r.slice(0, 5).map((c, k) => (k === 1 && r[0] === "Device" ? devMask(c) : c)))) : [["Indicator Category", "Player ID", "Hit At", "Hit Detail", "Handling Status"]].concat(A2_SUS);
     else rows = [["Incident Id", "Detected At", "Affected Component", "Isolation Status", "Summary", "Restoration Authorized By", "Authorized At", "Status"]].concat(S.malware.map((m) => [m.id, m.at, m.comp, m.iso, m.sum, m.by, m.aat, m.st]));
     a2Aud(t("报表", "Reports"), "Export " + nm + " (" + (arg || "csv").toUpperCase() + ")", "ilotto-" + nm + ".csv", "—", rows.length - 1 + " rows");
     download("ilotto-" + nm + ".csv", rows.map((r) => r.map(q).join(",")).join("\n"), "text/csv"); toast("Export written to the audit log."); render(); return true;
@@ -8169,8 +8169,8 @@ function regionCard(kind, bare, slim) {
     });
   });
   out.push(`<tr style="font-weight:700" class="rg-t" data-v="${sum}"><td>${z("Total (all regions)", "合计")}</td><td class="mono amt">${peso(sum)}</td><td>100.0%</td></tr>`);
-  return `${bare ? "<div>" : `<div class="card"><h4>${z("By region", "按地区")} (${kind === "prize" ? z("prizes paid, pre-tax", "派奖，税前") : z("sales", "销售额")})</h4>`}${slim ? "" : `<p class="tiny" style="margin:0 0 6px">${z("Region comes from the bet location: Region → Province → City. Unknown if the bet location could not be resolved.", "地区按投注地：大区 → 省 → 市；取不到投注地的归 Unknown。")}</p>`}<div class="tools" style="margin-bottom:8px"><label class="f">${z("Region", "地区")}<select data-p58="rg" data-k="sel"><option value="all">${z("All regions", "全部")}</option>${REGIONS.map((r) => `<option ${S.rgSel === r[0] ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label>${slim ? "" : `<span class="tiny">${z("Region = PSGC region of the bet location; not resolved = Unknown. Click a region to see provinces, then a province to see cities. Children add up to their parent; Unknown has no breakdown.", "地区取玩家登记地址的 PSGC 大区；无地址为 Unknown。点击地区展开省，再点击省展开市；下级合计等于上级，Unknown 无下级。")}</span>`}</div>
-    ${table([z("Region / Province / City", "地区 / 省 / 市"), kind === "prize" ? z("Prizes paid", "派奖") : z("Sales", "销售额"), z("Share", "占比")], out)}${slim ? `<p class="tiny pz-foot">${z("Region = PSGC region of the bet location (not resolved = Unknown). Click a region for provinces, then a province for cities.", "地区取登记地址的 PSGC 大区（无地址为 Unknown）；点地区看省，再点省看市。")}</p>` : ""}</div>`;
+  return `${bare ? "<div>" : `<div class="card"><h4>${z("By region", "按地区")} (${kind === "prize" ? z("prizes paid, pre-tax", "派奖，税前") : z("sales", "销售额")})</h4>`}${slim ? "" : `<p class="tiny" style="margin:0 0 6px"><span data-rw="region-note">${z("Region is the bet location. Tickets placed before location capture started show Unknown.", "地区为投注地。开始采集投注地之前下的票显示 Unknown。")}</span></p>`}<div class="tools" style="margin-bottom:8px"><label class="f">${z("Region", "地区")}<select data-p58="rg" data-k="sel"><option value="all">${z("All regions", "全部")}</option>${REGIONS.map((r) => `<option ${S.rgSel === r[0] ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label>${slim ? "" : `<span class="tiny">${z("Click a region to see provinces, then a province to see cities. Children add up to their parent; Unknown has no breakdown.", "点击地区展开省，再点击省展开市；下级合计等于上级，Unknown 无下级。")}</span>`}</div>
+    ${table([z("Region / Province / City", "地区 / 省 / 市"), kind === "prize" ? z("Prizes paid", "派奖") : z("Sales", "销售额"), z("Share", "占比")], out)}${slim ? `<p class="tiny pz-foot"><span data-rw="region-note">${z("Region is the bet location. Tickets placed before location capture started show Unknown.", "地区为投注地。开始采集投注地之前下的票显示 Unknown。")}</span> ${z("Click a region for provinces, then a province for cities.", "点地区看省，再点省看市。")}</p>` : ""}</div>`;
 }
 
 /* ---- transaction monitoring ---- */
@@ -8323,7 +8323,7 @@ function viewDrawSales() {
     body = table(head.map((h, i) => i === 0 ? z("Draws", "期数") : i === 2 ? "" : h), Object.keys(g).map((k) => { const tt = tot(g[k]); return `<tr><td class="mono">${g[k].length}</td><td>${esc(gname(gameBy(k)))}</td><td></td>${cell(tt.sc, tt.sa)}${cell(tt.rc, tt.ra)}<td class="mono amt">${peso(tt.sa - tt.ra)}</td>${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`; }).concat([totRow(z("Total", "合计"), tot(rows))]));
   } else if (sub === "region") {
     const g = {}; rows.forEach((r) => { (g[r.region] = g[r.region] || []).push(r); });
-    body = table(head.map((h, i) => i === 0 ? z("Draws", "期数") : i === 1 ? z("Region", "地区") : i === 2 ? "" : h), Object.keys(g).map((k) => { const tt = tot(g[k]); return `<tr><td class="mono">${g[k].length}</td><td>${k}</td><td></td>${cell(tt.sc, tt.sa)}${cell(tt.rc, tt.ra)}<td class="mono amt">${peso(tt.sa - tt.ra)}</td>${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`; }).concat([totRow(z("Total", "合计"), tot(rows))]));
+    body = `<p class="tiny" data-rw="region-note">${z("Region is the bet location. Tickets placed before location capture started show Unknown.", "地区为投注地。开始采集投注地之前下的票显示 Unknown。")}</p>` + table(head.map((h, i) => i === 0 ? z("Draws", "期数") : i === 1 ? z("Region", "地区") : i === 2 ? "" : h), Object.keys(g).map((k) => { const tt = tot(g[k]); return `<tr><td class="mono">${g[k].length}</td><td>${k}</td><td></td>${cell(tt.sc, tt.sa)}${cell(tt.rc, tt.ra)}<td class="mono amt">${peso(tt.sa - tt.ra)}</td>${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`; }).concat([totRow(z("Total", "合计"), tot(rows))]));
   } else if (sub === "pre") {
     const pre = S.issues.filter((i) => ["void", "settled", "pub"].indexOf(i.st) < 0 && (!S.rf.sales.game || i.game === S.rf.sales.game)).map((i) => `<tr><td class="mono">${i.no}</td><td>${esc(gname(gameBy(i.game)))}</td><td class="mono">${i.draw}</td><td class="mono amt">${Math.round(tVal(i.sales / gameBy(i.game).price, "tickets", tfv("sales"))).toLocaleString("en-US")} / ${peso(Math.round(tVal(i.sales, "sales", tfv("sales"))))}</td><td class="mono">-</td><td class="mono">-</td><td class="mono">-</td><td class="mono">-</td><td class="mono">-</td></tr>`);
     body = `<p class="tiny">${z("Pre-sale: every draw that is not void and whose result is not yet published (including awaiting entry, review and prize entry). Only the game filter applies, the date range does not. Only sales columns are filled.", "预售：所有未作废且结果尚未发布的期次（含待录入、待复核、待录入奖金），只受游戏筛选，不受日期范围约束，只显示销售列。")}</p>${rfBar("sales", true)}` + table(head, pre);
@@ -8880,7 +8880,7 @@ function onClick(e) {
       if (arg === "retime") { const g = gameBy(i.game); pushHist(i, "retime", i.draw, nd, S.mf.d_reason, 0); i.draw = nd; i.cut = minusMin(nd, g.cut || 120); histTm(i); logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("期次改期", "Change draw date/time"), obj: i.no, before: "—", after: nd + " · " + S.mf.d_reason }); toast(t("开奖时间已更新。", "Draw time updated.")); S.modal = null; S.mf = {}; render(); return; }
       i.was = i.st; pushHist(i, "postpone", i.draw, nd, S.mf.d_reason, 1); i.st = "postponed"; i.reason = S.mf.d_reason; i.draw = nd; if (["gen", "sale"].includes(i.was)) i.cut = minusMin(nd, gameBy(i.game).cut || 120); /* Closed / Awaiting entry / Awaiting review keep the cut-off */
       histTm(i);
-      if (i.was === "review") { delete i.first; delete i.firstAt; delete i.nums; if (i.trace) delete i.trace.enc; i.firstVoided = true; entRound(i, "num"); logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "First entry voided by delay", obj: i.no, before: "review", after: "first entry discarded · Number segment · Round " + ((i.rnd && i.rnd.num) - 1) + " ended · next Round " + i.rnd.num }); } /* delay in Pending review voids the first entry; the number segment goes to the next round (CLAR20 E11) */
+      if (i.was === "review") { delete i.first; delete i.firstAt; delete i.nums; delete i.ordNums; if (i.trace) delete i.trace.enc; i.firstVoided = true; entRound(i, "num"); logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "First entry voided by delay", obj: i.no, before: "review", after: "first entry discarded · Number segment · Round " + ((i.rnd && i.rnd.num) - 1) + " ended · next Round " + i.rnd.num }); } /* delay in Pending review voids the first entry; the number segment goes to the next round (CLAR20 E11) */
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("期次延期", "Delay draw"), obj: i.no, before: "—", after: nd + " · " + S.mf.d_reason });
       toast(t("已延期，立即生效，已写审计并向已购玩家发站内信；延期期间停止销售。", "Delayed at once (no approval needed, audited). Selling stops while the draw is delayed. Buyers were sent an inbox message.") + (i.firstVoided ? " " + t("第一份录入已作废。", "The first entry was voided.") : ""));
     } else {
@@ -8938,7 +8938,7 @@ function onClick(e) {
     const payout = rows.reduce((a, r) => a + r.on * per(r), 0); i.prz.paid = payout;
     stamp(i, "awd", 0); stamp(i, "awd", 1, "system");
     pushHist(i, "status", i.st, "settled", "", 0); i.st = "settled"; i.pubAt = NOWSTR(); S.modal = null;
-    S.draws.unshift({ date: i.draw, issue: i.no, game: i.game, nums: nums.split(",").map((n) => n.padStart(2, "0")).join(" "), winners: rows.map((r) => r.on).join(" / "), payout, rollZh: g.kind === "lotto" && rows[0].on === 0 ? "无线上头奖中奖" : "—", rollEn: g.kind === "lotto" && rows[0].on === 0 ? "No online winner" : "—" });
+    S.draws.unshift({ date: i.draw, issue: i.no, game: i.game, ord: i.ordNums || "", nums: nums.split(",").map((n) => n.padStart(2, "0")).join(" "), winners: rows.map((r) => r.on).join(" / "), payout, rollZh: g.kind === "lotto" && rows[0].on === 0 ? "无线上头奖中奖" : "—", rollEn: g.kind === "lotto" && rows[0].on === 0 ? "No online winner" : "—" });
     logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("授权发布开奖结果", "Authorize and publish result"), obj: i.no, before: "ready", after: nums });
     S.mf = {}; S.wzRes = { no: i.no, res: "pub" }; toast(t("已发布，系统已逐票算奖派奖。", "Published. The system has judged and paid out every ticket.")); render(); return;
   }
@@ -8971,6 +8971,7 @@ function onClick(e) {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const r = NUM_RULE[i.game];
     const srcKeep = S.mf.src;
     const raw = r[3] ? S.pad.nums.slice().sort((a, b) => a - b) : Array.from({ length: r[0] }, (_, k) => S.pad.nums[k]);
+    const lotOrd = r[3] && rsCsOf(i) === "Numeric"; const ordStr = lotOrd ? S.pad.nums.slice(0, r[0]).map((n) => String(n).padStart(2, "0")).join("-") : ""; /* batch 17: draw order, compared position by position */
     const ent = i.st === "entry" ? 1 : 2;
     const fail = (m) => { logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Entry submission blocked", obj: i.no, before: "—", after: entTxt(i, "num", ent, "blocked: " + m) }); S.mf.err = m; render(); };
     if (i.draw > NOWSTR()) return fail("Draw time not reached");
@@ -8981,19 +8982,19 @@ function onClick(e) {
     if (raw.length !== r[0] || raw.some((x) => x === undefined)) return fail(raLenMsg(i.game, r[0]));
     const norm = raw.join(",");
     if (i.st === "entry") {
-      i.first = { nums: norm, by: actor().who, src: srcKeep || "manual" }; pushHist(i, "status", "entry", "review", "", 0); i.st = "review"; i.firstAt = NOWSTR(); if (!i.firstEver) i.firstEver = i.firstAt; stamp(i, "enc", 0); /* 6.7.3: First Entry Time = the earliest submission, kept after a discarded re-entry */
+      i.first = { nums: norm, ord: ordStr, by: actor().who, src: srcKeep || "manual" }; pushHist(i, "status", "entry", "review", "", 0); i.st = "review"; i.firstAt = NOWSTR(); if (!i.firstEver) i.firstEver = i.firstAt; stamp(i, "enc", 0); /* 6.7.3: First Entry Time = the earliest submission, kept after a discarded re-entry */
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("开奖结果第一次录入", "Draw result first entry"), obj: i.no, before: "—", after: entTxt(i, "num", 1, "submitted") });
       S.pad = { nums: [] }; S.mf = { err: "" }; S.wzRes = { no: i.no, res: "sub", seg: "num" }; toast(t("第一次录入已提交，请财务复核独立录入。", "First entry submitted. Finance review now enters it independently.")); render(); return;
     }
     if (i.first.by === actor().who) return fail("The second entry must be made by a different person");
-    if (i.first.nums !== norm) {
+    if (i.first.nums !== norm || (lotOrd && i.first.ord != null && i.first.ord !== ordStr)) {
       delete i.first; pushHist(i, "status", "review", "entry", "Entries did not match, both discarded", 0, "System"); i.st = "entry"; S.pad = { nums: [] }; delete i.trace;
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("两份录入不一致", "Entries do not match"), obj: i.no, before: "review", after: entTxt(i, "num", 2, "submitted, both entries discarded") }); entRound(i, "num");
       S.mf = {}; S.wzRes = { no: i.no, res: "mismatch", seg: "num", msg: "The two entries do not match. Both entries were discarded." }; render(); return;
     }
     logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: t("开奖结果第二次录入，两份一致", "Second entry matches"), obj: i.no, before: "review", after: entTxt(i, "num", 2, "submitted, entries match") });
     stamp(i, "enc", 1); stamp(i, "chk", 0, "system"); stamp(i, "chk", 1);
-    const fsnap = { by: i.first.by, at: i.firstAt || "" }; i.nums = norm; delete i.first; pushHist(i, "status", "review", "prize", "", 0); i.st = "prize"; delete i.prz1; delete i.przOk; delete i.prz; S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "num", snap: { firstBy: fsnap.by, firstAt: fsnap.at, secondBy: actor().who, secondAt: NOWSTR(), nums: raw.slice() } }; render(); return;
+    const fsnap = { by: i.first.by, at: i.firstAt || "" }; i.nums = norm; if (lotOrd) i.ordNums = ordStr; else delete i.ordNums; delete i.first; pushHist(i, "status", "review", "prize", "", 0); i.st = "prize"; delete i.prz1; delete i.przOk; delete i.prz; S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "num", snap: { firstBy: fsnap.by, firstAt: fsnap.at, secondBy: actor().who, secondAt: NOWSTR(), nums: lotOrd ? S.pad.nums.slice(0, r[0]) : raw.slice() } }; render(); return;
   }
   if (act === "draw-auth") {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const rows = entTierRows(i, g);
@@ -9996,6 +9997,7 @@ function casOrdFor(game, issue) {
   const rnd = () => { h = (h + 0x6D2B79F5) >>> 0; let x = h; x = Math.imul(x ^ (x >>> 15), x | 1); x ^= x + Math.imul(x ^ (x >>> 7), x | 61); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
   const g = gameBy(game), p = casPick(g), out = [];
   while (out.length < p.n) { const v = p.lo + Math.floor(rnd() * (p.hi - p.lo + 1)); if (g.kind === "digit" || out.indexOf(v) < 0) out.push(v); }
+  if (g.kind === "lotto") out.sort((a, b) => a - b); /* batch 17: no recorded draw order -> ascending numbers (see casNoOrd) */
   return out.map((v) => (p.hi > 9 ? String(v).padStart(2, "0") : String(v))).join("-");
 }
 function casTierMax() { return Math.max(...GAMES.map((g) => g.prizes.length), ...pdData().map((r) => r.tiers.length)); }
@@ -10037,7 +10039,7 @@ function casFilters(view) {
   return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Draw")}<input type="text" data-cas-f="draw" value="${esc(S.cas.draw)}" placeholder="${z("Draw number, e.g. L649-20261008-2")}" /></label></div>`;
 }
 const CAS_NOTES = {
-  daily: "One row per day, game and region. NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. Rates are taken as of the row\u2019s date (that day 23:59:59). REGION is the bet location (region and district, Unknown when not captured); AREA is empty except overseas rows, which show 999. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. PAYOUT is the online prize credited that day after winnings tax; CANCELS is refunds of void bets by refund date, the same basis as the remittance statement.",
+  daily: "One row per day, game and region. NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. Rates are taken as of the row\u2019s date (that day 23:59:59). Region is the bet location. Tickets placed before location capture started show Unknown. REGION shows region and district. AREA is empty except overseas rows, which show 999. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. PAYOUT is the online prize credited that day after winnings tax; CANCELS is refunds of void bets by refund date, the same basis as the remittance statement.",
   draws: "One row per draw. SALESCOUNT, CANCELCOUNT and NETCOUNT count bet slips: a System or 5-Roll order is one count, not the number of combinations, and a multi-draw order counts 1 in each of its draws. CANCELCOUNT is the number of orders with at least one refunded ticket in the draw (a partial void counts 1) and CANCELAMT is the amount actually refunded. Rows are by draw date and include cancelled draws (sales fully refunded, net 0). Rates are taken as of the draw date 23:59:59. NETCOUNT = SALESCOUNT − CANCELCOUNT, NETAMT = SALESAMT − CANCELAMT. COMMISSION = NETAMT × Commission Rate. WTAX = COMMISSION ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate).",
   result: "One row per published draw, filtered by draw date; cancelled draws are not listed. DrawResult lists the winning numbers in draw order, separated by a dash. Prize amounts are per winning bet and winner counts are online winners only. The number of prize columns is fixed to the largest tier count of all games, whatever the filter. A game with fewer prize tiers leaves the unused amount cells empty and shows 0 in the unused winner cells. A prize-pool tier with no winner shows the entered pool amount and 0 winners; fixed tiers show the rule-version prize. Winner counts are winning bets."
 };
@@ -10199,7 +10201,7 @@ function casFilters(view) {
   return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Draw")}<input type="text" data-cas-f="draw" value="${esc(S.cas.draw)}" placeholder="${z("Draw number or PCSO Draw Number")}" /></label></div>`;
 }
 const RV_NOTES = {
-  daily: "One row per day, game and region. One file per day: a period of several days downloads one CSV file per day. SYSTEM is ELOTTO; AGENTNR and NAME are POSC (there are no outlets). PAYOUT is the prize before winnings tax: prizes up to the big prize limit (₱{CAP}) count on the draw day, when they are credited automatically; larger prizes count on the day the payment is registered. Winnings tax is reported separately under Prizes. CANCELS is refunds of void bets by refund date. When commission and tax columns are Off, SALES is net of refunded and void tickets, CANCELS, NETSALES, SALCOM, COMTAX and DST are 0.00, and NETDUE = SALES − PAYOUT. When On: NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. Rates are taken as of the row\u2019s date (that day 23:59:59) and the mode is read when the file is exported. REGION is the bet location (region and district, Unknown when not captured); AREA is empty except overseas rows, which show 999. Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes, no totals row.",
+  daily: "One row per day, game and region. One file per day: a period of several days downloads one CSV file per day. SYSTEM is ELOTTO; AGENTNR and NAME are POSC (there are no outlets). PAYOUT is the prize before winnings tax: prizes up to the big prize limit (₱{CAP}) count on the draw day, when they are credited automatically; larger prizes count on the day the payment is registered. Winnings tax is reported separately under Prizes. CANCELS is refunds of void bets by refund date. When commission and tax columns are Off, SALES is net of refunded and void tickets, CANCELS, NETSALES, SALCOM, COMTAX and DST are 0.00, and NETDUE = SALES − PAYOUT. When On: NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. Rates are taken as of the row\u2019s date (that day 23:59:59) and the mode is read when the file is exported. Region is the bet location. Tickets placed before location capture started show Unknown. REGION shows region and district. AREA is empty except overseas rows, which show 999. Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes, no totals row.",
   draws: "One row per draw. AGENCYID and NAME are POSC. DRAWID is the PCSO Draw Number of the draw (empty when a cancelled draw has none). One file per day, by draw date: a period of several days downloads one CSV file per day. SALESCOUNT, CANCELCOUNT and NETCOUNT count bet slips: a System or 5-Roll order is one count, not the number of combinations, and a multi-draw order counts 1 in each of its draws. Rows are by draw date and include cancelled draws (sales fully refunded, net 0). When commission and tax columns are Off, SALESCOUNT and SALESAMT are net of refunded and void tickets, CANCELCOUNT, CANCELAMT, COMMISSION and WTAX are 0.00 (0 for the count), NETCOUNT = SALESCOUNT and NETAMT = SALESAMT. When On: CANCELCOUNT is the number of orders with at least one refunded ticket in the draw (a partial void counts 1) and CANCELAMT is the amount actually refunded. Rates are taken as of the draw date 23:59:59 and the mode is read when the file is exported. NETCOUNT = SALESCOUNT − CANCELCOUNT, NETAMT = SALESAMT − CANCELAMT. COMMISSION = NETAMT × Commission Rate. WTAX = COMMISSION ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes, no totals row.",
   result: "One row per published draw, filtered by draw date; cancelled draws are not listed. Draw ID is the PCSO Draw Number. Draw Result lists the winning numbers in draw order, separated by a space. There are always 10 prize amount columns and 10 winner columns, with the headings of the partner\u2019s sample. A tier the game does not have shows 0.00 and 0. A prize-pool tier with no winner shows the entered pool amount and 0 winners; fixed tiers show the rule-version prize. Prize amounts are per winning bet and winner counts are online winners only (winning bets). One file per day, by draw date: a period of several days downloads one CSV file per day, and the result of a draw day is provided the next day. Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes."
 };
@@ -10319,6 +10321,54 @@ document.addEventListener("click", (e) => {
   }
 }, true);
 /* ===== end RV block ===== */
+/* ===== RW block (batch 17 · admin): W1 lotto result entry in draw order, W2 device ID masking in the linkage lists, W3 region note ===== */
+/* W1: note under the numbers step (lotto games with numeric balls only; digit / letter / symbol games unchanged) */
+function rwOrdNote(i) { return NUM_RULE[i.game][3] && rsCsOf(i) === "Numeric" ? `<p class="tiny" data-rw="ord-note">Enter the numbers in the order they were drawn. The second entry must use the same order.</p>` : ""; }
+/* W1: CAS Draw Result — a lotto draw with no recorded draw order (published before this feature) shows the ascending numbers and a note */
+const RW_NOORD_NOTE = "Published before draw order was recorded; shown in ascending order.";
+function casNoOrd(game, issue) { const sd = S.draws.find((d) => d.issue === issue); return gameBy(game).kind === "lotto" && !(sd && sd.ord); }
+(function () {
+  const t0 = casTable;
+  casTable = function (d, view) {
+    const h = t0(d, view); if (view !== "result") return h;
+    const rs = casResultView(), parts = h.split('<tr data-cas="row">');
+    for (let k = 1; k < parts.length; k++) {
+      const r = rs[k - 1]; if (!r || !casNoOrd(r.game, r.issue)) continue;
+      let p = parts[k], at = -1; for (let n = 0; n < 3; n++) at = p.indexOf("</td>", at + 1);
+      if (at > 0) parts[k] = p.slice(0, at) + `<div class="tiny muted" data-rw="noord">${RW_NOORD_NOTE}</div>` + p.slice(at);
+    }
+    return parts.join('<tr data-cas="row">');
+  };
+})();
+/* W2: Linked players list on the player detail (read only, same data as the Collusion Linkage List; Demo data) */
+A2_COL[0].ids = ["PL-104482", "PL-104977"]; A2_COL[1].ids = ["PL-104988", "PL-104995"]; A2_COL[2].ids = ["PL-104482", "PL-102901", "PL-103007"];
+function rwLinkRows(p) {
+  return A2_COL.filter((r) => (r.ids || []).indexOf(p.id) >= 0).map((r) => ({ dim: r[0], key: r[0] === "Device" ? devMask(r[1]) : r[1], others: r.ids.filter((x) => x !== p.id), last: r[4] }));
+}
+(function () {
+  const f0 = raRiskBlock;
+  raRiskBlock = function (p) {
+    const rows = rwLinkRows(p);
+    const nm = (id) => { const q = S.players.find((x) => x.id === id); return id + (q ? " · " + q.name : ""); };
+    const card = `<div class="card" data-pl="linked" style="margin-top:12px"><h4>${z("Linked Players", "关联玩家")}</h4>
+      <p class="tiny" style="margin:0 0 6px">${z("Read-only. Same data as the Collusion Linkage List (Reports). A Device key shows only its last 4 characters.", "只读；与报表中的共谋关联清单同源。设备 ID 只显示末 4 位。")} ${tag("muted", z("Demo data", "演示数据"))}</p>
+      ${rows.length ? `<div class="row-actions" style="margin-bottom:8px"><button type="button" class="btn btn-sm" data-rw-act="link-export" data-id="${p.id}">CSV</button></div>` : ""}
+      ${rows.length ? table([z("Link Dimension", "关联维度"), z("Link Key", "关联值"), z("Linked Players", "关联玩家"), z("Last Active At", "最近活跃")], rows.map((r) => `<tr data-linked="${esc(r.dim)}"><td>${r.dim}</td><td class="mono" data-linked-key="1">${esc(r.key)}</td><td class="mono">${r.others.map((x) => esc(nm(x))).join("<br>")}</td><td class="mono">${r.last}</td></tr>`)) : `<p class="muted">${z("No linked players.", "没有关联玩家。")}</p>`}</div>`;
+    return f0(p) + card;
+  };
+})();
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("[data-rw-act]"); if (!b) return;
+  if (b.dataset.rwAct === "link-export") {
+    const p = S.players.find((x) => x.id === b.dataset.id); if (!p) return;
+    const rows = [["Link Dimension", "Link Key", "Linked Players", "Last Active At"]].concat(rwLinkRows(p).map((r) => [r.dim, r.key, r.others.join(" "), r.last]));
+    const q = (c) => '"' + String(c).replace(/"/g, '""') + '"';
+    a2Aud(t("玩家档案", "Players"), "Export linked players", p.id, "—", rows.length - 1 + " rows", "Audit");
+    download("ilotto-linked-players-" + p.id + ".csv", rows.map((r) => r.map(q).join(",")).join("\n"), "text/csv"); toast("Export written to the audit log."); render();
+  }
+}, true);
+/* ===== end RW block ===== */
+
 </script>
 <!--SKIN:START-->
 <style id="skin-css">
