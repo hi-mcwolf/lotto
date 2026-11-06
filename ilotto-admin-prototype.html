@@ -3277,7 +3277,7 @@ function viewSales0() {
     : S.salesGrain === "week" ? ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"] : TREND_LABELS[S.salesGrain] || ["4", "5", "6", "7", "8", "9"];
   const games = GAME_SALES.filter((r) => !sg || r.id === sg).map((r) => {
     const share = (r.sales / 148260000 * 100).toFixed(1) + "%";
-    return `<tr><td>${gname(gameBy(r.id))}</td><td class="mono amt">${peso(Math.round(tv(r.sales * f, "sales")))}</td><td>${share}</td><td class="mono amt">${Math.round(tv(r.tickets * f, "tickets")).toLocaleString("en-US")}</td><td class="mono amt">${Math.round(tv(r.players * f, "players")).toLocaleString("en-US")}</td><td class="${r.mom >= 0 ? "delta up" : "delta down"}">${pct(r.mom)}</td></tr>`;
+    return `<tr><td>${gname(gameBy(r.id))}</td><td class="mono amt">${peso(Math.round(tv(r.sales * f, "sales")))}</td><td>${share}</td><td class="mono amt">${Math.round(tv(r.tickets * f, "tickets")).toLocaleString("en-US")}</td><td class="mono amt">${Math.round(tv(r.players * f, "players")).toLocaleString("en-US")}</td><td class="${r.mom >= 0 ? "delta up" : "delta down"}">${pct(r.mom)}</td>${rxGameCells(r.id, Math.round(tv(r.sales * f, "sales")))}</tr>`;
   });
   const plays = PLAY_SALES.filter(() => !sg || sgk === "digit").map((r) => `<tr><td>${t(r.zh, r.en)}</td><td class="mono amt">${peso(Math.round(tv(r.sales * f, "sales")))}</td><td>${(r.sales / 148260000 * 100).toFixed(1)}%</td><td class="mono amt">${peso(r.avg)}</td><td>${t(r.nz, r.ne)}</td></tr>`);
   return `<div class="banner">${t("统计口径：销售类（销售额、出票张数、投注玩家）按出票日归属，UTC+8 自然日；金额为税前。", "Basis: sales figures (sales, tickets, betting players) are counted by ticket date, UTC+8 calendar day. Amounts are pre-tax.")}</div><div class="tools" style="margin-bottom:10px">${rfBar("sales", true, true)}${tfSel("sales")}</div><div class="page-h"><div class="tabs">${[["day", "按日", "Day"], ["week", "按周", "Week"], ["month", "按月", "Month"], ["quarter", "按季", "Quarter"], ["half", "按半年", "Half-year"], ["year", "按年", "Year"]].map(([g, zh, en]) => `<button type="button" data-act="grain" data-arg="${g}" class="${S.salesGrain === g ? "on" : ""}">${t(zh, en)}</button>`).join("")}</div>
@@ -3289,7 +3289,7 @@ function viewSales0() {
       <article class="kpi"><div class="lbl">${t("人均投注", "Stake per player")}</div><div class="num" style="font-size:22px">₱380.53</div><div class="subl">${delta(1.8)}</div></article>
     </div>
     <div class="card"><h4>${t("销售趋势", "Sales trend")}</h4>${lineChart(TREND[S.salesGrain].map((v) => v * sc * tfc), labels)}<p class="tiny">${t("金额单位：百万比索。", "Amounts in millions of pesos.")}</p></div>
-    <div class="card"><h4>${t("按游戏", "By game")}</h4>${table([t("游戏", "Game"), t("销售额", "Sales"), t("占比", "Share"), t("出票数", "Tickets"), t("投注玩家", "Players"), t("环比", "Change")], games)}</div>
+    <div class="card"><h4>${t("按游戏", "By game")}</h4>${table([t("游戏", "Game"), t("销售额", "Sales"), t("占比", "Share"), t("出票数", "Tickets"), t("投注玩家", "Players"), t("环比", "Change"), "Payout", "Tax Of Winnings", "Net Payout", "Net Due To PCSO"], games)}<p class="tiny" data-rx="game-note">${z("Payout, Tax Of Winnings, Net Payout and Net Due To PCSO use the same basis as the city table (bet location of the winning ticket, payment date); Net Payout = Payout − Tax Of Winnings and Net Due To PCSO = Sales − Refunds − Net Payout, negative with a minus sign.", "Payout、Tax Of Winnings、Net Payout、Net Due To PCSO 口径同按市表（中奖票投注地、付款当日）；Net Payout = Payout − Tax Of Winnings，Net Due To PCSO = Sales − Refunds − Net Payout，为负时带负号。")} ${tag("muted", t("演示数据", "Demo data"))}</p></div>
     <div class="card"><h4>${t("按玩法", "By play type")}</h4><p class="tiny">${t("玩法指 Straight / Rambolito 这类数字类投注方式。不按渠道。地域细分一期不做。", "Play type means Straight / Rambolito and the other digit bets. There is no channel split.")} ${tag("muted", t("[二期]", "[Phase 2]"))}</p>${table([t("玩法", "Play"), t("销售额", "Sales"), t("占比", "Share"), t("平均每单", "Average slip"), t("说明", "Note")], plays)}</div>
     <div class="card" data-sales="due"><h4>${t("税务与应缴 PCSO（按销售日）", "Tax and Net Due To PCSO (by sales date)")} ${tag("muted", t("演示数据", "Demo data"))}</h4>${table([t("销售日", "Sales Date"), t("销售额", "Sales"), t("退款", "Refunds"), t("净派奖", "Total Payout"), t("预扣税", "Withholding Tax"), "VAT", t("印花税", "Documentary Stamp Tax"), "Net Due To PCSO"], (() => { const d = salesDueRows(tm), tr = (o, b) => `<tr data-due="${o.date}" ${b ? 'style="font-weight:700;background:rgba(255,255,255,.05)"' : ""}><td class="mono">${o.date}</td><td class="mono amt">${rcFmtP(o.sales)}</td><td class="mono amt">${rcFmtP(o.refunds)}</td><td class="mono amt">${rcFmtP(o.pay)}</td><td class="mono amt">${rcFmtP(o.wht)}</td><td class="mono amt">${rcFmtP(o.vat)}</td><td class="mono amt">${rcFmtP(o.dst)}</td><td class="mono amt" data-c="net">${rcFmtP(o.net)}</td></tr>`; return d.rows.map((r) => tr(r)).concat([tr(d.total, true)]); })())}<p class="tiny">${t("应缴 PCSO 净额 = 销售额 − 退款 − 净派奖，合计行为各行之和；派奖大于销售时显示负数。以上金额为演示数。", "Net Due To PCSO = Sales − Refunds − Total Payout, and the total row is the sum of the rows. When payouts exceed sales the value shows as a negative number. The figures above are demo data.")}</p></div>`;
 }
@@ -8031,7 +8031,7 @@ S.tickets = (function () {
     R("TKT20261009000231", "BO2026100900000000231", "PL-104482", "m645", "L645-20261009-1", "2026-10-09 10:03", "Standard", "Region VII", "2026-10-09 21:00", "void", 25, 25, null, null, "N/A", "05 06 07 08 09 10", "")
   ];
 })();
-S.tk = { no: "", player: "", games: [], draw: "", st: "all", claim: "all", ttype: "buy", from: A58.addDays(A58.today(), -91), to: A58.today(), min: "", max: "" };
+S.tk = { no: "", player: "", games: [], draw: "", st: "all", claim: "all", ttype: "buy", atype: "win", from: A58.addDays(A58.today(), -91), to: A58.today(), min: "", max: "" };
 S.tka = Object.assign({}, S.tk);
 S.deposits.push({ time: "2026-10-09 09:10", player: "PL-102901", ch: "GCash", amt: 20, st: "ok", ref: "DP-910020" });
 
@@ -8065,8 +8065,9 @@ function tkFiltered() {
     const d = (f.ttype === "buy" ? r.buy : r.draw).slice(0, 10);
     if (f.from && d < f.from) return false;
     if (f.to && d > f.to) return false;
-    if (f.min !== "" && (r.prize == null || r.prize < Number(f.min))) return false;
-    if (f.max !== "" && (r.prize == null || r.prize > Number(f.max))) return false;
+    const av = f.atype === "buy" ? r.amt : r.prize; /* batch 18: Amount Type decides which amount Amount From / To applies to */
+    if (f.min !== "" && (av == null || av < Number(f.min))) return false;
+    if (f.max !== "" && (av == null || av > Number(f.max))) return false;
     return true;
   });
 }
@@ -8089,9 +8090,9 @@ function viewTickets() {
     <label class="f">${z("Draw", "期号")}<input data-tkf="draw" value="${esc(f.draw)}" placeholder="L655-20261009-3" /></label>
     <label class="f">${z("Ticket Status", "彩票状态")}<select data-tkf="st"><option value="all">${z("All", "全部")}</option>${Object.keys(TK_ST).map((k) => `<option value="${k}" ${f.st === k ? "selected" : ""}>${TK_ST[k][0]}</option>`).join("")}</select></label>
     <label class="f">${z("Claim Status", "领取状态")}<select data-tkf="claim">${["all", "Unclaimed", "Claimed", "N/A"].map((k) => `<option value="${k}" ${f.claim === k ? "selected" : ""}>${k === "all" ? "All" : k}</option>`).join("")}</select></label>
-    <label class="f">${z("Time Type", "时间类型")}<select data-tkf="ttype"><option value="buy" ${f.ttype === "buy" ? "selected" : ""}>Purchase time</option><option value="draw" ${f.ttype === "draw" ? "selected" : ""}>Draw time</option></select></label>
+    <label class="f">${z("Search By", "搜索时间类型")}<select data-tkf="ttype"><option value="buy" ${f.ttype === "buy" ? "selected" : ""}>Bet Time</option><option value="draw" ${f.ttype === "draw" ? "selected" : ""}>Draw Time</option></select></label>
     <label class="f">${z("From", "开始")}<input type="date" data-tkf="from" value="${f.from}" /></label><label class="f">${z("To", "结束")}<input type="date" data-tkf="to" value="${f.to}" /></label>
-    <label class="f">${z("Prize min (pre-tax)", "奖金下限")}<input type="number" data-tkf="min" value="${f.min}" style="min-width:100px" /></label><label class="f">${z("Prize max", "奖金上限")}<input type="number" data-tkf="max" value="${f.max}" style="min-width:100px" /></label>
+    <label class="f">${z("Amount Type", "金额类型")}<select data-tkf="atype"><option value="win" ${(f.atype || "win") === "win" ? "selected" : ""}>Win Amount</option><option value="buy" ${f.atype === "buy" ? "selected" : ""}>Purchase Amount</option></select></label><label class="f">${z("Amount From", "金额从")}<input type="number" data-tkf="min" value="${f.min}" style="min-width:100px" /></label><label class="f">${z("Amount To", "金额到")}<input type="number" data-tkf="max" value="${f.max}" style="min-width:100px" /></label>
     <button type="button" class="btn btn-primary btn-sm" data-act="tk-search">${z("Search", "搜索")}</button><button type="button" class="btn btn-sm" data-act="tk-reset">${z("Reset", "重置")}</button></div>
     <div class="row-actions" style="margin-top:10px"><button type="button" class="btn btn-sm" data-act="tk-scan">${z("Scan", "扫码")}</button>${expBtns("tk-export")}<span class="tiny" data-tk-areanote="1">Bet Area is the district where the bet was placed (device location, or the IP address when location is not allowed); Unknown when it could not be resolved. Demo data.</span><span class="tiny" data-qr-note="1">Scan a Ticket QR to look a ticket up; a prize claim still needs the Claim Code (type it or scan the Claim QR). The search tells a ticket number from a claim code by its content.</span><span class="tiny">${z("Read-only. Scan looks a ticket up; claims are handled under Big prize claims. Time range is required (span ≤ 92 days) unless you search by ticket number, player or draw; up to 100,000 rows.", "只读；扫码仅查询，兑付在“大奖申领”；不按票号、玩家或期号精确查询时，时间范围必填（跨度 ≤ 92 天）；单次最多 100,000 行。")}</span></div></div>
     ${table([z("Ticket Number", "票号"), z("Bet Order Number", "投注单号"), z("Player", "玩家"), z("Game", "游戏"), z("Draw", "期号"), z("Purchased At", "购买时间"), z("Bet Type", "玩法"), z("Bet Region", "投注区域"), z("Bet Area", "投注地"), z("Draw Time", "开奖时间"), z("Status", "状态"), z("Ticket Price", "票价"), z("Purchase Amount", "购买金额"), z("Prize Pre-Tax", "奖金（税前）"), z("Net Payout", "实付"), z("Claim Status", "领取状态")],
@@ -8347,8 +8348,8 @@ function viewFinalTax() {
   const rows = S.claims.map((c) => ({ game: c.game, issue: c.issue, no: c.ticket, date: c.date, name: names[c.ticket] || "Juan P. Reyes", gross: c.gross })).concat([{ game: "d6", issue: "6D-20261007-1", no: "TKT20261007009880", date: "2026-10-07", name: "Diego Ramos", gross: 15000 }, { game: "ez2", issue: "EZ2-20261010-3", no: "TKT20261010011020", date: "2026-10-10", name: "Diego Ramos", gross: 4500 }]).filter((r) => rfPass("tax", r.game, r.issue, r.date)).sort((a, b) => b.date.localeCompare(a.date));
   const tt = rows.map((r) => Object.assign({}, r, taxOf(r.gross)));
   if (opsTotalsOnly()) return `<div class="banner" data-j14="tax-totals">${z("Operations sees the period totals only: no per-ticket detail, no personal data and no export. Finance review and Compliance audit see the ticket list and can export.", "运营专员只看期间合计：看不到逐票明细和个人信息，不能导出；财务复核、合规审计可看逐票明细并导出。")}</div>${rfBar("tax")}${table([z("Paid tickets", "已兑付票数"), z("Prize Pre-Tax", "税前奖金"), z("Withholding Tax", "预扣税"), z("Net Amount", "净额")], [`<tr style="font-weight:700"><td class="mono">${tt.length}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.gross, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.tax, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.net, 0))}</td></tr>`])}`;
-  return `<div class="banner">${z("One row per paid ticket. Offline claims use the cheque registration date; auto-credits use the credit date. The TIN column shows the TIN collected at registration in plain text (an exception to the masking rule: this report is open to Finance review and Compliance audit only); - when none was collected. Includes personal data: only Finance review and Compliance audit can export; Operations sees totals only.", "每张已兑付票一行；线下兑付按付款登记日，自动入账按入账日；TIN 列显示注册时采集的税号明文（掩码规则的例外：本报告只开放给财务复核、合规审计），未采集显示 -；含个人信息，仅财务复核、合规审计可导出。")}</div>${rfBar("tax")}${table([z("Game", "游戏"), z("Draw", "期号"), z("Ticket Number", "票号"), z("Paid Date", "兑付日"), z("Player Name", "玩家姓名"), "TIN", z("Prize Pre-Tax", "税前奖金"), z("Withholding Tax", "预扣税"), z("Net Amount", "净额")],
-    tt.map((r) => `<tr><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.no}</td><td class="mono">${r.date}</td><td>${esc(r.name)}</td><td class="mono" data-tin="1">${FT_TIN[r.no] || "-"}</td><td class="mono amt">${peso(r.gross)}</td><td class="mono amt">${peso(r.tax)}</td><td class="mono amt">${peso(r.net)}</td></tr>`).concat(tt.length ? [`<tr style="font-weight:700"><td colspan="6">${z("Total", "合计")}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.gross, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.tax, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.net, 0))}</td></tr>`] : []))}`;
+  return `<div class="banner">${z("One row per paid ticket. Paid Time is the date and time to the second (UTC+8): offline claims use the cheque registration time; auto-credits use the credit time. The TIN column shows the TIN collected at registration in plain text (an exception to the masking rule: this report is open to Finance review and Compliance audit only); - when none was collected. Includes personal data: only Finance review and Compliance audit can export; Operations sees totals only.", "每张已兑付票一行；兑付时间精确到秒（UTC+8），线下兑付按付款登记时间，自动入账按入账时间；TIN 列显示注册时采集的税号明文（掩码规则的例外：本报告只开放给财务复核、合规审计），未采集显示 -；含个人信息，仅财务复核、合规审计可导出。")}</div>${rfBar("tax")}${table([z("Game", "游戏"), z("Draw", "期号"), z("Ticket Number", "票号"), z("Paid Time", "兑付时间"), z("Player Name", "玩家姓名"), "TIN", z("Prize Pre-Tax", "税前奖金"), z("Withholding Tax", "预扣税"), z("Net Amount", "净额")],
+    tt.map((r) => `<tr><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.no}</td><td class="mono" data-rx="paid-time">${rxPaidAt(r.no, r.date)}</td><td>${esc(r.name)}</td><td class="mono" data-tin="1">${FT_TIN[r.no] || "-"}</td><td class="mono amt">${peso(r.gross)}</td><td class="mono amt">${peso(r.tax)}</td><td class="mono amt">${peso(r.net)}</td></tr>`).concat(tt.length ? [`<tr style="font-weight:700"><td colspan="6">${z("Total", "合计")}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.gross, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.tax, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.net, 0))}</td></tr>`] : []))}`;
 }
 S.rpf = { kyc: "all", st: "all", from: "", to: "" };
 const DEMO_AGE = [["18–24", 1204], ["25–34", 2871], ["35–44", 2310], ["45–54", 1388], ["55 and over", 7]];
@@ -8520,7 +8521,7 @@ function viewReports0() {
   const vn = `<div class="banner" data-vch="sales-note">${t("销售额按投注金额统计，含投注券抵扣部分；券抵扣额（Voucher Deduction）作为说明项在销售和交易监控口径中注明，不单列报表字段。", "Sales are counted at the bet amount, including the part covered by a bet voucher; Voucher Deduction is shown as a note in the sales and Transaction Monitoring basis, not as a separate report field.")}</div>`;
   if (sv === "draw") return head + sw + vn + viewDrawSales();
   if (sv === "term") return head + sw + vn + viewSalesTerm();
-  return head + sw + vn + viewSales() + regionCard("sales");
+  return head + sw + vn + viewSales() + regionCard("sales") + rxCityCard();
 }
 function adm58Modal2() { if (!S.modal) return ""; if (S.modal.type === "scan") return scanModal(); if (S.modal.type === "tmclose" || S.modal.type === "tmadj") return tmModal(); return ""; }
 function adm58More(act, id, el, e) {
@@ -8530,7 +8531,7 @@ function adm58More(act, id, el, e) {
     const f = {}; document.querySelectorAll("[data-tkf]").forEach((i) => { f[i.dataset.tkf] = i.value; });
     f.games = [...document.querySelectorAll("[data-tkg]")].filter((i) => i.checked).map((i) => i.dataset.tkg);
     { const e = tkRangeErr(f); if (e) { toast(e); return true; } }
-    if (f.min !== "" && f.max !== "" && Number(f.min) > Number(f.max)) { toast("Prize min cannot exceed prize max."); return true; }
+    if (f.min !== "" && f.max !== "" && Number(f.min) > Number(f.max)) { toast("Amount From cannot exceed Amount To."); return true; }
     S.tk = f; S.tka = Object.assign({}, f); render(); return true;
   }
   if (act === "pp-search") {
@@ -8538,7 +8539,7 @@ function adm58More(act, id, el, e) {
     f.err = ""; if (f.from && f.to && f.from > f.to) f.err = "The start date cannot be later than the end date."; else if (f.from && f.to && A58.span(f.from, f.to) + 1 > 92) f.err = "The date range cannot exceed 92 days.";
     render(); return true;
   }
-  if (act === "tk-reset") { S.tk = { no: "", player: "", games: [], draw: "", st: "all", claim: "all", ttype: "buy", from: A58.addDays(A58.today(), -91), to: A58.today(), min: "", max: "" }; S.tka = Object.assign({}, S.tk); render(); return true; }
+  if (act === "tk-reset") { S.tk = { no: "", player: "", games: [], draw: "", st: "all", claim: "all", ttype: "buy", atype: "win", from: A58.addDays(A58.today(), -91), to: A58.today(), min: "", max: "" }; S.tka = Object.assign({}, S.tk); render(); return true; }
   if (act === "tk-scan") { S.mf = {}; S.scanRes = null; S.modal = { type: "scan" }; render(); return true; }
   if (act === "tk-lookup") {
     const raw = (S.mf.scan || "").trim(); const m = raw.match(/TKT\d+/i);
@@ -8562,7 +8563,7 @@ function adm58More(act, id, el, e) {
     const f = S.tka;
     { const e = tkRangeErr(f); if (e) { toast(e); return true; } }
     const rows = tkFiltered().map(tkRow);
-    adm58Export("tickets", ["Ticket Number", "Bet Order Number", "Player", "Game", "Draw", "Purchased At", "Bet Type", "Bet Region", "Bet Area", "Draw Time", "Status", "Ticket Price", "Purchase Amount", "Prize Pre-Tax", "Net Payout", "Claim Status"], rows, arg, t("交易流水", "Transactions"), "tickets tab");
+    adm58Export("tickets", ["Ticket Number", "Bet Order Number", "Player", "Game", "Draw", "Purchased At", "Bet Type", "Bet Region", "Bet Area", "Draw Time", "Status", "Ticket Price", "Purchase Amount", "Prize Pre-Tax", "Net Payout", "Claim Status"], rows, arg, t("交易流水", "Transactions"), "tickets tab · " + rxTkFilt());
     render(); return true;
   }
   if (act === "rr-pick") {
@@ -9213,6 +9214,7 @@ function onClick(e) {
     if (salesSpanBad()) { toast(SALES_SPAN_MSG); return; }
     const tm = tfv("sales"), lines = [["game", "sales", "Terminal"]].concat(GAME_SALES.map((r) => [gameBy(r.id).zh, tVal(r.sales, "sales", tm), tLab(tm)]));
     const dd = salesDueRows(tm); lines.push([""], ["Sales Date", "Sales", "Refunds", "Total Payout", "Withholding Tax", "VAT", "Documentary Stamp Tax", "Net Due To PCSO"]); dd.rows.concat([dd.total]).forEach((r) => lines.push([r.date, r.sales.toFixed(2), r.refunds.toFixed(2), r.pay.toFixed(2), r.wht.toFixed(2), r.vat.toFixed(2), r.dst.toFixed(2), r.net.toFixed(2)]));
+    rxCityCsv(lines);
     download("ilotto-sales.csv", lines.map((r) => r.join(",")).join("\n"), "text/csv");
     logAudit({ who: actor().who, role: actor().role, mod: t("报表", "Reports"), cat: "Audit", evt: "Export sales", obj: "sales · Terminal: " + tLab(tm) });
     return;
@@ -10368,6 +10370,203 @@ document.addEventListener("click", (e) => {
   }
 }, true);
 /* ===== end RW block ===== */
+/* ===== RX block (batch 18 · admin): X1 city-level sales columns, X2 Forfeitures, X3 Daily Paid, X4 Paid Time, X5 ticket filters, X6 deposit/withdrawal filters ===== */
+S.rx = { pz: "overview", fb: "eff", city: "all",
+  dep: { order: "", from: "", to: "", min: "", max: "", by: "req", chs: [] },
+  wd: { order: "", from: "", to: "", min: "", max: "", by: "req", chs: [] } };
+const RX_THR = 300000; /* prizes above this are claimed at PCSO and can expire; at or below it they are credited after the draw */
+const RX_CH = [["GCash", "GCash"], ["Maya", "Maya"], ["银行卡", "Bank card"]];
+function rxFmt(v) { return (v < 0 ? "-" : "") + peso2(Math.abs(v)); }
+const rxR2 = (v) => Math.round(v * 100) / 100;
+function rxHash(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+function rxAdd(dt, m) { const d = new Date(Date.parse(dt.replace(" ", "T") + ":00+08:00") + m * 60000 + 8 * 3600000); return d.toISOString().slice(0, 16).replace("T", " "); }
+function rxDays(a, b) { const out = []; for (let d = a; d <= b && out.length < 400; d = A58.addDays(d, 1)) out.push(d); return out; }
+function rxDemoTag() { return tag("muted", z("Demo data", "演示数据")); }
+
+/* ---------- X1 (805): Payout, Tax Of Winnings, Net Payout, Net Due To PCSO ---------- */
+function rxMoney(sales, key) { /* demo split of a sales figure: payout rate 36-50 % by key, tax 4 % of payout, refunds 0.12 % of sales */
+  const rate = 0.36 + (rxHash(key) % 15) / 100;
+  const payout = rxR2(sales * rate), tax = rxR2(payout * 0.04), net = rxR2(payout - tax), refunds = rxR2(sales * 0.0012);
+  return { sales, payout, tax, net, due: rxR2(sales - refunds - net) };
+}
+function rxGameCells(id, sales) {
+  const m = rxMoney(sales, id);
+  return `<td class="mono amt" data-rx="g-payout">${peso2(m.payout)}</td><td class="mono amt" data-rx="g-tax">${peso2(m.tax)}</td><td class="mono amt" data-rx="g-net">${peso2(m.net)}</td><td class="mono amt" data-rx="g-due">${rxFmt(m.due)}</td>`;
+}
+function rxCityRows() {
+  const total = tVal(148260000 * periodFactor(), "sales", tfv("sales"));
+  const vals = rgSplit(Math.round(total), REGIONS.map((r) => r[1])), out = [];
+  REGIONS.forEach((r, i) => {
+    const prov = PSGC[r[0]]; if (!prov) return;
+    const pv = rgSplit(vals[i], prov.map((p) => p[2]));
+    prov.forEach((p, pi) => { const cv = rgSplit(pv[pi], p[1].map((c) => c[1])); p[1].forEach((c, ci) => out.push(Object.assign({ prov: p[0], city: c[0] }, rxMoney(cv[ci], c[0])))); });
+  });
+  return out;
+}
+function rxCityShown() { const all = rxCityRows(); return S.rx.city === "all" ? all : all.filter((r) => r.city === S.rx.city); }
+function rxCityTotal(rows) { const s = (k) => rxR2(rows.reduce((a, r) => a + r[k], 0)); return { sales: s("sales"), payout: s("payout"), tax: s("tax"), net: s("net"), due: s("due") }; }
+function rxCityCard() {
+  const rows = rxCityShown(), tt = rxCityTotal(rows), all = rxCityRows();
+  const tr = (r) => `<tr data-rx="city-row" data-city="${esc(r.city)}"><td>${esc(r.prov)}</td><td>${esc(r.city)}</td><td class="mono" data-rx="code"></td><td class="mono amt">${peso2(r.sales)}</td><td class="mono amt">${peso2(r.payout)}</td><td class="mono amt">${peso2(r.tax)}</td><td class="mono amt">${peso2(r.net)}</td><td class="mono amt" data-rx="due">${rxFmt(r.due)}</td></tr>`;
+  const totRow = rows.length ? `<tr data-rx="city-total" style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${z("Total", "合计")}</td><td class="mono amt">${peso2(tt.sales)}</td><td class="mono amt">${peso2(tt.payout)}</td><td class="mono amt">${peso2(tt.tax)}</td><td class="mono amt">${peso2(tt.net)}</td><td class="mono amt" data-rx="due">${rxFmt(tt.due)}</td></tr>` : "";
+  return `<div class="card" data-rx="city-card"><h4>${z("By city / municipality", "按市 / 自治市")} ${rxDemoTag()}</h4>
+    <div class="tools" style="margin-bottom:8px"><label class="f">${z("City/Municipality", "市 / 自治市")}<select data-rx-f="city"><option value="all">${z("All", "全部")}</option>${all.map((r) => `<option value="${esc(r.city)}" ${S.rx.city === r.city ? "selected" : ""}>${esc(r.city)}</option>`).join("")}</select></label></div>
+    ${table(["Province", "City/Municipality", "Code", "Sales Amount", "Payout", "Tax Of Winnings", "Net Payout", "Net Due To PCSO"], rows.map(tr).concat([totRow]))}
+    <p class="tiny" data-rx="city-note">${z("Payout is the pre-tax prize, Tax Of Winnings the withholding tax, Net Payout = Payout − Tax Of Winnings. Net Due To PCSO = Sales Amount − Refunds − Net Payout; it can be negative and is shown with a minus sign. Payout, tax and net payout follow the bet location of the winning ticket and the payment date (same basis as the daily reconciliation). Code is the PCSO area code and stays empty until the code table is available. Shows the cities of the regions that have a breakdown; the Total row adds up the rows shown.", "Payout 为税前奖金，Tax Of Winnings 为预扣税，Net Payout = Payout − Tax Of Winnings；Net Due To PCSO = Sales Amount − Refunds − Net Payout，可为负，带负号。Payout、税和净奖金按中奖票的投注地和付款当日归属（同每日对账口径）。Code 为 PCSO 区域代码，代码表到位前留空。只列有下钻的大区的市；合计行为所列各行之和。")}</p></div>`;
+}
+function rxCityCsv(lines) {
+  const rows = rxCityShown(), tt = rxCityTotal(rows); lines.push([""], ["Province", "City/Municipality", "Code", "Sales Amount", "Payout", "Tax Of Winnings", "Net Payout", "Net Due To PCSO"]);
+  rows.forEach((r) => lines.push([r.prov, r.city, "", r.sales.toFixed(2), r.payout.toFixed(2), r.tax.toFixed(2), r.net.toFixed(2), r.due.toFixed(2)]));
+  lines.push(["Total", "", "", tt.sales.toFixed(2), tt.payout.toFixed(2), tt.tax.toFixed(2), tt.net.toFixed(2), tt.due.toFixed(2)]);
+}
+
+/* ---------- X2 (806) Forfeitures and X3 (807) Daily Paid ---------- */
+const RX_FORF_DEMO = [ /* Demo data: prizes above the threshold that passed their claim deadline in October 2026 */
+  { game: "u658", issue: "L658-20251003-1", draw: "2025-10-03", deadline: "2026-10-04", amt: 1850000 },
+  { game: "g655", issue: "L655-20251008-2", draw: "2025-10-08", deadline: "2026-10-09", amt: 620000 },
+  { game: "m645", issue: "L645-20251008-1", draw: "2025-10-08", deadline: "2026-10-09", amt: 380000 },
+  { game: "s649", issue: "L649-20251017-1", draw: "2025-10-17", deadline: "2026-10-18", amt: 410000 },
+  { game: "u658", issue: "L658-20251020-2", draw: "2025-10-20", deadline: "2026-10-21", amt: 2250000 }
+];
+function rxForfItems() { return foRows().concat(RX_FORF_DEMO).filter((r) => r.amt > RX_THR).map((r) => ({ game: r.game, issue: r.issue, draw: r.draw, eff: A58.addDays(r.deadline, 1), amt: r.amt })); }
+function rxForfMatrix() {
+  const items = rxForfItems(), key = S.rx.fb === "draw" ? "draw" : "eff", days = rxDays(S.rr.from, S.rr.to);
+  const rows = days.map((d) => { const cells = GAMES.map((g) => rxR2(items.filter((x) => x[key] === d && x.game === g.id).reduce((s, x) => s + x.amt, 0))); return { d, cells, tot: rxR2(cells.reduce((a, b) => a + b, 0)) }; });
+  const cols = GAMES.map((g, i) => rxR2(rows.reduce((a, r) => a + r.cells[i], 0)));
+  return { rows, cols, tot: rxR2(cols.reduce((a, b) => a + b, 0)) };
+}
+function rxPaidMatrix() {
+  const src = prizePayRows(), days = rxDays(S.rr.from, S.rr.to);
+  const rows = days.map((d) => { const cells = GAMES.map((g) => rxR2(src.filter((x) => x.at.slice(0, 10) === d && x.game === g.id).reduce((s, x) => s + x.gross, 0))); return { d, cells, tot: rxR2(cells.reduce((a, b) => a + b, 0)) }; });
+  const cols = GAMES.map((g, i) => rxR2(rows.reduce((a, r) => a + r.cells[i], 0)));
+  return { rows, cols, tot: rxR2(cols.reduce((a, b) => a + b, 0)) };
+}
+function rxMatrixTable(m, kind) {
+  const heads = ["Date"].concat(GAMES.map((g) => gname(g)), [kind === "forf" ? "Grand Total" : "Total"]);
+  const body = m.rows.map((r) => `<tr data-rx="${kind}-row" data-date="${r.d}"><td class="mono">${r.d}</td>${r.cells.map((v, i) => `<td class="mono amt" data-game="${GAMES[i].id}">${peso2(v)}</td>`).join("")}<td class="mono amt" data-rx="row-total">${peso2(r.tot)}</td></tr>`);
+  body.push(`<tr data-rx="${kind}-total" style="font-weight:700;background:rgba(255,255,255,.05)"><td>${kind === "forf" ? z("Total", "合计") : "TOTAL"}</td>${m.cols.map((v) => `<td class="mono amt">${peso2(v)}</td>`).join("")}<td class="mono amt" data-rx="grand">${peso2(m.tot)}</td></tr>`);
+  return table(heads, body);
+}
+function rxPzTabs() {
+  return `<div class="tabs" data-rx="pz-sub" style="margin-bottom:10px">${[["overview", "概览", "Overview"], ["forf", "没收奖金", "Forfeitures"], ["dpaid", "每日派彩", "Daily Paid"]].map(([k, zh, en]) => `<button type="button" data-rx-act="pz-sub" data-arg="${k}" class="${S.rx.pz === k ? "on" : ""}">${t(zh, en)}</button>`).join("")}</div>`;
+}
+(function () {
+  const v0 = viewPrizeHub;
+  viewPrizeHub = function (head) {
+    if (S.rx.pz === "overview") return v0(head + rxPzTabs());
+    const forf = S.rx.pz === "forf", demo = `<span class="pz-demo" data-rx="demo">${rxDemoTag()}</span>`;
+    const extra = forf ? `<button type="button" class="btn btn-sm ${S.rx.fb === "draw" ? "btn-primary" : ""}" data-rx-act="forf-basis" data-rx="forf-drawdate" aria-pressed="${S.rx.fb === "draw"}">Draw Date</button>` : "";
+    const m = forf ? rxForfMatrix() : rxPaidMatrix(), span = A58.span(S.rr.from, S.rr.to) + 1;
+    const note = forf
+      ? z(`Forfeited prize = a prize above ₱${RX_THR.toLocaleString("en-US")} that passed its claim deadline unclaimed (pre-tax). Prizes at or below the threshold are credited automatically after the draw and never expire, so days without a big prize show 0.00. Forfeited prizes go to PCSO. Date basis: ${S.rx.fb === "draw" ? "Draw Date" : "the day the forfeiture takes effect (the day after the claim deadline)"}. Pick Draw Date to switch the basis. Demo data.`, `没收奖金 = 超过兑奖截止日仍未领取的大于 ₱${RX_THR.toLocaleString("en-US")} 的奖金（税前）；小于等于阈值的奖金开奖后自动入账、没有逾期，所以没有大奖的日子为 0.00；没收奖金归 PCSO；日期口径：${S.rx.fb === "draw" ? "开奖日" : "作废生效日（兑奖截止日次日）"}，点 Draw Date 切换口径。演示数据。`)
+      : z("Gross Payout is the pre-tax prize paid out per day and game. Date basis is the payment day: auto-credits by credit day, offline payments by payment registration day. Built from the demo paid prizes. Export is detail rows only, without the TOTAL row.", "Gross Payout 为按日、按游戏的税前毛奖金；日期口径为付款日：自动入账按入账日，线下兑付按付款登记日；取自演示的已兑付奖金；导出只含明细行，不含 TOTAL 行。");
+    return head + rxPzTabs() + demo + rangeBar({ lock: false, menu: true, extra }) +
+      `<div class="card" data-rx="${forf ? "forf" : "dpaid"}-card"><h4>${forf ? "Forfeitures" : "Daily Paid"} <span class="tiny">${forf ? z("Forfeited prizes (pre-tax) by day and game", "按日、按游戏的没收奖金（税前）") : z("Gross Payout (pre-tax) by day and game", "按日、按游戏的 Gross Payout（税前）")}</span></h4>${span > 366 ? `<div class="banner amber" data-rx="span">${z("Show up to 366 days at a time.", "一次最多显示 366 天。")}</div>` : ""}${rxMatrixTable(m, forf ? "forf" : "paid")}<p class="tiny" data-rx="note">${note}</p></div>`;
+  };
+})();
+
+/* ---------- X6 (810) deposit and withdrawal filters ---------- */
+function rxDigits(s) { return String(s || "").replace(/\D/g, ""); }
+function rxOrderNo(kind, d) { return (kind === "dep" ? "DO" : "WO") + String(d.time).slice(0, 10).replace(/-/g, "") + rxDigits(d.ref).slice(-6).padStart(6, "0"); }
+function rxDepAt(d) { return d.st === "ok" ? rxAdd(d.time, 1 + (rxHash(d.ref) % 4)) : ""; }
+function rxWdPaidAt(d) { return d.st === "paid" ? rxAdd(d.time, 5 + (rxHash(d.ref) % 20)) : ""; }
+function rxDwRows(kind) {
+  const f = S.rx[kind], Q = S.txnQ[kind] || "all";
+  return (kind === "dep" ? S.deposits : S.withdraws).filter((d) => {
+    if (Q !== "all" && d.st !== Q) return false;
+    if (f.order && rxOrderNo(kind, d).toLowerCase().indexOf(f.order.trim().toLowerCase()) < 0) return false;
+    if (f.chs.length && f.chs.indexOf(d.ch) < 0) return false;
+    if (f.min !== "" && d.amt < Number(f.min)) return false;
+    if (f.max !== "" && d.amt > Number(f.max)) return false;
+    if (f.from || f.to) {
+      const tm = f.by === "req" ? d.time : (kind === "dep" ? rxDepAt(d) : rxWdPaidAt(d)); if (!tm) return false;
+      const day = tm.slice(0, 10); if (f.from && day < f.from) return false; if (f.to && day > f.to) return false;
+    }
+    return true;
+  });
+}
+function rxDwFilter(kind) {
+  const f = S.rx[kind], dep = kind === "dep";
+  const by = dep ? [["req", "Request Time"], ["dep", "Deposited Time"]] : [["req", "Request Time"], ["paid", "Paid Date"]];
+  const chs = `<details class="f" style="position:relative"><summary class="btn btn-sm" style="list-style:none;cursor:pointer" data-rx="ch-sum">${z("Channel Name", "支付渠道")}: ${f.chs.length ? f.chs.length + " selected" : "All"}</summary><div class="card" style="position:absolute;z-index:5;min-width:180px;padding:8px">${RX_CH.map(([v, l]) => `<label style="display:block;font-size:12px"><input type="checkbox" data-rx-ch="${esc(v)}" ${f.chs.indexOf(v) >= 0 ? "checked" : ""}/> ${l}</label>`).join("")}</div></details>`;
+  return `<div class="card" data-rx="dw-filter" data-tab="${kind}" style="margin-bottom:12px"><div class="tools">
+    <label class="f">${z("Order Number", "支付订单号")}<input data-rxf="order" value="${esc(f.order)}" placeholder="${dep ? "DO20261010910221" : "WO20261010330912"}" /></label>
+    <label class="f">${z("Search By", "搜索时间类型")}<select data-rxf="by">${by.map(([v, l]) => `<option value="${v}" ${f.by === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+    <label class="f">${z("From", "开始")}<input type="date" data-rxf="from" value="${f.from}" /></label><label class="f">${z("To", "结束")}<input type="date" data-rxf="to" value="${f.to}" /></label>
+    <label class="f">${z("Amount From", "金额从")}<input type="number" data-rxf="min" value="${f.min}" style="min-width:100px" /></label><label class="f">${z("Amount To", "金额到")}<input type="number" data-rxf="max" value="${f.max}" style="min-width:100px" /></label>
+    <div><label class="f">${z("Channel Name", "支付渠道")}</label>${chs}</div>
+    <button type="button" class="btn btn-primary btn-sm" data-rx-act="dw-search" data-arg="${kind}">${z("Search", "搜索")}</button><button type="button" class="btn btn-sm" data-rx-act="dw-reset" data-arg="${kind}">${z("Reset", "重置")}</button></div>
+    <p class="tiny" data-rx="dw-note">${dep
+      ? z("Request Time is the Time column, Request Amount is Order Amount; Deposited Time and Credited Amount show when the money arrived. Amount From/To applies to the order amount. Order Number is the payment order number, searched separately from the Transaction Id.", "Request Time 即 Time 列，Request Amount 即 Order Amount；Deposited Time 和 Credited Amount 为到账时间和金额；Amount From/To 按下单金额；Order Number 为支付订单号，和流水号分开搜。")
+      : z("Request Time is the Time column and Request Amount is the Amount column. Paid Date and Paid Amount show when and how much was paid out. Amount From/To applies to the request amount. Pending Payment is the Processing status. Order Number is the payment order number, searched separately from the Transaction Id.", "Request Time 即 Time 列，Request Amount 即 Amount 列；Paid Date、Paid Amount 为付款时间和金额；Amount From/To 按申请金额；Pending Payment 即处理中状态；Order Number 为支付订单号，和流水号分开搜。")}</p></div>`;
+}
+function rcDeposits() {
+  const rows = rxDwRows("dep");
+  return txExpBar() + `<div class="banner">${z("Minimum deposit is ₱20", "最低充值 ₱20")} · Minimum withdrawal is ₱100. A deposit below ₱20 is refused with: Minimum deposit is ₱20</div>${rxDwFilter("dep")}<div class="tabs" style="margin-bottom:12px">${txnChip("dep", "all", "全部", "All")}${txnChip("dep", "ok", "成功", "Success")}${txnChip("dep", "pending", "处理中", "Processing")}${txnChip("dep", "fail", "失败", "Failed")}</div>
+    <p class="tiny" style="margin:-4px 0 10px" data-x13="dep-note">${z("Order Amount counts toward the PlaySafe deposit limits. Credited Amount is what actually arrived (some channels add a few pesos as a random tail, at most ₱0.99) and is used for crediting and reconciliation; it shows - when nothing arrived.", "下单金额用于理性购彩充值累计；到账金额（Credited Amount）是实际到账金额（部分渠道加几比索以内的随机尾数），入账与对账以它为准；未到账显示 -。")}</p>
+    ${table([z("Transaction Id", "流水号"), z("Request Time", "请求时间"), z("Player Id", "玩家ID"), z("Payment Channel", "支付渠道"), z("Order Amount", "下单金额"), z("Credited Amount", "到账金额"), z("Status", "状态"), z("Reference", "参考号"), z("Order Number", "支付订单号"), z("Deposited Time", "到账时间"), ""],
+      rows.map((d) => { const c = rcCredited(d), tx = rcTxnId(d), at = rxDepAt(d); return `<tr data-rx="dep-row"><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? z("Bank card", "银行卡") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt" data-x13="credited">${c == null ? "-" : peso2(c)}</td><td>${depTag(d.st)}</td><td class="mono">${d.ref}</td><td class="mono" data-rx="order-no">${rxOrderNo("dep", d)}</td><td class="mono" data-rx="paid-at">${at ? at + " UTC+8" : "-"}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }))}`;
+}
+function rcWithdrawals() {
+  const rows = rxDwRows("wd"), mode = a2Gp("wappr.mode");
+  return txExpBar() + `<div class="banner" data-rv="wd-note">${t("提现记录有待复核、处理中、已到账、已拒绝四种状态。", "A withdrawal is Pending Review, Processing, Paid or Rejected.")} Pending Review appears only when Withdrawal Approval Mode is Manual Above Threshold and the amount is at or above the Withdrawal Review Threshold. A lock sits on the account, not as a fifth status. A failed MFA is recorded as rejected. After MFA passes, a request that needs no review is paid out through the payment gateway call-back. <b data-rv="wd-mode">Withdrawal Approval Mode: ${esc(mode)} · Withdrawal Review Threshold: ${esc(a2Gp("wappr.thr"))}</b></div>
+    ${rvWdQueue()}${rvWdSim()}${rxDwFilter("wd")}
+    <div class="tabs" data-rx="wd-sub" style="margin-bottom:12px">${txnChip("wd", "all", "全部", "All Withdraw")}${txnChip("wd", "review", "待复核", "Pending Review")}${txnChip("wd", "pending", "处理中", "Pending Payment")}${txnChip("wd", "paid", "已到账", "Paid")}${txnChip("wd", "rejected", "已拒绝", "Rejected")}</div>
+    ${table([z("Transaction Id", "流水号"), z("Request Time", "请求时间"), z("Player Id", "玩家ID"), z("Destination", "目的地"), z("Request Amount", "申请金额"), z("Primary Account", "主账户"), z("MFA Method", "MFA 方式"), z("MFA Result", "MFA 结果"), t("状态", "Status"), t("说明", "Note"), z("Order Number", "支付订单号"), z("Paid Date", "付款日期"), z("Paid Amount", "付款金额"), ""],
+      rows.map((d) => { const tx = rcTxnId(d), pa = rxWdPaidAt(d); return `<tr class="${d.locked ? "alert" : ""}" data-rv="wd-row" data-ref="${d.ref}"><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td>${z("Yes", "是")}</td><td>SMS OTP</td><td>${d.mfa === "ok" ? tag("ok", t("通过", "Passed")) : tag("rose", t("失败", "Failed"))}</td><td>${wdTag(d.st)}</td><td data-rv="wd-note-cell">${rvWdNote(d)}</td><td class="mono" data-rx="order-no">${rxOrderNo("wd", d)}</td><td class="mono" data-rx="paid-date">${pa ? pa + " UTC+8" : "-"}</td><td class="mono amt" data-rx="paid-amt">${pa ? peso2(d.amt) : "-"}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }))}`;
+}
+function rxDwExport(arg) {
+  if (["ops", "finance", "compliance"].indexOf(myRole()) < 0) { toast("Your role cannot export transactions."); return; }
+  const k = S.tab.txn, dep = k === "dep", f = S.rx[k], rows = rxDwRows(k), Q = S.txnQ[k] || "all";
+  const heads = dep ? ["Transaction Id", "Request Time", "Player Id", "Payment Channel", "Order Amount", "Credited Amount", "Status", "Reference", "Order Number", "Deposited Time"]
+    : ["Transaction Id", "Request Time", "Player Id", "Destination", "Request Amount", "Primary Account", "MFA Method", "MFA Result", "Status", "Locked", "Order Number", "Paid Date", "Paid Amount"];
+  const body = rows.map((d) => dep ? [rcTxnId(d), d.time, d.player, d.ch, d.amt, rcCredited(d) == null ? "-" : rcCredited(d), d.st, d.ref, rxOrderNo("dep", d), rxDepAt(d)]
+    : [rcTxnId(d), d.time, d.player, d.ch, d.amt, "Yes", "SMS OTP", d.mfa, d.st, d.locked ? "Yes" : "No", rxOrderNo("wd", d), rxWdPaidAt(d), rxWdPaidAt(d) ? d.amt : "-"]);
+  const by = { req: "Request Time", dep: "Deposited Time", paid: "Paid Date" }[f.by];
+  adm58Export(dep ? "deposits" : "withdrawals", heads, body, arg, t("交易流水", "Transactions"), `${k} tab · status ${Q} · Search By ${by} ${f.from || "…"} to ${f.to || "…"} · Order Number ${f.order || "any"} · Amount ${f.min || "…"} to ${f.max || "…"} · Channel ${f.chs.join("/") || "all"}`);
+  render();
+}
+
+/* ---------- X4 (808) Paid Time in the Final Tax report ---------- */
+function rxPaidAt(no, date) { const h = rxHash(no); const p = (n) => String(n).padStart(2, "0"); return `${date} ${p(9 + (h % 9))}:${p((h >>> 4) % 60)}:${p((h >>> 9) % 60)}`; }
+
+/* ---------- X5 (809) summary of the ticket filters for the export audit ---------- */
+function rxTkFilt() { const f = S.tka; return `Search By ${f.ttype === "draw" ? "Draw Time" : "Bet Time"} ${f.from || "…"} to ${f.to || "…"} · Amount Type ${f.atype === "buy" ? "Purchase Amount" : "Win Amount"} ${f.min === "" ? "…" : f.min} to ${f.max === "" ? "…" : f.max}`; }
+
+/* ---------- events ---------- */
+window.addEventListener("click", (e) => {
+  const el = e.target.closest && e.target.closest("[data-act=tx-export],[data-act=rr-export],[data-rx-act]"); if (!el) return;
+  if (el.dataset.act === "tx-export") {
+    if (S.tab.txn !== "dep" && S.tab.txn !== "wd") return;
+    e.stopImmediatePropagation(); rxDwExport(el.dataset.arg); return;
+  }
+  if (el.dataset.act === "rr-export") {
+    if (S.page !== "reports" || S.tab.report !== "prize" || S.rx.pz === "overview") return;
+    e.stopImmediatePropagation();
+    if (A58.span(S.rr.from, S.rr.to) + 1 > 92) { toast("The date span cannot exceed 92 days for this export."); return; }
+    const forf = S.rx.pz === "forf", m = forf ? rxForfMatrix() : rxPaidMatrix();
+    const heads = ["Date"].concat(GAMES.map((g) => gname(g)), [forf ? "Grand Total" : "Total"]);
+    const body = m.rows.map((r) => [r.d].concat(r.cells.map((v) => v.toFixed(2)), [r.tot.toFixed(2)]));
+    adm58Export(forf ? "forfeitures" : "daily-paid", heads, body, el.dataset.arg, t("报表", "Reports"), forf ? `${S.rr.from} to ${S.rr.to} (${S.rx.fb === "draw" ? "draw date" : "effective date"})` : `${S.rr.from} to ${S.rr.to} (payment date)`);
+    render(); return;
+  }
+  const a = el.dataset.rxAct;
+  if (a === "pz-sub") { e.stopImmediatePropagation(); S.rx.pz = el.dataset.arg; if (S.rx.pz !== "overview") { const r = rrRange("month"); S.rr.key = "month"; S.rr.from = r[0]; S.rr.to = r[1]; S.rx.fb = "eff"; } render(); return; }
+  if (a === "forf-basis") { e.stopImmediatePropagation(); S.rx.fb = S.rx.fb === "draw" ? "eff" : "draw"; render(); return; }
+  if (a === "dw-reset") { e.stopImmediatePropagation(); S.rx[el.dataset.arg] = { order: "", from: "", to: "", min: "", max: "", by: "req", chs: [] }; render(); return; }
+  if (a === "dw-search") {
+    e.stopImmediatePropagation(); const k = el.dataset.arg, box = el.closest("[data-rx=dw-filter]"), f = {};
+    box.querySelectorAll("[data-rxf]").forEach((i) => { f[i.dataset.rxf] = i.value; });
+    f.chs = [...box.querySelectorAll("[data-rx-ch]")].filter((i) => i.checked).map((i) => i.dataset.rxCh);
+    if (f.from && f.to && f.from > f.to) { toast("The start date cannot be later than the end date."); return; }
+    if (f.min !== "" && f.max !== "" && Number(f.min) > Number(f.max)) { toast("Amount From cannot exceed Amount To."); return; }
+    S.rx[k] = f; render();
+  }
+}, true);
+window.addEventListener("change", (e) => {
+  const el = e.target; if (el.dataset && el.dataset.rxF === "city") { S.rx.city = el.value; render(); }
+}, true);
+/* ===== end RX block ===== */
 
 </script>
 <!--SKIN:START-->
