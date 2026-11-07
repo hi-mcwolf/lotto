@@ -1430,7 +1430,7 @@ function dsLiveRows() { /* 6.11.6 / appendix A 763: draws on sale (Live) and clo
 function dsLiveNote() {
   const l = dsLive(); if (!l.length) return "";
   const live = l.filter((i) => i.st === "sale");
-  return `<p class="tiny" data-ds="live-note">${live.length ? `<b class="mono" data-ds="asof">As of ${live.map(btAsof).sort().pop()}</b> · ` : ""}${z("Draws on sale (marked Live) and closed draws are listed first. A Live row updates on Refresh; once the draw is closed its figures are fixed. Only the game filter applies to these rows, and they are not part of the range total. Demo data.", "销售中（带 Live 标记）和已封盘的期次列在最前面；Live 行点刷新更新，封盘后数字固化。这些行只受游戏筛选，不计入所选范围合计。演示数据。")}</p>`;
+  return `<p class="tiny" data-ds="live-note">${z("Draws on sale (marked Live) and closed draws are listed first. A Live row updates on Refresh; once the draw is closed its figures are fixed. Only the game filter applies to these rows, and they are not part of the range total. Demo data.", "销售中（带 Live 标记）和已封盘的期次列在最前面；Live 行点刷新更新，封盘后数字固化。这些行只受游戏筛选，不计入所选范围合计。演示数据。")}</p>`;
 }
 const ND_EFF_ERR = "The effective time must not be later than the start of the first matching date.";
 function ndFirstHit(nd, eff) { /* first matching date: range = start date; weekly = first such weekday on or after the effective date */
@@ -2968,7 +2968,7 @@ function txnChip(group, id, zh, en) {
 }
 function depTag(st) {
   if (st === "ok") return tag("ok", t("成功", "Success"));
-  if (st === "pending") return tag("warn", t("处理中", "Processing"));
+  if (st === "pending") return tag("warn", t("处理中", "Pending"));
   return tag("rose", t("失败", "Failed"));
 }
 function wdTag(st) {
@@ -3289,7 +3289,7 @@ function viewSales0() {
       <article class="kpi"><div class="lbl">${t("人均投注", "Stake per player")}</div><div class="num" style="font-size:22px">₱380.53</div><div class="subl">${delta(1.8)}</div></article>
     </div>
     <div class="card"><h4>${t("销售趋势", "Sales trend")}</h4>${lineChart(TREND[S.salesGrain].map((v) => v * sc * tfc), labels)}<p class="tiny">${t("金额单位：百万比索。", "Amounts in millions of pesos.")}</p></div>
-    <div class="card"><h4>${t("按游戏", "By game")}</h4>${table([t("游戏", "Game"), t("销售额", "Sales"), t("占比", "Share"), t("出票数", "Tickets"), t("投注玩家", "Players"), t("环比", "Change"), "Payout", "Tax Of Winnings", "Net Payout", "Net Due To PCSO"], games)}<p class="tiny" data-rx="game-note">${z("Payout, Tax Of Winnings, Net Payout and Net Due To PCSO use the same basis as the city table (bet location of the winning ticket, payment date); Net Payout = Payout − Tax Of Winnings and Net Due To PCSO = Sales − Refunds − Net Payout, negative with a minus sign.", "Payout、Tax Of Winnings、Net Payout、Net Due To PCSO 口径同按市表（中奖票投注地、付款当日）；Net Payout = Payout − Tax Of Winnings，Net Due To PCSO = Sales − Refunds − Net Payout，为负时带负号。")} ${tag("muted", t("演示数据", "Demo data"))}</p></div>
+    <div class="card"><h4>${t("按游戏", "By game")}</h4>${table([t("游戏", "Game"), t("销售额", "Sales"), t("占比", "Share"), t("出票数", "Tickets"), t("投注玩家", "Players"), t("环比", "Change"), "Payout", "Tax Of Winnings", "Net Payout", "Net Due To PCSO"], games)}<p class="tiny" data-rx="game-note">${z("Payout, Tax Of Winnings and Net Payout include counter (offline) payouts and follow the payment date, the same basis as the nationwide city table; Net Payout = Payout − Tax Of Winnings. Net Due To PCSO = Sales − Refunds − the Net Payout credited automatically, negative with a minus sign, so a row\u2019s Net Due is not Sales − Refunds − its Net Payout column. <span data-ry='foot'>Net Due To PCSO deducts only prizes credited automatically; counter payouts are paid by PCSO.</span>", "Payout、Tax Of Winnings、Net Payout 含线下（柜台）兑付，按付款当日，口径同全国按市表；Net Payout = Payout − Tax Of Winnings；Net Due To PCSO = Sales − Refunds − 自动入账部分的 Net Payout，为负时带负号，故行内 Net Due 不等于 Sales − Refunds − 该行 Net Payout。")} ${tag("muted", t("演示数据", "Demo data"))}</p></div>
     <div class="card"><h4>${t("按玩法", "By play type")}</h4><p class="tiny">${t("玩法指 Straight / Rambolito 这类数字类投注方式。不按渠道。地域细分一期不做。", "Play type means Straight / Rambolito and the other digit bets. There is no channel split.")} ${tag("muted", t("[二期]", "[Phase 2]"))}</p>${table([t("玩法", "Play"), t("销售额", "Sales"), t("占比", "Share"), t("平均每单", "Average slip"), t("说明", "Note")], plays)}</div>
     <div class="card" data-sales="due"><h4>${t("税务与应缴 PCSO（按销售日）", "Tax and Net Due To PCSO (by sales date)")} ${tag("muted", t("演示数据", "Demo data"))}</h4>${table([t("销售日", "Sales Date"), t("销售额", "Sales"), t("退款", "Refunds"), t("净派奖", "Total Payout"), t("预扣税", "Withholding Tax"), "VAT", t("印花税", "Documentary Stamp Tax"), "Net Due To PCSO"], (() => { const d = salesDueRows(tm), tr = (o, b) => `<tr data-due="${o.date}" ${b ? 'style="font-weight:700;background:rgba(255,255,255,.05)"' : ""}><td class="mono">${o.date}</td><td class="mono amt">${rcFmtP(o.sales)}</td><td class="mono amt">${rcFmtP(o.refunds)}</td><td class="mono amt">${rcFmtP(o.pay)}</td><td class="mono amt">${rcFmtP(o.wht)}</td><td class="mono amt">${rcFmtP(o.vat)}</td><td class="mono amt">${rcFmtP(o.dst)}</td><td class="mono amt" data-c="net">${rcFmtP(o.net)}</td></tr>`; return d.rows.map((r) => tr(r)).concat([tr(d.total, true)]); })())}<p class="tiny">${t("应缴 PCSO 净额 = 销售额 − 退款 − 净派奖，合计行为各行之和；派奖大于销售时显示负数。以上金额为演示数。", "Net Due To PCSO = Sales − Refunds − Total Payout, and the total row is the sum of the rows. When payouts exceed sales the value shows as a negative number. The figures above are demo data.")}</p></div>`;
 }
@@ -6456,7 +6456,7 @@ function rcFlagBtn(player, txn) {
 function rcCredited(d) { return d.st === "ok" ? d.amt + (d.ch === "银行卡" ? 0 : (Number(String(d.ref).slice(-1)) || 0) % 4) : null; }
 function rcDeposits() {
   const rows = S.deposits.filter((d) => S.txnQ.dep === "all" || d.st === S.txnQ.dep);
-  return txExpBar() + `<div class="banner">${z("Minimum deposit is ₱20", "最低充值 ₱20")} · Minimum withdrawal is ₱100. A deposit below ₱20 is refused with: Minimum deposit is ₱20</div><div class="tabs" style="margin-bottom:12px">${txnChip("dep", "all", "全部", "All")}${txnChip("dep", "ok", "成功", "Success")}${txnChip("dep", "pending", "处理中", "Processing")}${txnChip("dep", "fail", "失败", "Failed")}</div>
+  return txExpBar() + `<div class="banner">${z("Minimum deposit is ₱20", "最低充值 ₱20")} · Minimum withdrawal is ₱100. A deposit below ₱20 is refused with: Minimum deposit is ₱20</div><div class="tabs" style="margin-bottom:12px">${txnChip("dep", "all", "全部", "All")}${txnChip("dep", "ok", "成功", "Success")}${txnChip("dep", "pending", "处理中", "Pending")}${txnChip("dep", "fail", "失败", "Failed")}</div>
     <p class="tiny" style="margin:-4px 0 10px" data-x13="dep-note">${z("Order Amount counts toward the PlaySafe deposit limits. Credited Amount is what actually arrived (some channels add a few pesos as a random tail, at most ₱0.99) and is used for crediting and reconciliation; it shows - when nothing arrived.", "下单金额用于理性购彩充值累计；到账金额（Credited Amount）是实际到账金额（部分渠道加几比索以内的随机尾数），入账与对账以它为准；未到账显示 -。")}</p>
     ${table([z("Transaction Id", "流水号"), z("Time", "时间"), z("Player Id", "玩家ID"), z("Payment Channel", "支付渠道"), z("Order Amount", "下单金额"), z("Credited Amount", "到账金额"), z("Status", "状态"), z("Reference", "参考号"), ""],
       rows.map((d) => { const c = rcCredited(d), tx = rcTxnId(d); return `<tr><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? z("Bank card", "银行卡") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt" data-x13="credited">${c == null ? "-" : peso2(c)}</td><td>${depTag(d.st)}</td><td class="mono">${d.ref}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }))}`;
@@ -8056,6 +8056,7 @@ function tkFiltered() {
   const f = S.tka;
   const p = S.players.reduce((m, x) => { m[x.id] = x; return m; }, {});
   return S.tickets.filter((r) => {
+    if (!ryTkSubOk(r)) return false; /* batch 19: All / Settled / Unsettled sub-tab on top of the filters */
     if (f.no && r.no.toLowerCase() !== f.no.trim().toLowerCase()) return false;
     if (f.player) { const v = f.player.trim().toLowerCase(); const pl = p[r.player]; if (r.player.toLowerCase() !== v && !(pl && A58.digits(pl.phone) && A58.digits(pl.phone) === A58.digits(v))) return false; }
     if (f.games.length && f.games.indexOf(r.game) < 0) return false;
@@ -8078,11 +8079,11 @@ function tkRangeErr(f) { /* 6.10.1: without an exact ticket number, player or dr
   if (f.from && f.to && A58.span(f.from, f.to) + 1 > 92) return "The date range cannot exceed 92 days.";
   return "";
 }
-function tkRow(r) { return [r.no, r.order, r.player, gname(gameBy(r.game)), r.issue, r.buy, r.btype, r.region, r.area || "Unknown", r.draw, TK_ST[r.st][0], r.price, r.amt, r.prize == null ? "-" : r.prize, r.paid == null ? "-" : r.paid, r.claim]; }
+function tkRow(r) { return [r.no, r.order, r.player, gname(gameBy(r.game)), r.issue, r.buy, r.btype, r.region, r.area || "Unknown", r.draw, TK_ST[r.st][0], r.price, r.amt, r.prize == null ? "-" : r.prize, r.paid == null ? "-" : r.paid, ryWL(r) == null ? "-" : ryWL(r), r.claim]; }
 function viewTickets() {
   const f = S.tk, rows = tkFiltered();
   const gsel = `<details class="f" style="position:relative"><summary class="btn btn-sm" style="list-style:none;cursor:pointer">${z("Game", "游戏")}: ${f.games.length ? f.games.length + " selected" : "All"}</summary><div class="card" style="position:absolute;z-index:5;min-width:220px;padding:8px">${GAMES.map((g) => `<label style="display:block;font-size:12px"><input type="checkbox" data-tkg="${g.id}" ${f.games.indexOf(g.id) >= 0 ? "checked" : ""}/> ${esc(gname(g))}</label>`).join("")}</div></details>`;
-  const sum = rows.reduce((a, r) => ({ n: a.n + 1, amt: a.amt + r.amt, prize: a.prize + (r.prize || 0), paid: a.paid + (r.paid || 0) }), { n: 0, amt: 0, prize: 0, paid: 0 });
+  const sum = rows.reduce((a, r) => ({ n: a.n + 1, amt: a.amt + r.amt, prize: a.prize + (r.prize || 0), paid: a.paid + (r.paid || 0), wl: a.wl + (ryWL(r) || 0) }), { n: 0, amt: 0, prize: 0, paid: 0, wl: 0 });
   return `<div class="card" style="margin-bottom:12px"><div class="tools">
     <label class="f">${z("Ticket Number", "票号")}<input data-tkf="no" value="${esc(f.no)}" placeholder="TKT202610090231" /></label>
     <label class="f">${z("Player (ID or mobile)", "玩家（ID 或手机号）")}<input data-tkf="player" value="${esc(f.player)}" placeholder="PL-104482" /></label>
@@ -8094,9 +8095,9 @@ function viewTickets() {
     <label class="f">${z("From", "开始")}<input type="date" data-tkf="from" value="${f.from}" /></label><label class="f">${z("To", "结束")}<input type="date" data-tkf="to" value="${f.to}" /></label>
     <label class="f">${z("Amount Type", "金额类型")}<select data-tkf="atype"><option value="win" ${(f.atype || "win") === "win" ? "selected" : ""}>Win Amount</option><option value="buy" ${f.atype === "buy" ? "selected" : ""}>Purchase Amount</option></select></label><label class="f">${z("Amount From", "金额从")}<input type="number" data-tkf="min" value="${f.min}" style="min-width:100px" /></label><label class="f">${z("Amount To", "金额到")}<input type="number" data-tkf="max" value="${f.max}" style="min-width:100px" /></label>
     <button type="button" class="btn btn-primary btn-sm" data-act="tk-search">${z("Search", "搜索")}</button><button type="button" class="btn btn-sm" data-act="tk-reset">${z("Reset", "重置")}</button></div>
-    <div class="row-actions" style="margin-top:10px"><button type="button" class="btn btn-sm" data-act="tk-scan">${z("Scan", "扫码")}</button>${expBtns("tk-export")}<span class="tiny" data-tk-areanote="1">Bet Area is the district where the bet was placed (device location, or the IP address when location is not allowed); Unknown when it could not be resolved. Demo data.</span><span class="tiny" data-qr-note="1">Scan a Ticket QR to look a ticket up; a prize claim still needs the Claim Code (type it or scan the Claim QR). The search tells a ticket number from a claim code by its content.</span><span class="tiny">${z("Read-only. Scan looks a ticket up; claims are handled under Big prize claims. Time range is required (span ≤ 92 days) unless you search by ticket number, player or draw; up to 100,000 rows.", "只读；扫码仅查询，兑付在“大奖申领”；不按票号、玩家或期号精确查询时，时间范围必填（跨度 ≤ 92 天）；单次最多 100,000 行。")}</span></div></div>
-    ${table([z("Ticket Number", "票号"), z("Bet Order Number", "投注单号"), z("Player", "玩家"), z("Game", "游戏"), z("Draw", "期号"), z("Purchased At", "购买时间"), z("Bet Type", "玩法"), z("Bet Region", "投注区域"), z("Bet Area", "投注地"), z("Draw Time", "开奖时间"), z("Status", "状态"), z("Ticket Price", "票价"), z("Purchase Amount", "购买金额"), z("Prize Pre-Tax", "奖金（税前）"), z("Net Payout", "实付"), z("Claim Status", "领取状态")],
-      rows.map((r) => `<tr><td class="mono">${r.no}</td><td class="mono">${r.order}</td><td><button type="button" class="link mono" data-act="open-player" data-id="${r.player}">${r.player}</button></td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.buy}</td><td>${esc(r.btype)}</td><td>${r.region}</td><td data-tk="area">${esc(r.area || "Unknown")}</td><td class="mono">${r.draw}</td><td>${tag(r.st === "toclaim" ? "warn" : r.st === "won" || r.st === "claimed" ? "ok" : r.st === "void" ? "rose" : "muted", TK_ST[r.st][0])}</td><td class="mono amt">${peso(r.price)}</td><td class="mono amt">${peso(r.amt)}</td><td class="mono amt">${r.prize == null ? "-" : peso(r.prize)}</td><td class="mono amt">${r.paid == null ? "-" : peso(r.paid)}</td><td>${r.claim}</td></tr>`).concat([`<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${z("Total", "合计")} · ${sum.n} ${z("tickets", "张")}</td><td colspan="8"></td><td></td><td class="mono amt">${peso(sum.amt)}</td><td class="mono amt">${peso(sum.prize)}</td><td class="mono amt">${peso(sum.paid)}</td><td></td></tr>`]))}`;
+    <div class="row-actions" style="margin-top:10px"><button type="button" class="btn btn-sm" data-act="tk-scan">${z("Scan", "扫码")}</button>${expBtns("tk-export")}<span class="tiny" data-tk-areanote="1">Bet Area is the city or municipality and its province where the bet was placed, e.g. San Jose, Batangas (NCR: City of Mandaluyong, NCR; a city with no province repeats its name). Device location, or the IP address when location is not allowed; Unknown when it could not be resolved. Demo data.</span><span class="tiny" data-qr-note="1">Scan a Ticket QR to look a ticket up; a prize claim still needs the Claim Code (type it or scan the Claim QR). The search tells a ticket number from a claim code by its content.</span><span class="tiny">${z("Read-only. Scan looks a ticket up; claims are handled under Big prize claims. Time range is required (span ≤ 92 days) unless you search by ticket number, player or draw; up to 100,000 rows.", "只读；扫码仅查询，兑付在“大奖申领”；不按票号、玩家或期号精确查询时，时间范围必填（跨度 ≤ 92 天）；单次最多 100,000 行。")}</span></div></div>
+    ${ryTkTabs()}${table([z("Ticket Number", "票号"), z("Bet Order Number", "投注单号"), z("Player", "玩家"), z("Game", "游戏"), z("Draw", "期号"), z("Purchased At", "购买时间"), z("Bet Type", "玩法"), z("Bet Region", "投注区域"), z("Bet Area", "投注地"), z("Draw Time", "开奖时间"), z("Status", "状态"), z("Ticket Price", "票价"), z("Purchase Amount", "购买金额"), z("Prize Pre-Tax", "奖金（税前）"), z("Net Payout", "实付"), z("Win/Loss", "输赢"), z("Claim Status", "领取状态")],
+      rows.map((r) => `<tr><td class="mono">${r.no}</td><td class="mono">${r.order}</td><td><button type="button" class="link mono" data-act="open-player" data-id="${r.player}">${r.player}</button></td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.buy}</td><td>${esc(r.btype)}</td><td>${r.region}</td><td data-tk="area">${esc(r.area || "Unknown")}</td><td class="mono">${r.draw}</td><td>${tag(r.st === "toclaim" ? "warn" : r.st === "won" || r.st === "claimed" ? "ok" : r.st === "void" ? "rose" : "muted", TK_ST[r.st][0])}</td><td class="mono amt">${peso(r.price)}</td><td class="mono amt">${peso(r.amt)}</td><td class="mono amt">${r.prize == null ? "-" : peso(r.prize)}</td><td class="mono amt">${r.paid == null ? "-" : peso(r.paid)}</td><td class="mono amt" data-ry="wl">${ryWL(r) == null ? "-" : ryFmt(ryWL(r))}</td><td>${r.claim}</td></tr>`).concat([`<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${z("Total", "合计")} · ${sum.n} ${z("tickets", "张")}</td><td colspan="8"></td><td></td><td class="mono amt">${peso(sum.amt)}</td><td class="mono amt">${peso(sum.prize)}</td><td class="mono amt">${peso(sum.paid)}</td><td class="mono amt" data-ry="wl-total">${ryFmt(sum.wl)}</td><td></td></tr>`]))}`;
 }
 function scanModal() {
   const r = S.scanRes;
@@ -8142,10 +8143,10 @@ function rangeBar(o) {
 const REGIONS = [["NCR", 31.5], ["Region IV-A", 13.5], ["Region III", 10.5], ["Region VII", 9], ["Region VI", 6.5], ["Region XI", 5.5], ["Region X", 4.5], ["Region V", 3.5], ["Other regions", 10], ["Unknown", 5]];
 S.rgSel = "all";
 const PSGC = {
-  "NCR": [["Metro Manila – North District", [["Quezon City", 5], ["Caloocan", 3], ["Valenzuela", 2]], 38], ["Metro Manila – South District", [["Makati", 4], ["Pasay", 3], ["Taguig", 3]], 34], ["Metro Manila – East District", [["Pasig", 4], ["Marikina", 3], ["Mandaluyong", 3]], 28]],
-  "Region III": [["Bulacan", [["Malolos", 3], ["Meycauayan", 3], ["San Jose del Monte", 4]], 40], ["Pampanga", [["Angeles", 4], ["San Fernando", 3], ["Mabalacat", 3]], 38], ["Tarlac", [["Tarlac City", 6], ["Capas", 4]], 22]],
-  "Region IV-A": [["Cavite", [["Bacoor", 3], ["Dasmariñas", 4], ["Imus", 3]], 40], ["Laguna", [["Santa Rosa", 3], ["Calamba", 4], ["San Pedro", 3]], 36], ["Batangas", [["Batangas City", 6], ["Lipa", 4]], 24]],
-  "Region VII": [["Cebu", [["Cebu City", 5], ["Mandaue", 3], ["Lapu-Lapu", 2]], 60], ["Bohol", [["Tagbilaran", 6], ["Panglao", 4]], 22], ["Negros Oriental", [["Dumaguete", 6], ["Bayawan", 4]], 18]]
+  "NCR": [["NCR", [["Quezon City", 5], ["City of Manila", 5], ["City of Caloocan", 3], ["City of Valenzuela", 2], ["City of Makati", 4], ["City of Pasay", 3], ["City of Taguig", 3], ["City of Pasig", 4], ["City of Marikina", 3], ["City of Mandaluyong", 3]], 100]],
+  "Region III": [["Bulacan", [["Malolos", 3], ["Meycauayan", 3], ["San Jose del Monte", 4]], 40], ["Pampanga", [["Angeles", 4], ["San Fernando", 3], ["Mabalacat", 3]], 38], ["Tarlac", [["Tarlac City", 6], ["Capas", 4]], 22], ["Nueva Ecija", [["Cabanatuan", 4], ["San Jose", 3]], 24]],
+  "Region IV-A": [["Cavite", [["Bacoor", 3], ["Dasmariñas", 4], ["Imus", 3]], 40], ["Laguna", [["Santa Rosa", 3], ["Calamba", 4], ["San Pedro", 3]], 36], ["Batangas", [["Batangas City", 6], ["Lipa", 4], ["San Jose", 2]], 26], ["Rizal", [["Antipolo City", 4], ["Cainta", 2]], 20]],
+  "Region VII": [["City of Cebu", [["City of Cebu", 5]], 25], ["Cebu", [["City of Mandaue", 3], ["Lapu-Lapu City", 2]], 35], ["Bohol", [["Tagbilaran", 6], ["Panglao", 4]], 22], ["Negros Oriental", [["Dumaguete", 6], ["Bayawan", 4]], 18]]
 };
 function rgSplit(total, ws) { let left = total; const sw = ws.reduce((a, b) => a + b, 0); return ws.map((w, i) => { const v = i === ws.length - 1 ? left : Math.round(total * w / sw); left -= v; return v; }); }
 S.rgOpen = {};
@@ -8331,7 +8332,7 @@ function viewDrawSales() {
   } else {
     body = dsLiveNote() + table(head, dsLiveRows().concat(rows.map((r) => `<tr><td class="mono">${r.issue}</td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.date}</td>${cell(r.sc, r.sa)}${cell(r.rc, r.ra)}<td class="mono amt">${peso(r.sa - r.ra)}</td>${cell(r.wc, r.wa)}${cell(r.pc, r.pa)}${cell(r.uc, r.ua)}</tr>`).concat(rows.length ? [totRow(z("Total for the selected range", "所选范围合计"), tot(rows))] : [])));
   }
-  return `<div class="tools" style="margin-bottom:10px" data-tf-bar="draw">${tfSel("sales")}</div><p class="tiny">${z("Refunded amount = refunds of the three void types: no-draw day, draw cancelled, and game still delisted at draw time. Net after refund = sales − refunded. The prize rate denominator stays Sales (effective sales not refunded). All counts are tickets. Winning amount is the pre-tax prize total of the winning tickets. Winning = paid + unclaimed + overdue unclaimed; see Prizes → Overdue unclaimed for overdue tickets. Demo data.", "退款金额 = 三种作废（无开奖日、期次取消、开奖时游戏仍下架）的退款；退款后销售 = 销售额 − 退款；奖金率分母仍为销售额（未退款的有效销售）。所有笔数按票计；中奖金额 = 中奖票税前奖金合计；中奖 = 派奖 + 未兑奖 + 逾期未领，逾期未领见奖金与派彩的逾期未领视图。演示数据。")}</p><div class="tabs" style="margin-bottom:10px">${[["sum", "Summary"], ["game", "By game"], ["region", "By region"], ["pre", "Pre-sale"]].map(([k, l]) => `<button type="button" data-act="tab" data-group="dsub" data-arg="${k}" class="${sub === k ? "on" : ""}">${l}</button>`).join("")}</div>${body}`;
+  return `${ryDsHead()}<div class="tools" style="margin-bottom:10px" data-tf-bar="draw">${tfSel("sales")}</div><p class="tiny">${z("Refunded amount = refunds of the three void types: no-draw day, draw cancelled, and game still delisted at draw time. Net after refund = sales − refunded. The prize rate denominator stays Sales (effective sales not refunded). All counts are tickets. Winning amount is the pre-tax prize total of the winning tickets. Winning = paid + unclaimed + overdue unclaimed; see Prizes → Overdue unclaimed for overdue tickets. Demo data.", "退款金额 = 三种作废（无开奖日、期次取消、开奖时游戏仍下架）的退款；退款后销售 = 销售额 − 退款；奖金率分母仍为销售额（未退款的有效销售）。所有笔数按票计；中奖金额 = 中奖票税前奖金合计；中奖 = 派奖 + 未兑奖 + 逾期未领，逾期未领见奖金与派彩的逾期未领视图。演示数据。")}</p><div class="tabs" style="margin-bottom:10px">${[["sum", "Summary"], ["game", "By game"], ["region", "By region"], ["pre", "Pre-sale"]].map(([k, l]) => `<button type="button" data-act="tab" data-group="dsub" data-arg="${k}" class="${sub === k ? "on" : ""}">${l}</button>`).join("")}</div>${body}`;
 }
 function viewJackpot() {
   const all = jpRows().filter((r) => rfPass("jp", r[0], r[1], r[2]));
@@ -8563,7 +8564,7 @@ function adm58More(act, id, el, e) {
     const f = S.tka;
     { const e = tkRangeErr(f); if (e) { toast(e); return true; } }
     const rows = tkFiltered().map(tkRow);
-    adm58Export("tickets", ["Ticket Number", "Bet Order Number", "Player", "Game", "Draw", "Purchased At", "Bet Type", "Bet Region", "Bet Area", "Draw Time", "Status", "Ticket Price", "Purchase Amount", "Prize Pre-Tax", "Net Payout", "Claim Status"], rows, arg, t("交易流水", "Transactions"), "tickets tab · " + rxTkFilt());
+    adm58Export("tickets", ["Ticket Number", "Bet Order Number", "Player", "Game", "Draw", "Purchased At", "Bet Type", "Bet Region", "Bet Area", "Draw Time", "Status", "Ticket Price", "Purchase Amount", "Prize Pre-Tax", "Net Payout", "Win/Loss", "Claim Status"], rows, arg, t("交易流水", "Transactions"), "tickets tab · " + rxTkFilt());
     render(); return true;
   }
   if (act === "rr-pick") {
@@ -9961,7 +9962,7 @@ function casSlash(d) { return String(d).slice(0, 10).replace(/-/g, "/"); }
 function casNum(n) { return Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 /* Daily Sales demo rows: three fixed demo days (Oct 2026) x four games; each day's total is split from the platform daily figures used by the remittance statement (rcDay). */
 const CAS_DAYS = ["2026-10-08", "2026-10-09", "2026-10-10"];
-const CAS_SPLIT = [["u658", 0.34, "NCR, Second District", ""], ["s649", 0.26, "Cebu City", ""], ["ez2", 0.22, "overseas", "999"], ["sw3", 0.18, "Unknown", ""]]; /* REGION = bet location (region + district); AREA empty until the PCSO area code table is supplied, overseas = 999 (batch 15) */
+const CAS_SPLIT = [["u658", 0.28, "City of Mandaluyong, NCR", "", "137401000"], ["s649", 0.22, "City of Cebu, City of Cebu", "", "072217000"], ["s649", 0.08, "San Jose, Batangas", "", "041028000"], ["s649", 0.07, "San Jose, Nueva Ecija", "", "034927000"], ["ez2", 0.20, "overseas", "999", "overseas"], ["sw3", 0.15, "Unknown", "", "Unknown"]]; /* REGION = bet location (region + district); AREA empty until the PCSO area code table is supplied, overseas = 999 (batch 15) */
 function casDailyRows() {
   const R = casRates(), out = [];
   CAS_DAYS.forEach((date) => {
@@ -9978,7 +9979,7 @@ function casDailyRows() {
 }
 function casDailyView() {
   const f = S.cas;
-  return casDailyRows().filter((r) => inRange(r.date) && (!f.game || r.game === f.game) && (!f.region || r.region === f.region));
+  return casDailyRows().filter((r) => inRange(r.date) && (!f.game || r.game === f.game) && (!f.region || r.psgc === f.region));
 }
 function casDsRows() { /* same per-draw sales figures as the Sales report By draw (dsRows), whole platform; plus one cancelled draw (batch 15, Demo data) */
   const R = casRates();
@@ -10037,11 +10038,11 @@ function casTable(d, view) {
 }
 function casFilters(view) {
   const sel = `<label class="f">${z("Game")}<select data-cas-f="game"><option value="">${z("All games")}</option>${GAMES.map((g) => `<option value="${g.id}" ${S.cas.game === g.id ? "selected" : ""}>${esc(gname(g))}</option>`).join("")}</select></label>`;
-  if (view === "daily") return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Region")}<select data-cas-f="region"><option value="">${z("All regions")}</option>${CAS_SPLIT.map((s) => `<option value="${esc(s[2])}" ${S.cas.region === s[2] ? "selected" : ""}>${esc(s[2])}</option>`).join("")}</select></label></div>`;
+  if (view === "daily") return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Region")}<select data-cas-f="region"><option value="">${z("All regions")}</option>${CAS_SPLIT.map((s) => `<option value="${esc(s[4])}" ${S.cas.region === s[4] ? "selected" : ""}>${esc(s[2])}</option>`).join("")}</select></label></div>`;
   return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Draw")}<input type="text" data-cas-f="draw" value="${esc(S.cas.draw)}" placeholder="${z("Draw number, e.g. L649-20261008-2")}" /></label></div>`;
 }
 const CAS_NOTES = {
-  daily: "One row per day, game and region. NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. Rates are taken as of the row\u2019s date (that day 23:59:59). Region is the bet location. Tickets placed before location capture started show Unknown. REGION shows region and district. AREA is empty except overseas rows, which show 999. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. PAYOUT is the online prize credited that day after winnings tax; CANCELS is refunds of void bets by refund date, the same basis as the remittance statement.",
+  daily: "One row per day, game and region. NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. Rates are taken as of the row\u2019s date (that day 23:59:59). Region is the bet location. Tickets placed before location capture started show Unknown. REGION shows the city and its province, e.g. San Jose, Batangas (NCR: City of Mandaluyong, NCR; a city with no province repeats its name). One row per city, grouped by the city PSGC code, so two cities with the same name in different provinces are two rows. AREA is empty except overseas rows, which show 999. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. PAYOUT is the online prize credited that day after winnings tax; CANCELS is refunds of void bets by refund date, the same basis as the remittance statement.",
   draws: "One row per draw. SALESCOUNT, CANCELCOUNT and NETCOUNT count bet slips: a System or 5-Roll order is one count, not the number of combinations, and a multi-draw order counts 1 in each of its draws. CANCELCOUNT is the number of orders with at least one refunded ticket in the draw (a partial void counts 1) and CANCELAMT is the amount actually refunded. Rows are by draw date and include cancelled draws (sales fully refunded, net 0). Rates are taken as of the draw date 23:59:59. NETCOUNT = SALESCOUNT − CANCELCOUNT, NETAMT = SALESAMT − CANCELAMT. COMMISSION = NETAMT × Commission Rate. WTAX = COMMISSION ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate).",
   result: "One row per published draw, filtered by draw date; cancelled draws are not listed. DrawResult lists the winning numbers in draw order, separated by a dash. Prize amounts are per winning bet and winner counts are online winners only. The number of prize columns is fixed to the largest tier count of all games, whatever the filter. A game with fewer prize tiers leaves the unused amount cells empty and shows 0 in the unused winner cells. A prize-pool tier with no winner shows the entered pool amount and 0 winners; fixed tiers show the rule-version prize. Winner counts are winning bets."
 };
@@ -10072,7 +10073,7 @@ document.addEventListener("change", (e) => {
 /* ===== RU block (batch 15 · admin PART A): Bet Area on tickets (6.10), device ID masking in operation records and audit log (6.8 / 6.12) ===== */
 /* Bet Area demo values (Demo data): district of the bet location; Unknown when not captured; overseas for a bet placed abroad */
 (function () {
-  const AREA = { TKT202610090231: "Cebu City", TKT202610090232: "Cebu City", TKT202610090233: "Cebu City", TKT202610100011011: "NCR, Second District", TKT202610100011012: "NCR, Second District", TKT202610100011013: "NCR, Second District", TKT202610100011014: "Cebu City", TKT20261009010877: "NCR, First District", TKT20261008010110: "Lapu-Lapu City", TKT20261010011020: "NCR, Second District", TKT20261007009880: "NCR, Third District", TKT20261009010902: "Antipolo City", TKT20261009010770: "Unknown", TKT20260914004410: "Unknown", TKT20261009000231: "overseas" };
+  const AREA = { TKT202610090231: "City of Cebu, City of Cebu", TKT202610090232: "City of Cebu, City of Cebu", TKT202610090233: "City of Cebu, City of Cebu", TKT202610100011011: "City of Mandaluyong, NCR", TKT202610100011012: "City of Mandaluyong, NCR", TKT202610100011013: "City of Mandaluyong, NCR", TKT202610100011014: "City of Cebu, City of Cebu", TKT20261009010877: "City of Manila, NCR", TKT20261008010110: "Lapu-Lapu City, Cebu", TKT20261010011020: "City of Mandaluyong, NCR", TKT20261007009880: "City of Caloocan, NCR", TKT20261009010902: "Antipolo City, Rizal", TKT20261009010770: "Unknown", TKT20260914004410: "Unknown", TKT20261009000231: "overseas" };
   S.tickets.forEach((r) => { r.area = AREA[r.no] || "Unknown"; if (r.area === "Unknown") r.region = "Unknown"; if (r.area === "overseas") r.region = "overseas"; });
 })();
 /* Terminal information of player-side audit rows (Demo data): the full device ID is kept in the record, every screen and export shows **** + last 4 characters */
@@ -10149,7 +10150,7 @@ function casDailyRows() {
       let sales, net, salcom, comtax, dst, canc, due;
       if (on) { sales = casR2(sg); canc = casR2(cancels); net = casR2(sg - cancels); salcom = casR2(net * R.comm); comtax = casComTax(salcom, R); dst = casR2(sg * R.duty); due = casR2(net - payout - salcom + comtax); }
       else { sales = casR2(sg - cancels); canc = 0; net = 0; salcom = 0; comtax = 0; dst = 0; due = casR2(sales - payout); }
-      out.push({ date, system: "ELOTTO", game: s[0], gname: rvCasName(s[0]), region: s[2], area: s[3], agent: "POSC", name: "POSC", sales, cancels: canc, net, payout: casR2(payout), salcom, comtax, dst, due });
+      out.push({ date, system: "ELOTTO", game: s[0], gname: rvCasName(s[0]), region: s[2], psgc: s[4], area: s[3], agent: "POSC", name: "POSC", sales, cancels: canc, net, payout: casR2(payout), salcom, comtax, dst, due });
     });
   });
   return out;
@@ -10199,11 +10200,11 @@ function casData(view) {
 }
 function casFilters(view) {
   const sel = `<label class="f">${z("Game")}<select data-cas-f="game"><option value="">${z("All games")}</option>${GAMES.map((g) => `<option value="${g.id}" ${S.cas.game === g.id ? "selected" : ""}>${esc(rvCasName(g.id))}</option>`).join("")}</select></label>`;
-  if (view === "daily") return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Region")}<select data-cas-f="region"><option value="">${z("All regions")}</option>${CAS_SPLIT.map((s) => `<option value="${esc(s[2])}" ${S.cas.region === s[2] ? "selected" : ""}>${esc(s[2])}</option>`).join("")}</select></label></div>`;
+  if (view === "daily") return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Region")}<select data-cas-f="region"><option value="">${z("All regions")}</option>${CAS_SPLIT.map((s) => `<option value="${esc(s[4])}" ${S.cas.region === s[4] ? "selected" : ""}>${esc(s[2])}</option>`).join("")}</select></label></div>`;
   return `<div class="tools" data-cas="filters" style="margin-bottom:10px">${sel}<label class="f">${z("Draw")}<input type="text" data-cas-f="draw" value="${esc(S.cas.draw)}" placeholder="${z("Draw number or PCSO Draw Number")}" /></label></div>`;
 }
 const RV_NOTES = {
-  daily: "One row per day, game and region. One file per day: a period of several days downloads one CSV file per day. SYSTEM is ELOTTO; AGENTNR and NAME are POSC (there are no outlets). PAYOUT is the prize before winnings tax: prizes up to the big prize limit (₱{CAP}) count on the draw day, when they are credited automatically; larger prizes count on the day the payment is registered. Winnings tax is reported separately under Prizes. CANCELS is refunds of void bets by refund date. When commission and tax columns are Off, SALES is net of refunded and void tickets, CANCELS, NETSALES, SALCOM, COMTAX and DST are 0.00, and NETDUE = SALES − PAYOUT. When On: NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. Rates are taken as of the row\u2019s date (that day 23:59:59) and the mode is read when the file is exported. Region is the bet location. Tickets placed before location capture started show Unknown. REGION shows region and district. AREA is empty except overseas rows, which show 999. Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes, no totals row.",
+  daily: "One row per day, game and region. One file per day: a period of several days downloads one CSV file per day. SYSTEM is ELOTTO; AGENTNR and NAME are POSC (there are no outlets). PAYOUT is the prize before winnings tax: prizes up to the big prize limit (₱{CAP}) count on the draw day, when they are credited automatically; larger prizes count on the day the payment is registered. Winnings tax is reported separately under Prizes. CANCELS is refunds of void bets by refund date. When commission and tax columns are Off, SALES is net of refunded and void tickets, CANCELS, NETSALES, SALCOM, COMTAX and DST are 0.00, and NETDUE = SALES − PAYOUT. When On: NETSALES = SALES − CANCELS. SALCOM = NETSALES × Commission Rate (commission including VAT). COMTAX = SALCOM ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Every column is rounded half-up to the cent and the next column uses the rounded values, so each row satisfies the formulas exactly. DST = SALES × stamp duty rate (by each issue\u2019s snapshot rate), shown for information and not part of NETDUE. NETDUE = NETSALES − PAYOUT − SALCOM + COMTAX. Rates are taken as of the row\u2019s date (that day 23:59:59) and the mode is read when the file is exported. Region is the bet location. Tickets placed before location capture started show Unknown. REGION shows the city and its province, e.g. San Jose, Batangas (NCR: City of Mandaluyong, NCR; a city with no province repeats its name). One row per city, grouped by the city PSGC code, so two cities with the same name in different provinces are two rows. AREA is empty except overseas rows, which show 999. Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes, no totals row.",
   draws: "One row per draw. AGENCYID and NAME are POSC. DRAWID is the PCSO Draw Number of the draw (empty when a cancelled draw has none). One file per day, by draw date: a period of several days downloads one CSV file per day. SALESCOUNT, CANCELCOUNT and NETCOUNT count bet slips: a System or 5-Roll order is one count, not the number of combinations, and a multi-draw order counts 1 in each of its draws. Rows are by draw date and include cancelled draws (sales fully refunded, net 0). When commission and tax columns are Off, SALESCOUNT and SALESAMT are net of refunded and void tickets, CANCELCOUNT, CANCELAMT, COMMISSION and WTAX are 0.00 (0 for the count), NETCOUNT = SALESCOUNT and NETAMT = SALESAMT. When On: CANCELCOUNT is the number of orders with at least one refunded ticket in the draw (a partial void counts 1) and CANCELAMT is the amount actually refunded. Rates are taken as of the draw date 23:59:59 and the mode is read when the file is exported. NETCOUNT = SALESCOUNT − CANCELCOUNT, NETAMT = SALESAMT − CANCELAMT. COMMISSION = NETAMT × Commission Rate. WTAX = COMMISSION ÷ (1 + VAT Rate) × (EWT Rate + Withholding VAT Rate). Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes, no totals row.",
   result: "One row per published draw, filtered by draw date; cancelled draws are not listed. Draw ID is the PCSO Draw Number. Draw Result lists the winning numbers in draw order, separated by a space. There are always 10 prize amount columns and 10 winner columns, with the headings of the partner\u2019s sample. A tier the game does not have shows 0.00 and 0. A prize-pool tier with no winner shows the entered pool amount and 0 winners; fixed tiers show the rule-version prize. Prize amounts are per winning bet and winner counts are online winners only (winning bets). One file per day, by draw date: a period of several days downloads one CSV file per day, and the result of a draw day is provided the next day. Export: CSV, dates as YYYY-MM-DD, amounts with thousands separators and 2 decimals in quotes."
 };
@@ -10273,7 +10274,7 @@ function rvWdSim() {
 function rcWithdrawals() {
   const rows = S.withdraws.filter((d) => S.txnQ.wd === "all" || d.st === S.txnQ.wd);
   const mode = a2Gp("wappr.mode");
-  return txExpBar() + `<div class="banner" data-rv="wd-note">${t("提现记录有待复核、处理中、已到账、已拒绝四种状态。", "A withdrawal is Pending Review, Processing, Paid or Rejected.")} Pending Review appears only when Withdrawal Approval Mode is Manual Above Threshold and the amount is at or above the Withdrawal Review Threshold. A lock sits on the account, not as a fifth status. A failed MFA is recorded as rejected. After MFA passes, a request that needs no review is paid out through the payment gateway call-back. <b data-rv="wd-mode">Withdrawal Approval Mode: ${esc(mode)} · Withdrawal Review Threshold: ${esc(a2Gp("wappr.thr"))}</b></div>
+  return txExpBar() + `<div class="banner" data-rv="wd-note">${t("提现记录有待复核、处理中、已到账、已拒绝四种状态。", "A withdrawal is Pending Review, Processing, Paid or Rejected.")} Pending Review lists two kinds of request, told apart by Review Type: Liveness (the face liveness check did not pass; it is decided in Payment account review and is read only here; it exists in every approval mode) and Amount (only when Withdrawal Approval Mode is Manual Above Threshold and the amount is at or above the Withdrawal Review Threshold; Finance review approves or rejects it in the Review queue). Under Automatic mode only Liveness requests can appear. A lock sits on the account, not as a fifth status. A failed MFA is recorded as rejected. After MFA passes, a request that needs no review is paid out through the payment gateway call-back. <b data-rv="wd-mode">Withdrawal Approval Mode: ${esc(mode)} · Withdrawal Review Threshold: ${esc(a2Gp("wappr.thr"))}</b></div>
     ${rvWdQueue()}${rvWdSim()}
     <div class="tabs" style="margin-bottom:12px">${txnChip("wd", "all", "全部", "All")}${txnChip("wd", "review", "待复核", "Pending Review")}${txnChip("wd", "pending", "处理中", "Processing")}${txnChip("wd", "paid", "已到账", "Paid")}${txnChip("wd", "rejected", "已拒绝", "Rejected")}</div>
     ${table([z("Transaction Id", "流水号"), t("时间", "Time"), z("Player Id", "玩家ID"), z("Destination", "目的地"), z("Amount", "金额"), z("Primary Account", "主账户"), z("MFA Method", "MFA 方式"), z("MFA Result", "MFA 结果"), t("状态", "Status"), t("说明", "Note"), ""],
@@ -10502,26 +10503,26 @@ function rxDwFilter(kind) {
 }
 function rcDeposits() {
   const rows = rxDwRows("dep");
-  return txExpBar() + `<div class="banner">${z("Minimum deposit is ₱20", "最低充值 ₱20")} · Minimum withdrawal is ₱100. A deposit below ₱20 is refused with: Minimum deposit is ₱20</div>${rxDwFilter("dep")}<div class="tabs" style="margin-bottom:12px">${txnChip("dep", "all", "全部", "All")}${txnChip("dep", "ok", "成功", "Success")}${txnChip("dep", "pending", "处理中", "Processing")}${txnChip("dep", "fail", "失败", "Failed")}</div>
+  return txExpBar() + `<div class="banner">${z("Minimum deposit is ₱20", "最低充值 ₱20")} · Minimum withdrawal is ₱100. A deposit below ₱20 is refused with: Minimum deposit is ₱20</div>${rxDwFilter("dep")}<div class="tabs" style="margin-bottom:12px">${txnChip("dep", "all", "全部", "All")}${txnChip("dep", "ok", "成功", "Success")}${txnChip("dep", "pending", "处理中", "Pending")}${txnChip("dep", "fail", "失败", "Failed")}</div>
     <p class="tiny" style="margin:-4px 0 10px" data-x13="dep-note">${z("Order Amount counts toward the PlaySafe deposit limits. Credited Amount is what actually arrived (some channels add a few pesos as a random tail, at most ₱0.99) and is used for crediting and reconciliation; it shows - when nothing arrived.", "下单金额用于理性购彩充值累计；到账金额（Credited Amount）是实际到账金额（部分渠道加几比索以内的随机尾数），入账与对账以它为准；未到账显示 -。")}</p>
-    ${table([z("Transaction Id", "流水号"), z("Request Time", "请求时间"), z("Player Id", "玩家ID"), z("Payment Channel", "支付渠道"), z("Order Amount", "下单金额"), z("Credited Amount", "到账金额"), z("Status", "状态"), z("Reference", "参考号"), z("Order Number", "支付订单号"), z("Deposited Time", "到账时间"), ""],
-      rows.map((d) => { const c = rcCredited(d), tx = rcTxnId(d), at = rxDepAt(d); return `<tr data-rx="dep-row"><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? z("Bank card", "银行卡") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt" data-x13="credited">${c == null ? "-" : peso2(c)}</td><td>${depTag(d.st)}</td><td class="mono">${d.ref}</td><td class="mono" data-rx="order-no">${rxOrderNo("dep", d)}</td><td class="mono" data-rx="paid-at">${at ? at + " UTC+8" : "-"}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }))}`;
+    ${table([z("Transaction Id", "流水号"), z("Request Time", "请求时间"), z("Player Id", "玩家ID"), z("Payment Channel", "支付渠道"), z("Order Amount", "下单金额"), z("Credited Amount", "到账金额"), z("Status", "状态"), z("Reference", "参考号"), z("Order Number", "支付订单号"), z("Deposited Time", "到账时间"), z("Player IP", "玩家 IP"), ""],
+      rows.map((d) => { const c = rcCredited(d), tx = rcTxnId(d), at = rxDepAt(d); return `<tr data-rx="dep-row"><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? z("Bank card", "银行卡") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt" data-x13="credited">${c == null ? "-" : peso2(c)}</td><td>${depTag(d.st)}</td><td class="mono">${d.ref}</td><td class="mono" data-rx="order-no">${rxOrderNo("dep", d)}</td><td class="mono" data-rx="paid-at">${at ? at + " UTC+8" : "-"}</td><td class="mono" data-ry="ip">${ryIpMask(d)}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }))}`;
 }
 function rcWithdrawals() {
   const rows = rxDwRows("wd"), mode = a2Gp("wappr.mode");
-  return txExpBar() + `<div class="banner" data-rv="wd-note">${t("提现记录有待复核、处理中、已到账、已拒绝四种状态。", "A withdrawal is Pending Review, Processing, Paid or Rejected.")} Pending Review appears only when Withdrawal Approval Mode is Manual Above Threshold and the amount is at or above the Withdrawal Review Threshold. A lock sits on the account, not as a fifth status. A failed MFA is recorded as rejected. After MFA passes, a request that needs no review is paid out through the payment gateway call-back. <b data-rv="wd-mode">Withdrawal Approval Mode: ${esc(mode)} · Withdrawal Review Threshold: ${esc(a2Gp("wappr.thr"))}</b></div>
+  return txExpBar() + `<div class="banner" data-rv="wd-note">${t("提现记录有待复核、处理中、已到账、已拒绝四种状态。", "A withdrawal is Pending Review, Processing, Paid or Rejected.")} Pending Review lists two kinds of request, told apart by Review Type: Liveness (the face liveness check did not pass; it is decided in Payment account review and is read only here; it exists in every approval mode) and Amount (only when Withdrawal Approval Mode is Manual Above Threshold and the amount is at or above the Withdrawal Review Threshold; Finance review approves or rejects it in the Review queue). Under Automatic mode only Liveness requests can appear. A lock sits on the account, not as a fifth status. A failed MFA is recorded as rejected. After MFA passes, a request that needs no review is paid out through the payment gateway call-back. <b data-rv="wd-mode">Withdrawal Approval Mode: ${esc(mode)} · Withdrawal Review Threshold: ${esc(a2Gp("wappr.thr"))}</b></div>
     ${rvWdQueue()}${rvWdSim()}${rxDwFilter("wd")}
     <div class="tabs" data-rx="wd-sub" style="margin-bottom:12px">${txnChip("wd", "all", "全部", "All Withdraw")}${txnChip("wd", "review", "待复核", "Pending Review")}${txnChip("wd", "pending", "处理中", "Pending Payment")}${txnChip("wd", "paid", "已到账", "Paid")}${txnChip("wd", "rejected", "已拒绝", "Rejected")}</div>
-    ${table([z("Transaction Id", "流水号"), z("Request Time", "请求时间"), z("Player Id", "玩家ID"), z("Destination", "目的地"), z("Request Amount", "申请金额"), z("Primary Account", "主账户"), z("MFA Method", "MFA 方式"), z("MFA Result", "MFA 结果"), t("状态", "Status"), t("说明", "Note"), z("Order Number", "支付订单号"), z("Paid Date", "付款日期"), z("Paid Amount", "付款金额"), ""],
-      rows.map((d) => { const tx = rcTxnId(d), pa = rxWdPaidAt(d); return `<tr class="${d.locked ? "alert" : ""}" data-rv="wd-row" data-ref="${d.ref}"><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td>${z("Yes", "是")}</td><td>SMS OTP</td><td>${d.mfa === "ok" ? tag("ok", t("通过", "Passed")) : tag("rose", t("失败", "Failed"))}</td><td>${wdTag(d.st)}</td><td data-rv="wd-note-cell">${rvWdNote(d)}</td><td class="mono" data-rx="order-no">${rxOrderNo("wd", d)}</td><td class="mono" data-rx="paid-date">${pa ? pa + " UTC+8" : "-"}</td><td class="mono amt" data-rx="paid-amt">${pa ? peso2(d.amt) : "-"}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }))}`;
+    ${table([z("Transaction Id", "流水号"), z("Request Time", "请求时间"), z("Player Id", "玩家ID"), z("Destination", "目的地"), z("Request Amount", "申请金额"), z("Primary Account", "主账户"), z("MFA Method", "MFA 方式"), z("MFA Result", "MFA 结果"), t("状态", "Status"), z("Review Type", "复核类型"), t("说明", "Note"), z("Order Number", "支付订单号"), z("Paid Date", "付款日期"), z("Paid Amount", "付款金额"), ""],
+      rows.map((d) => { const tx = rcTxnId(d), pa = rxWdPaidAt(d); return `<tr class="${d.locked ? "alert" : ""}" data-rv="wd-row" data-ref="${d.ref}"><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td>${z("Yes", "是")}</td><td>SMS OTP</td><td>${d.mfa === "ok" ? tag("ok", t("通过", "Passed")) : tag("rose", t("失败", "Failed"))}</td><td>${wdTag(d.st)}</td><td data-ry="rtype">${d.st === "review" ? ryRType(d) : "-"}</td><td data-rv="wd-note-cell">${rvWdNote(d)}</td><td class="mono" data-rx="order-no">${rxOrderNo("wd", d)}</td><td class="mono" data-rx="paid-date">${pa ? pa + " UTC+8" : "-"}</td><td class="mono amt" data-rx="paid-amt">${pa ? peso2(d.amt) : "-"}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }))}`;
 }
 function rxDwExport(arg) {
   if (["ops", "finance", "compliance"].indexOf(myRole()) < 0) { toast("Your role cannot export transactions."); return; }
   const k = S.tab.txn, dep = k === "dep", f = S.rx[k], rows = rxDwRows(k), Q = S.txnQ[k] || "all";
-  const heads = dep ? ["Transaction Id", "Request Time", "Player Id", "Payment Channel", "Order Amount", "Credited Amount", "Status", "Reference", "Order Number", "Deposited Time"]
-    : ["Transaction Id", "Request Time", "Player Id", "Destination", "Request Amount", "Primary Account", "MFA Method", "MFA Result", "Status", "Locked", "Order Number", "Paid Date", "Paid Amount"];
-  const body = rows.map((d) => dep ? [rcTxnId(d), d.time, d.player, d.ch, d.amt, rcCredited(d) == null ? "-" : rcCredited(d), d.st, d.ref, rxOrderNo("dep", d), rxDepAt(d)]
-    : [rcTxnId(d), d.time, d.player, d.ch, d.amt, "Yes", "SMS OTP", d.mfa, d.st, d.locked ? "Yes" : "No", rxOrderNo("wd", d), rxWdPaidAt(d), rxWdPaidAt(d) ? d.amt : "-"]);
+  const heads = dep ? ["Transaction Id", "Request Time", "Player Id", "Payment Channel", "Order Amount", "Credited Amount", "Status", "Reference", "Order Number", "Deposited Time", "Player IP"]
+    : ["Transaction Id", "Request Time", "Player Id", "Destination", "Request Amount", "Primary Account", "MFA Method", "MFA Result", "Status", "Review Type", "Locked", "Order Number", "Paid Date", "Paid Amount"];
+  const body = rows.map((d) => dep ? [rcTxnId(d), d.time, d.player, d.ch, d.amt, rcCredited(d) == null ? "-" : rcCredited(d), d.st, d.ref, rxOrderNo("dep", d), rxDepAt(d), ryIpMask(d)]
+    : [rcTxnId(d), d.time, d.player, d.ch, d.amt, "Yes", "SMS OTP", d.mfa, d.st, d.st === "review" ? ryRType(d) : "-", d.locked ? "Yes" : "No", rxOrderNo("wd", d), rxWdPaidAt(d), rxWdPaidAt(d) ? d.amt : "-"]);
   const by = { req: "Request Time", dep: "Deposited Time", paid: "Paid Date" }[f.by];
   adm58Export(dep ? "deposits" : "withdrawals", heads, body, arg, t("交易流水", "Transactions"), `${k} tab · status ${Q} · Search By ${by} ${f.from || "…"} to ${f.to || "…"} · Order Number ${f.order || "any"} · Amount ${f.min || "…"} to ${f.max || "…"} · Channel ${f.chs.join("/") || "all"}`);
   render();
@@ -10567,6 +10568,164 @@ window.addEventListener("change", (e) => {
   const el = e.target; if (el.dataset && el.dataset.rxF === "city") { S.rx.city = el.value; render(); }
 }, true);
 /* ===== end RX block ===== */
+/* ===== RY block (batch 19 · admin): Y1 Tickets sub-tabs + Win/Loss, Y2 deposit Pending sub-tab + Auto Refresh, Y3 Draw Sales Start Of / As Of, Y5 Player IP, Y6 Pending Review types, Y7 City, Province names, Y8 nationwide city table ===== */
+S.ry = { tsub: "all", auto: { dep: false, wd: false }, natPage: 0, natSize: 10, natSig: "" };
+function ryFmt(v) { return (v < 0 ? "-" : "") + peso(Math.abs(v)); }
+
+/* ---------- Y1 (813) Tickets: All / Settled / Unsettled and Win/Loss ---------- */
+const RY_SETTLED = ["lost", "won", "toclaim", "claimed"]; /* drawn: Not won, Won, Prize to claim, Claimed */
+function ryTkSubOk(r) { const s = S.ry.tsub; if (s === "settled") return RY_SETTLED.indexOf(r.st) >= 0; if (s === "unsettled") return r.st === "issued"; return true; } /* Voided tickets appear under All only */
+function ryWL(r) { return RY_SETTLED.indexOf(r.st) >= 0 ? (r.prize || 0) - r.amt : null; } /* prize pre-tax − purchase amount; unsettled and voided tickets have none */
+function ryTkTabs() {
+  return `<div class="tabs" data-ry="tk-sub" style="margin:12px 0">${[["all", "All"], ["settled", "Settled"], ["unsettled", "Unsettled"]].map(([k, l]) => `<button type="button" data-ry-act="tk-sub" data-arg="${k}" class="${S.ry.tsub === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
+}
+(function () { const f0 = rxTkFilt; rxTkFilt = function () { return f0() + " · Sub-tab " + { all: "All", settled: "Settled", unsettled: "Unsettled" }[S.ry.tsub]; }; })();
+
+/* ---------- Y2 (814) Auto Refresh on Deposits and Withdrawals ---------- */
+const RY_T = {};
+function ryOnTab(k) { return S.authed && S.page === "txn" && S.tab.txn === k; }
+function ryStop(k) { if (RY_T[k]) { clearInterval(RY_T[k]); RY_T[k] = 0; } S.ry.auto[k] = false; }
+function ryStart(k) {
+  ryStop(k); S.ry.auto[k] = true;
+  const ms = Number(window.__rxRefreshMs) > 0 ? Number(window.__rxRefreshMs) : 30000; /* 30 s (product default); tests override window.__rxRefreshMs */
+  RY_T[k] = setInterval(() => {
+    if (!ryOnTab(k)) { ryStop(k); return; }
+    if (S.modal || (S.rv && S.rv.rej)) return; /* never wipe a form the user is typing in */
+    window.__ryRefreshCount = (window.__ryRefreshCount || 0) + 1; render(); /* filters, sub-tab and status filter live in S, so they survive */
+  }, ms);
+}
+(function () { const r0 = render; render = function () { r0.apply(this, arguments); ["dep", "wd"].forEach((k) => { if (RY_T[k] && !ryOnTab(k)) ryStop(k); }); }; })();
+function ryAuto(k, extra) {
+  const on = !!S.ry.auto[k];
+  return `<div class="tools" data-ry="dw-bar" data-tab="${k}" style="justify-content:flex-end;align-items:center;gap:10px;margin-bottom:6px"><span class="tiny" data-ry="auto-note">${extra || ""}${z("Auto Refresh reloads this list every 30 seconds and keeps the filters.", "自动刷新每 30 秒重新加载本列表并保留筛选。")}</span><button type="button" class="btn btn-sm ${on ? "btn-primary" : ""}" role="switch" aria-checked="${on}" data-ry="auto" data-ry-act="auto" data-arg="${k}">Auto Refresh: ${on ? "On" : "Off"}</button></div>`;
+}
+(function () {
+  const d0 = rcDeposits, w0 = rcWithdrawals;
+  rcDeposits = function () { return ryAuto("dep", `<span data-ry="ip-note">${z("Player IP is the IP of the deposit request, masked: the last IPv4 segment or everything after the first 3 groups of an IPv6 address shows *; - when unavailable. The full IP is kept in the database only. Demo data.", "Player IP 为充值请求发起时的 IP，已掩码：IPv4 末段、IPv6 前 3 组之后以 * 显示，取不到显示 -；完整 IP 只存库。演示数据。")}</span> `) + d0(); };
+  rcWithdrawals = function () { return ryAuto("wd") + w0(); };
+})();
+
+/* ---------- Y5 (817) Player IP, masked ---------- */
+const RY_IPS = ["136.158.42.97", "112.198.77.14", "49.145.201.8", "120.29.82.251", "2001:4860:7a3c:9d12:0:0:0:1f", "180.190.5.66", null, "2405:8d40:4c11:35aa:0:0:0:2", "175.176.33.140", "203.177.64.21"]; /* Demo data: full IPs exist only here, never printed */
+function ryIpOf(d) { return RY_IPS[rxHash(d.ref) % RY_IPS.length]; }
+function ryIpMask(d) {
+  const ip = ryIpOf(d); if (!ip) return "-";
+  if (ip.indexOf(":") >= 0) return ip.split(":").slice(0, 3).join(":") + ":*";
+  const p = ip.split("."); p[3] = "*"; return p.join(".");
+}
+
+/* ---------- Y6 (818) Pending Review: Amount and Liveness ---------- */
+function ryRType(d) { return d.rtype || "Amount"; }
+S.withdraws.unshift(
+  { time: "2026-10-10 04:55", player: "PL-104266", ch: "GCash", amt: 3000, mfa: "ok", st: "review", rtype: "Liveness", locked: false, ref: "WD-330941", thr: 10000, frozen: true },
+  { time: "2026-10-10 01:30", player: "PL-104010", ch: "Maya", amt: 1200, mfa: "ok", st: "review", rtype: "Liveness", locked: false, ref: "WD-330938", thr: 10000, frozen: true }
+); /* Demo data: face liveness check did not pass, waiting for the identity reviewer in Payment account review */
+(function () {
+  const n0 = rvWdNote;
+  rvWdNote = function (d) {
+    if (d.st === "review" && ryRType(d) === "Liveness") return `Face liveness check did not pass · Frozen ${peso2(d.amt)} · read only here, decided in Payment account review`;
+    return n0(d);
+  };
+  const q0 = rvWdQueue;
+  rvWdQueue = function () { /* the Finance queue lists the Amount reviews only (the only ones Finance can decide) */
+    const all = S.withdraws, liv = all.filter((d) => d.st === "review" && ryRType(d) === "Liveness").length; S.withdraws = all.filter((d) => !(d.st === "review" && ryRType(d) === "Liveness"));
+    let out; try { out = q0(); } finally { S.withdraws = all; }
+    return out.replace(/<\/div>$/, `<p class="tiny" data-ry="liv-note">${liv} Liveness review${liv === 1 ? "" : "s"} (face check not passed) ${liv === 1 ? "is" : "are"} listed under Pending Review below, read only; ${liv === 1 ? "it is" : "they are"} decided in Payment account review. Demo data.</p></div>`);
+  };
+})();
+
+/* ---------- Y3 (815) Draw Sales header: Start Of / As Of ---------- */
+function ryAsOf() {
+  const live = dsLive().filter((i) => i.st === "sale"), q = live.length ? live.map(btAsof).sort().pop() : sysNow(); /* query time (a draw on sale carries the time of its last refresh) */
+  let a = S.rr.to + " 23:59"; if (q < a) a = q; const now = sysNow(); if (a > now) a = now; return a;
+}
+function ryDsHead() {
+  const live = dsLive().some((i) => i.st === "sale");
+  return `<div class="card" data-ry="ds-head" style="margin-bottom:10px"><span data-ds="start">Start Of <b class="mono">${S.rr.from} 00:00</b></span> · <span data-ds="asof">As Of <b class="mono">${ryAsOf()}</b></span> <span class="tiny">UTC+8 · ${z("Start Of is the first selected day; As Of is the earlier of the selected end day and the query time, never later than now" + (live ? "; draws on sale are included and refresh on their own button." : "."), "Start Of 为所选开始日；As Of 为所选结束日与查询时间中较早者，不晚于当前时间" + (live ? "；销售中期次已计入，点各自的刷新更新。" : "。"))}</span></div>`;
+}
+
+/* ---------- Y7 (819) City, Province names ---------- */
+function ryArea(prov, city) { return city + ", " + prov; }
+const RY_EXTRA = [ /* Demo data: [province, city, weight] of the regions with no drill-down in the region card (independent cities show their own name as Province) */
+  ["Region VI", [["City of Iloilo", "City of Iloilo", 6], ["Negros Occidental", "Silay City", 3], ["Iloilo", "Passi City", 2]]],
+  ["Region XI", [["City of Davao", "City of Davao", 8], ["Davao del Sur", "City of Digos", 2]]],
+  ["Region X", [["City of Cagayan de Oro", "City of Cagayan de Oro", 6], ["Bukidnon", "City of Valencia", 2]]],
+  ["Region V", [["Albay", "City of Legazpi", 4], ["Camarines Sur", "City of Naga", 4]]],
+  ["Other regions", [["City of Baguio", "City of Baguio", 4], ["Isabela", "City of Ilagan", 2], ["Zamboanga del Sur", "City of Pagadian", 2], ["City of Puerto Princesa", "City of Puerto Princesa", 2]]]
+];
+
+/* ---------- Y8 (820, 821) nationwide city table ---------- */
+rxMoney = function (sales, key) { /* demo split of a sales figure; Payout/Tax/Net Payout include counter payouts, Net Due deducts only the automatically credited part */
+  const rate = 0.36 + (rxHash(key) % 15) / 100;
+  const payout = rxR2(sales * rate), tax = rxR2(payout * 0.04), net = rxR2(payout - tax), refunds = rxR2(sales * 0.0012);
+  const counter = rxR2(net * (0.06 + (rxHash(key + "|c") % 9) / 100)), auto = rxR2(net - counter);
+  return { sales, payout, tax, net, refunds, counter, auto, due: rxR2(sales - refunds - auto) };
+};
+function ryNatTotalSales() {
+  const sg = S.rf.sales.game;
+  return Math.round(tVal(GAME_SALES.filter((r) => !sg || r.id === sg).reduce((s, r) => s + r.sales, 0) * periodFactor(), "sales", tfv("sales")));
+}
+function ryNatRows() { /* every city of the nation, flat; Unknown and overseas at the end */
+  const regs = REGIONS.filter((r) => r[0] !== "Unknown").map((r) => (r[0] === "Other regions" ? [r[0], r[1] - 1.5] : r)).concat([["overseas", 1.5], ["Unknown", REGIONS.find((r) => r[0] === "Unknown")[1]]]);
+  const vals = rgSplit(ryNatTotalSales(), regs.map((r) => r[1])), flat = [], tail = [];
+  regs.forEach((r, i) => {
+    if (r[0] === "overseas" || r[0] === "Unknown") { tail.push(Object.assign({ prov: r[0], city: r[0] }, rxMoney(vals[i], r[0]))); return; }
+    const list = PSGC[r[0]] ? [].concat(...PSGC[r[0]].map((p) => p[1].map((c) => [p[0], c[0], c[1] * p[2]]))) : (RY_EXTRA.find((x) => x[0] === r[0]) || [0, []])[1];
+    const cv = rgSplit(vals[i], list.map((c) => c[2]));
+    list.forEach((c, ci) => flat.push(Object.assign({ prov: c[0], city: c[1] }, rxMoney(cv[ci], c[0] + "|" + c[1]))));
+  });
+  const order = tail.sort((a, b) => (a.city === "overseas" ? 1 : 0) - (b.city === "overseas" ? 1 : 0)); /* Unknown, then overseas */
+  return flat.concat(order);
+}
+function ryNatKey(r) { return r.prov + "|" + r.city; }
+function ryNatShown() { const all = ryNatRows(); return S.rx.city === "all" ? all : all.filter((r) => ryNatKey(r) === S.rx.city); }
+function ryNatSum(rows) { const s = (k) => rxR2(rows.reduce((a, r) => a + r[k], 0)); return { sales: s("sales"), payout: s("payout"), tax: s("tax"), net: s("net"), due: s("due"), refunds: s("refunds"), auto: s("auto") }; }
+const RY_NAT_HEAD = ["Province", "City/Municipality", "Code", "Sales Amount", "Payout", "Tax Of Winnings", "Net Payout", "Net Due To PCSO"];
+const RY_FOOT = "Net Due To PCSO deducts only prizes credited automatically; counter payouts are paid by PCSO.";
+rxCityRows = ryNatRows; rxCityShown = ryNatShown;
+rxCityCard = function () {
+  const all = ryNatRows(), rows = ryNatShown(), tt = ryNatSum(rows), dup = {}; all.forEach((r) => { dup[r.city] = (dup[r.city] || 0) + 1; });
+  const sig = [S.rx.city, S.ry.natSize, S.rf.sales.game, S.period, S.tf.sales].join("|"); if (S.ry.natSig !== sig) { S.ry.natSig = sig; S.ry.natPage = 0; }
+  const size = S.ry.natSize, pages = Math.max(1, Math.ceil(rows.length / size)); S.ry.natPage = Math.min(S.ry.natPage, pages - 1);
+  const from = S.ry.natPage * size, shown = rows.slice(from, from + size);
+  const tr = (r) => `<tr data-rx="city-row" data-ry="nat-row" data-city="${esc(r.city)}" data-prov="${esc(r.prov)}"><td>${esc(r.prov)}</td><td>${esc(r.city)}</td><td class="mono" data-rx="code"></td><td class="mono amt">${peso2(r.sales)}</td><td class="mono amt">${peso2(r.payout)}</td><td class="mono amt">${peso2(r.tax)}</td><td class="mono amt">${peso2(r.net)}</td><td class="mono amt" data-rx="due">${rxFmt(r.due)}</td></tr>`;
+  const totRow = rows.length ? `<tr data-rx="city-total" style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${z("Total", "合计")}</td><td class="mono amt">${peso2(tt.sales)}</td><td class="mono amt">${peso2(tt.payout)}</td><td class="mono amt">${peso2(tt.tax)}</td><td class="mono amt">${peso2(tt.net)}</td><td class="mono amt" data-rx="due">${rxFmt(tt.due)}</td></tr>` : "";
+  const noExp = rrNoExport();
+  return `<div class="card" data-rx="city-card" data-ry="nat-card"><h4>${z("Nationwide by city / municipality", "全国按市 / 自治市")} ${rxDemoTag()}</h4>
+    <div class="tools" style="margin-bottom:8px"><label class="f">${z("City/Municipality", "市 / 自治市")}<select data-rx-f="city"><option value="all">${z("All", "全部")}</option>${all.map((r) => `<option value="${esc(ryNatKey(r))}" ${S.rx.city === ryNatKey(r) ? "selected" : ""}>${esc(dup[r.city] > 1 ? ryArea(r.prov, r.city) : r.city)}</option>`).join("")}</select></label>
+      <label class="f">${z("Rows per page", "每页条数")}<select data-ry-f="size">${[10, 20, 50].map((n) => `<option value="${n}" ${size === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+      ${noExp ? "" : `<button type="button" class="btn btn-sm" data-ry-act="nat-export" data-ry="nat-export">${z("Export CSV", "导出 CSV")}</button>`}</div>
+    <p class="tiny" data-ry="nat-filter">${z("Date range and Game follow the filter bar of this page; the City/Municipality drop-down narrows the table.", "日期范围、游戏沿用本页筛选条；市 / 自治市下拉缩小表格。")}</p>
+    ${table(RY_NAT_HEAD, shown.map(tr).concat([totRow]))}
+    <div class="row-actions" style="margin-top:8px"><button type="button" class="btn btn-sm" data-ry-act="nat-page" data-arg="prev" ${S.ry.natPage <= 0 ? "disabled" : ""}>${z("Previous", "上一页")}</button><span class="tiny mono" data-ry="nat-pager">${rows.length ? from + 1 : 0}–${Math.min(rows.length, from + size)} / ${rows.length}</span><button type="button" class="btn btn-sm" data-ry-act="nat-page" data-arg="next" ${S.ry.natPage >= pages - 1 ? "disabled" : ""}>${z("Next", "下一页")}</button></div>
+    <p class="tiny" data-rx="city-note">${z("One row per city or municipality of the whole country; a city that belongs to no province shows its own name as Province, NCR has no province level. Payout is the pre-tax prize, Tax Of Winnings the withholding tax, Net Payout = Payout − Tax Of Winnings; all three include counter (offline) payouts and follow the payment date. Net Due To PCSO = Sales Amount − Refunds − the Net Payout credited automatically; it can be negative and is shown with a minus sign. Because counter payouts are not deducted, a row's Net Due is not Sales − Refunds − its Net Payout column. Code is the PCSO area code and stays empty until the code table is available. The Total row adds up all rows of the filter, not only this page. Unknown and overseas close the list.", "每个市 / 自治市一行；不属于任何省的市在 Province 列显示自己的名称，NCR 不设省。Payout 为税前奖金，Tax Of Winnings 为预扣税，Net Payout = Payout − Tax Of Winnings；三列含线下（柜台）兑付，按付款当日。Net Due To PCSO = Sales Amount − Refunds − 自动入账部分的 Net Payout，可为负，带负号；因不扣柜台兑付，行内 Net Due 不等于 Sales − Refunds − 该行 Net Payout。Code 为 PCSO 区域代码，代码表到位前留空。合计行为筛选结果全部行之和，不只是本页。Unknown 和 overseas 在末尾。")}</p>
+    <p class="tiny" data-ry="foot">${RY_FOOT}</p></div>`;
+};
+function ryNatCsvRows() { return ryNatShown().map((r) => [r.prov, r.city, "", r.sales.toFixed(2), r.payout.toFixed(2), r.tax.toFixed(2), r.net.toFixed(2), r.due.toFixed(2)]); }
+rxCityCsv = function (lines) { lines.push([""], RY_NAT_HEAD); ryNatCsvRows().forEach((r) => lines.push(r)); }; /* no total row in a file */
+
+/* ---------- events ---------- */
+window.addEventListener("click", (e) => {
+  const el = e.target.closest && e.target.closest("[data-ry-act]"); if (!el) return;
+  const a = el.dataset.ryAct, arg = el.dataset.arg; e.stopImmediatePropagation();
+  if (a === "tk-sub") { S.ry.tsub = arg; render(); return; }
+  if (a === "auto") { if (S.ry.auto[arg]) ryStop(arg); else ryStart(arg); render(); return; }
+  if (a === "nat-page") { S.ry.natPage += arg === "next" ? 1 : -1; render(); return; }
+  if (a === "nat-export") {
+    if (rrNoExport()) { toast("View only: your role cannot export this report."); return; }
+    adm58Export("sales-by-city", RY_NAT_HEAD, ryNatCsvRows(), "csv", t("报表", "Reports"), `Nationwide by city · ${S.rr.from} to ${S.rr.to} · Game ${S.rf.sales.game ? gname(gameBy(S.rf.sales.game)) : "all"} · City ${S.rx.city === "all" ? "all" : S.rx.city}`);
+    render();
+  }
+}, true);
+window.addEventListener("click", (e) => { /* a Liveness review is never decided here, even by a forged click */
+  const b = e.target.closest && e.target.closest("[data-rv-act]"); if (!b || ["wd-approve", "wd-reject-open", "wd-reject-ok"].indexOf(b.dataset.rvAct) < 0) return;
+  const d = S.withdraws.find((x) => x.ref === b.dataset.ref); if (!d || d.st !== "review" || ryRType(d) !== "Liveness") return;
+  e.stopImmediatePropagation(); toast("Liveness reviews are decided in Payment account review.");
+}, true);
+window.addEventListener("change", (e) => {
+  const el = e.target; if (el.dataset && el.dataset.ryF === "size") { S.ry.natSize = Number(el.value) || 10; S.ry.natPage = 0; render(); }
+}, true);
+/* ===== end RY block ===== */
 
 </script>
 <!--SKIN:START-->
@@ -11413,6 +11572,8 @@ body.ddfs-on{overflow:hidden}
 #wz-host .wz-fixed-tag,.wz-fixed-row .wz-fixed-tag,[data-fixed-tag]{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em;vertical-align:middle;background:rgba(100,116,139,.16);color:#475569}
 #wz-host[data-dd-theme=dark] .wz-fixed-tag,[data-dd-theme=dark] [data-fixed-tag]{background:rgba(148,163,184,.18);color:#cbd5e1}
 [data-ejp-hist] td,[data-ejp-hist] th{white-space:nowrap}
+/* batch 19: Win/Loss and Player IP stay on one line */
+td[data-ry=wl],td[data-ry=wl-total],td[data-ry=ip],[data-ry=tk-sub]~.table-wrap th:nth-last-child(2){white-space:nowrap}
 
 </style>
 <script id="skin-js">
