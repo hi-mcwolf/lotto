@@ -7690,7 +7690,7 @@ function pqMatch(p, q) {
 function delBlockers(p) {
   const r = [];
   if (S.claimable.some((c) => c.player === p.id && c.status === "pending")) r.push("Cannot delete: the player has a pending prize claim.");
-  if (S.withdraws.some((w) => w.player === p.id && (w.st === "pending" || w.st === "review"))) r.push("Cannot delete: the player has a pending withdrawal.");
+  if (S.withdraws.some((w) => w.player === p.id && (w.st === "pending" || w.st === "review" || w.st === "inreview"))) r.push("Cannot delete: the player has a pending withdrawal.");
   if (S.deposits.some((d) => d.player === p.id && d.st === "pending")) r.push("Cannot delete: the player has a pending deposit.");
   if (p.dispute) r.push("Cannot delete: the player has an open dispute.");
   if (woBal(p) > S.woLimit.value) r.push("Cannot delete: the balance exceeds the write-off limit. The player must use it for bets first, or Finance review must raise the limit.");
@@ -7700,7 +7700,7 @@ function delBlockers(p) {
 }
 function woBal(p) { return Math.round(((Number(p.cash) || 0) + (Number(p.prize) || 0)) * 100) / 100; }
 function delSummary(p) {
-  return { cash: p.cash, prize: p.prize, claims: S.claimable.filter((c) => c.player === p.id && c.status === "pending").length, wds: S.withdraws.filter((w) => w.player === p.id && (w.st === "pending" || w.st === "review")).length, deps: S.deposits.filter((d) => d.player === p.id && d.st === "pending").length };
+  return { cash: p.cash, prize: p.prize, claims: S.claimable.filter((c) => c.player === p.id && c.status === "pending").length, wds: S.withdraws.filter((w) => w.player === p.id && (w.st === "pending" || w.st === "review" || w.st === "inreview")).length, deps: S.deposits.filter((d) => d.player === p.id && d.st === "pending").length };
 }
 function delReqOf(p) { return S.delReqs.find((r) => r.player === p.id && r.st === "pending"); }
 function viewPlayers() {
@@ -8088,6 +8088,7 @@ function viewTickets() {
     <label class="f">${z("Ticket Number", "票号")}<input data-tkf="no" value="${esc(f.no)}" placeholder="TKT202610090231" /></label>
     <label class="f">${z("Player (ID or mobile)", "玩家（ID 或手机号）")}<input data-tkf="player" value="${esc(f.player)}" placeholder="PL-104482" /></label>
     <div><label class="f">${z("Game", "游戏")}</label>${gsel}</div>
+    <label class="f">${z("Game Category", "游戏类别")}<select data-tkf="cat" data-rz="cat">${[["all", "All"], ["lotto", "Lotto"], ["digit", "Digit"]].map(([k, l]) => `<option value="${k}" ${(f.cat || "all") === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <label class="f">${z("Draw", "期号")}<input data-tkf="draw" value="${esc(f.draw)}" placeholder="L655-20261009-3" /></label>
     <label class="f">${z("Ticket Status", "彩票状态")}<select data-tkf="st"><option value="all">${z("All", "全部")}</option>${Object.keys(TK_ST).map((k) => `<option value="${k}" ${f.st === k ? "selected" : ""}>${TK_ST[k][0]}</option>`).join("")}</select></label>
     <label class="f">${z("Claim Status", "领取状态")}<select data-tkf="claim">${["all", "Unclaimed", "Claimed", "N/A"].map((k) => `<option value="${k}" ${f.claim === k ? "selected" : ""}>${k === "all" ? "All" : k}</option>`).join("")}</select></label>
@@ -8096,8 +8097,8 @@ function viewTickets() {
     <label class="f">${z("Amount Type", "金额类型")}<select data-tkf="atype"><option value="win" ${(f.atype || "win") === "win" ? "selected" : ""}>Win Amount</option><option value="buy" ${f.atype === "buy" ? "selected" : ""}>Purchase Amount</option></select></label><label class="f">${z("Amount From", "金额从")}<input type="number" data-tkf="min" value="${f.min}" style="min-width:100px" /></label><label class="f">${z("Amount To", "金额到")}<input type="number" data-tkf="max" value="${f.max}" style="min-width:100px" /></label>
     <button type="button" class="btn btn-primary btn-sm" data-act="tk-search">${z("Search", "搜索")}</button><button type="button" class="btn btn-sm" data-act="tk-reset">${z("Reset", "重置")}</button></div>
     <div class="row-actions" style="margin-top:10px"><button type="button" class="btn btn-sm" data-act="tk-scan">${z("Scan", "扫码")}</button>${expBtns("tk-export")}<span class="tiny" data-tk-areanote="1">Bet Area is the city or municipality and its province where the bet was placed, e.g. San Jose, Batangas (NCR: City of Mandaluyong, NCR; a city with no province repeats its name). Device location, or the IP address when location is not allowed; Unknown when it could not be resolved. Demo data.</span><span class="tiny" data-qr-note="1">Scan a Ticket QR to look a ticket up; a prize claim still needs the Claim Code (type it or scan the Claim QR). The search tells a ticket number from a claim code by its content.</span><span class="tiny">${z("Read-only. Scan looks a ticket up; claims are handled under Big prize claims. Time range is required (span ≤ 92 days) unless you search by ticket number, player or draw; up to 100,000 rows.", "只读；扫码仅查询，兑付在“大奖申领”；不按票号、玩家或期号精确查询时，时间范围必填（跨度 ≤ 92 天）；单次最多 100,000 行。")}</span></div></div>
-    ${ryTkTabs()}${table([z("Ticket Number", "票号"), z("Bet Order Number", "投注单号"), z("Player", "玩家"), z("Game", "游戏"), z("Draw", "期号"), z("Purchased At", "购买时间"), z("Bet Type", "玩法"), z("Bet Region", "投注区域"), z("Bet Area", "投注地"), z("Draw Time", "开奖时间"), z("Status", "状态"), z("Ticket Price", "票价"), z("Purchase Amount", "购买金额"), z("Prize Pre-Tax", "奖金（税前）"), z("Net Payout", "实付"), z("Win/Loss", "输赢"), z("Claim Status", "领取状态")],
-      rows.map((r) => `<tr><td class="mono">${r.no}</td><td class="mono">${r.order}</td><td><button type="button" class="link mono" data-act="open-player" data-id="${r.player}">${r.player}</button></td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.buy}</td><td>${esc(r.btype)}</td><td>${r.region}</td><td data-tk="area">${esc(r.area || "Unknown")}</td><td class="mono">${r.draw}</td><td>${tag(r.st === "toclaim" ? "warn" : r.st === "won" || r.st === "claimed" ? "ok" : r.st === "void" ? "rose" : "muted", TK_ST[r.st][0])}</td><td class="mono amt">${peso(r.price)}</td><td class="mono amt">${peso(r.amt)}</td><td class="mono amt">${r.prize == null ? "-" : peso(r.prize)}</td><td class="mono amt">${r.paid == null ? "-" : peso(r.paid)}</td><td class="mono amt" data-ry="wl">${ryWL(r) == null ? "-" : ryFmt(ryWL(r))}</td><td>${r.claim}</td></tr>`).concat([`<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${z("Total", "合计")} · ${sum.n} ${z("tickets", "张")}</td><td colspan="8"></td><td></td><td class="mono amt">${peso(sum.amt)}</td><td class="mono amt">${peso(sum.prize)}</td><td class="mono amt">${peso(sum.paid)}</td><td class="mono amt" data-ry="wl-total">${ryFmt(sum.wl)}</td><td></td></tr>`]))}`;
+    ${ryTkTabs()}${table([z("Ticket Number", "票号"), z("Bet Order Number", "投注单号"), z("Player", "玩家"), z("Game", "游戏"), z("Draw", "期号"), z("Purchased At", "购买时间"), z("Bet Type", "玩法"), z("Bet Numbers", "投注号码"), z("Bet Region", "投注区域"), z("Bet Area", "投注地"), z("Draw Time", "开奖时间"), z("Status", "状态"), z("Ticket Price", "票价"), z("Purchase Amount", "购买金额"), z("Prize Pre-Tax", "奖金（税前）"), z("Net Payout", "实付"), z("Win/Loss", "输赢"), z("Claim Status", "领取状态")],
+      rows.map((r) => `<tr><td class="mono">${r.no}</td><td class="mono">${r.order}</td><td><button type="button" class="link mono" data-act="open-player" data-id="${r.player}">${r.player}</button></td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.buy}</td><td>${esc(r.btype)}</td><td class="mono" data-tk="nums">${rzBetNums(r)}</td><td>${r.region}</td><td data-tk="area">${esc(r.area || "Unknown")}</td><td class="mono">${r.draw}</td><td>${tag(r.st === "toclaim" ? "warn" : r.st === "won" || r.st === "claimed" ? "ok" : r.st === "void" ? "rose" : "muted", TK_ST[r.st][0])}</td><td class="mono amt">${peso(r.price)}</td><td class="mono amt">${peso(r.amt)}</td><td class="mono amt">${r.prize == null ? "-" : peso(r.prize)}</td><td class="mono amt">${r.paid == null ? "-" : peso(r.paid)}</td><td class="mono amt" data-ry="wl">${ryWL(r) == null ? "-" : ryFmt(ryWL(r))}</td><td>${r.claim}</td></tr>`).concat([`<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${z("Total", "合计")} · ${sum.n} ${z("tickets", "张")}</td><td colspan="9"></td><td></td><td class="mono amt">${peso(sum.amt)}</td><td class="mono amt">${peso(sum.prize)}</td><td class="mono amt">${peso(sum.paid)}</td><td class="mono amt" data-ry="wl-total">${ryFmt(sum.wl)}</td><td></td></tr>`]))}`;
 }
 function scanModal() {
   const r = S.scanRes;
@@ -8321,6 +8322,8 @@ function viewDrawSales() {
   const totRow = (label, tt) => `<tr style="font-weight:700;background:rgba(255,255,255,.05)"><td colspan="3">${label}</td>${cell(tt.sc, tt.sa)}${cell(tt.rc, tt.ra)}<td class="mono amt">${peso(tt.sa - tt.ra)}</td>${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`;
   let body;
   if (sub === "game") {
+    body = zDsByGame(rows);
+  } else if (sub === "gameold") {
     const g = {}; rows.forEach((r) => { (g[r.game] = g[r.game] || []).push(r); });
     body = table(head.map((h, i) => i === 0 ? z("Draws", "期数") : i === 2 ? "" : h), Object.keys(g).map((k) => { const tt = tot(g[k]); return `<tr><td class="mono">${g[k].length}</td><td>${esc(gname(gameBy(k)))}</td><td></td>${cell(tt.sc, tt.sa)}${cell(tt.rc, tt.ra)}<td class="mono amt">${peso(tt.sa - tt.ra)}</td>${cell(tt.wc, tt.wa)}${cell(tt.pc, tt.pa)}${cell(tt.uc, tt.ua)}</tr>`; }).concat([totRow(z("Total", "合计"), tot(rows))]));
   } else if (sub === "region") {
@@ -8332,7 +8335,7 @@ function viewDrawSales() {
   } else {
     body = dsLiveNote() + table(head, dsLiveRows().concat(rows.map((r) => `<tr><td class="mono">${r.issue}</td><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.date}</td>${cell(r.sc, r.sa)}${cell(r.rc, r.ra)}<td class="mono amt">${peso(r.sa - r.ra)}</td>${cell(r.wc, r.wa)}${cell(r.pc, r.pa)}${cell(r.uc, r.ua)}</tr>`).concat(rows.length ? [totRow(z("Total for the selected range", "所选范围合计"), tot(rows))] : [])));
   }
-  return `${ryDsHead()}<div class="tools" style="margin-bottom:10px" data-tf-bar="draw">${tfSel("sales")}</div><p class="tiny">${z("Refunded amount = refunds of the three void types: no-draw day, draw cancelled, and game still delisted at draw time. Net after refund = sales − refunded. The prize rate denominator stays Sales (effective sales not refunded). All counts are tickets. Winning amount is the pre-tax prize total of the winning tickets. Winning = paid + unclaimed + overdue unclaimed; see Prizes → Overdue unclaimed for overdue tickets. Demo data.", "退款金额 = 三种作废（无开奖日、期次取消、开奖时游戏仍下架）的退款；退款后销售 = 销售额 − 退款；奖金率分母仍为销售额（未退款的有效销售）。所有笔数按票计；中奖金额 = 中奖票税前奖金合计；中奖 = 派奖 + 未兑奖 + 逾期未领，逾期未领见奖金与派彩的逾期未领视图。演示数据。")}</p><div class="tabs" style="margin-bottom:10px">${[["sum", "Summary"], ["game", "By game"], ["region", "By region"], ["pre", "Pre-sale"]].map(([k, l]) => `<button type="button" data-act="tab" data-group="dsub" data-arg="${k}" class="${sub === k ? "on" : ""}">${l}</button>`).join("")}</div>${body}`;
+  return `${ryDsHead()}<div class="tools" style="margin-bottom:10px" data-tf-bar="draw">${tfSel("sales")}</div><p class="tiny">${z("Refunded amount = refunds of the three void types: no-draw day, draw cancelled, and game still delisted at draw time. Net after refund = sales − refunded. The prize rate denominator stays Sales (effective sales not refunded). All counts are tickets. Winning amount is the pre-tax prize total of the winning tickets. Winning = paid + unclaimed + overdue unclaimed; see Prizes → Overdue unclaimed for overdue tickets. Demo data.", "退款金额 = 三种作废（无开奖日、期次取消、开奖时游戏仍下架）的退款；退款后销售 = 销售额 − 退款；奖金率分母仍为销售额（未退款的有效销售）。所有笔数按票计；中奖金额 = 中奖票税前奖金合计；中奖 = 派奖 + 未兑奖 + 逾期未领，逾期未领见奖金与派彩的逾期未领视图。演示数据。")}</p><div class="tabs" style="margin-bottom:10px">${[["sum", "Summary"], ["game", "By Game"], ["region", "By region"], ["pre", "Pre-sale"]].map(([k, l]) => `<button type="button" data-act="tab" data-group="dsub" data-arg="${k}" class="${sub === k ? "on" : ""}">${l}</button>`).join("")}</div>${body}`;
 }
 function viewJackpot() {
   const all = jpRows().filter((r) => rfPass("jp", r[0], r[1], r[2]));
@@ -8349,8 +8352,8 @@ function viewFinalTax() {
   const rows = S.claims.map((c) => ({ game: c.game, issue: c.issue, no: c.ticket, date: c.date, name: names[c.ticket] || "Juan P. Reyes", gross: c.gross })).concat([{ game: "d6", issue: "6D-20261007-1", no: "TKT20261007009880", date: "2026-10-07", name: "Diego Ramos", gross: 15000 }, { game: "ez2", issue: "EZ2-20261010-3", no: "TKT20261010011020", date: "2026-10-10", name: "Diego Ramos", gross: 4500 }]).filter((r) => rfPass("tax", r.game, r.issue, r.date)).sort((a, b) => b.date.localeCompare(a.date));
   const tt = rows.map((r) => Object.assign({}, r, taxOf(r.gross)));
   if (opsTotalsOnly()) return `<div class="banner" data-j14="tax-totals">${z("Operations sees the period totals only: no per-ticket detail, no personal data and no export. Finance review and Compliance audit see the ticket list and can export.", "运营专员只看期间合计：看不到逐票明细和个人信息，不能导出；财务复核、合规审计可看逐票明细并导出。")}</div>${rfBar("tax")}${table([z("Paid tickets", "已兑付票数"), z("Prize Pre-Tax", "税前奖金"), z("Withholding Tax", "预扣税"), z("Net Amount", "净额")], [`<tr style="font-weight:700"><td class="mono">${tt.length}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.gross, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.tax, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.net, 0))}</td></tr>`])}`;
-  return `<div class="banner">${z("One row per paid ticket. Paid Time is the date and time to the second (UTC+8): offline claims use the cheque registration time; auto-credits use the credit time. The TIN column shows the TIN collected at registration in plain text (an exception to the masking rule: this report is open to Finance review and Compliance audit only); - when none was collected. Includes personal data: only Finance review and Compliance audit can export; Operations sees totals only.", "每张已兑付票一行；兑付时间精确到秒（UTC+8），线下兑付按付款登记时间，自动入账按入账时间；TIN 列显示注册时采集的税号明文（掩码规则的例外：本报告只开放给财务复核、合规审计），未采集显示 -；含个人信息，仅财务复核、合规审计可导出。")}</div>${rfBar("tax")}${table([z("Game", "游戏"), z("Draw", "期号"), z("Ticket Number", "票号"), z("Paid Time", "兑付时间"), z("Player Name", "玩家姓名"), "TIN", z("Prize Pre-Tax", "税前奖金"), z("Withholding Tax", "预扣税"), z("Net Amount", "净额")],
-    tt.map((r) => `<tr><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.no}</td><td class="mono" data-rx="paid-time">${rxPaidAt(r.no, r.date)}</td><td>${esc(r.name)}</td><td class="mono" data-tin="1">${FT_TIN[r.no] || "-"}</td><td class="mono amt">${peso(r.gross)}</td><td class="mono amt">${peso(r.tax)}</td><td class="mono amt">${peso(r.net)}</td></tr>`).concat(tt.length ? [`<tr style="font-weight:700"><td colspan="6">${z("Total", "合计")}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.gross, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.tax, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.net, 0))}</td></tr>`] : []))}`;
+  return `<div class="banner">${z("One row per paid ticket. Paid Time is the date and time to the second (UTC+8): offline claims use the cheque registration time; auto-credits use the credit time. The TIN column shows the TIN collected at registration in plain text (an exception to the masking rule: this report is open to Finance review and Compliance audit only); - when none was collected. Includes personal data: only Finance review and Compliance audit can export; Operations sees totals only.", "每张已兑付票一行；兑付时间精确到秒（UTC+8），线下兑付按付款登记时间，自动入账按入账时间；TIN 列显示注册时采集的税号明文（掩码规则的例外：本报告只开放给财务复核、合规审计），未采集显示 -；含个人信息，仅财务复核、合规审计可导出。")}</div>${rfBar("tax")}${table([z("Game", "游戏"), z("Draw", "期号"), z("Ticket Number", "票号"), z("Paid Time", "兑付时间"), "TIN", z("Player Name", "玩家姓名"), z("Prize Pre-Tax", "税前奖金"), z("Withholding Tax", "预扣税"), z("Net Amount", "净额"), z("VAT Class", "VAT 属性")],
+    tt.map((r) => `<tr><td>${esc(gname(gameBy(r.game)))}</td><td class="mono">${r.issue}</td><td class="mono">${r.no}</td><td class="mono" data-rx="paid-time">${rxPaidAt(r.no, r.date)}</td><td class="mono" data-tin="1">${FT_TIN[r.no] || "-"}</td><td>${esc(r.name)}</td><td class="mono amt">${peso(r.gross)}</td><td class="mono amt">${peso(r.tax)}</td><td class="mono amt">${peso(r.net)}</td><td data-rz="vat">Non-VAT</td></tr>`).concat(tt.length ? [`<tr style="font-weight:700"><td colspan="6">${z("Total", "合计")}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.gross, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.tax, 0))}</td><td class="mono amt">${peso(tt.reduce((s, r) => s + r.net, 0))}</td><td></td></tr>`] : []))}<p class="tiny" data-rz="vat-note">${z("VAT Class: prize payouts are shown as Non-VAT in this demo. Demo data.", "VAT 属性：本演示中奖金兑付显示为 Non-VAT。演示数据。")}</p>`;
 }
 S.rpf = { kyc: "all", st: "all", from: "", to: "" };
 const DEMO_AGE = [["18–24", 1204], ["25–34", 2871], ["35–44", 2310], ["45–54", 1388], ["55 and over", 7]];
@@ -8564,7 +8567,7 @@ function adm58More(act, id, el, e) {
     const f = S.tka;
     { const e = tkRangeErr(f); if (e) { toast(e); return true; } }
     const rows = tkFiltered().map(tkRow);
-    adm58Export("tickets", ["Ticket Number", "Bet Order Number", "Player", "Game", "Draw", "Purchased At", "Bet Type", "Bet Region", "Bet Area", "Draw Time", "Status", "Ticket Price", "Purchase Amount", "Prize Pre-Tax", "Net Payout", "Win/Loss", "Claim Status"], rows, arg, t("交易流水", "Transactions"), "tickets tab · " + rxTkFilt());
+    adm58Export("tickets", ["Ticket Number", "Bet Order Number", "Player", "Game", "Draw", "Purchased At", "Bet Type", "Bet Numbers", "Bet Region", "Bet Area", "Draw Time", "Status", "Ticket Price", "Purchase Amount", "Prize Pre-Tax", "Net Payout", "Win/Loss", "Claim Status"], rows, arg, t("交易流水", "Transactions"), "tickets tab · " + rxTkFilt());
     render(); return true;
   }
   if (act === "rr-pick") {
@@ -10726,6 +10729,198 @@ window.addEventListener("change", (e) => {
   const el = e.target; if (el.dataset && el.dataset.ryF === "size") { S.ry.natSize = Number(el.value) || 10; S.ry.natPage = 0; render(); }
 }, true);
 /* ===== end RY block ===== */
+/* ===== RZ block (batch 20 · admin): Z1 Bet Numbers + Game Category, Z2 Draw Sales By Game, Z4 Jackpot row expand, Z5 two-level withdrawal review, Z6 Payout Amount / Penalty Charge Status ===== */
+S.rz = { jp: {} };
+
+/* ---------- Z1 (823, 824) Tickets: Bet Numbers column, Game Category filter ---------- */
+function rzBetNums(r) { return String(r.nums || "").trim().split(/[\s,\-]+/).filter(Boolean).join("-"); } /* lotto 03-12-25-31-40-47; digit games one digit per position, 2-0-5 */
+function rzCat(gameId) { return gameBy(gameId).kind === "lotto" ? "lotto" : "digit"; }
+(function () {
+  const f0 = tkFiltered;
+  tkFiltered = function () { const c = (S.tka && S.tka.cat) || "all"; return f0().filter((r) => c === "all" || rzCat(r.game) === c); }; /* intersects with the Game filter, the sub-tab and every other filter */
+  const k0 = tkRow;
+  tkRow = function (r) { const a = k0(r); a.splice(7, 0, rzBetNums(r)); return a; }; /* after Bet Type */
+  const e0 = rxTkFilt;
+  rxTkFilt = function () { const c = (S.tka && S.tka.cat) || "all"; return e0() + " · Game Category " + { all: "All", lotto: "Lotto", digit: "Digit" }[c]; };
+})();
+
+/* ---------- Z2 (825) Draw Sales By Game ---------- */
+function rzDsGameRows(rows) {
+  const g = S.rf.sales.game, by = {};
+  rows.filter((r) => !g || r.game === g).forEach((r) => { (by[r.game] = by[r.game] || []).push(r); });
+  const seq = (r) => Number(String(r.issue).split("-").pop()) || 0;
+  return GAMES.filter((x) => by[x.id]).map((x) => {
+    const rs = by[x.id].slice().sort((a, b) => a.date.slice(0, 10).localeCompare(b.date.slice(0, 10)) || seq(a) - seq(b));
+    const s = (k) => rs.reduce((n, r) => n + r[k], 0);
+    return { game: x.id, name: gname(x), from: rs[0].issue, to: rs[rs.length - 1].issue, sc: s("sc"), sa: s("sa"), wc: s("wc"), wa: s("wa"), pc: s("pc"), pa: s("pa"), uc: s("uc"), ua: s("ua") };
+  });
+}
+const RZ_DS_HEAD = ["Game", "Draw From", "Draw To", "Sales Count", "Sales Amount", "Winning Count", "Winning Amount", "Paid Count", "Paid Amount", "Unclaimed Count", "Unclaimed Amount"];
+function zDsByGame(rows) {
+  const gr = rzDsGameRows(rows), n = (v) => v.toLocaleString("en-US");
+  const sum = (k) => gr.reduce((a, r) => a + r[k], 0);
+  const body = gr.map((r) => `<tr data-rz="dg-row" data-game="${r.game}"><td>${esc(r.name)}</td><td class="mono" data-rz="dg-from">${r.from}</td><td class="mono" data-rz="dg-to">${r.to}</td><td class="mono amt">${n(r.sc)}</td><td class="mono amt">${peso(r.sa)}</td><td class="mono amt">${n(r.wc)}</td><td class="mono amt">${peso(r.wa)}</td><td class="mono amt">${n(r.pc)}</td><td class="mono amt">${peso(r.pa)}</td><td class="mono amt">${n(r.uc)}</td><td class="mono amt">${peso(r.ua)}</td></tr>`);
+  if (gr.length) body.push(`<tr data-rz="dg-total" style="font-weight:700;background:rgba(255,255,255,.05)"><td>${z("Total", "合计")}</td><td class="mono">-</td><td class="mono">-</td><td class="mono amt">${n(sum("sc"))}</td><td class="mono amt">${peso(sum("sa"))}</td><td class="mono amt">${n(sum("wc"))}</td><td class="mono amt">${peso(sum("wa"))}</td><td class="mono amt">${n(sum("pc"))}</td><td class="mono amt">${peso(sum("pa"))}</td><td class="mono amt">${n(sum("uc"))}</td><td class="mono amt">${peso(sum("ua"))}</td></tr>`);
+  return `<div class="card" data-rz="ds-game"><h4>${z("By Game", "按游戏")} ${tag("muted", z("Demo data", "演示数据"))}</h4>${table(RZ_DS_HEAD, body)}<p class="tiny" data-rz="dg-note">${z("One row per game for the selected period. Draw From and Draw To are the first and the last draw of the game in the period. Counts are tickets (a System or 5-Roll order counts one ticket per combination, no Combins), the same basis as the By draw view; Winning, Paid and Unclaimed amounts are pre-tax. The Total row shows - for Draw From and Draw To; the exported file has no Total row.", "一行一个游戏。Draw From / Draw To 为所选期间内该游戏第一期和最后一期；笔数按票计（复式和 5 号轮转每个组合一张票，不加 Combins），口径同按期次视图；中奖、兑付、未兑奖金额为税前；合计行的 Draw From / Draw To 显示 -，导出文件不含合计行。")}</p></div>`;
+}
+
+/* ---------- Z4 (827) Jackpot report: row expand with the prize tiers of the draw ---------- */
+function rzTierRows(r) {
+  const all = pdAll(), own = all.find((x) => x.issue === r[1]);
+  const src = own || all.filter((x) => x.game === r[0]).sort((a, b) => b.date.localeCompare(a.date))[0]; /* Demo data: the draws of this report are not in the prize demo list, so the tier names and fixed prizes come from the latest draw of the same game */
+  if (!src) return [];
+  return src.tiers.map((x, i) => {
+    const jp = i === 0;
+    return { tier: x.en, type: jp ? "Jackpot / floating" : x.prize > 300000 ? "Jackpot / floating" : "Fixed", n: jp && !own ? r[4] : x.n, prize: jp ? (r[4] ? r[6] : null) : x.prize };
+  });
+}
+viewJackpot = function () {
+  const all = jpRows().filter((r) => rfPass("jp", r[0], r[1], r[2]));
+  const rows = [];
+  all.forEach((r) => {
+    const open = !!S.rz.jp[r[1]];
+    rows.push(`<tr data-rz="jp-row" data-issue="${r[1]}"><td><button type="button" class="btn btn-sm" data-rz-act="jp-open" data-arg="${r[1]}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${r[1]}" data-rz="jp-toggle">${open ? "−" : "+"}</button></td><td>${esc(gname(gameBy(r[0])))}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td class="mono">${r[3]}</td><td class="mono">${r[4]}</td><td class="mono amt">${peso(r[5])}</td><td class="mono amt">${r[4] ? peso(r[6]) : "-"}</td><td>${r[7] || "—"}</td></tr>`);
+    if (open) {
+      const tr = rzTierRows(r).map((x) => `<tr data-rz="jp-tier"><td>${esc(x.tier)}</td><td>${x.type}</td><td class="mono amt">${(x.n || 0).toLocaleString("en-US")}</td><td class="mono amt">${x.prize == null ? "-" : peso(x.prize)}</td></tr>`).join("");
+      rows.push(`<tr data-rz="jp-tiers" data-issue="${r[1]}"><td></td><td colspan="8"><div class="tiny" style="margin:4px 0">${z("Prize tiers of this draw", "该期奖级明细")} · <span class="mono">${r[1]}</span> · ${tag("muted", z("Demo data", "演示数据"))}</div><table><thead><tr><th>${z("Tier", "奖级")}</th><th>${z("Tier Type", "奖级类型")}</th><th>${z("Online Winning Bets", "线上中奖注数")}</th><th>${z("Prize Per Winning Bet", "单注奖金")}</th></tr></thead><tbody>${tr}</tbody></table></td></tr>`);
+    }
+  });
+  return `<div class="banner">${z("Jackpot report: Operations, Finance review and Compliance audit can view and export (PRD 6.13.1). It shows counts and amounts only, no player names.", "头奖报告：运营专员、财务复核、合规审计可查看、导出（PRD 6.13.1）。只列注数和金额，不含玩家姓名。")}</div>${rfBar("jp")}${table(["", z("Game", "游戏"), z("Draw", "期号"), z("Draw Date", "开奖日"), z("Winning Numbers", "中奖号码"), z("Jackpot Winner Count", "头奖注数"), z("Jackpot Pool", "头奖奖池"), z("Jackpot Per Winning Bet", "单注头奖"), z("Remark", "备注")], rows)}<p class="tiny">${z("Winner count is online winning bets only. Jackpot per winning bet is the value entered with the draw result. The + button on each row shows the prize tiers of that draw (tier, tier type, online winning bets, prize per winning bet); it has no player information.", "头奖注数只统计线上中奖注数；单注头奖取开奖时录入的值；每行的 + 按钮展开该期奖级明细（奖级、奖级类型、线上中奖注数、单注奖金），不含玩家信息。")}</p>`;
+};
+
+/* ---------- Z5 (828) two-level withdrawal review ---------- */
+const RZ_SAME = "You approved the first level of this withdrawal and cannot approve the second level.";
+function rzMe() { return window.__rzOperator || actor().who; } /* demo operator identity; tests set window.__rzOperator to simulate another Finance review person */
+function rzL1() { return myRole() === "finance" || demoAll(); }
+function rzL2() { return rzL1(); } /* both levels are Finance review; a different person must approve the second */
+function rzIsAmt1(d) { return d.st === "review" && ryRType(d) === "Amount"; }
+(function () { /* Demo data: amount reviews across the two stages */
+  const w = S.withdraws.find((x) => x.ref === "WD-330919"); w.st = "inreview"; w.ap1By = "fin.reyes"; w.ap1At = "2026-10-10 03:05";
+  S.withdraws.unshift({ time: "2026-10-10 05:20", player: "PL-104482", ch: "Maya", amt: 18000, mfa: "ok", st: "inreview", locked: false, ref: "WD-330944", thr: 10000, frozen: true, ap1By: "fin.reyes", ap1At: "2026-10-10 05:41" });
+})();
+(function () {
+  const g0 = wdTag;
+  wdTag = function (st) { return st === "inreview" ? tag("cyan", "In Review") : g0(st); };
+  const n0 = rvWdNote;
+  rvWdNote = function (d) {
+    if (rzIsAmt1(d)) return `Waiting for the first level · Frozen ${peso2(d.amt)} · threshold at request ${peso2(d.thr || 0)}`;
+    if (d.st === "inreview") return `First level approved by ${esc(d.ap1By)} at ${esc(d.ap1At)} · waiting for the second level (a different Finance review person) · Frozen ${peso2(d.amt)}`;
+    if (d.rvLevel) return `Rejected at the ${d.rvLevel === 1 ? "first level" : "second level (Finance review)"} by ${esc(d.rvBy)} at ${esc(d.rvAt)}: ${esc(d.rvReason)} · ${peso2(d.amt)} returned to the withdrawable balance`;
+    if (d.ap2By) return `Approved at both levels: first ${esc(d.ap1By)}, second ${esc(d.ap2By)}`;
+    return n0(d);
+  };
+})();
+function rzQueueRows(list, lvl) {
+  const can = lvl === 1 ? rzL1() : rzL2(), me = rzMe();
+  return list.map((d) => {
+    const same = lvl === 2 && d.ap1By === me, open = S.rv.rej === d.ref;
+    let act;
+    if (!can) act = `<span class="tiny" data-rz="ro">Read only</span>`;
+    else if (same) act = `<div class="row-actions"><button type="button" class="btn btn-sm btn-primary" disabled aria-disabled="true" title="${RZ_SAME}" data-rv-act="wd-approve" data-ref="${d.ref}">Approve</button><button type="button" class="btn btn-sm" disabled aria-disabled="true" title="${RZ_SAME}" data-rv-act="wd-reject-open" data-ref="${d.ref}">Reject</button></div><div class="tiny" data-rz="same-person">${RZ_SAME}</div>`;
+    else if (open) act = `<div data-rv="rej-box"><textarea data-rv-reason placeholder="Reason (required)">${esc(S.rv.reason)}</textarea><div class="row-actions"><button type="button" class="btn btn-sm btn-rose" data-rv-act="wd-reject-ok" data-ref="${d.ref}">Confirm reject</button><button type="button" class="btn btn-sm" data-rv-act="wd-reject-cancel">Cancel</button></div>${S.rv.err ? `<div class="err" data-rv="rej-err">${esc(S.rv.err)}</div>` : ""}</div>`;
+    else act = `<div class="row-actions"><button type="button" class="btn btn-sm btn-primary" data-rv-act="wd-approve" data-ref="${d.ref}">Approve</button><button type="button" class="btn btn-sm" data-rv-act="wd-reject-open" data-ref="${d.ref}">Reject</button></div>`;
+    const first = lvl === 2 ? `<td class="mono" data-rz="q-ap1">${esc(d.ap1By)}</td><td class="mono">${esc(d.ap1At)} UTC+8</td>` : "";
+    return `<tr data-rv="wd-q" data-rz="wd-q" data-lvl="${lvl}" data-ref="${d.ref}"><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? "Bank card" : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt">${peso2(d.thr || 0)}</td>${first}<td>${act}</td></tr>`;
+  });
+}
+rvWdQueue = function () {
+  const all = S.withdraws, s1 = all.filter(rzIsAmt1), s2 = all.filter((d) => d.st === "inreview");
+  const liv = all.filter((d) => d.st === "review" && ryRType(d) === "Liveness").length;
+  const H1 = ["Time", "Player Id", "Destination", "Amount", "Frozen Amount", "Threshold At Request", "Action"], H2 = ["Time", "Player Id", "Destination", "Amount", "Frozen Amount", "Threshold At Request", "First Approved By", "First Approved At", "Action"];
+  return `<div class="card" data-rv="wd-queue"><h4>Review queue</h4><p class="tiny" data-rz="q-note">Demo data. An Amount review goes through two levels. Both stages are decided by Finance review. Stage 1: first level. Stage 2: second level, by a different person than the first. The same person cannot approve both levels. A rejection at either level ends the request, needs a reason and returns the frozen amount to the withdrawable balance; the request shows the level and who rejected it. When both levels approve, the request goes to Pending Payment. Every approval and rejection is audited. Other roles see the queue read-only.</p>
+    <div data-rz="stage1"><h5 style="margin:10px 0 6px">Stage 1 · first level · Finance review <span class="tiny">(${s1.length})</span></h5>${s1.length ? table(H1, rzQueueRows(s1, 1)) : `<p class="muted" data-rv="wd-empty" data-rz="empty1">No withdrawals are waiting for the first level.</p>`}</div>
+    <div data-rz="stage2"><h5 style="margin:10px 0 6px">Stage 2 · second level · Finance review <span class="tiny">(${s2.length})</span></h5>${s2.length ? table(H2, rzQueueRows(s2, 2)) : `<p class="muted" data-rz="empty2">No withdrawals are waiting for the second level.</p>`}</div>
+    <p class="tiny" data-ry="liv-note">${liv} Liveness review${liv === 1 ? "" : "s"} (face check not passed) ${liv === 1 ? "is" : "are"} listed under Pending Review below, read only; ${liv === 1 ? "it is" : "they are"} decided in Payment account review. Demo data.</p></div>`;
+};
+window.addEventListener("click", (e) => { /* approve / reject at the level the request is waiting for; registered after the Liveness guard of the RY block */
+  const b = e.target.closest && e.target.closest("[data-rv-act]"); if (!b) return;
+  const act = b.dataset.rvAct; if (["wd-approve", "wd-reject-open", "wd-reject-cancel", "wd-reject-ok"].indexOf(act) < 0) return;
+  e.stopImmediatePropagation();
+  if (act === "wd-reject-cancel") { S.rv.rej = null; S.rv.reason = ""; S.rv.err = ""; render(); return; }
+  const d = S.withdraws.find((x) => x.ref === b.dataset.ref); if (!d || (d.st !== "review" && d.st !== "inreview")) return;
+  const lvl = d.st === "review" ? 1 : 2, me = rzMe();
+  if (lvl === 1 && !rzL1()) { toast("Read-only for your role: only Finance review can decide the first level."); return; }
+  if (lvl === 2 && !rzL2()) { toast("Read-only for your role: only Finance review can decide the second level."); return; }
+  if (lvl === 2 && d.ap1By === me) { toast(RZ_SAME); return; } /* back-end check: the same person cannot decide both levels */
+  const ac = () => ({ who: me, role: actor().role, mod: t("交易流水", "Transactions"), type: "Audit" }), lab = lvl === 1 ? "first level" : "second level";
+  if (act === "wd-reject-open") { S.rv.rej = d.ref; S.rv.reason = ""; S.rv.err = ""; render(); return; }
+  if (act === "wd-approve") {
+    const before = (lvl === 1 ? "Pending Review" : "In Review") + " · " + peso2(d.amt);
+    if (lvl === 1) { d.st = "inreview"; d.ap1By = me; d.ap1At = NOWSTR(); } else { d.st = "pending"; d.ap2By = me; d.ap2At = NOWSTR(); }
+    logAudit(Object.assign(ac(), { evt: "Approve withdrawal review (level " + lvl + ")", obj: d.ref + " · " + d.player, before, after: (lvl === 1 ? "In Review" : "Pending Payment") + " · " + peso2(d.amt) + " · level " + lvl + " approved by " + me }));
+    toast(lvl === 1 ? "First level approved. " + d.ref + " now waits for the second level (In Review)." : "Second level approved. " + d.ref + " is now Pending Payment."); render(); return;
+  }
+  const r = String(S.rv.reason || "").trim();
+  if (!r) { S.rv.err = "Enter the reason for rejecting this withdrawal."; render(); return; }
+  const before = (lvl === 1 ? "Pending Review" : "In Review") + " · frozen " + peso2(d.amt);
+  d.st = "rejected"; d.rvBy = me; d.rvAt = NOWSTR(); d.rvReason = r; d.rvLevel = lvl; d.frozen = false; d.refunded = d.amt; S.rv.rej = null; S.rv.reason = ""; S.rv.err = "";
+  logAudit(Object.assign(ac(), { evt: "Reject withdrawal review (level " + lvl + ")", obj: d.ref + " · " + d.player, before, after: "Rejected at the " + lab + " by " + me + " · " + peso2(d.amt) + " returned to the withdrawable balance · " + r }));
+  toast("Rejected at the " + lab + ". " + peso2(d.amt) + " returned to the withdrawable balance."); render();
+}, true);
+
+/* ---------- Z6 (829) Payout Amount and Penalty Charge Status ---------- */
+function rzPayout(d) { return d.amt - 0; } /* Request Amount − Penalty Charge; the penalty is always 0 in this version */
+const RZ_PCS = "None";
+(function () {
+  const r0 = rxDwRows;
+  rxDwRows = function (kind) {
+    let rows = r0(kind);
+    if (kind === "wd") { const f = S.rx.wd || {}; if (f.pcs && f.pcs !== "all" && f.pcs !== RZ_PCS) rows = []; }
+    return rows;
+  };
+  const f0 = rxDwFilter;
+  rxDwFilter = function (kind) {
+    if (kind !== "wd") return f0(kind);
+    const f = S.rx.wd || {}, sel = `<label class="f">${z("Penalty Charge Status", "罚金状态")}<select data-rxf="pcs" data-rz="pcs"><option value="all" ${!f.pcs || f.pcs === "all" ? "selected" : ""}>All</option><option value="None" ${f.pcs === "None" ? "selected" : ""}>None</option></select></label>`;
+    return f0(kind).replace('<button type="button" class="btn btn-primary btn-sm" data-rx-act="dw-search"', sel + '<button type="button" class="btn btn-primary btn-sm" data-rx-act="dw-search"')
+      .replace(/<\/p><\/div>$/, ` ${z("Payout Amount = Request Amount − Penalty Charge. The penalty is always 0 in this version, so Payout Amount equals Request Amount and Penalty Charge Status is None; the penalty rules are not set yet.", "Payout Amount = Request Amount − Penalty Charge；本期罚金恒为 0，所以 Payout Amount 等于 Request Amount，Penalty Charge Status 恒为 None；罚金规则尚未确定。")}</p></div>`);
+  };
+})();
+function rzRvType(d) { return d.st === "review" || d.st === "inreview" ? ryRType(d) : "-"; }
+const RZ_HEAD_FULL = ["Transaction Id", "Request Time", "Player Id", "Destination", "Request Amount", "Payout Amount", "Penalty Charge Status", "Primary Account", "MFA Method", "MFA Result", "Status", "Review Type", "First Approved By", "First Approved At", "Second Approved By", "Second Approved At", "Note", "Order Number", "Paid Date", "Paid Amount", ""];
+rcWithdrawals = function () {
+  const rows = rxDwRows("wd"), mode = a2Gp("wappr.mode");
+  const dash = (v) => (v ? esc(v) : "-"), at = (v) => (v ? esc(v) + " UTC+8" : "-");
+  const banner = `<div class="banner" data-rv="wd-note">${t("提现记录有待复核、待二级复核、处理中、已到账、已拒绝五种状态。", "A withdrawal is Pending Review, In Review, Pending Payment, Paid or Rejected.")} Pending Review lists the requests waiting for the first level, of two kinds told apart by Review Type: Liveness (the face liveness check did not pass; it is decided in Payment account review and is read only here; it exists in every approval mode) and Amount (only when Withdrawal Approval Mode is Manual Above Threshold and the amount is at or above the Withdrawal Review Threshold; Finance review approves or rejects it at the first level in the Review queue). In Review lists the Amount requests approved at the first level and waiting for the second level, which a different Finance review person approves or rejects; the same person cannot approve both levels. Both levels approved sends the request to Pending Payment. Under Automatic mode only Liveness requests can appear. A lock sits on the account, not as a separate status. A failed MFA is recorded as rejected. After MFA passes, a request that needs no review is paid out through the payment gateway call-back. <b data-rv="wd-mode">Withdrawal Approval Mode: ${esc(mode)} · Withdrawal Review Threshold: ${esc(a2Gp("wappr.thr"))}</b></div>`;
+  const chips = `<div class="tabs" data-rx="wd-sub" style="margin-bottom:12px">${txnChip("wd", "all", "全部", "All Withdraw")}${txnChip("wd", "review", "待复核", "Pending Review")}${txnChip("wd", "inreview", "二级复核中", "In Review")}${txnChip("wd", "pending", "处理中", "Pending Payment")}${txnChip("wd", "paid", "已到账", "Paid")}${txnChip("wd", "rejected", "已拒绝", "Rejected")}</div>`;
+  const appr = (d) => `<td class="mono" data-rz="ap1-by">${dash(d.ap1By)}</td><td class="mono" data-rz="ap1-at">${at(d.ap1At)}</td><td class="mono" data-rz="ap2-by">${dash(d.ap2By)}</td><td class="mono" data-rz="ap2-at">${at(d.ap2At)}</td>`;
+  return txExpBar() + ryAuto("wd") + banner + `${rvWdQueue()}${rvWdSim()}${rxDwFilter("wd")}` + chips +
+    table(RZ_HEAD_FULL.map((h) => (h ? z(h, { "Transaction Id": "流水号", "Request Time": "请求时间", "Player Id": "玩家ID", "Destination": "目的地", "Request Amount": "申请金额", "Payout Amount": "应付金额", "Penalty Charge Status": "罚金状态", "Primary Account": "主账户", "MFA Method": "MFA 方式", "MFA Result": "MFA 结果", "Status": "状态", "Review Type": "复核类型", "First Approved By": "第一级复核人", "First Approved At": "第一级复核时间", "Second Approved By": "第二级复核人", "Second Approved At": "第二级复核时间", "Note": "说明", "Order Number": "支付订单号", "Paid Date": "付款日期", "Paid Amount": "付款金额" }[h]) : "")),
+      rows.map((d) => { const tx = rcTxnId(d), pa = rxWdPaidAt(d); return `<tr class="${d.locked ? "alert" : ""}" data-rv="wd-row" data-ref="${d.ref}"><td class="mono">${tx}</td><td class="mono">${d.time} UTC+8</td><td class="mono">${d.player}</td><td>${d.ch === "银行卡" ? t("银行卡", "Bank card") : d.ch}</td><td class="mono amt">${peso2(d.amt)}</td><td class="mono amt" data-rz="payout">${peso2(rzPayout(d))}</td><td data-rz="pcs">${RZ_PCS}</td><td>${z("Yes", "是")}</td><td>SMS OTP</td><td>${d.mfa === "ok" ? tag("ok", t("通过", "Passed")) : tag("rose", t("失败", "Failed"))}</td><td>${wdTag(d.st)}</td><td data-ry="rtype">${rzRvType(d)}</td>${appr(d)}<td data-rv="wd-note-cell">${rvWdNote(d)}</td><td class="mono" data-rx="order-no">${rxOrderNo("wd", d)}</td><td class="mono" data-rx="paid-date">${pa ? pa + " UTC+8" : "-"}</td><td class="mono amt" data-rx="paid-amt">${pa ? peso2(d.amt) : "-"}</td><td>${rcFlagBtn(d.player, tx)}</td></tr>`; }));
+};
+(function () {
+  const x0 = rxDwExport;
+  rxDwExport = function (arg) {
+    if (S.tab.txn !== "wd") return x0(arg);
+    if (["ops", "finance", "compliance"].indexOf(myRole()) < 0) { toast("Your role cannot export transactions."); return; }
+    const f = S.rx.wd, rows = rxDwRows("wd"), Q = S.txnQ.wd || "all", by = { req: "Request Time", paid: "Paid Date" }[f.by] || "Request Time";
+    const heads = RZ_HEAD_FULL.slice(0, 7).concat(RZ_HEAD_FULL.slice(7, 16).filter((h) => h !== "Note"), ["Locked"], RZ_HEAD_FULL.slice(17, 20));
+    const body = rows.map((d) => [rcTxnId(d), d.time, d.player, d.ch, d.amt, rzPayout(d), RZ_PCS, "Yes", "SMS OTP", d.mfa, d.st, rzRvType(d), d.ap1By || "-", d.ap1At || "-", d.ap2By || "-", d.ap2At || "-", d.locked ? "Yes" : "No", rxOrderNo("wd", d), rxWdPaidAt(d), rxWdPaidAt(d) ? d.amt : "-"]);
+    adm58Export("withdrawals", heads, body, arg, t("交易流水", "Transactions"), `wd tab · status ${Q} · Search By ${by} ${f.from || "…"} to ${f.to || "…"} · Order Number ${f.order || "any"} · Amount ${f.min || "…"} to ${f.max || "…"} · Channel ${f.chs.join("/") || "all"} · Penalty Charge Status ${f.pcs && f.pcs !== "all" ? f.pcs : "All"}`);
+    render();
+  };
+})();
+
+/* ---------- events: Jackpot expand, By Game export, Jackpot export ---------- */
+window.addEventListener("click", (e) => {
+  const el = e.target.closest && e.target.closest("[data-rz-act],[data-act=rr-export]"); if (!el) return;
+  if (el.dataset.rzAct === "jp-open") { e.stopImmediatePropagation(); S.rz.jp[el.dataset.arg] = !S.rz.jp[el.dataset.arg]; render(); return; }
+  if (el.dataset.act !== "rr-export" || S.page !== "reports") return;
+  const arg = el.dataset.arg, tl = tfv("sales");
+  if (S.tab.report === "sales" && S.salesView === "draw" && S.tab.dsub === "game") {
+    e.stopImmediatePropagation();
+    const rows = rzDsGameRows(dsRows()).map((r) => [r.name, r.from, r.to, r.sc, r.sa.toFixed(2), r.wc, r.wa.toFixed(2), r.pc, r.pa.toFixed(2), r.uc, r.ua.toFixed(2)]); /* no total row in a file */
+    adm58Export("draw-sales-by-game", tl ? RZ_DS_HEAD.concat(["Terminal"]) : RZ_DS_HEAD, tl ? rows.map((r) => r.concat([tLab(tl)])) : rows, arg, t("报表", "Reports"), `${S.rr.from} to ${S.rr.to} · By Game · Game ${S.rf.sales.game ? gname(gameBy(S.rf.sales.game)) : "all"}` + (tl ? " · Terminal: " + tLab(tl) : ""));
+    render(); return;
+  }
+  if (S.tab.report === "draw" && (S.tab.dres || "main") === "jp") {
+    e.stopImmediatePropagation();
+    const rows = jpRows().filter((r) => rfPass("jp", r[0], r[1], r[2])).map((r) => [gname(gameBy(r[0])), r[1], r[2], r[3], String(r[4]), peso(r[5]), r[4] ? peso(r[6]) : "-", r[7] || "—"]);
+    adm58Export("report-draw", ["Game", "Draw", "Draw Date", "Winning Numbers", "Jackpot Winner Count", "Jackpot Pool", "Jackpot Per Winning Bet", "Remark"], rows, arg, t("报表", "Reports"), `${S.rr.from} to ${S.rr.to}`);
+    render();
+  }
+}, true);
+/* ===== end RZ block ===== */
 
 </script>
 <!--SKIN:START-->
