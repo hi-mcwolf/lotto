@@ -493,9 +493,9 @@ const G=[
 {id:'lotto',zh:'乐透 6/42',en:'Lotto 6/42',t:'lotto',n:42,k:6,p:25,pool:12300000,c:['#fb7184','#f97316'],nx:'2026-10-10T21:00:00+08:00',sch:'周二/四/六 21:00',schEn:'Tue/Thu/Sat 21:00',t5:[25000,1000,25],big:4120000},
 {id:'ez2',zh:'EZ2 2D',en:'EZ2 2D',t:'ez2',n:32,k:2,p:10,c:['#a3e635','#16a34a'],nx:'2026-10-10T17:00:00+08:00',sch:'每天 14/17/21 点',schEn:'Daily 2/5/9 PM',plays:['Straight','Rambolito'],prize:{Straight:4000,Rambolito:2000}},
 {id:'swer',zh:'Swertres 3D',en:'Swertres 3D',t:'dig',d:3,p:10,c:['#38bdf8','#6366f1'],nx:'2026-10-10T17:00:00+08:00',sch:'每天 14/17/21 点',schEn:'Daily 2/5/9 PM',plays:['Straight','Rambo6','Rambo3'],prize:{Straight:4500,Rambo6:750,Rambo3:1500}},
-{id:'d4',zh:'4D',en:'4D',t:'dig',d:4,p:12,c:['#f472b6','#9333ea'],nx:'2026-10-12T21:00:00+08:00',sch:'周一/三/五 21:00',schEn:'Mon/Wed/Fri 9 PM',plays:['Straight'],prize:{Straight:10000}},
-{id:'d6',zh:'6D',en:'6D',t:'dig',d:6,p:12,c:['#fbbf24','#dc2626'],nx:'2026-10-11T21:00:00+08:00',sch:'周二/日 21:00',schEn:'Tue/Sun 9 PM',plays:['Straight'],prize:{Straight:150000}}];
-const DG=[{id:'dchr',zh:'Letter Demo 4L',en:'Letter Demo 4L',t:'dig',d:4,p:12,c:['#0ea5e9','#7c3aed'],nx:'2026-10-12T21:00:00+08:00',sch:'周一/三/五 21:00',schEn:'Mon/Wed/Fri 9 PM',plays:['Straight','Rambolito'],prize:{Straight:10000,Rambolito:2000},cs:'letters',demo:1}];
+{id:'d4',zh:'4D',en:'4D',t:'dig',d:4,p:10,c:['#f472b6','#9333ea'],nx:'2026-10-12T21:00:00+08:00',sch:'周一/三/五 21:00',schEn:'Mon/Wed/Fri 9 PM',plays:['Straight'],prize:{Straight:10000}},
+{id:'d6',zh:'6D',en:'6D',t:'dig',d:6,p:10,c:['#fbbf24','#dc2626'],nx:'2026-10-10T21:00:00+08:00',sch:'周二/四/六 21:00',schEn:'Tue/Thu/Sat 9 PM',plays:['Straight'],prize:{Straight:150000}}];
+const DG=[{id:'dchr',zh:'Letter Demo 4L',en:'Letter Demo 4L',t:'dig',d:4,p:10,c:['#0ea5e9','#7c3aed'],nx:'2026-10-12T21:00:00+08:00',sch:'周一/三/五 21:00',schEn:'Mon/Wed/Fri 9 PM',plays:['Straight','Rambolito'],prize:{Straight:10000,Rambolito:2000},cs:'letters',demo:1}];
 const gm=id=>G.find(x=>x.id===id)||DG.find(x=>x.id===id);
 const CS_L='ABCDEFGHIJKLMNOPQRSTUVWXYZ',CS_N='0123456789';
 const SYM_INIT=['★','♥','♦','♣','♠'];
@@ -504,15 +504,21 @@ const csChars=g=>g.cs==='letters'?CS_L.split(''):g.cs==='symbols'?csSyms(g):g.cs
 const gname=g=>t(g.zh,g.en);
 const isOff=g=>g.id===S.offGame;
 const STEP=g=>g.t==='lotto'?2:1;
+/* CLAR31 839: draw weekdays per game (PCSO Game Mechanics 2026-11-08; v1 initial data). EZ2 / Swertres draw every day. 0 = Sunday */
+const DOWS={ultra:[0,2,5],grand:[1,3,6],super:[0,2,4],mega:[1,3,5],lotto:[2,4,6],d6:[2,4,6],d4:[1,3,5],dchr:[1,3,5]};
+const dowOf=d=>new Date(String(d).slice(0,10)+'T12:00:00Z').getUTCDay();
+const onDow=(g,d)=>!DOWS[g.id]||DOWS[g.id].includes(dowOf(d));
+/* next draw day strictly after ms (same clock time), honouring the weekday schedule */
+function nxMs(g,ms){let n=0;do{ms+=864e5;n++}while(!onDow(g,fdt(ms))&&n<8);return ms}
 G.concat(DG).forEach(g=>{const ms=g.id==='ez2'||g.id==='swer';g.sess=ms?['14:00','17:00','21:00']:['21:00'];g.lead=ms?[15,15,30]:[30]});
 const nowEff=()=>S.clock+(S.cdAdd||0)*1000;
 const isND=(g,d)=>(S.noDraw[g.id]||[]).includes(d);
-function effDate(g){let ms=Date.parse(g.nx);let d=fdt(ms),n=0;while(isND(g,d)&&n++<60){ms+=STEP(g)*864e5;d=fdt(ms)}return d}
-function drawList(g,n){const out=[];let ms=Date.parse(g.nx),n2=0;while(out.length<n&&n2++<400){const d=fdt(ms);if(!isND(g,d))out.push(d);ms+=STEP(g)*864e5}return out}
+function effDate(g){let ms=Date.parse(g.nx);let d=fdt(ms),n=0;while((isND(g,d)||!onDow(g,d))&&n++<60){ms=nxMs(g,ms);d=fdt(ms)}return d}
+function drawList(g,n){const out=[];let ms=Date.parse(g.nx),n2=0;while(out.length<n&&n2++<400){const d=fdt(ms);if(!isND(g,d)&&onDow(g,d))out.push(d);ms=nxMs(g,ms)}return out}
 const sessIdx=(g,si)=>Math.min(si==null?(S.play&&S.play.game===g.id?(S.play.sess||0):0):si,g.sess.length-1);
 const sessMs=(g,si)=>Date.parse(effDate(g)+'T'+g.sess[sessIdx(g,si)]+':00+08:00');
 const cutoffMs=(g,si)=>{const P=S.play;if(si==null&&g.t!=='lotto'&&P&&P.game===g.id&&P.dsel&&P.dsel.length){const [d,tm]=P.dsel.slice().sort()[0].split('|');return Date.parse(d+'T'+tm+':00+08:00')-g.lead[Math.max(0,g.sess.indexOf(tm))]*60000}return sessMs(g,si)-g.lead[sessIdx(g,si)]*60000};
-function upDraws(g,max){const out=[];let ms=Date.parse(g.nx),n=0;while(out.length<max&&n++<200){const d=fdt(ms);if(!isND(g,d)){g.sess.forEach((tm,i)=>{const cut=Date.parse(d+'T'+tm+':00+08:00')-g.lead[i]*60000;if(cut>nowEff())out.push({k:d+'|'+tm,d,tm,i,cut})})}ms+=864e5}return out.slice(0,max)}
+function upDraws(g,max){const out=[];let ms=Date.parse(g.nx),n=0;while(out.length<max&&n++<200){const d=fdt(ms);if(!isND(g,d)&&onDow(g,d)){g.sess.forEach((tm,i)=>{const cut=Date.parse(d+'T'+tm+':00+08:00')-g.lead[i]*60000;if(cut>nowEff())out.push({k:d+'|'+tm,d,tm,i,cut})})}ms+=864e5}return out.slice(0,max)}
 const cdLeft=(g,si)=>cutoffMs(g,si)-nowEff();
 const fcd=ms=>{let s=Math.max(0,Math.floor(ms/1000));const d=Math.floor(s/86400);s%=86400;const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60,p=n=>String(n).padStart(2,'0');return (d?d+(S.lang==='en'?'d ':'天 '):'')+p(h)+':'+p(m)+':'+p(x)};
 const cdHTML=g=>{const l=cdLeft(g);if(l<=0)return `<span class="badge b-ro">${t('本期已封盘','Cut-off passed')}</span><button class="pillbtn" style="margin-left:8px" onclick="A.nextDraw()">${t('投注下一期','Bet on next draw')}</button>`;const warn=l<600000;const m=g.lead[sessIdx(g)];return `<span class="cdchip ${warn?'warn':''}">${I('clock',13)} ${t('距封盘','Closes in')} <b class="mono">${fcd(l)}</b></span><span class="cdnote">${t('开奖前 '+m+' 分钟封盘','Closes '+(m%60===0?m/60+' h':m+' min')+' before draw')}</span>`};
@@ -571,9 +577,13 @@ function addNotif(ic,zh,en,bz,be){S.notifs.unshift({ic,zh,en,bz,be,ms:S.clock,re
 const unread=()=>S.notifs.filter(n=>!n.read).length;
 const GCODE={ultra:'L658',grand:'L655',super:'L649',mega:'L645',lotto:'L642',ez2:'EZ2',swer:'S3D',d4:'4D',d6:'6D',dchr:'4L'};
 function dno(g,date,time){g=typeof g==='string'?gm(g):g;const i=Math.max(0,(g.sess||[]).indexOf(time));return (GCODE[g.id]||g.id.toUpperCase())+'-'+String(date).replace(/-/g,'')+'-'+(i+1)}
-function genDraws(){G.forEach((g,gi)=>{const r=mul(gi*77+5);const rr=(a,b)=>a+Math.floor(r()*(b-a+1));S.draws[g.id]=Array.from({length:5},(_,i)=>{let nums;
+/* past draw dates: the 5 latest draw days before 2026-10-10 on the game's weekdays (CLAR31 839) */
+function pastDrawDates(g,n){const out=[];let ms=Date.parse('2026-10-09T21:00:00+08:00');let k=0;while(out.length<n&&k++<60){const d=fdt(ms);if(onDow(g,d))out.push(d);ms-=864e5}return out}
+function genDraws(){G.forEach((g,gi)=>{const r=mul(gi*77+5);const rr=(a,b)=>a+Math.floor(r()*(b-a+1));const pd=pastDrawDates(g,5);S.draws[g.id]=Array.from({length:5},(_,i)=>{let nums;
  if(g.t==='lotto'){const s=new Set();while(s.size<6)s.add(rr(1,g.n));nums=[...s].sort((a,b)=>a-b)}else if(g.t==='ez2'){nums=[rr(1,31),rr(1,31)]}else nums=Array.from({length:g.d},()=>rr(0,9));
- return{no:dno(g,fdt(Date.parse('2026-10-09T21:00:00+08:00')-i*2*86400e3)),date:fdt(Date.parse('2026-10-09T21:00:00+08:00')-i*2*86400e3),nums,jp:g.t==='lotto'?g.pool-(i*1800000+rr(0,900000)):0,winners:g.t==='lotto'?[0,2,31,1204][i%4]:rr(8,60)}})})}
+ const dd={no:dno(g,pd[i]),date:pd[i],nums,jp:g.t==='lotto'?g.pool-(i*1800000+rr(0,900000)):0,winners:g.t==='lotto'?[0,2,31,1204][i%4]:rr(8,60)};
+ if(g.id==='d6'||g.id==='d4'){/* CLAR31 835: first prize is a shared pool with a guaranteed minimum per ₱10 bet (Demo data: pool = minimum × winners, latest 6D draw has no winner and carries forward) */const gmin=g.id==='d6'?150000:10000;dd.w1=g.id==='d6'&&i===0?0:rr(1,4);dd.pool1=dd.w1?gmin*dd.w1:gmin;dd.per1=dd.w1?gmin:0;dd.demo=1}
+ return dd})})}
 
 /* ---------- new seeds & helpers: live streams (6.3.2/6.3.6), news (6.3.5), favorites (6.3.3), points (6.5.6), session limit (6.2.4) ---------- */
 const LIVE=[
@@ -616,18 +626,18 @@ const RULE={
  grand:{jp:45e6,T:[[2,'POOL',1400000],[3,'POOL',1300000],[4,'FIXED',60]],roll:50,oth:{2:22,3:540}},
  super:{jp:25e6,T:[[2,'POOL',1300000],[3,'POOL',1200000],[4,'FIXED',50]],roll:44,oth:{2:15,3:430}},
  mega:{jp:15e6,T:[[2,'POOL',1200000],[3,'POOL',1100000],[4,'FIXED',30]],roll:40,oth:{2:17,3:380}},
- lotto:{jp:5940000,T:[[2,'FIXED',24000],[3,'FIXED',800],[4,'FIXED',20]],roll:37,oth:{}}};
+ lotto:{jp:10e6,T:[[2,'POOL',1100000],[3,'POOL',1000000],[4,'FIXED',20]],roll:37,oth:{2:14,3:320}}}; /* CLAR31 831/832: PCSO Game Mechanics (2026-11-08); 6/42 tiers 2–3 are shared pools; oth = assumed other winning lines (demo settlement only) */
 const TAILP={dchr:{4:10000,3:800,2:100},d4:{4:10000,3:800,2:100},d6:{6:150000,5:40000,4:4000,3:400,2:40}};
 const HITT={6:'JP',5:2,4:3,3:4};
 const CNK=(n,k)=>{let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)};
 const LPL=[{c:'STD',zh:'标准',en:'Standard',need:6},{c:'QP',zh:'机选 Quick Pick',en:'Quick Pick',need:0},{c:'R5',zh:'5 号轮转 5-Roll',en:'5-Roll',need:5},{c:'S7',zh:'复式 System 7',en:'System 7',need:7},{c:'S8',zh:'复式 System 8',en:'System 8',need:8},{c:'S9',zh:'复式 System 9',en:'System 9',need:9},{c:'S10',zh:'复式 System 10',en:'System 10',need:10},{c:'S11',zh:'复式 System 11',en:'System 11',need:11},{c:'S12',zh:'复式 System 12',en:'System 12',need:12}];
-const DPL={ez2:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],swer:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],d4:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'}],d6:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'}]};
+const DPL={ez2:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],swer:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],d4:[{c:'STRAIGHT',zh:'标准 Standard',en:'Standard'},{c:'QP',zh:'机选 Quick Pick',en:'Quick Pick'},{c:'PERM',zh:'PERM',en:'PERM'},{c:'R1',zh:'Roll 1',en:'Roll 1',need:3},{c:'R4',zh:'Roll 4',en:'Roll 4',need:3}],d6:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'}]};
 DPL.dchr=[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}]; /* demo letter game: Straight and Rambolito share ONE character set (6.3.3 / 6.7.2) */
 const rc=g=>g.cs&&g.cs!=='numeric'?csChars(g)[rnd(0,csChars(g).length-1)]:rnd(0,9);
 const playsOf=g=>g.t==='lotto'?LPL:DPL[g.id];
 const pName=p=>t(p.zh,p.en);
 const playBy=(g,c)=>playsOf(g).find(x=>x.c===c)||playsOf(g)[0];
-const needOf=(g,p)=>g.t==='lotto'?p.need:g.t==='ez2'?2:g.d;
+const needOf=(g,p)=>g.t==='lotto'?p.need:g.t==='ez2'?2:(p&&p.need||g.d);
 function combos(arr,k){const out=[],cur=[];(function go(s){if(cur.length===k){out.push([...cur]);return}for(let i=s;i<arr.length;i++){cur.push(arr[i]);go(i+1);cur.pop()}})(0);return out}
 function expandLines(g,pc,sel,qp){
  if(g.t!=='lotto')return[[...sel]];
@@ -646,7 +656,9 @@ function judgeLine(g,pc,line,win){
  if(g.id==='dchr'&&pc==='RAMBO'){return rambKind(g,line)==='R'&&[...line].sort().join()===[...win].sort().join()?{tier:'RAMBO',prize:2000}:null}
  if(g.id==='swer'){if(pc==='STRAIGHT')return line.join()===win.join()?{tier:'STRAIGHT',prize:4500}:null;
   const k=rambKind(g,line);if(k==='NO')return null;return[...line].sort().join()===[...win].sort().join()?{tier:k,prize:k==='R6'?750:1500}:null}
- let m=0;for(let i=1;i<=g.d&&line[g.d-i]===win[g.d-i];i++)m++;const pz=TAILP[g.id][m];return pz?{tier:'T'+m,prize:pz,m}:null}
+ let m=0;for(let i=1;i<=g.d&&line[g.d-i]===win[g.d-i];i++)m++;
+ if(g.id==='d6'){/* CLAR31 833: tiers 2–5 = first N OR last N digits in exact order; the higher tier wins */let f=0;for(let i=0;i<g.d&&line[i]===win[i];i++)f++;if(f<g.d&&f>m)m=f}
+ const pz=TAILP[g.id][m];return pz?{tier:'T'+m,prize:pz,m}:null}
 /* settle a ticket: expand, judge every line, split pools (demo: other winners are assumed) */
 function settleTicket(k,win){const g=gm(k.g);const lines=linesOf(k);const R=RULE[g.id];const out=[];const cnt={};
  lines.forEach(l=>{const j=judgeLine(g,k.pt,l,win);if(j){out.push({line:l,...j});cnt[j.tier]=(cnt[j.tier]||0)+1}});
@@ -659,7 +671,7 @@ function settleTicket(k,win){const g=gm(k.g);const lines=linesOf(k);const R=RULE
  gross=Math.round(gross*100)/100;const tax=taxOf(gross);
  return{win,lines:out,tiers,gross,tax,net:Math.round((gross-tax)*100)/100}}
 const tierLbl=(g,tr)=>{if(g.t==='lotto')return tr==='JP'?t('中 6 个 · 头奖','Match 6 numbers'):tr===2?t('中 5 个 · 2 等','Match 5 numbers'):tr===3?t('中 4 个 · 3 等','Match 4 numbers'):t('中 3 个 · 4 等','Match 3 numbers');
- return({STRAIGHT:g.t==='ez2'?t('2 个号码顺序全中','Both numbers in exact order'):t('3 位全中，顺序一致','All 3 digits in exact order'),RAMBO:g.id==='dchr'?t('全部字符，任意顺序','All characters in any order'):t('任意顺序全中','Both numbers in any order'),R6:t('3 个不同数字，任意顺序','3 different digits in any order'),R3:t('3 个数字含一对，任意顺序','3 digits with a pair, in any order'),T6:t('6 位全中，顺序一致','All 6 digits in exact order'),T5:t('后 5 位，顺序一致','Last 5 digits in exact order'),T4:g.id==='d4'?t('4 位全中，顺序一致','All 4 digits in exact order'):t('后 4 位，顺序一致','Last 4 digits in exact order'),T3:t('后 3 位，顺序一致','Last 3 digits in exact order'),T2:t('后 2 位，顺序一致','Last 2 digits in exact order')})[tr]||String(tr)};
+ return({STRAIGHT:g.t==='ez2'?t('2 个号码顺序全中','Both numbers in exact order'):t('3 位全中，顺序一致','All 3 digits in exact order'),RAMBO:g.id==='dchr'?t('全部字符，任意顺序','All characters in any order'):t('任意顺序全中','Both numbers in any order'),R6:t('3 个不同数字，任意顺序','3 different digits in any order'),R3:t('3 个数字含一对，任意顺序','3 digits with a pair, in any order'),T6:t('6 位全中，顺序一致','All 6 digits in exact order'),T5:t('前 5 位或后 5 位，顺序一致','First or last 5 digits in exact order'),T4:g.id==='d4'?t('4 位全中，顺序一致','All 4 digits in exact order'):t('前 4 位或后 4 位，顺序一致','First or last 4 digits in exact order'),T3:g.id==='d6'?t('前 3 位或后 3 位，顺序一致','First or last 3 digits in exact order'):t('后 3 位，顺序一致','Last 3 digits in exact order'),T2:g.id==='d6'?t('前 2 位或后 2 位，顺序一致','First or last 2 digits in exact order'):t('后 2 位，顺序一致','Last 2 digits in exact order')})[tr]||String(tr)};
 const linesOf=k=>k.lines||[k.nums];
 const pcOf=k=>k.pt||(gm(k.g).t==='lotto'?'STD':k.play==='Rambolito'?'RAMBO':'STRAIGHT');
 function playTxt(k){const g=gm(k.g);if(!k.pt&&g.t==='lotto')return t('标准','Standard');if(!k.pt)return k.play||'Straight';const p=playBy(g,k.pt);return pName(p)}
@@ -677,11 +689,11 @@ function craftWin(k,level){const g=gm(k.g);const lines=linesOf(k);const base=k.s
  if(g.id==='swer')return k.pt==='RAMBO'?[...line].reverse():[...line];
  if(g.id==='dchr'&&k.pt==='RAMBO')return [...line].reverse();
  const m=g.id==='d4'?[2,3,4,4][level-1]:[2,4,5,6][level-1];const w=Array.from({length:g.d},()=>rc(g));for(let i=1;i<=g.d;i++){if(i<=m)w[g.d-i]=line[g.d-i];else if(i===m+1){let x;do{x=rc(g)}while(x===line[g.d-i]);w[g.d-i]=x}}return w}
-const ruleText=g=>g.t==='lotto'?[t('在 1–'+g.n+' 中选 6 个号码，不分顺序；每一注的 6 个号码与开奖的 6 个号码比对，中几个定奖级。','Pick 6 numbers from 1–'+g.n+', any order. Each line is compared with the 6 drawn numbers.'),t('中 6 个头奖（累计奖池，没人中滚存）；中 5 个 2 等；中 4 个 3 等；中 3 个 4 等。','6 matches: Jackpot (rolls over if nobody wins). 5: 2nd. 4: 3rd. 3: 4th.')]
+const ruleText=g=>g.t==='lotto'?[t('在 1–'+g.n+' 中选 6 个号码，不分顺序；每一注的 6 个号码与开奖的 6 个号码比对，中几个定奖级。','Pick 6 numbers from 1–'+g.n+', any order. Each line is compared with the 6 drawn numbers.'),t('中 6 个头奖（累计奖池，没人中滚存）；中 5 个 2 等、中 4 个 3 等（奖池平分）；中 3 个 4 等 '+fm0(RULE[g.id].T[2][2])+' 固定。','6 matches: Jackpot (rolls over if nobody wins). 5: 2nd and 4: 3rd are shared pools. 3: 4th, '+fm0(RULE[g.id].T[2][2])+' fixed.')]
  :g.t==='ez2'?[t('选 2 个号码，每个 1–31，有顺序，可重复。','Pick 2 numbers, each 1–31, in order. Repeats are allowed.'),t('直选：顺序全对 ₱4,000；Rambolito：顺序不限 ₱2,000（两个号码相同不能选 Rambolito）。','Straight: exact order ₱4,000. Rambolito: any order ₱2,000 (not available when both numbers are the same).')]
  :g.id==='swer'?[t('选 3 个数字，每个 0–9，有顺序。','Pick 3 digits, each 0–9, in order.'),t('直选 ₱4,500；Rambolito：三个数字不同 ₱750（6 种排列），有一对相同 ₱1,500（3 种排列）；三个全相同只能直选。','Straight ₱4,500. Rambolito: 3 different digits ₱750 (6 orders); one pair ₱1,500 (3 orders). Three identical digits: Straight only.')]
- :g.id==='d4'||g.id==='dchr'?[t('选 4 个数字，每个 0–9，有顺序。',g.demo?'Pick 4 characters from the keys below, in order. Repeats are allowed.':'Pick 4 digits, each 0–9, in order.'),t('从最后一位往前数连续对上几位：4 位 ₱10,000；后 3 位 ₱800；后 2 位 ₱100。同一注只取最高奖级。','Count matching digits from the end: all 4 ₱10,000; last 3 ₱800; last 2 ₱100. Only the highest tier per line.')]
- :[t('选 6 个数字，每个 0–9，有顺序。','Pick 6 digits, each 0–9, in order.'),t('从最后一位往前数：6 位 ₱150,000；后 5 位 ₱40,000；后 4 位 ₱4,000；后 3 位 ₱400；后 2 位 ₱40。同一注只取最高奖级。','From the end: all 6 ₱150,000; last 5 ₱40,000; last 4 ₱4,000; last 3 ₱400; last 2 ₱40. Highest tier per line only.')];
+ :g.id==='d4'||g.id==='dchr'?[t('选 4 个数字，每个 0–9，有顺序。',g.demo?'Pick 4 characters from the keys below, in order. Repeats are allowed.':'Pick 4 digits, each 0–9, in order.'),t('从最后一位往前数连续对上几位：4 位全中一等（奖池平分，保底 ₱10,000 每 ₱10 注）；后 3 位 ₱800；后 2 位 ₱100。同一注只取最高奖级。','Count matching digits from the end: all 4 = 1st prize (shared pool, Guaranteed Minimum Prize ₱10,000 per ₱10 bet); last 3 ₱800; last 2 ₱100. Only the highest tier per line.')]
+ :[t('选 6 个数字，每个 0–9，有顺序。','Pick 6 digits, each 0–9, in order.'),t('6 位全中一等（奖池平分，保底 ₱150,000 每 ₱10 注，无人中滚存）；前 5 位或后 5 位 ₱40,000；前 4 位或后 4 位 ₱4,000；前 3 位或后 3 位 ₱400；前 2 位或后 2 位 ₱40。同一注只取最高奖级。','All 6 = 1st prize (shared pool, Guaranteed Minimum Prize ₱150,000 per ₱10 bet; carried forward if nobody wins); first or last 5 ₱40,000; first or last 4 ₱4,000; first or last 3 ₱400; first or last 2 ₱40. Highest tier per line only.')];
 
 /* ---------- V1.1: winning odds, draw schedule, play-responsibly reminder (shared by confirm page and ticket detail) ---------- */
 /* winning odds (6.3.3 / appendix B 3.5): "1 in N", integer, per single line; digit games tier by tier; Rambolito follows the picks */
@@ -796,7 +808,7 @@ const spacer=h=>`<div style="height:${h}px"></div>`;
 const balls=(nums,cls='',hit)=>nums.map(n=>`<span class="ball mini ${hit&&hit.includes(n)?'hit':''} ${cls}">${n}</span>`).join('');
 
 /* ---------- order issuing: System 7-12 and 5-Roll => one ticket per combination; everything else => one ticket per draw ---------- */
-const isSplit=(g,pc)=>g.t==='lotto'&&(/^S\d+$/.test(pc)||pc==='R5');
+const isSplit=(g,pc)=>(g.t==='lotto'&&(/^S\d+$/.test(pc)||pc==='R5'))||(g.id==='d4'&&(pc==='PERM'||pc==='R1'||pc==='R4')); /* CLAR31 836: 4D PERM / Roll 1 / Roll 4 = one e-ticket per expanded line */
 function makeOrder(g,pc,pickSel,qp,mult,dates,ms,stFirst){const ord='BO'+fdt(ms).replace(/-/g,'')+String(++TID).padStart(11,'0');const split=isSplit(g,pc);const lines=expandLines(g,pc,pickSel,qp);const sel=(g.t==='lotto'&&pc!=='QP')?[...pickSel].sort((a,b)=>a-b):null;const out=[];
  dates.forEach((d,di)=>{const st=di===0?(stFirst||'await'):'pre';
   if(split)lines.forEach(l=>out.push(ticket(g.id,st,{nums:l,lines:[l],pt:pc,play:pc,lineN:1,mult,amt:g.p*mult,draw:d,ms})));
@@ -815,17 +827,17 @@ function seedDemo(){fresh();const c0=Date.parse('2026-10-10T09:30:00+08:00'),D=8
  T0('super','await',{nums:[7,14,21,33,41,48],mult:2,amt:50,draw:'2026-10-11',ms:c0-3600e3});
  T0('ultra','pre',{nums:[3,15,22,38,47,55],draw:'2026-10-13',ms:c0-2*3600e3});
  T0('ez2','await',{nums:[12,27],play:'Straight',draw:'2026-10-10',amt:10,ms:c0-4*3600e3});
- T0('d4','pre',{nums:[3,0,7,9],play:'Straight',draw:'2026-10-12',amt:12,ms:c0-5*3600e3});
- T0('mega','lost',{nums:[5,11,19,27,36,44],draw:'2026-10-08',dn:[2,9,19,30,38,45],ms:c0-D*2});
+ T0('d4','pre',{nums:[3,0,7,9],play:'Straight',draw:'2026-10-12',amt:10,ms:c0-5*3600e3});
+ T0('mega','lost',{nums:[5,11,19,27,36,44],draw:'2026-10-09',dn:[2,9,19,30,38,45],ms:c0-D*2});
  T0('swer','lost',{nums:[4,2,9],play:'Straight',draw:'2026-10-09',dn:[7,1,3],amt:10,ms:c0-D});
- T0('lotto','winPending',{nums:[4,12,19,28,33,40],draw:'2026-10-07',dn:[4,12,19,28,33,40],prize:4120000,tier:t('中 6 个 · 头奖','Match 6 numbers'),code:'',ms:c0-D*3});
+ T0('lotto','winPending',{nums:[4,12,19,28,33,40],draw:'2026-10-06',dn:[4,12,19,28,33,40],prize:4120000,tier:t('中 6 个 · 头奖','Match 6 numbers'),code:'',ms:c0-D*3});
  T0('super','claimed',{nums:[6,13,20,27,34,45],draw:'2026-10-06',dn:[6,13,20,27,8,9],prize:2784.22,tier:t('中 4 个 · 3 等','Match 4 numbers'),paid:'auto',ms:c0-D*4});
  T0('ultra','claimed',{nums:[2,9,18,27,36,51],draw:'2026-09-20',dn:[2,9,18,27,36,51],prize:6800000,tier:t('中 6 个 · 头奖','Match 6 numbers'),paid:'counter',ms:c0-D*20});
  T0('grand','void',{nums:[8,16,24,32,40,48],draw:'2026-10-09',ms:c0-D*2});
  {const mk=(g,st,o)=>{const gg=gm(g);const pt=o.pt;const lines=expandLines(gg,pt,o.sel||o.nums,[]);S.tickets.push(ticket(g,st,Object.assign({pt,play:pt,lines,lineN:lines.length,nums:lines[0]},o,{amt:lines.length*gg.p*(o.mult||1)})))};
    S.tickets.push(...makeOrder(gm('mega'),'S7',[3,9,14,21,27,33,38],[],1,['2026-10-12'],c0-90*60e3,'await'));
 mk('swer','await',{pt:'RAMBO',nums:[1,1,2],draw:'2026-10-10',ms:c0-80*60e3});
-   S.tickets.push(...makeOrder(gm('lotto'),'R5',[1,2,3,4,5],[],1,['2026-10-12'],c0-70*60e3,'pre'));
+   S.tickets.push(...makeOrder(gm('lotto'),'R5',[1,2,3,4,5],[],1,['2026-10-13'],c0-70*60e3,'pre'));
   {const ts=makeOrder(gm('super'),'S7',[1,2,3,4,5,6,7],[],2,['2026-10-08'],c0-D*3,'lost');const dn=[1,2,3,40,41,42];ts.forEach(k=>{k.dn=dn;k.res=settleTicket(k,dn);if(k.res.gross>0){k.st='claimed';k.paid='auto';k.prize=k.res.gross;k.tier=tierLbl(gm('super'),k.res.tiers[0].tier)}});S.tickets.push(...ts)}
  mk('d6','pre',{pt:'STRAIGHT',nums:[1,2,3,4,5,6],draw:'2026-10-13',ms:c0-60*60e3});
  const sk=S.tickets.find(x=>x.g==='super'&&x.st==='claimed');sk.pt='STD';sk.res=settleTicket(sk,sk.dn);}
@@ -833,11 +845,11 @@ mk('swer','await',{pt:'RAMBO',nums:[1,1,2],draw:'2026-10-10',ms:c0-80*60e3});
  {const vk=S.tickets.find(k=>k.st==='void');S.tx.push({id:'TXN'+(++TID),type:'refund',amt:25,st:'ok',ms:c0-D*2+3600e3,note:t('超级乐透','Grand Lotto 6/55'),tk:vk.id,reason:t('游戏下架，到开奖时间仍未上架','Game unavailable at draw time'),sb:25,sp:0})}
  X('deposit',2000,'ok',c0-13*3600e3,'GCash');X('deposit',1000,'ok',c0-D*2,'Maya');X('deposit',500,'fail',c0-D*3,'BDO');X('deposit',1500,'proc',c0-18*60e3,'GCash');
  X('withdraw',-1500,'ok',c0-D*2,'GCash');X('withdraw',-5000,'rej',c0-D*5,'GCash · MFA');X('withdraw',-800,'proc',c0-50*60e3,'Maya');
- X('bet',-50,'ok',c0-3600e3,'Super Lotto 6/49');X('bet',-25,'ok',c0-2*3600e3,'Ultra Lotto 6/58');X('bet',-10,'ok',c0-4*3600e3,'EZ2 2D');X('bet',-12,'ok',c0-5*3600e3,'4D');X('bet',-25,'ref',c0-D*2,'Grand Lotto 6/55');
+ X('bet',-50,'ok',c0-3600e3,'Super Lotto 6/49');X('bet',-25,'ok',c0-2*3600e3,'Ultra Lotto 6/58');X('bet',-10,'ok',c0-4*3600e3,'EZ2 2D');X('bet',-10,'ok',c0-5*3600e3,'4D');X('bet',-25,'ref',c0-D*2,'Grand Lotto 6/55');
  X('prize',2784.22,'auto',c0-D*4,'Super Lotto 6/49');
  S.tx.sort((a,b)=>b.ms-a.ms);
  S.notifs=[];
- addNotif('trophy','您有一张大奖待申领','You have a prize to claim','乐透 6/42 2026-10-07 期中奖，请在“我的彩票”点击 Start claim 生成申领码，再携带有效证件到 PCSO。','You have a prize to claim for Lotto 6/42 draw 2026-10-07. Tap Start claim in My Tickets, then bring your valid ID to PCSO.');
+ addNotif('trophy','您有一张大奖待申领','You have a prize to claim','乐透 6/42 2026-10-06 期中奖，请在“我的彩票”点击 Start claim 生成申领码，再携带有效证件到 PCSO。','You have a prize to claim for Lotto 6/42 draw 2026-10-06. Tap Start claim in My Tickets, then bring your valid ID to PCSO.');
  addNotif('wallet','充值到账','Deposit result','GCash 充值 ₱2,000 已到账。','Your ₱2,000.00 deposit was successful.');
  addNotif('shield','实名认证已通过','Identity verified','您的实名认证已通过，已解锁全部功能。','Your identity is verified. All features unlocked.');
  addNotif('clock','现实检查提醒','Reality check','您已连续游戏 10 分钟，如有需要请休息一下。','You have been playing for 10 minutes. Take a break if you need one.');
@@ -1143,7 +1155,7 @@ function drawRows(g){const sel=drawInit(g);const all=upDraws(g,90);const shown=a
 A.allDraws=()=>{const g=gm(PL().game);modal(()=>`<h3>${t('选择期次','Select draws')}</h3><div class="xs mu mt3">${t(`已选 ${(PL().dsel||[]).length} 期，最多 90 期；已封盘的场次不在列表里。每个所选期次各出一张票。`,`${(PL().dsel||[]).length} selected, up to 90. Closed sessions are not listed. Each selected draw gets its own ticket.`)}</div><div style="max-height:52vh;overflow-y:auto">${drawRows(g)}</div><button class="btn c mt2" onclick="A.close()">${t('完成','Done')}</button>`)};
 A.dtog=k=>{const P=PL();P.dsel=P.dsel||[];const i=P.dsel.indexOf(k);if(i>=0){if(P.dsel.length<2)return toast(t('至少选择一期','Select at least one draw'));P.dsel.splice(i,1)}else{if(P.dsel.length>=90)return toast(t('最多预购 90 期','Up to 90 draws'));P.dsel.push(k)}P.draws=P.dsel.length;renderKeep()};
 A.dmore=()=>{PL().dshow=(PL().dshow||9)+9;renderKeep()};
-function drawsHTML(g){const P=PL();if(g.t!=='lotto'&&P.dsel&&P.dsel.length)return `<div class="xs mu" style="margin-top:10px;line-height:1.7">${P.dsel.slice().sort().map(k=>`<div>${dno(g,k.split('|')[0],k.split('|')[1])} · ${k.split('|')[0]} · ${k.split('|')[1]} · Closes ${fts(Date.parse(k.split('|')[0]+'T'+k.split('|')[1]+':00+08:00')-g.lead[Math.max(0,g.sess.indexOf(k.split('|')[1]))]*60000).slice(5)}${opensTxt(g,k.split('|')[0],k.split('|')[1])?' · '+opensTxt(g,k.split('|')[0],k.split('|')[1]):''}</div>`).join('')}</div>`;const rows=[];let ms=Date.parse(g.nx),n=0,g2=0;while(n<P.draws&&g2++<400){const d=fdt(ms);const nd=isND(g,d);rows.push([d,nd]);if(!nd)n++;ms+=STEP(g)*864e5}
+function drawsHTML(g){const P=PL();if(g.t!=='lotto'&&P.dsel&&P.dsel.length)return `<div class="xs mu" style="margin-top:10px;line-height:1.7">${P.dsel.slice().sort().map(k=>`<div>${dno(g,k.split('|')[0],k.split('|')[1])} · ${k.split('|')[0]} · ${k.split('|')[1]} · Closes ${fts(Date.parse(k.split('|')[0]+'T'+k.split('|')[1]+':00+08:00')-g.lead[Math.max(0,g.sess.indexOf(k.split('|')[1]))]*60000).slice(5)}${opensTxt(g,k.split('|')[0],k.split('|')[1])?' · '+opensTxt(g,k.split('|')[0],k.split('|')[1]):''}</div>`).join('')}</div>`;const rows=[];let ms=Date.parse(g.nx),n=0,g2=0;while(n<P.draws&&g2++<400){const d=fdt(ms);const nd=isND(g,d);if(onDow(g,d)){rows.push([d,nd]);if(!nd)n++}ms=nxMs(g,ms)}
  const sh=rows.slice(0,8);return `<div class="xs mu" style="margin-top:10px;line-height:1.7">${sh.map(([d,nd])=>nd?`<div style="color:var(--am)">${d} · No draw on this date <span class="mu">(${t('已跳过，不计入期数','skipped, not counted')})</span></div>`:`<div>${lottoRow(g,d)}</div>`).join('')}${rows.length>8?`<div>… +${rows.length-8}</div>`:''}</div>`}
 function sumHTML(g){const P=PL(),p=curPlay(g);const n=plLines(g);const per=n*g.p*P.mult;const tot=per*P.draws;
  let note='';if(g.t==='lotto'&&p.c!=='STD'&&p.c!=='QP')note=p.c==='R5'?t(`5-Roll：5 个固定号码各配其余号码之一，展开 ${n} 注（${g.n} − 5）。`,`5-Roll: your 5 fixed numbers plus each other number = ${n} lines (${g.n} − 5).`):t(`${pName(p)}：C(${p.need},6) = ${n} 注，每注 ${fm0(g.p)}。`,`${pName(p)}: C(${p.need},6) = ${n} lines at ${fm0(g.p)} each.`);
@@ -1164,7 +1176,7 @@ SC.play={notop:true,html:()=>{plInit();const P=PL(),g=gm(P.game),p=curPlay(g);co
  <div class="row sp" style="margin-top:18px"><span class="sech">${posG(g)?(g.t==='ez2'?t('选 2 个号码（可重复）','Pick 2 numbers (repeats allowed)'):t(`每位选 1 个数字（${g.d} 位）`,`Pick 1 ${g.demo?'character':'digit'} per position (${g.d})`)):t(`选 ${plNeed(g)} 个号码`,`Pick ${plNeed(g)} numbers`)}</span></div><div id="board" style="margin-top:10px">${boardHTML(g)}</div>`}
  <div class="row sp" style="margin-top:20px"><span class="sech">${isQP?t('机选号码','Your lines'):t('已选号码','Selected numbers')}${isQP?'':` (<span id="selc">${selCnt(g)}</span>)`}</span>${isQP?`<button class="lnk" onclick="A.roll()">${I('dice',14)} ${t('机选','Quick Pick')}</button>`:`<button class="lnk" onclick="A.clear()">${t('全部清除','Clear all')}</button>`}</div><div id="tray" class="tray" style="${isQP?'flex-direction:column;gap:6px':''}">${trayHTML(g)}</div>
  ${isQP?'':favRow()}
- <div class="mdrow" style="${g.t==='lotto'?'':'grid-template-columns:1fr'}"><div class="mdc"><div class="row sp"><span class="mdt">${t('倍数','Multiplier')} ${hlp('mult')}</span></div><div class="mdb">${stepper('mult',P.mult,1,10)}</div></div>${g.t==='lotto'?`<div class="mdc"><div class="row sp"><span class="mdt">${t('预购期数','Draws')} ${hlp('draws')}</span><span class="xs mu">${t(`最多 ${maxD} 期`,`Up to ${maxD}`)}</span></div><div class="mdb">${stepper('draws',P.draws,1,maxD)}</div></div>`:''}</div>
+ <div class="mdrow" style="${g.t==='lotto'?'':'grid-template-columns:1fr'}"><div class="mdc"><div class="row sp"><span class="mdt">${t('倍数','Multiplier')} ${hlp('mult')}</span></div><div class="mdb">${stepper('mult',P.mult,1,g.t==='lotto'?10:50)}</div>${g.t==='lotto'?'':`<div class="xs mu" id="multmax">${t('最多 50 倍（每注 ₱10–₱500）','Up to 50 (₱10–₱500 per line)')}</div>`}</div>${g.t==='lotto'?`<div class="mdc"><div class="row sp"><span class="mdt">${t('预购期数','Draws')} ${hlp('draws')}</span><span class="xs mu">${t(`最多 ${maxD} 期`,`Up to ${maxD}`)}</span></div><div class="mdb">${stepper('draws',P.draws,1,maxD)}</div></div>`:''}</div>
  ${g.t==='lotto'?`<div id="dl">${drawsHTML(g)}</div>`:''}
  <div class="card mt" style="padding:12px 14px"><div class="b" style="margin-bottom:6px;font-size:14px">${t('结算明细','Order summary')}</div><div id="sum">${sumHTML(g)}</div></div>
  <div class="card mt" style="padding:10px 14px"><div class="xs mu">${t('服务器时间 (UTC+8)','Server time (UTC+8)')} <span id="svt" class="mono">${fts(nowEff()).slice(11)}:${String(Math.floor(nowEff()/1000)%60).padStart(2,'0')}</span></div></div>
@@ -1182,10 +1194,10 @@ A.roll=()=>{const P=PL(),g=gm(P.game),p=curPlay(g);if(P.rolling)return;
  if(g.t==='lotto'&&p.c==='QP'){P.qp=Array.from({length:P.qpN},()=>rndNums(g));const tr=$('#tray');if(tr)tr.innerHTML=trayHTML(g);sumUp();return}
  P.rolling=true;P.mode='auto';P.picks=posG(g)?Array(plNeed(g)).fill(null):[];const sg=$('.seg');if(sg){sg.children[1].classList.add('on');sg.children[0].classList.remove('on')}drawBoard();
  let target;if(posG(g))target=rndNums(g);else{const s=new Set(),LS=lockedSet(g);while(s.size<plNeed(g)){const x=rnd(1,g.n);if(!LS.has(x))s.add(x)}target=[...s]}
- if(g.id==='swer'&&p.c==='RAMBO'){while(new Set(target).size===1)target=rndNums(g)}if(g.id==='ez2'&&p.c==='RAMBO'){while(target[0]===target[1])target=rndNums(g)}if(g.id==='dchr'&&p.c==='RAMBO'){while(new Set(target).size===1)target=rndNums(g)}
+ if(g.id==='swer'&&p.c==='RAMBO'){while(new Set(target).size<3)target=rndNums(g)} /* CLAR31 837: Rambolito Quick Pick never repeats a digit */if(g.id==='ez2'&&p.c==='RAMBO'){while(target[0]===target[1])target=rndNums(g)}if(g.id==='dchr'&&p.c==='RAMBO'){while(new Set(target).size===1)target=rndNums(g)}
  const cells=$$('#board [data-b]');let n=0;const iv=setInterval(()=>{cells.forEach(c=>c.classList.remove('roll'));for(let i=0;i<(posG(g)?g.d?g.d*2:4:7);i++){const c=cells[rnd(0,cells.length-1)];c&&c.classList.add('roll')}n++;if(n>=22){clearInterval(iv);cells.forEach(c=>c.classList.remove('roll'));place()}},55);TM.push([iv,true]);
  function place(){target.forEach((v,i)=>T(()=>{if(posG(g))P.picks[i]=v;else P.picks.push(v);drawBoard(i);if(i===target.length-1){P.rolling=false;sumUp()}},i*170))}};
-A.nextDraw=()=>{const g=gm(PL().game),step=STEP(g)*86400e3;g.nx=new Date(Date.parse(g.nx)+step).toISOString().replace('.000Z','+00:00');S.cdAdd=0;toast(t('已切换到下一期','Switched to the next draw'));renderKeep()};
+A.nextDraw=()=>{const g=gm(PL().game);g.nx=new Date(nxMs(g,Date.parse(g.nx))).toISOString().replace('.000Z','+00:00');S.cdAdd=0;toast(t('已切换到下一期','Switched to the next draw'));renderKeep()};
 function betPlan(){const P=PL(),g=gm(P.game),pl=curPlay(g),n=plLines(g);const dg=g.t!=='lotto'&&P.dsel&&P.dsel.length;const ds=dg?P.dsel.slice().sort():null;const nD=dg?ds.length:P.draws;return{P,g,pl,n,tot:n*g.p*P.mult*nD,tickets:(isSplit(g,pl.c)?n:1)*nD,dates:dg?ds.map(k=>k.split('|')[0]):drawList(g,P.draws),times:dg?ds.map(k=>k.split('|')[1]):null}}
 /* pre-submit checks; returns true when the bet may proceed */
 /* accumulated bet amount (incl. voucher part) in the current natural day / week (Mon start) / month, UTC+8 */
@@ -2802,7 +2814,7 @@ function coverTk(g){if(g.t!=='ez2'&&g.t!=='dig')return cover(g);const a=CVART[g.
 
 /* ---------- B2: LP (Lucky Pick) marker, driven by the boolean k.qp ---------- */
 const lpB=k=>k&&k.qp?`<span class="lpb" role="img" title="Lucky Pick" aria-label="Lucky Pick" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:800;line-height:15px;letter-spacing:.3px;color:#0f766e;background:rgba(20,184,166,.14);border:1px solid rgba(20,184,166,.4);white-space:nowrap">LP</span>`:'';
-const isQpBet=(g,pl,P)=>g.t==='lotto'?(pl.c==='QP'||(pl.c==='STD'&&P.mode==='auto')):(P.mode==='auto');
+const isQpBet=(g,pl,P)=>g.t==='lotto'?(pl.c==='QP'||(pl.c==='STD'&&P.mode==='auto')):(P.mode==='auto'&&!(g.id==='d4'&&['PERM','R1','R4'].includes(pl.c))); /* CLAR31 836: no LP on PERM / Roll */
 /* numbers block of a My Tickets card: one LP per line for a multi-line Quick Pick ticket */
 function tkNums(k,hit){const L=linesOf(k);
  if(k.qp&&L.length>1&&!k.sel)return `<div style="width:100%">${L.map((l,i)=>`<div class="row tkln" style="gap:5px;flex-wrap:wrap;${i?'margin-top:6px':''}">${balls(l,'',hit)}${lpB(k)}</div>`).join('')}</div>`;
@@ -2921,6 +2933,87 @@ const isR5=k=>!!(k&&k.pt==='R5'&&k.sysSel);
 {const _sd=seedDemo;seedDemo=function(){_sd.apply(this,arguments);const c0=Date.parse('2026-10-10T09:30:00+08:00'),D=86400e3;
  S.tx.push({id:'TXN'+(++TID),type:'withdraw',amt:-12000,st:'rev',ms:c0-3*3600e3,note:'GCash',demo:1});
  S.tx.push({id:'TXN'+(++TID),type:'withdraw',amt:-15000,st:'rej',ms:c0-D*7,note:'Maya',why:'Account name does not match the registered name.',demo:1})}}
+/* ===== batch 18 (CLAR31 PROTO21 part A, player): align game rules with the PCSO Game Mechanics compilation (2026-11-08).
+   PA1 6D/4D ₱10 + digit multiplier 1–50 (p2_core / p5_main in-place), PA2 6D first-or-last N (p2b_rules in-place + odds below), PA3 6D/4D first prize = shared pool with
+   Guaranteed Minimum Prize, PA4 4D PERM / Roll 1 / Roll 4, PA5 Rambolito Quick Pick without repeats (p5_main in-place), PA6 draw weekdays (p2_core in-place),
+   PA7 6/42 pool tiers (p2b_rules in-place). Demo pools / demo orders below are invented demo data and are labelled Demo data on the page. ===== */
+
+const D4X=['PERM','R1','R4'];
+const isD4X=(g,pc)=>!!g&&g.id==='d4'&&D4X.includes(pc);
+const GMIN={d6:150000,d4:10000}; /* Guaranteed Minimum Prize of the first prize per ₱10 bet (PCSO Game Mechanics: 6D 150,000 / 4D 10,000) */
+const rollStar=(ttl)=>`<span class="ball mini on rollstar" title="${ttl||t('系统补 0–9','Filled by the system with 0–9')}" style="font-size:16px">*</span>`;
+
+/* ---------- PA2: 6D winning odds for "first N or last N" tiers (closed form, highest tier only) ---------- */
+{const _o=oddsOf;oddsOf=function(g,ctx){const rows=_o.apply(this,arguments);if(!g||g.id!=='d6'||!rows||!rows.length)return rows;const d=6,tot=1e6;
+ const cnt=m=>{if(m===d)return 1;const both=2*m>=d?1:Math.pow(10,d-2*m);let u=2*Math.pow(10,d-m)-both;for(let j=m+1;j<=d;j++)u-=cnt(j);return u};
+ return rows.map((r,i)=>{const m=d-i;if(m>=d||m<2)return r;return[t(`前 ${m} 位或后 ${m} 位，顺序一致`,`First or last ${m} digits in exact order`),Math.round(tot/cnt(m))]})}}
+
+/* ---------- PA3 / PA7: prize-tier tables (results page) ---------- */
+{const _t=tiersOf;tiersOf=function(g){const rows=_t.apply(this,arguments);
+ if(g.t==='lotto')return rows;/* lotto jackpot row keeps the shared-pool wording without a minimum (PROTO13 SP-1 ruling) */
+ if(g.id==='d4'||g.id==='d6'){rows[0].p=t('奖池平分 · 保底 ','Shared pool · Guaranteed Minimum Prize ')+fm0(GMIN[g.id]);
+  if(g.id==='d6'){const F=(n,p)=>({m:`${8-n} 等 · 前 ${n} 位或后 ${n} 位`,mE:`First or last ${n} digits in exact order`,p});rows[1]=F(5,'₱40,000');rows[2]=F(4,'₱4,000');rows[3]=F(3,'₱400');rows[4]=F(2,'₱40')}}
+ return rows}}
+/* settlement: the top tier of 6D / 4D is a shared pool (demo: per-bet prize = guaranteed minimum) */
+{const _s=settleTicket;settleTicket=function(k,win){const R=_s.apply(this,arguments);const g=gm(k.g);if(g&&(g.id==='d4'||g.id==='d6')){const top='T'+g.d;R.tiers.forEach(x=>{if(x.tier===top){x.type='POOL';x.gmin=GMIN[g.id];x.pool=GMIN[g.id]*x.n*(k.mult||1)}})}return R}}
+/* results page: first-prize pool card for 6D / 4D (pool, winners, prize per ₱10 bet, guaranteed minimum) */
+{const _r=SC.result.html;SC.result.html=function(){let h=_r.apply(this,arguments);const g=gm(S.res.game);if(!g||(g.id!=='d4'&&g.id!=='d6'))return h;const L=S.draws[g.id]||[];
+ const d0=S.res.date?L.find(x=>x.date===S.res.date):L[0];if(!d0||d0.pool1==null)return h;if(typeof rsIsND==='function'&&rsIsND(g,d0.date))return h;
+ const card=`<div class="card mt" id="d1pool" style="border:1px solid rgba(245,158,11,.35)"><div class="row sp"><div><div class="xs mu">${t('一等奖（奖池平分）','First Prize (shared pool)')}</div><div class="b glowtxt" id="d1pool_amt" style="font-size:20px">${fm0(d0.pool1)}</div></div><div style="text-align:right"><div class="xs mu">${t('中奖注数','Winning bets')}</div><div class="b" id="d1pool_w">${d0.w1}${d0.w1===0?' · '+t('滚存到下期','Carried forward'):''}</div></div></div>
+ <div class="row sp" style="margin-top:8px"><span class="xs mu">${t('每 ₱10 注奖金','Prize per ₱10 bet')}</span><b class="sm" id="d1pool_per">${d0.w1?fm0(d0.per1):'—'}</b></div><div class="row sp" style="margin-top:4px"><span class="xs mu">Guaranteed Minimum Prize</span><b class="sm" id="d1pool_min">${fm0(GMIN[g.id])}</b></div>
+ <div class="xs mu" style="margin-top:6px;line-height:1.5">${t('一等奖奖池和单注奖金由 PCSO 随开奖结果录入；其余奖级为固定金额。','The pool and the prize per bet are entered by PCSO with the draw result. Other tiers are fixed amounts.')} ${badge('b-am','Demo data')}</div></div>`;
+ const i=h.indexOf('<h3 style="margin-top:22px">');return i>0?h.slice(0,i)+card+h.slice(i):h}}
+
+/* ---------- PA4: 4D play types Standard / Quick Pick / PERM / Roll 1 / Roll 4 ---------- */
+/* expansion: PERM = every distinct arrangement of the 4 digits; Roll 1 = first digit 0–9 before the chosen last 3; Roll 4 = last digit 0–9 after the chosen first 3 */
+{const _e=expandLines;expandLines=function(g,pc,sel,qp){if(!isD4X(g,pc))return _e.apply(this,arguments);const s=[...sel];
+ if(pc==='PERM'){const out=[],seen=new Set();(function go(cur,rest){if(!rest.length){const k=cur.join('');if(!seen.has(k)){seen.add(k);out.push([...cur])}return}for(let i=0;i<rest.length;i++)go([...cur,rest[i]],rest.filter((_,j)=>j!==i))})([],s);return out.sort((a,b)=>a.join('')<b.join('')?-1:1)}
+ return Array.from({length:10},(_,d)=>pc==='R1'?[d,...s]:[...s,d])}}
+const d4xFull=P=>P.picks.length===plNeed(gm(P.game))&&P.picks.every(x=>x!==null&&x!==undefined);
+{const _pl=plLines;plLines=function(g){const P=PL(),p=curPlay(g);if(!isD4X(g,p.c))return _pl.apply(this,arguments);if(p.c!=='PERM')return 10;if(!d4xFull(P))return 0;return new Set(P.picks).size===1?0:nperm(P.picks)}}
+{const _pd=plDone;plDone=function(g){const r=_pd.apply(this,arguments);const P=PL(),p=curPlay(g);if(r&&isD4X(g,p.c)&&p.c==='PERM'&&new Set(P.picks).size===1)return false;return r}}
+/* board: Roll 1 / Roll 4 show the rolled position as * and the three pickable positions as digit rows */
+{const _b=boardHTML;boardHTML=function(g,pop){const P=PL(),p=curPlay(g);if(!(g&&g.id==='d4'&&(p.c==='R1'||p.c==='R4')))return _b.apply(this,arguments);const rollPos=p.c==='R1'?0:3;
+ return Array.from({length:4},(_,pos)=>{if(pos===rollPos)return `<div class="row g8 rollrow" data-roll="${pos}" style="margin-top:8px"><span class="xs mu" style="width:26px;flex:none">#${pos+1}</span><div class="row" style="gap:8px;flex:1">${rollStar()}<span class="xs mu">${t('系统补 0–9，共 10 注','Filled by the system with 0–9: 10 lines')}</span></div></div>`;
+  const pi=p.c==='R1'?pos-1:pos;return `<div class="row g8" style="margin-top:8px"><span class="xs mu" style="width:26px;flex:none">#${pos+1}</span><div class="row dgrow" style="gap:4px;flex:1;justify-content:space-between">${Array.from({length:10},(_,d)=>`<button class="ball mini ${P.picks[pi]===d?'on':''}" data-b="${pi}-${d}" onclick="A.dg(${pi},${d})">${d}</button>`).join('')}</div></div>`}).join('')}}
+{const _t=trayHTML;trayHTML=function(g,pop){const h=_t.apply(this,arguments);const p=curPlay(g);if(!(g&&g.id==='d4'&&(p.c==='R1'||p.c==='R4')))return h;return p.c==='R1'?rollStar()+h:h+rollStar()}}
+/* Quick Pick for PERM (never four identical digits) and Roll 1 / Roll 4 (three digits) */
+{const _roll=A.roll;A.roll=function(){const P=PL(),g=gm(P.game),p=curPlay(g);if(!isD4X(g,p.c))return _roll.apply(this,arguments);if(P.rolling)return;
+ P.rolling=true;P.mode='auto';const need=plNeed(g);P.picks=Array(need).fill(null);const sg=$('.seg');if(sg&&sg.children[1]){sg.children[1].classList.add('on');sg.children[0].classList.remove('on')}drawBoard();
+ let target;do{target=Array.from({length:need},()=>rnd(0,9))}while(p.c==='PERM'&&new Set(target).size===1);
+ const cells=$$('#board [data-b]');let n=0;const iv=setInterval(()=>{cells.forEach(c=>c.classList.remove('roll'));for(let i=0;i<need*2;i++){const c=cells[rnd(0,cells.length-1)];c&&c.classList.add('roll')}n++;if(n>=22){clearInterval(iv);cells.forEach(c=>c.classList.remove('roll'));place()}},55);TM.push([iv,true]);
+ function place(){target.forEach((v,i)=>T(()=>{P.picks[i]=v;drawBoard(i);if(i===target.length-1){P.rolling=false;sumUp()}},i*170))}}}
+/* the Quick Pick play chip of 4D = Standard numbers drawn by the system */
+{const _p=A.ppt;A.ppt=function(i){const r=_p.apply(this,arguments);const P=PL(),g=gm(P.game),pl=playsOf(g)[i];if(g&&g.id==='d4'&&pl&&pl.c==='QP')setTimeout(()=>A.roll(),30);return r}}
+/* order summary on the play page */
+{const _s=sumHTML;sumHTML=function(g){const P=PL(),p=curPlay(g);if(!isD4X(g,p.c))return _s.apply(this,arguments);const n=plLines(g),nD=P.draws||1,per=n*g.p*P.mult,tot=per*nD;
+ const note=p.c==='PERM'?(d4xFull(P)?(n?t(`PERM：所选 4 位数字的全部排列各出一注，共 ${n} 注（${n} 张票），每注 ${fm0(g.p)}。`,`PERM: every arrangement of your 4 digits is one line: ${n} lines (${n} tickets) at ${fm0(g.p)} each.`):t('四个数字全相同没有排列，不能选 PERM，请改选 Standard。','PERM is not available when all four digits are the same. Pick Standard instead.')):t('选满 4 位数字后显示排列数和金额。','Pick all 4 digits to see the number of permutations and the cost.'))
+  :p.c==='R1'?t('Roll 1：您选后 3 位，系统把第 1 位 0–9 各补一注，共 10 注（10 张票）。','Roll 1: you pick the last 3 digits; the system fills the first digit with 0–9: 10 lines (10 tickets).')
+  :t('Roll 4：您选前 3 位，系统把最后一位 0–9 各补一注，共 10 注（10 张票）。','Roll 4: you pick the first 3 digits; the system fills the last digit with 0–9: 10 lines (10 tickets).');
+ return `<table class="tb"><tr><th>${t('玩法','Play')}</th><th>${t('注数','Lines')}</th><th>${t('倍数','x')}</th><th>${t('期数','Draws')}</th><th>${t('出票数','Tickets')}</th><th style="text-align:right">${t('合计','Total')}</th></tr><tr><td>${pName(p)}</td><td>${n}</td><td>${P.mult}</td><td>${nD}</td><td>${n*nD}</td><td style="text-align:right" class="b grad">${fm0(tot)}</td></tr></table><div class="xs mu" id="d4xnote" style="margin-top:8px;line-height:1.5">${t('每个组合出 1 张票。','One ticket per combination.')} ${n} × ${fm0(g.p)}${P.mult>1?' × '+P.mult:''} = ${fm0(per)} ${t('每期','per draw')}<br><span style="color:var(--am)">${note}</span></div>`}}
+/* bet confirmation: N tickets × ₱10 × multiplier, rolled position shown as * */
+{const _c=SC.betConfirm.html;SC.betConfirm.html=function(){let h=_c.apply(this,arguments);const {P,g,pl,n,tickets}=betPlan();if(!isD4X(g,pl.c))return h;const nD=n?tickets/n:1;
+ h=h.replace(t('每个组合一张票','One ticket per combination'),t('每个组合一张票','One ticket per combination')+` · <span id="cf_d4x">${n} × ${fm0(g.p)} × ${P.mult}${nD>1?' × '+nD:''} = ${fm0(n*g.p*P.mult*nD)}</span>`);
+ if(pl.c!=='PERM'){const nb=balls(P.picks);h=h.replace(nb,pl.c==='R1'?rollStar()+nb:nb+rollStar())}return h}}
+/* issuing: every expanded line is its own e-ticket; the order keeps the chosen digits for the summary card; 4D Quick Pick chip issues Standard tickets */
+{const _m=makeOrder;makeOrder=function(g,pc,pickSel,qp,mult,dates,ms,stFirst){if(g&&g.id==='d4'&&pc==='QP')pc='STRAIGHT';const out=_m.call(this,g,pc,pickSel,qp,mult,dates,ms,stFirst);if(isD4X(g,pc))out.forEach(k=>{k.sysSel=[...pickSel];k.roll=pc});return out}}
+/* My Tickets summary card: chosen digits with * at the rolled position */
+{const _tg=tkGroup;tkGroup=function(gr0){const h=_tg.apply(this,arguments);const k0=gr0[0];if(!k0||!k0.roll||k0.roll==='PERM'||!isSysOrd(k0))return h;
+ const star=`<span class="tkstar b" style="font-size:20px;line-height:1;padding:0 4px" title="${t('该位由系统补 0–9，每张票不同','This digit is filled with 0–9 by the system and differs on each ticket')}">*</span>`;
+ return h.replace(/(<div class="row tkchosen"[^>]*>)(.*?)(<\/div>)/,(m,a,b,c)=>a+(k0.roll==='R1'?star+b:b+star)+c)}}
+/* ticket detail: the chosen digits of the order above this ticket's concrete number */
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){const h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!k||!k.roll||!k.sysSel||archived(k))return h;
+ const star=`<span class="b" style="font-size:20px;padding:0 4px">*</span>`;const chosen=k.roll==='R1'?star+balls(k.sysSel):k.roll==='R4'?balls(k.sysSel)+star:balls(k.sysSel);
+ const lbl=k.roll==='PERM'?t(`PERM：所选数字的全部排列，每个排列一张票；本票号码：`,`PERM: every arrangement of your digits is a ticket. This ticket:`):t(`${k.roll==='R1'?'Roll 1':'Roll 4'}：* 由系统补 0–9，每张票不同；本票号码：`,`${k.roll==='R1'?'Roll 1':'Roll 4'}: * is filled with 0–9 by the system and differs on each ticket. This ticket:`);
+ const top=`<div class="row" id="tk_d4xtop" style="gap:6px;flex-wrap:wrap">${chosen}</div><div class="xs mu" style="margin:8px 0;line-height:1.5">${lbl}</div>`;
+ return h.replace(/(Your numbers<\/h3><div class="card mt">)/,'$1'+top.replace(/\$/g,'$$$$'))}}
+
+/* ---------- demo orders (Demo data): a 4D PERM order (1-2-3-4 → 24 tickets) and a Roll 1 order (*-0-7-9 → 10 tickets, ×2) on the next 4D draw ---------- */
+{const _sd=seedDemo;seedDemo=function(){_sd.apply(this,arguments);const c0=Date.parse('2026-10-10T09:30:00+08:00'),g4=gm('d4');
+ const pm=makeOrder(g4,'PERM',[1,2,3,4],[],1,['2026-10-12'],c0-45*60e3,'pre');const r1=makeOrder(g4,'R1',[0,7,9],[],2,['2026-10-12'],c0-40*60e3,'pre');
+ pm.concat(r1).forEach(k=>{k.demo21=1});S.tickets.push(...pm,...r1)}}
+
+render();
 </script>
 </body>
 </html>
