@@ -485,16 +485,16 @@ const GAMES = [
     ["4 中 · 3 等", "Match 4 · 3rd", "奖池 ₱1,000,000，由中奖注平分", "Pool ₱1,000,000 shared by winning lines"],
     ["3 中 · 4 等", "Match 3 · 4th", "₱20 固定", "₱20 fixed"]
   ]},
-  { id: "ez2", zh: "EZ2", en: "EZ2", kind: "digit", on: true, price: 10, pickZh: "1–31 选 2 个，有顺序，可重复", pickEn: "Pick 2 numbers from 1–31, in order, repeats allowed", freqZh: "每天 3 场 · 14:00、17:00、21:00", freqEn: "3 draws / day · 14:00, 17:00, 21:00", advance: 90, playZh: "直选 / Rambolito", playEn: "Straight / Rambolito", prizes: [
+  { id: "ez2", zh: "2D Lotto", en: "2D Lotto", kind: "digit", on: true, price: 10, pickZh: "1–31 选 2 个，有顺序，可重复", pickEn: "Pick 2 numbers from 1–31, in order, repeats allowed", freqZh: "每天 3 场 · 14:00、17:00、21:00", freqEn: "3 draws / day · 14:00, 17:00, 21:00", advance: 90, playZh: "直选 / Rambolito", playEn: "Straight / Rambolito", prizes: [
     ["直选 Straight", "Straight", "₱4,000", "₱4,000"],
     ["Rambolito", "Rambolito", "₱2,000", "₱2,000"]
   ]},
-  { id: "sw3", zh: "Swertres", en: "Swertres", kind: "digit", on: true, price: 10, pickZh: "0–9 选 3 位", pickEn: "Pick 3 digits from 0–9", freqZh: "每天 3 场 · 14:00、17:00、21:00", freqEn: "3 draws / day · 14:00, 17:00, 21:00", advance: 90, playZh: "直选 / Rambolito", playEn: "Straight / Rambolito", prizes: [
+  { id: "sw3", zh: "3D Lotto", en: "3D Lotto", kind: "digit", on: true, price: 10, pickZh: "0–9 选 3 位", pickEn: "Pick 3 digits from 0–9", freqZh: "每天 3 场 · 14:00、17:00、21:00", freqEn: "3 draws / day · 14:00, 17:00, 21:00", advance: 90, playZh: "直选 / Rambolito", playEn: "Straight / Rambolito", prizes: [
     ["直选 Straight", "Straight", "₱4,500", "₱4,500"],
     ["Rambolito · 三个数字不同", "Rambolito · 3 different", "₱750", "₱750"],
     ["Rambolito · 有一对", "Rambolito · one pair", "₱1,500", "₱1,500"]
   ]},
-  { id: "d4", zh: "4D", en: "4D", kind: "digit", on: true, tail: true, price: 10, pickZh: "0–9 选 4 位", pickEn: "Pick 4 digits from 0–9", freqZh: "每周 3 场 · 周一、三、五 21:00", freqEn: "3 draws / week · Mon, Wed, Fri 21:00", advance: 90, playZh: "标准 / 机选 / PERM / Roll 1 / Roll 4", playEn: "Standard / Quick Pick / PERM / Roll 1 / Roll 4", prizes: [
+  { id: "d4", zh: "4D", en: "4D", kind: "digit", on: true, tail: true, price: 10, pickZh: "0–9 选 4 位", pickEn: "Pick 4 digits from 0–9", freqZh: "每周 3 场 · 周一、三、五 21:00", freqEn: "3 draws / week · Mon, Wed, Fri 21:00", advance: 90, playZh: "标准 / 机选 / Rambol / Roll 1 / Roll 4", playEn: "Standard / Quick Pick / Rambol / Roll 1 / Roll 4", prizes: [
     ["1 等 · 4 位全中", "1st · all 4", "奖池平分 · 保底 ₱10,000", "Shared Pool · Guaranteed Minimum Prize ₱10,000", { gmin: 10000 }],
     ["2 等 · 后 3 位", "2nd · last 3", "₱800", "₱800"],
     ["3 等 · 后 2 位", "3rd · last 2", "₱100", "₱100"]
@@ -529,11 +529,11 @@ const GAME_SALES = [
   { id: "d6", sales: 3220000, tickets: 206667, players: 12180, mom: -1.2 }
 ];
 const PLAY_SALES = [
-  { zh: "EZ2 Straight", en: "EZ2 Straight", sales: 6820000, avg: 20, nz: "两位直选", ne: "2-digit straight" },
-  { zh: "EZ2 Rambolito", en: "EZ2 Rambolito", sales: 4420000, avg: 10, nz: "两位任意序", ne: "2-digit any order" },
-  { zh: "Swertres Straight", en: "Swertres Straight", sales: 5140000, avg: 10, nz: "三位直选", ne: "3-digit straight" },
-  { zh: "Swertres Rambolito 6", en: "Swertres Rambolito 6", sales: 3210000, avg: 10, nz: "六种排列", ne: "6 permutations" },
-  { zh: "Swertres Rambolito 3", en: "Swertres Rambolito 3", sales: 2510000, avg: 10, nz: "三种排列", ne: "3 permutations" },
+  { zh: "2D Lotto Straight", en: "2D Lotto Straight", sales: 6820000, avg: 20, nz: "两位直选", ne: "2-digit straight" },
+  { zh: "2D Lotto Rambolito", en: "2D Lotto Rambolito", sales: 4420000, avg: 10, nz: "两位任意序", ne: "2-digit any order" },
+  { zh: "3D Lotto Straight", en: "3D Lotto Straight", sales: 5140000, avg: 10, nz: "三位直选", ne: "3-digit straight" },
+  { zh: "3D Lotto Rambolito 6", en: "3D Lotto Rambolito 6", sales: 3210000, avg: 10, nz: "六种排列", ne: "6 permutations" },
+  { zh: "3D Lotto Rambolito 3", en: "3D Lotto Rambolito 3", sales: 2510000, avg: 10, nz: "三种排列", ne: "3 permutations" },
   { zh: "4D Straight", en: "4D Straight", sales: 4520000, avg: 12, nz: "四位直选", ne: "4-digit straight" },
   { zh: "6D Straight", en: "6D Straight", sales: 3220000, avg: 12, nz: "六位直选", ne: "6-digit straight" }
 ];
@@ -577,9 +577,9 @@ const TIER_LOTTO = [
   ["中 3 个号", "Match 3", 81588, "按游戏固定", "Fixed by game", 2172300, "自动入账", "Auto credit"]
 ];
 const TIER_DIGIT = [
-  ["EZ2 Straight", "EZ2 Straight", 1100, "₱4,000", "₱4,000", 4400000, "自动入账", "Auto credit"],
-  ["EZ2 Rambolito", "EZ2 Rambolito", 1500, "₱2,000", "₱2,000", 3000000, "自动入账", "Auto credit"],
-  ["Swertres Straight", "Swertres Straight", 800, "₱4,500", "₱4,500", 3600000, "自动入账", "Auto credit"],
+  ["2D Lotto Straight", "2D Lotto Straight", 1100, "₱4,000", "₱4,000", 4400000, "自动入账", "Auto credit"],
+  ["2D Lotto Rambolito", "2D Lotto Rambolito", 1500, "₱2,000", "₱2,000", 3000000, "自动入账", "Auto credit"],
+  ["3D Lotto Straight", "3D Lotto Straight", 800, "₱4,500", "₱4,500", 3600000, "自动入账", "Auto credit"],
   ["Rambolito 6", "Rambolito 6", 1200, "₱750", "₱750", 900000, "自动入账", "Auto credit"],
   ["Rambolito 3", "Rambolito 3", 400, "₱1,500", "₱1,500", 600000, "自动入账", "Auto credit"],
   ["4D 1st", "4D 1st", 6, "₱10,000", "₱10,000", 60000, "自动入账", "Auto credit"],
@@ -855,8 +855,8 @@ S.sysChg = [
 ];
 S.sysChg.push(
   { id: "CR-2044", tier: "opsrev", kind: "cancel", param: "draw:L649-20261005-1", drawNo: "L649-20261005-1", pz: "取消期次 · L649-20261005-1", pe: "Cancel draw · L649-20261005-1", old: "Published", nw: "Void · sold tickets refunded", eff: "2026-10-07 09:10", reason: "Requested by mistake", by: "mina.cruz", at: "2026-10-07 09:10", st: "lapsed", appr: "omar.reyes", lapseNote: "Draw was Published at approval" },
-  { id: "CR-2046", tier: "opsrev", kind: "cfg", param: "game:ez2", pz: "开奖日程 · EZ2", pe: "Draw schedule · EZ2", old: "Daily 14:00, 17:00, 21:00", nw: "Daily 14:00, 17:00, 21:30", eff: "2026-10-12 00:00", reason: "Move the night draw", by: "mina.cruz", at: "2026-10-09 15:30", st: "failed", appr: "omar.reyes", failNote: "At the effective time the new draw date falls on a no-draw date.", patch: {} },
-  { id: "CR-2045", tier: "opsrev", kind: "cfg", param: "game:sw3", pz: "封盘提前时间 · Swertres", pe: "Cut-off · Swertres", old: "15 min", nw: "20 min", eff: "2026-10-10 00:00", reason: "Earlier cut-off for the 14:00 draw", by: "mina.cruz", at: "2026-10-08 10:00", st: "applied", appr: "omar.reyes", patch: {} }
+  { id: "CR-2046", tier: "opsrev", kind: "cfg", param: "game:ez2", pz: "开奖日程 · 2D Lotto", pe: "Draw schedule · 2D Lotto", old: "Daily 14:00, 17:00, 21:00", nw: "Daily 14:00, 17:00, 21:30", eff: "2026-10-12 00:00", reason: "Move the night draw", by: "mina.cruz", at: "2026-10-09 15:30", st: "failed", appr: "omar.reyes", failNote: "At the effective time the new draw date falls on a no-draw date.", patch: {} },
+  { id: "CR-2045", tier: "opsrev", kind: "cfg", param: "game:sw3", pz: "封盘提前时间 · 3D Lotto", pe: "Cut-off · 3D Lotto", old: "15 min", nw: "20 min", eff: "2026-10-10 00:00", reason: "Earlier cut-off for the 14:00 draw", by: "mina.cruz", at: "2026-10-08 10:00", st: "applied", appr: "omar.reyes", patch: {} }
 );
 S.gpHist = "all";
 S.annSub = "list";
@@ -902,7 +902,7 @@ S.staff = [
 /* ===== 6.13.2 Operations: live streams, news, points config ===== */
 S.opq = { lvSt: "all", lvGame: "all", lvVis: "all", lvFrom: "", lvTo: "", nwSt: "all", nwCat: "all", nwQ: "", vcSt: "all", vcFace: "all", vcFrom: "", vcTo: "", vcQ: "" };
 S.lives = [
-  { id: "LS20261021000018", title: "Swertres 9 PM Draw Night", cover: true, c1: "#0e7490", url: "https://pcso.example/live/sw3-2100.m3u8", start: "2026-10-21 21:00", game: "sw3", st: "live", vis: true, by: "mina.cruz", at: "2026-10-21 20:58" },
+  { id: "LS20261021000018", title: "3D Lotto 9 PM Draw Night", cover: true, c1: "#0e7490", url: "https://pcso.example/live/sw3-2100.m3u8", start: "2026-10-21 21:00", game: "sw3", st: "live", vis: true, by: "mina.cruz", at: "2026-10-21 20:58" },
   { id: "LS20261025000012", title: "Super Lotto 6/49 Draw Night", cover: true, c1: "#7c3aed", url: "https://pcso.example/live/s649.m3u8", start: "2026-10-25 21:00", game: "s649", draws: ["L649-20261025-1"], st: "upcoming", vis: true, by: "mina.cruz", at: "2026-10-20 10:12" },
   { id: "LS20261018000007", title: "Grand Lotto 6/55 Draw Night", cover: false, c1: "#334155", url: "https://pcso.example/live/g655.m3u8", start: "2026-10-18 21:00", game: "g655", draws: ["L655-20261018-1"], st: "ended", vis: false, by: "carla.ong", at: "2026-10-18 21:40" }
 ];
@@ -936,8 +936,8 @@ function dashCmp(n, zh, en) {
   return `<span class="delta ${n >= 0 ? "up" : "down"}">${n >= 0 ? "↑" : "↓"} ${t(zh, en)} ${pctDash(n)}</span>`;
 }
 function dashGameLabel(id) {
-  if (id === "sw3") return "Swertres 3D";
-  if (id === "ez2") return "EZ2 2D";
+  if (id === "sw3") return "3D Lotto";
+  if (id === "ez2") return "2D Lotto";
   return gname(gameBy(id));
 }
 function clockStr() {
@@ -1144,7 +1144,7 @@ function viewDash0() {
   const todos = [
     ["nav", "kyc", raKycWait() + " 笔身份审核待处理", raKycWait() + " identity reviews waiting", "均为自动校验未通过或比对失败转人工（含支付账户复核），最久已等待 5 小时 12 分", "All escalated from failed auto-checks or failed face matches (payment account review included). Oldest has waited 5 h 12 min", "warn", "P2", "P2"],
     ...dashLocked().length ? [["open-player", dashLocked()[0].id, dashLocked().length + " 名玩家提现 MFA 连续失败 3 次", dashLocked().length + (dashLocked().length > 1 ? " players" : " player") + " failed withdrawal MFA 3 times in a row", "账号已锁定 30 分钟 · 可在玩家档案查看", "Accounts locked for 30 minutes · view in Player profiles", "rose", "P1", "P1"]] : [],
-    ["goto-draws", "sw3", "Swertres 3D 21:00 场 28 分钟后截止", "Swertres 3D 21:00 draw closes in 28 minutes", "今日第 3 场 · 封盘前 30 分钟内才进列表", "Draw 3 today · listed only in the last 30 minutes before cut-off", "warn", "P2", "P2"],
+    ["goto-draws", "sw3", "3D Lotto 21:00 场 28 分钟后截止", "3D Lotto 21:00 draw closes in 28 minutes", "今日第 3 场 · 封盘前 30 分钟内才进列表", "Draw 3 today · listed only in the last 30 minutes before cut-off", "warn", "P2", "P2"],
     ...S.issues.filter((x) => x.st === "prize").length ? [["desk-goto", S.issues.filter((x) => x.st === "prize")[0].no, "待录入奖金或待授权 · " + S.issues.filter((x) => x.st === "prize").length + " 期", "Prizes to enter or authorize (" + S.issues.filter((x) => x.st === "prize").length + ")", S.issues.filter((x) => x.st === "prize").map((x) => x.no).join(", ") + " · 号码已核对一致，奖金待录入或待授权", S.issues.filter((x) => x.st === "prize").map((x) => x.no).join(", ") + " · numbers matched, prizes to enter or authorize", "warn", "P2", "P2"]] : [],
     ...ddStuckList().map((x) => ["desk-goto", x.bl.no, "Draw blocked · " + x.bl.no, "Draw blocked · " + x.bl.no, x.bl.no + "（" + ISSUE_ST[x.bl.st][0] + "）已停留 " + x.m + " 分钟，挡住同游戏 " + x.n + " 期（演示数据）", x.bl.no + " (" + (ISSUE_ST[x.bl.st] ? ISSUE_ST[x.bl.st][1] : x.bl.st) + ") for " + x.m + " min, blocking " + x.n + " later draw" + (x.n > 1 ? "s" : "") + " (Demo data)", "rose", "P1", "P1"]),
     ...drawsBelowMin().length ? [["goto-draws", "", "期次数低于下限", "Draws below minimum", drawsBelowMin().map((x) => x.g.en + " " + x.n + "/" + DRAW_MIN(x.g)).join(", "), drawsBelowMin().map((x) => x.g.en + " " + x.n + "/" + DRAW_MIN(x.g)).join(", ") + " · Run daily top-up", "warn", "P2", "P2"]] : [],
@@ -1236,8 +1236,8 @@ function btHasRam(g) { return /rambolito/i.test(String(g.playEn || "")); }
 function btMs(dt) { dt = String(dt); return Date.parse(dt.replace(" ", "T") + (dt.length <= 16 ? ":00" : "") + "+08:00"); }
 function btFmt(ms) { return new Date(ms + 8 * 3600000).toISOString().slice(0, 19).replace("T", " "); }
 function btNowMs() { return btMs(sysNow()); }
-function btCode(g, type) { return g.kind === "lotto" ? (BT_PFX[g.id] || "LOTTO") + "_" + type : type + "_" + btPick(g).n + "D"; }
-const BT_TYPE_LBL = { STANDARD: "Standard", QUICKPICK: "Quick Pick", SYSTEM: "System", "5ROLL": "5-Roll", STRAIGHT: "Straight", RAMBOLITO: "Rambolito", PERM: "PERM", ROLL1: "Roll 1", ROLL4: "Roll 4" };
+function btCode(g, type) { return g.kind === "lotto" ? (BT_PFX[g.id] || "LOTTO") + "_" + type : (type === "PERM" ? "RAMBOL" : type) + "_" + btPick(g).n + "D"; }
+const BT_TYPE_LBL = { STANDARD: "Standard", QUICKPICK: "Quick Pick", SYSTEM: "System", "5ROLL": "5-Roll", STRAIGHT: "Straight", RAMBOLITO: "Rambolito", PERM: "Rambol", ROLL1: "Roll 1", ROLL4: "Roll 4" };
 function btTypeLbl(x) { return x.type.indexOf("SYSTEM_") === 0 ? "System " + x.type.slice(7) : BT_TYPE_LBL[x.type] || x.type; }
 function btBuild(iss) {
   const g = gameBy(iss.game), rnd = btRng(btHash(iss.no)), rows = [], lotto = g.kind === "lotto";
@@ -1400,7 +1400,7 @@ function viewBetLimits() {
   const g = gameBy(S.bl.game), issues = blIssues(g);
   if (!issues.some((i) => i.no === S.bl.draw)) { S.bl.draw = issues[0] ? issues[0].no : ""; S.bl.page = 0; }
   const iss = issues.find((i) => i.no === S.bl.draw), ro = blRo() || blClosed(iss);
-  const intro = `<div class="banner" data-bl-sec="intro">${t("整注号码组合的限额与锁定，只对字符集为数字的数字类游戏（如 EZ2、Swertres）有；乐透游戏没有号码限额。锁定或达到限额的组合，该期玩家端不可再加入投注单；修改立即生效，写入 Change 类审计，不走审批。仅运营专员可改，运营复核、财务复核和合规审计只读。", "Limits and locks apply to whole number combinations of digit games whose character set is Numeric (such as EZ2 and Swertres). Lotto games have no number limits. A locked combination, or one that reached its limit, can no longer be added to a bet slip for this draw. The multiplier of a digit-game line is 1–50 (₱10–₱500 per line); limits accumulate the line amount × multiplier, and PERM / Roll combinations count one by one. Changes apply at once, are written to the Change audit log, and need no approval. Only Operations can edit; Ops reviewer, Finance review and Compliance audit are read only.")}</div>`;
+  const intro = `<div class="banner" data-bl-sec="intro">${t("整注号码组合的限额与锁定，只对字符集为数字的数字类游戏（如 2D Lotto、3D Lotto）有；乐透游戏没有号码限额。锁定或达到限额的组合，该期玩家端不可再加入投注单；修改立即生效，写入 Change 类审计，不走审批。仅运营专员可改，运营复核、财务复核和合规审计只读。", "Limits and locks apply to whole number combinations of digit games whose character set is Numeric (such as 2D Lotto and 3D Lotto). Lotto games have no number limits. A locked combination, or one that reached its limit, can no longer be added to a bet slip for this draw. The multiplier of a digit-game line is 1–50 (₱10–₱500 per line); limits accumulate the line amount × multiplier, and Rambol / Roll combinations count one by one. Changes apply at once, are written to the Change audit log, and need no approval. Only Operations can edit; Ops reviewer, Finance review and Compliance audit are read only.")}</div>`;
   const sel = `<div class="tools" data-bl-sec="sel"><label class="f">${t("游戏", "Game")}<select data-bl="game">${games.map((x) => `<option value="${x.id}" ${x.id === g.id ? "selected" : ""}>${gname(x)}</option>`).join("")}</select></label><label class="f">${t("期次", "Draw")}<select data-bl="draw">${issues.map((i) => `<option value="${i.no}" ${i.no === S.bl.draw ? "selected" : ""}>${i.no} · ${i.draw}</option>`).join("")}</select></label></div>`;
   const dflt = `<div class="card" data-bl-sec="def"><h4>Default Number Limit</h4><div class="tools"><label class="f">${gname(g)} · Default Number Limit (₱)<input data-bl-def="1" inputmode="decimal" value="${esc(S.bl.def !== undefined && S.bl.defFor === g.id ? S.bl.def : g.defLimit == null ? "" : g.defLimit)}" placeholder="${t("不限", "No limit")}" style="max-width:180px" ${blRo() ? "disabled" : ""} /></label>${blRo() ? "" : `<button type="button" class="btn btn-primary btn-sm" style="width:auto" data-act="bl-def-save">${t("保存", "Save")}</button>`}</div><div class="err" id="bl-def-err">${esc(S.bl.defErr || "")}</div>
     <p class="tiny">${t("空 = 不限。新期次生成时每个号码组合的限额继承该值；只影响之后生成的期次，已生成的期次不变。不走审批，写审计日志（Change 类，记改前改后）。", "Empty means no limit. A draw generated later gives every number combination this limit. It affects only draws generated afterwards; draws already generated keep their own limits. No approval needed; the change is written to the Change audit log with before and after.")}</p></div>`;
@@ -1612,7 +1612,7 @@ function playRulesRaw(g) {
   if (g.id === "d4") return [
     ["标准 Standard", "Standard", "按位置选 4 位数字（0–9）。1 注 = 1 个单注价格（" + pr + "）。", "Pick 4 digits (0–9) position by position. One combination costs " + pr + ".", "4 位全对得一等（奖池平分，保底 ₱10,000）；后 3 位、后 2 位对上得二、三等，只取最高奖级。", "All 4 in order wins 1st (Shared Pool, Guaranteed Minimum Prize ₱10,000); last 3 or last 2 in order win 2nd or 3rd; only the highest tier is paid."],
     ["机选 Quick Pick", "Quick Pick", "系统随机生成 4 位数字。", "The system picks the 4 digits.", "同标准玩法判奖。", "Judged like Standard."],
-    ["PERM", "PERM", "所选 4 位数字的全部排列各出一注：4 个不同数字 24 注（" + peso(g.price * 24) + "）、2 个不同 + 1 对 12 注（" + peso(g.price * 12) + "）、2 对 6 注（" + peso(g.price * 6) + "）、3 同 + 1 不同 4 注（" + peso(g.price * 4) + "）；4 个全同没有 PERM。", "Every arrangement of the 4 chosen digits is one combination: 4 different digits 24 (" + peso(g.price * 24) + "), 2 different + 1 pair 12 (" + peso(g.price * 12) + "), 2 pairs 6 (" + peso(g.price * 6) + "), 3 equal + 1 different 4 (" + peso(g.price * 4) + "); four equal digits have no PERM.", "每注一张独立电子票，独立按 4D 奖级判奖。", "Each combination is its own e-ticket and is judged on its own against the 4D tiers."],
+    ["Rambol", "Rambol", "PCSO 称为 PERM。所选 4 位数字的全部排列各出一注：4 个不同数字 24 注（" + peso(g.price * 24) + "）、2 个不同 + 1 对 12 注（" + peso(g.price * 12) + "）、2 对 6 注（" + peso(g.price * 6) + "）、3 同 + 1 不同 4 注（" + peso(g.price * 4) + "）；4 个全同没有 Rambol。", "PCSO calls it PERM. Every arrangement of the 4 chosen digits is one combination: 4 different digits 24 (" + peso(g.price * 24) + "), 2 different + 1 pair 12 (" + peso(g.price * 12) + "), 2 pairs 6 (" + peso(g.price * 6) + "), 3 equal + 1 different 4 (" + peso(g.price * 4) + "); four equal digits have no Rambol.", "每注一张独立电子票，独立按 4D 奖级判奖。", "Each combination is its own e-ticket and is judged on its own against the 4D tiers."],
     ["Roll 1", "Roll 1", "玩家选后 3 位，系统把第 1 位 0–9 各补一注，共 10 注（" + peso(g.price * 10) + "）。", "Pick the last 3 digits; the system fills the first digit 0–9, 10 combinations (" + peso(g.price * 10) + ").", "每注独立判奖。", "Each combination is judged on its own."],
     ["Roll 4", "Roll 4", "玩家选前 3 位，系统把最后一位 0–9 各补一注，共 10 注（" + peso(g.price * 10) + "）。", "Pick the first 3 digits; the system fills the last digit 0–9, 10 combinations (" + peso(g.price * 10) + ").", "每注独立判奖。", "Each combination is judged on its own."]
   ];
@@ -1781,7 +1781,7 @@ function egPlays(g) {
     ${rsCsField(lotto, r, dis)}
     <h4 style="margin:14px 0 6px;font-size:13px">${t("玩法参数", "Play parameters")}</h4>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">${lotto ? ri("params.sysMin", "System bet min numbers (7–12)", r.params.sysMin) + ri("params.sysMax", "System bet max numbers (7–12)", r.params.sysMax) + `<div><label class="f">5-Roll fixed numbers <span class="tag muted">${t("固定，只读", "Fixed, read-only")}</span></label><input data-rsro="rollFixed" value="5" readonly disabled /></div>` : ""}${ri("params.qpDef", "Quick Pick default lines", r.params.qpDef)}${ri("params.qpMax", "Quick Pick max lines", r.params.qpMax)}${lotto ? "" : ri("params.multMin", "Multiplier min (1–50)", r.params.multMin == null ? 1 : r.params.multMin) + ri("params.multMax", "Multiplier max (1–50)", r.params.multMax == null ? 50 : r.params.multMax)}</div>
-    ${!lotto ? `<p class="tiny" data-sa="mult-note">${t("Rambolito 在所有数字相同时不能选（如 EZ2 两号相同），这是玩法算法内置的限制。倍数 1–50：每注金额 = 单注价格 × 倍数（₱10–₱500）；限额和交易当量按金额计算。", "Rambolito is not available when all numbers are the same (for example both EZ2 numbers equal); this is built into the play algorithm. Multiplier 1–50: the line amount is price per line × multiplier (₱10–₱500); limits and transaction counts use the amount.")}</p>` : ""}
+    ${!lotto ? `<p class="tiny" data-sa="mult-note">${t("Rambolito 在所有数字相同时不能选（如 2D Lotto 两号相同），这是玩法算法内置的限制。倍数 1–50：每注金额 = 单注价格 × 倍数（₱10–₱500）；限额和交易当量按金额计算。", "Rambolito is not available when all numbers are the same (for example both 2D Lotto numbers equal); this is built into the play algorithm. Multiplier 1–50: the line amount is price per line × multiplier (₱10–₱500); limits and transaction counts use the amount.")}</p>` : ""}
     <h4 style="margin:14px 0 6px;font-size:13px">${t("判奖方式", "Judging mode")}</h4>
     <div style="max-width:320px">${sel("judge", [["highest", "Highest tier only"], ["all", "All tiers"]], r.judge)}</div>
     <h4 style="margin:14px 0 6px;font-size:13px">${t("奖级结构", "Prize tiers")}</h4>
@@ -2226,7 +2226,7 @@ function drawGenModal() {
   return dialog(t("生成期次 · 第 2 步：预览与调整 · ", "Generate draws · Step 2: preview and adjust · ") + gname(g), `<div style="width:min(900px,86vw)"><p class="muted">${t("可以取消勾选某一期，或直接改开售时间和开奖时间；封盘时间 = 开奖时间 − 封盘提前时间（", "Untick a draw, or edit the sales-open and draw times. Cut-off = draw time − cut-off lead (")}${cutLabel(g)}${t("），随开奖时间自动更新。", "), updated automatically.")}</p>
     <div class="table-wrap fit"><table><thead><tr><th></th><th>${t("期号", "Draw no.")}</th><th>${t("开售时间", "Sales open")}</th><th>${t("开奖时间", "Draw time")}</th><th>${t("封盘时间（自动）", "Cut-off (auto)")}</th><th>${t("结果", "Result")}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="tools" style="margin-top:8px"><label class="f">${t("在其他日期加开一期", "Add a draw on another date")}<input class="mono" data-f="g_adddate" value="${esc(S.mf.g_adddate || "")}" placeholder="YYYY-MM-DD" style="width:140px" /></label><button type="button" class="btn btn-sm" data-act="gen-add-date">${t("加开一期", "Add a draw")}</button></div>
-    <p class="tiny">${t(`加开的期次：场次号 = 该日按开奖日程应开的最大场次号与当日已占用的最大场次号中较大者加 1（EZ2 当天加开取 4，不占常规场次的号；乐透单场次有作废期次时作废为 -1、加开为 -2），开奖时间手工填写（须晚于现在，且在该日期内）；封盘提前时间（${gp.lead} 分钟）和开售间隔（${(g.sellS || g.cutS || []).length ? ((g.sellS || [0])[0]) : 0} 秒）取第 1 场次的配置。加开不受 30 天规则限制，开奖日程以外的日期也可以加开。`, `Added draws: the slot number is the larger of the highest slot the schedule has on that date and the highest slot already taken on that date, plus 1 (an EZ2 extra draw on a normal day takes 4 and never reuses a regular slot number; a single-slot lotto with a voided draw is -1 and the extra draw is -2). Type the draw time yourself (later than now, on that date). Cut-off lead (${gp.lead} min) and selling interval (${(g.sellS || [0])[0]} s) come from the slot 1 configuration. Added draws are not subject to the 30-day rule, and dates outside the draw schedule are allowed.`)}</p>
+    <p class="tiny">${t(`加开的期次：场次号 = 该日按开奖日程应开的最大场次号与当日已占用的最大场次号中较大者加 1（2D Lotto 当天加开取 4，不占常规场次的号；乐透单场次有作废期次时作废为 -1、加开为 -2），开奖时间手工填写（须晚于现在，且在该日期内）；封盘提前时间（${gp.lead} 分钟）和开售间隔（${(g.sellS || g.cutS || []).length ? ((g.sellS || [0])[0]) : 0} 秒）取第 1 场次的配置。加开不受 30 天规则限制，开奖日程以外的日期也可以加开。`, `Added draws: the slot number is the larger of the highest slot the schedule has on that date and the highest slot already taken on that date, plus 1 (a 2D Lotto extra draw on a normal day takes 4 and never reuses a regular slot number; a single-slot lotto with a voided draw is -1 and the extra draw is -2). Type the draw time yourself (later than now, on that date). Cut-off lead (${gp.lead} min) and selling interval (${(g.sellS || [0])[0]} s) come from the slot 1 configuration. Added draws are not subject to the 30-day rule, and dates outside the draw schedule are allowed.`)}</p>
     <p class="tiny">${t(`将生成 ${n} 期。生成后期次状态为“已生成”，到开售时间自动转“销售中”。`, `${n} draw(s) will be created. They start as Generated and turn On sale at the sales-open time.`)}</p>${err}</div>`,
     `<button type="button" class="btn" data-act="draw-gen-back">${t("上一步", "Back")}</button><button type="button" class="btn btn-primary" data-act="draw-gen">${t("确认生成", "Confirm and generate")}</button>`);
 }
@@ -2367,7 +2367,7 @@ function wzPrev(i, kind) {
 }
 function wzCheck(i, g, kind, st, v, vals) {
   const rows = kind === "prz" ? entTierRows(i, g) : []; v = String(v == null ? "" : v).trim();
-  if (st.id === "nums" && i.st === "entry" && !String(i.pcso || "").trim()) return RV_PCSO_MSG;
+  if (st.id === "nums" && i.st === "entry" && !String((vals && vals.pcso != null ? vals.pcso : i.pcso) || "").trim()) return RV_PCSO_MSG; /* batch 22: the wizard draft value counts */
   if (st.id === "nums" && rsCsOf(i) !== "Numeric") return rsCsCheck(i, vals.nums);
   if (st.id === "nums") { const r = NUM_RULE[i.game]; const n = (vals.nums || []).filter((x) => x != null); if (r[3] ? n.length < r[0] : Array.from({ length: r[0] }).some((_, q) => (vals.nums || [])[q] == null)) return raLenMsg(i.game, r[0]); if (r[3] && new Set(n).size !== n.length) return t("号码不能重复。", "Numbers cannot repeat."); return ""; }
   if (st.f === "jpr") return v ? "" : t("请填写原因。", "Enter a reason.");
@@ -3135,8 +3135,8 @@ function foRows() {
 }
 const PD_LOTTO = { u658: [128450000, 1, 18400000], g655: [86420000, 0.8, 11810000], s649: [42180000, 0.6, 3200000], m645: [18650000, 0.4, 2900000], l642: [9200000, 0.3, 1900000] };
 const PD_DIGIT = {
-  ez2: [["EZ2 Straight", 4000, 0.5], ["EZ2 Rambolito", 2000, 0.5]],
-  sw3: [["Swertres Straight", 4500, 0.4], ["Swertres Rambolito 6", 750, 0.35], ["Swertres Rambolito 3", 1500, 0.25]],
+  ez2: [["2D Lotto Straight", 4000, 0.5], ["2D Lotto Rambolito", 2000, 0.5]],
+  sw3: [["3D Lotto Straight", 4500, 0.4], ["3D Lotto Rambolito 6", 750, 0.35], ["3D Lotto Rambolito 3", 1500, 0.25]],
   d4: [["4D 1st", 10000, 0.2], ["4D 2nd", 800, 0.3], ["4D 3rd", 100, 0.5]],
   d6: [["6D 1st", 150000, 0.1], ["6D 4th", 400, 0.3], ["6D 5th", 40, 0.6]]
 };
@@ -8048,7 +8048,7 @@ S.tickets = (function () {
     R("TKT20261007009880", "BO2026100700000000988", "PL-102901", "d6", "6D-20261007-1", "2026-10-07 20:18", "Straight", "NCR", "2026-10-07 21:00", "won", 10, 10, 15000, 12000, "N/A", "1 2 0 9 8 4", "1 2 0 9 8 4"),
     R("TKT20261009010902", "BO2026100900000000902", "PL-104266", "sw3", "S3D-20261009-5", "2026-10-09 21:16", "Rambolito", "Region IV-A", "2026-10-09 21:00", "lost", 20, 20, null, null, "N/A", "4 8 2", "2 8 4"),
     R("TKT20261009010770", "BO2026100900000000770", "PL-104010", "d4", "4D-20261012-1", "2026-10-09 18:40", "Standard", "Region III", "2026-10-12 21:00", "issued", 10, 10, null, null, "N/A", "3 9 4 1", ""),
-    R("TKT20261009010771", "BO2026100900000000771", "PL-104010", "d4", "4D-20261012-1", "2026-10-09 18:42", "PERM (1 of 24)", "Region III", "2026-10-12 21:00", "issued", 10, 10, null, null, "N/A", "1 3 7 9", ""),
+    R("TKT20261009010771", "BO2026100900000000771", "PL-104010", "d4", "4D-20261012-1", "2026-10-09 18:42", "Rambol (1 of 24)", "Region III", "2026-10-12 21:00", "issued", 10, 10, null, null, "N/A", "1 3 7 9", ""),
     R("TKT20261009010772", "BO2026100900000000772", "PL-104010", "d4", "4D-20261012-1", "2026-10-09 18:45", "Roll 1 (1 of 10)", "Region III", "2026-10-12 21:00", "issued", 10, 10, null, null, "N/A", "0 4 2 8", ""),
     R("TKT20260914004410", "BO2026091400000000031", "PL-103007", "u658", "L658-20260914-1", "2026-09-14 10:12", "Standard", "Unknown", "2026-09-14 21:00", "claimed", 25, 25, 18400000, 14720000, "Claimed", "04 11 23 29 41 58", "04 11 23 29 41 58"),
     R("TKT20261009000231", "BO2026100900000000231", "PL-104482", "m645", "L645-20261009-1", "2026-10-09 10:03", "Standard", "Region VII", "2026-10-09 21:00", "void", 25, 25, null, null, "N/A", "05 06 07 08 09 10", "")
@@ -9003,6 +9003,7 @@ function onClick(e) {
     const ent = i.st === "entry" ? 1 : 2;
     const fail = (m) => { logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Entry submission blocked", obj: i.no, before: "—", after: entTxt(i, "num", ent, "blocked: " + m) }); S.mf.err = m; render(); };
     if (i.draw > NOWSTR()) return fail("Draw time not reached");
+    if (i.st === "entry" && S.wiz && S.wiz.kind === "num" && S.wiz.no === i.no && S.wiz.vals && S.wiz.vals.pcso != null) { const pe = sbPcsoCheck(i, S.wiz.vals.pcso); if (pe) return fail(pe); sbPcsoApply(i, S.wiz.vals.pcso); } /* batch 22: submitted together with the numbers */
     if (i.st === "entry" && !String(i.pcso || "").trim()) return fail(RV_PCSO_MSG);
 
     if (i.st === "pub" || i.st === "settled") return fail("This draw has already been published");
@@ -11029,7 +11030,7 @@ function saMultRange(g) { const vs = gamePverList(g), v = vs[vs.length - 1], p =
 /* PB3: game list / edit game show the 4D play types with their combination counts */
 function saPlayNote(g) {
   if (!g || g.id !== "d4") return "";
-  const rows = [["Standard", "1 combination", peso(g.price)], ["Quick Pick", "1 combination (system pick)", peso(g.price)], ["PERM", "4 different digits 24 · 2 different + 1 pair 12 · 2 pairs 6 · 3 equal + 1 different 4 (4 equal digits: Standard only)", peso(g.price * 24) + " / " + peso(g.price * 12) + " / " + peso(g.price * 6) + " / " + peso(g.price * 4)], ["Roll 1", "last 3 digits chosen, first digit 0–9 by the system: 10 combinations", peso(g.price * 10)], ["Roll 4", "first 3 digits chosen, last digit 0–9 by the system: 10 combinations", peso(g.price * 10)]];
+  const rows = [["Standard", "1 combination", peso(g.price)], ["Quick Pick", "1 combination (system pick)", peso(g.price)], ["Rambol", "4 different digits 24 · 2 different + 1 pair 12 · 2 pairs 6 · 3 equal + 1 different 4 (4 equal digits: Standard only; PCSO calls it PERM)", peso(g.price * 24) + " / " + peso(g.price * 12) + " / " + peso(g.price * 6) + " / " + peso(g.price * 4)], ["Roll 1", "last 3 digits chosen, first digit 0–9 by the system: 10 combinations", peso(g.price * 10)], ["Roll 4", "first 3 digits chosen, last digit 0–9 by the system: 10 combinations", peso(g.price * 10)]];
   return `<div class="card" data-sa="d4-plays" style="margin-top:10px"><h4 style="margin:0 0 6px">${t("4D 玩法与注数", "4D play types and combinations")} ${tag("muted", t("合作方提供 · PCSO Game Mechanics", "Partner data · PCSO Game Mechanics"))}</h4>${table([t("玩法", "Play type"), t("注数", "Combinations"), t("金额（倍数 1）", "Amount (multiplier 1)")], rows.map((r) => `<tr data-sa-play="${r[0]}"><td>${r[0]}</td><td>${r[1]}</td><td class="mono">${r[2]}</td></tr>`))}<p class="tiny" style="margin:6px 0 0">${t("每注一张独立电子票，按 4D 奖级独立判奖；倍数对每注生效；号码限额按展开的各注分别累计。", "Every combination is its own e-ticket and is judged on its own against the 4D tiers; the multiplier applies to each combination; number limits accumulate per expanded combination.")}</p></div>`;
 }
 (function () {
@@ -11037,6 +11038,104 @@ function saPlayNote(g) {
   egSales = function (g) { return eg0(g) + saPlayNote(g); };
 })();
 /* ===== end SA block ===== */
+/* ===== SB block (batch 22 · admin): PB1 game names 2D Lotto / 3D Lotto (ids and draw numbers unchanged), PB2 4D Rambol (code RAMBOL_4D), PB3 PCSO Draw Number inside the result-entry wizard, PB4 draw info line inside the wizard cards ===== */
+const SB_PCSO_DUP = "This PCSO Draw Number is already used by another draw.";
+const SB_PCSO_DIG = "PCSO Draw Number can contain digits only.";
+/* previous number + 1, keeping the digit count and leading zeros (02057 -> 02058) */
+function sbPcsoInc(v) {
+  v = String(v == null ? "" : v).trim(); if (!/^\d{1,15}$/.test(v)) return "";
+  const n = String(Number(v) + 1); return n.length < v.length ? n.padStart(v.length, "0") : n;
+}
+/* the same game's latest earlier draw that has a recorded PCSO Draw Number */
+function sbPcsoPrev(i) {
+  return S.issues.filter((x) => x.game === i.game && x.no !== i.no && String(x.pcso || "").trim() && x.draw < i.draw).sort((a, b) => b.draw.localeCompare(a.draw))[0] || null;
+}
+/* prefill rule (D3): the draw's own value if it has one, else previous + 1, else empty */
+function sbPcsoPrefill(i) { if (String(i.pcso || "").trim()) return String(i.pcso).trim(); const p = sbPcsoPrev(i); return p ? sbPcsoInc(p.pcso) : ""; }
+function sbPcsoCheck(i, v) {
+  v = String(v == null ? "" : v).trim();
+  if (!v) return RV_PCSO_MSG;
+  if (!/^\d+$/.test(v)) return SB_PCSO_DIG;
+  if (rvPcsoUsed(i, v)) return SB_PCSO_DUP;
+  return "";
+}
+/* written at submit time together with the numbers; audited like the draw detail editor */
+function sbPcsoApply(i, v) {
+  v = String(v == null ? "" : v).trim(); const old = String(i.pcso || "").trim(); if (v === old) return;
+  i.pcso = v;
+  logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), type: "Change", evt: old ? "Update PCSO Draw Number" : "Enter PCSO Draw Number", obj: i.no, before: old || "—", after: v });
+}
+function sbWzFirst(i, kind) { return kind === "num" && i.st === "entry"; }
+function sbPcsoRow(i, kind, w) {
+  if (sbWzFirst(i, kind)) {
+    if (w.vals.pcso == null) w.vals.pcso = sbPcsoPrefill(i);
+    return `<div data-sb="pcso-row"><span class="tiny">PCSO Draw Number</span><input class="mono" data-wz="pcso" inputmode="numeric" autocomplete="off" maxlength="15" placeholder="e.g. 02057" value="${esc(w.vals.pcso)}" aria-label="PCSO Draw Number" /></div>`;
+  }
+  return `<div data-sb="pcso-row"><span class="tiny">PCSO Draw Number</span><b class="mono" data-sb="pcso-ro">${String(i.pcso || "").trim() ? esc(i.pcso) : "—"}</b></div>`;
+}
+function sbPcsoHint(i, kind) {
+  if (!sbWzFirst(i, kind)) return `<p class="tiny" data-sb="pcso-hint">${String(i.pcso || "").trim() ? "The PCSO Draw Number was submitted with the first entry and is read only." : "No PCSO Draw Number is recorded for this draw."}</p>`;
+  const p = sbPcsoPrev(i);
+  const tail = " It is submitted together with the numbers and locked afterwards.";
+  if (String(i.pcso || "").trim()) return `<p class="tiny" data-sb="pcso-hint">Recorded for this draw. You can still correct it here.${tail}</p>`;
+  if (p) return `<p class="tiny" data-sb="pcso-hint">Suggested as the previous ${esc(gname(gameBy(i.game)))} draw (<span class="mono">${esc(p.no)}</span>: <span class="mono">${esc(p.pcso)}</span>) plus 1. Check it against the draw result sheet.${tail}</p>`;
+  return `<p class="tiny" data-sb="pcso-hint">No PCSO Draw Number is recorded for this game yet. Enter the number from the draw result sheet.${tail}</p>`;
+}
+(function () {
+  const f0 = wzFieldBody;
+  wzFieldBody = function (i, g, kind, st, w, second) {
+    const r = f0(i, g, kind, st, w, second);
+    if (st.id === "confirm") { const k = r.body.lastIndexOf("</div></div>"); if (k >= 0) r.body = r.body.slice(0, k) + "</div>" + sbPcsoRow(i, kind, w) + "</div>" + sbPcsoHint(i, kind) + r.body.slice(k + 12); }
+    return r;
+  };
+})();
+(function () {
+  const f0 = wzNext;
+  wzNext = function () {
+    if (S.wiz) {
+      const c = wzCur();
+      if (c.st.id === "confirm" && sbWzFirst(c.i, c.w.kind)) {
+        const el = document.querySelector("#wz-host [data-wz=pcso]"); const v = String(el ? el.value : (c.w.vals.pcso == null ? sbPcsoPrefill(c.i) : c.w.vals.pcso)).trim(); c.w.vals.pcso = v;
+        const e = sbPcsoCheck(c.i, v); if (e) { c.w.err = e; S.mf.err = ""; render(); return; }
+      }
+    }
+    return f0();
+  };
+})();
+(function () {
+  const f0 = wzInput;
+  wzInput = function (el) {
+    if (el.dataset && el.dataset.wz === "pcso") {
+      const { w, i } = wzCur(); w.vals.pcso = el.value; const e = el.value.trim() === "" ? "" : sbPcsoCheck(i, el.value); w.err = e;
+      const eb = $("wz-err"); if (eb) { eb.textContent = e; eb.style.display = e ? "" : "none"; }
+      return;
+    }
+    return f0(el);
+  };
+})();
+document.addEventListener("keydown", (e) => { const el = e.target; if (e.key === "Enter" && el.dataset && el.dataset.wz === "pcso" && S.wiz) { e.preventDefault(); wzNext(); } }, true);
+(function () { /* the review card lists the PCSO Draw Number that is submitted with the numbers (Edit returns to the confirm step) */
+  const f0 = wzConfirmRows;
+  wzConfirmRows = function (i, g, w, steps, kind) {
+    const h = f0(i, g, w, steps, kind);
+    if (!sbWzFirst(i, kind)) return h;
+    return h + `<tr data-sb="pcso-sum"><td>PCSO Draw Number</td><td><span class="mono">${esc(w.vals.pcso == null ? sbPcsoPrefill(i) : w.vals.pcso)}</span></td><td><button type="button" class="btn btn-sm" data-act="draw-wz-edit" data-arg="confirm">${t("改", "Edit")}</button></td></tr>`;
+  };
+})();
+/* PB4 (842): the "Game · Draw number · Draw date time" line repeated inside the confirm card and the result / waiting cards, above the title; the header bar is unchanged */
+function sbInfoLine(i, g) {
+  return `<div class="sb-info" data-sb="info"><b>${esc(gname(g))}</b><span class="sb-sep">·</span><span class="mono">${esc(i.no)}</span><span class="sb-sep">·</span><span>${t("开奖", "Draw")} <span class="mono">${esc(i.draw)}</span></span></div>`;
+}
+(function () {
+  const f0 = wzLayer;
+  wzLayer = function () {
+    const h = f0(); if (!h || !S.sub) return h;
+    const i = S.issues.find((x) => x.no === S.sub.no); if (!i) return h;
+    const line = sbInfoLine(i, gameBy(i.game));
+    return h.replace(/<div class="card wz[^"]*" data-wz-step="(?:confirm|sum|result|wait)">/g, (m) => m + line);
+  };
+})();
+/* ===== end SB block ===== */
 
 </script>
 <!--SKIN:START-->
@@ -11885,6 +11984,12 @@ body.ddfs-on{overflow:hidden}
 [data-ejp-hist] td,[data-ejp-hist] th{white-space:nowrap}
 /* batch 19: Win/Loss and Player IP stay on one line */
 td[data-ry=wl],td[data-ry=wl-total],td[data-ry=ip],[data-ry=tk-sub]~.table-wrap th:nth-last-child(2){white-space:nowrap}
+/* ===== SB block (batch 22): draw info line inside the wizard cards; PCSO Draw Number input in the confirm step ===== */
+#wz-host .sb-info{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:15px;color:var(--d-mid);padding:0 0 10px;margin:-6px 0 14px;border-bottom:1px solid var(--d-line)}
+#wz-host .sb-info b{color:var(--d-ink);font-size:17px}#wz-host .sb-info .mono{color:var(--d-ink)}#wz-host .sb-info .sb-sep{color:var(--d-faint)}
+#wz-host .wz-confirm div[data-sb=pcso-row]{align-items:flex-start;gap:4px}
+#wz-host .wz-confirm input[data-wz=pcso]{width:220px;font-size:22px;font-weight:700;padding:6px 12px;text-align:left;margin:0;letter-spacing:.04em}
+#wz-host .wzl-main p.tiny[data-sb=pcso-hint]{margin:-6px 0 12px}
 
 </style>
 <script id="skin-js">

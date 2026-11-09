@@ -491,8 +491,8 @@ const G=[
 {id:'super',zh:'超级乐透 6/49',en:'Super Lotto 6/49',t:'lotto',n:49,k:6,p:25,pool:58200000,c:['#22d3ee','#3b82f6'],nx:'2026-10-11T21:00:00+08:00',sch:'周二/四/日 21:00',schEn:'Tue/Thu/Sun 21:00',t5:[50000,1500,50]},
 {id:'mega',zh:'百万乐透 6/45',en:'Mega Lotto 6/45',t:'lotto',n:45,k:6,p:25,pool:24600000,c:['#34d399','#0ea5e9'],nx:'2026-10-12T21:00:00+08:00',sch:'周一/三/五 21:00',schEn:'Mon/Wed/Fri 21:00',t5:[32000,1200,30]},
 {id:'lotto',zh:'乐透 6/42',en:'Lotto 6/42',t:'lotto',n:42,k:6,p:25,pool:12300000,c:['#fb7184','#f97316'],nx:'2026-10-10T21:00:00+08:00',sch:'周二/四/六 21:00',schEn:'Tue/Thu/Sat 21:00',t5:[25000,1000,25],big:4120000},
-{id:'ez2',zh:'EZ2 2D',en:'EZ2 2D',t:'ez2',n:32,k:2,p:10,c:['#a3e635','#16a34a'],nx:'2026-10-10T17:00:00+08:00',sch:'每天 14/17/21 点',schEn:'Daily 2/5/9 PM',plays:['Straight','Rambolito'],prize:{Straight:4000,Rambolito:2000}},
-{id:'swer',zh:'Swertres 3D',en:'Swertres 3D',t:'dig',d:3,p:10,c:['#38bdf8','#6366f1'],nx:'2026-10-10T17:00:00+08:00',sch:'每天 14/17/21 点',schEn:'Daily 2/5/9 PM',plays:['Straight','Rambo6','Rambo3'],prize:{Straight:4500,Rambo6:750,Rambo3:1500}},
+{id:'ez2',zh:'2D Lotto',en:'2D Lotto',t:'ez2',n:32,k:2,p:10,c:['#a3e635','#16a34a'],nx:'2026-10-10T17:00:00+08:00',sch:'每天 14/17/21 点',schEn:'Daily 2/5/9 PM',plays:['Straight','Rambolito'],prize:{Straight:4000,Rambolito:2000}},
+{id:'swer',zh:'3D Lotto',en:'3D Lotto',t:'dig',d:3,p:10,c:['#38bdf8','#6366f1'],nx:'2026-10-10T17:00:00+08:00',sch:'每天 14/17/21 点',schEn:'Daily 2/5/9 PM',plays:['Straight','Rambo6','Rambo3'],prize:{Straight:4500,Rambo6:750,Rambo3:1500}},
 {id:'d4',zh:'4D',en:'4D',t:'dig',d:4,p:10,c:['#f472b6','#9333ea'],nx:'2026-10-12T21:00:00+08:00',sch:'周一/三/五 21:00',schEn:'Mon/Wed/Fri 9 PM',plays:['Straight'],prize:{Straight:10000}},
 {id:'d6',zh:'6D',en:'6D',t:'dig',d:6,p:10,c:['#fbbf24','#dc2626'],nx:'2026-10-10T21:00:00+08:00',sch:'周二/四/六 21:00',schEn:'Tue/Thu/Sat 9 PM',plays:['Straight'],prize:{Straight:150000}}];
 const DG=[{id:'dchr',zh:'Letter Demo 4L',en:'Letter Demo 4L',t:'dig',d:4,p:10,c:['#0ea5e9','#7c3aed'],nx:'2026-10-12T21:00:00+08:00',sch:'周一/三/五 21:00',schEn:'Mon/Wed/Fri 9 PM',plays:['Straight','Rambolito'],prize:{Straight:10000,Rambolito:2000},cs:'letters',demo:1}];
@@ -504,7 +504,7 @@ const csChars=g=>g.cs==='letters'?CS_L.split(''):g.cs==='symbols'?csSyms(g):g.cs
 const gname=g=>t(g.zh,g.en);
 const isOff=g=>g.id===S.offGame;
 const STEP=g=>g.t==='lotto'?2:1;
-/* CLAR31 839: draw weekdays per game (PCSO Game Mechanics 2026-11-08; v1 initial data). EZ2 / Swertres draw every day. 0 = Sunday */
+/* CLAR31 839: draw weekdays per game (PCSO Game Mechanics 2026-11-08; v1 initial data). 2D Lotto (ez2) / 3D Lotto (swer) draw every day. 0 = Sunday */
 const DOWS={ultra:[0,2,5],grand:[1,3,6],super:[0,2,4],mega:[1,3,5],lotto:[2,4,6],d6:[2,4,6],d4:[1,3,5],dchr:[1,3,5]};
 const dowOf=d=>new Date(String(d).slice(0,10)+'T12:00:00Z').getUTCDay();
 const onDow=(g,d)=>!DOWS[g.id]||DOWS[g.id].includes(dowOf(d));
@@ -539,7 +539,7 @@ ez2:`<g><g transform="rotate(-10 108 50)"><rect x="92" y="32" width="30" height=
 swer:`<g><rect x="88" y="26" width="68" height="40" rx="9" fill="#000" opacity=".28"/>${[0,1,2].map(i=>`<rect x="${92+i*22}" y="30" width="20" height="32" rx="5" fill="#fff"/><text x="${102+i*22}" y="55" font-size="22" font-weight="800" text-anchor="middle" fill="${['#ea580c','#db2777','#7c3aed'][i]}">${[3,8,1][i]}</text>`).join('')}<path d="M88 46h-6M156 46h6" stroke="#fde68a" stroke-width="3" stroke-linecap="round"/><circle cx="96" cy="16" r="2.5" fill="#fff"/><circle cx="150" cy="76" r="2" fill="#fde68a"/></g>`,
 d4:`<g><g transform="rotate(-6 122 48)"><path d="M92 28h60a4 4 0 014 4v6a6 6 0 000 12v6a4 4 0 01-4 4H92a4 4 0 01-4-4v-6a6 6 0 000-12v-6a4 4 0 014-4z" fill="#fff" opacity=".93"/><path d="M142 30v36" stroke="#0ea5e9" stroke-dasharray="3 3" opacity=".6"/><text x="115" y="56" font-size="22" font-weight="800" text-anchor="middle" fill="#0369a1" letter-spacing="2">4D</text></g><circle cx="92" cy="18" r="2.5" fill="#fff"/><circle cx="152" cy="74" r="2.5" fill="#fff" opacity=".8"/></g>`,
 d6:`<g><g transform="rotate(-6 122 48)"><path d="M92 28h60a4 4 0 014 4v6a6 6 0 000 12v6a4 4 0 01-4 4H92a4 4 0 01-4-4v-6a6 6 0 000-12v-6a4 4 0 014-4z" fill="#fff" opacity=".93"/><path d="M142 30v36" stroke="#16a34a" stroke-dasharray="3 3" opacity=".6"/><text x="115" y="56" font-size="22" font-weight="800" text-anchor="middle" fill="#15803d" letter-spacing="2">6D</text></g><circle cx="92" cy="18" r="2.5" fill="#fff"/><circle cx="152" cy="74" r="2.5" fill="#fde68a"/></g>`};
-function cover(g){const [a,b]=g.c;const lab=g.t==='lotto'?'6/'+g.n:g.t==='ez2'?'EZ2':g.d+(g.demo?'L':'D');
+function cover(g){const [a,b]=g.c;const lab=g.t==='lotto'?'6/'+g.n:g.t==='ez2'?'2D':g.d+(g.demo?'L':'D');
  return `<svg viewBox="0 0 160 84" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="cv${g.id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="160" height="84" fill="url(#cv${g.id})"/><circle cx="150" cy="6" r="34" fill="#fff" opacity=".12"/><path d="M0 84Q40 66 90 78T160 70V84z" fill="#000" opacity=".12"/>${CVART[g.id]||''}<text x="12" y="22" font-size="13" font-weight="800" fill="#fff" opacity=".95">${lab}</text></svg>`}
 
 /* ---------- misc data ---------- */
@@ -588,7 +588,7 @@ function genDraws(){G.forEach((g,gi)=>{const r=mul(gi*77+5);const rr=(a,b)=>a+Ma
 /* ---------- new seeds & helpers: live streams (6.3.2/6.3.6), news (6.3.5), favorites (6.3.3), points (6.5.6), session limit (6.2.4) ---------- */
 const LIVE=[
 {id:'LS-001',title:'Ultra Lotto 6/58 Evening Draw',cover:['#7c3aed','#ec4899'],playbackUrl:'https://www.pcso.gov.ph/live/ultra-658',startAt:'2026-10-10T21:00:00+08:00',game:'ultra',status:'live',visible:true},
-{id:'LS-002',title:'EZ2 2D Afternoon Draw',cover:['#a3e635','#16a34a'],playbackUrl:'https://www.pcso.gov.ph/live/ez2',startAt:'2026-10-10T17:00:00+08:00',game:'ez2',status:'upcoming',visible:true},
+{id:'LS-002',title:'2D Lotto Afternoon Draw',cover:['#a3e635','#16a34a'],playbackUrl:'https://www.pcso.gov.ph/live/ez2',startAt:'2026-10-10T17:00:00+08:00',game:'ez2',status:'upcoming',visible:true},
 {id:'LS-003',title:'Grand Lotto 6/55 Evening Draw',cover:['#f59e0b','#ef4444'],playbackUrl:'https://www.pcso.gov.ph/live/grand-655',startAt:'2026-10-09T21:00:00+08:00',game:'grand',status:'ended',visible:true}];
 const liveOk=s=>s.visible&&(s.status==='live'||s.status==='upcoming');
 /* pick: prefer a live session (latest start); otherwise the upcoming one with the earliest start; optional game filter (unlinked sessions always match) */
@@ -631,7 +631,7 @@ const TAILP={dchr:{4:10000,3:800,2:100},d4:{4:10000,3:800,2:100},d6:{6:150000,5:
 const HITT={6:'JP',5:2,4:3,3:4};
 const CNK=(n,k)=>{let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)};
 const LPL=[{c:'STD',zh:'标准',en:'Standard',need:6},{c:'QP',zh:'机选 Quick Pick',en:'Quick Pick',need:0},{c:'R5',zh:'5 号轮转 5-Roll',en:'5-Roll',need:5},{c:'S7',zh:'复式 System 7',en:'System 7',need:7},{c:'S8',zh:'复式 System 8',en:'System 8',need:8},{c:'S9',zh:'复式 System 9',en:'System 9',need:9},{c:'S10',zh:'复式 System 10',en:'System 10',need:10},{c:'S11',zh:'复式 System 11',en:'System 11',need:11},{c:'S12',zh:'复式 System 12',en:'System 12',need:12}];
-const DPL={ez2:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],swer:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],d4:[{c:'STRAIGHT',zh:'标准 Standard',en:'Standard'},{c:'QP',zh:'机选 Quick Pick',en:'Quick Pick'},{c:'PERM',zh:'PERM',en:'PERM'},{c:'R1',zh:'Roll 1',en:'Roll 1',need:3},{c:'R4',zh:'Roll 4',en:'Roll 4',need:3}],d6:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'}]};
+const DPL={ez2:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],swer:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],d4:[{c:'STRAIGHT',zh:'标准 Standard',en:'Standard'},{c:'QP',zh:'机选 Quick Pick',en:'Quick Pick'},{c:'PERM',zh:'Rambol',en:'Rambol'},{c:'R1',zh:'Roll 1',en:'Roll 1',need:3},{c:'R4',zh:'Roll 4',en:'Roll 4',need:3}],d6:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'}]};
 DPL.dchr=[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}]; /* demo letter game: Straight and Rambolito share ONE character set (6.3.3 / 6.7.2) */
 const rc=g=>g.cs&&g.cs!=='numeric'?csChars(g)[rnd(0,csChars(g).length-1)]:rnd(0,9);
 const playsOf=g=>g.t==='lotto'?LPL:DPL[g.id];
@@ -845,7 +845,7 @@ mk('swer','await',{pt:'RAMBO',nums:[1,1,2],draw:'2026-10-10',ms:c0-80*60e3});
  {const vk=S.tickets.find(k=>k.st==='void');S.tx.push({id:'TXN'+(++TID),type:'refund',amt:25,st:'ok',ms:c0-D*2+3600e3,note:t('超级乐透','Grand Lotto 6/55'),tk:vk.id,reason:t('游戏下架，到开奖时间仍未上架','Game unavailable at draw time'),sb:25,sp:0})}
  X('deposit',2000,'ok',c0-13*3600e3,'GCash');X('deposit',1000,'ok',c0-D*2,'Maya');X('deposit',500,'fail',c0-D*3,'BDO');X('deposit',1500,'proc',c0-18*60e3,'GCash');
  X('withdraw',-1500,'ok',c0-D*2,'GCash');X('withdraw',-5000,'rej',c0-D*5,'GCash · MFA');X('withdraw',-800,'proc',c0-50*60e3,'Maya');
- X('bet',-50,'ok',c0-3600e3,'Super Lotto 6/49');X('bet',-25,'ok',c0-2*3600e3,'Ultra Lotto 6/58');X('bet',-10,'ok',c0-4*3600e3,'EZ2 2D');X('bet',-10,'ok',c0-5*3600e3,'4D');X('bet',-25,'ref',c0-D*2,'Grand Lotto 6/55');
+ X('bet',-50,'ok',c0-3600e3,'Super Lotto 6/49');X('bet',-25,'ok',c0-2*3600e3,'Ultra Lotto 6/58');X('bet',-10,'ok',c0-4*3600e3,'2D Lotto');X('bet',-10,'ok',c0-5*3600e3,'4D');X('bet',-25,'ref',c0-D*2,'Grand Lotto 6/55');
  X('prize',2784.22,'auto',c0-D*4,'Super Lotto 6/49');
  S.tx.sort((a,b)=>b.ms-a.ms);
  S.notifs=[];
@@ -885,7 +885,7 @@ document.addEventListener('change',e=>{if(['r_phone','l_acc','f_acc'].includes(e
 
 /* ---------- demo panel: V1.1 player scenarios (appended below the main panel by render()) ---------- */
 function panelExtra(){const el=$('#panel');if(!el||S.pmode==='spec')return;const pb=(l,fn)=>`<button class="pb" onclick="${fn}">${l}</button>`;
- const html=pb(t('数字类组合 05-09 超限（EZ2 提交被拒）','EZ2 combination 05-09 hits its limit (submit rejected)'),'A.demoOver7()')+pb('EZ2 Rambolito 3 + 12: locked permutation in a later draw (Demo data)','A.demoMultiLock()')+pb(t('重置号码锁定','Reset number locks'),'A.demoUnlock()')+pb('Simulate PAY-0005 on next deposit (on/off)','A.demoPay5()')+pb(t('Mega 6/45 无开奖日 开/关','Mega 6/45 no-draw date on/off'),'A.demoND()')+pb(t('清空 Mega 开奖结果（No result yet）','Clear Mega results (No result yet)'),'A.demoNoRes()')+pb(t('时钟推到 15:30（数字类场次变“已开”）','Clock to 15:30 (digit sessions drawn)'),'A.demoClock()')+pb(t('再次弹出登录后弹窗','Show login pop-up again'),'A.demoPop()')+pb(t('System 7 复式示例（拆 7 张票）','System 7 example (7 tickets)'),'A.demoSys7()')+pb(t('大奖票恢复为“未发起申领”','Reset prize ticket to “not started”'),'A.demoClaimReset()');
+ const html=pb(t('数字类组合 05-09 超限（2D Lotto 提交被拒）','2D Lotto combination 05-09 hits its limit (submit rejected)'),'A.demoOver7()')+pb('2D Lotto Rambolito 3 + 12: locked permutation in a later draw (Demo data)','A.demoMultiLock()')+pb(t('重置号码锁定','Reset number locks'),'A.demoUnlock()')+pb('Simulate PAY-0005 on next deposit (on/off)','A.demoPay5()')+pb(t('Mega 6/45 无开奖日 开/关','Mega 6/45 no-draw date on/off'),'A.demoND()')+pb(t('清空 Mega 开奖结果（No result yet）','Clear Mega results (No result yet)'),'A.demoNoRes()')+pb(t('时钟推到 15:30（数字类场次变“已开”）','Clock to 15:30 (digit sessions drawn)'),'A.demoClock()')+pb(t('再次弹出登录后弹窗','Show login pop-up again'),'A.demoPop()')+pb(t('System 7 复式示例（拆 7 张票）','System 7 example (7 tickets)'),'A.demoSys7()')+pb(t('大奖票恢复为“未发起申领”','Reset prize ticket to “not started”'),'A.demoClaimReset()');
  const hs=[...el.querySelectorAll('h4')];const k=hs.findIndex(h=>/Simulate draw|模拟开奖/.test(h.textContent));
  if(k>=0&&hs[k+1])hs[k+1].insertAdjacentHTML('beforebegin',html);else el.insertAdjacentHTML('beforeend',html)}
 
@@ -1048,7 +1048,7 @@ const circ=(ic,l,fn,c1,c2)=>`<button class="circ" onclick="${fn}"><i style="back
 const tile=(il,ti,su,fn,id,c1,c2)=>`<button class="tile" onclick="${fn}"><span class="tic" style="background:${c2||'#e3edfd'};color:${c1||'#004bc9'}">${I(il,22)}</span><div class="tx"><div class="b" style="font-size:15px">${ti}</div><div class="mu sm" style="margin-top:3px;line-height:1.35;min-height:32px" ${id?`id="${id}"`:''}>${su}</div></div><span class="arr">${I('chev',18)}</span></button>`;
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dlab=(ms,yr)=>{const d=new Date(ms+8*3600e3);const h=d.getUTCHours();return MON[d.getUTCMonth()]+' '+d.getUTCDate()+(yr?', '+d.getUTCFullYear():'')+' · '+((h%12)||12)+':'+String(d.getUTCMinutes()).padStart(2,'0')+' '+(h<12?'AM':'PM')};
-const GSHORT={ultra:'ULTRA LOTTO',grand:'GRAND LOTTO',super:'SUPER LOTTO',mega:'MEGA LOTTO',lotto:'LOTTO',ez2:'EZ2',swer:'SWERTRES',d4:'4D',d6:'6D'};
+const GSHORT={ultra:'ULTRA LOTTO',grand:'GRAND LOTTO',super:'SUPER LOTTO',mega:'MEGA LOTTO',lotto:'LOTTO',ez2:'2D LOTTO',swer:'3D LOTTO',d4:'4D',d6:'6D'};
 const GBIG=g=>g.t==='lotto'?'6/'+g.n:g.t==='ez2'?'2D':g.d+(g.demo?'L':'D');
 const GRIB={ultra:'#d60021',grand:'#e39a00',super:'#d60021',mega:'#0a8f4e',lotto:'#7a3cc9',ez2:'#0a8f4e',swer:'#d60021',d4:'#e39a00',d6:'#7a3cc9'};
 /* game logo (lightweight SVG mark: big number + ribbon) */
@@ -2577,7 +2577,7 @@ A.lkClear=()=>{S.tkDraw=null;renderKeep()};
   mkT('grand','winPending',{draw:'2026-10-09',dtime:'21:00',nums:[4,9,19,27,38,50],prize:400000,tier:'Jackpot',code:'DEMO0001'});             /* offline claim, to claim */
   mkT('grand','claimed',{draw:'2026-10-09',dtime:'21:00',nums:[6,13,21,34,41,53],paid:'auto',prize:200,tier:'Prize'});                        /* auto credit */
   mkT('grand','lost',{draw:'2026-10-09',dtime:'21:00',nums:[1,10,20,30,40,55]});
-  /* EZ2 2026-10-10 21:00: 23 tickets in one group (cap of 20 on the live page) */
+  /* 2D Lotto 2026-10-10 21:00: 23 tickets in one group (cap of 20 on the live page) */
   for(let i=0;i<23;i++)mkT('ez2','await',{draw:'2026-10-10',dtime:'21:00',nums:[1+(i*3)%31,1+(i*7+5)%31],play:'Straight'});
   LIVE[2].draws=[{g:'grand',date:'2026-10-09',time:'21:00'},{g:'ez2',date:'2026-10-10',time:'21:00'}]}}
 
@@ -2734,7 +2734,7 @@ A.depLive=()=>{const am=Math.floor(Number(String(S.p.amt||'').replace(/\D/g,''))
 A.demoPay5=()=>{S.pay5=S.pay5?0:1;toast(S.pay5?'PAY-0005 simulated: the next deposit is rejected':'PAY-0005 simulation off');typeof panel0==='function'&&panel0()};
 A.chRefresh0=A.chRefresh;A.chSetCh=ch=>{S.p.ch=ch;S.p.chMsg='';renderKeep()};
 
-/* ---------- PL-8: number limits only for numeric digit games (EZ2, Swertres). Lotto boards never grey out numbers. ---------- */
+/* ---------- PL-8: number limits only for numeric digit games (2D Lotto, 3D Lotto). Lotto boards never grey out numbers. ---------- */
 /* Demo data: locked combinations */
 const DLOCK={ez2:['07-21'],swer:['1-2-3']};
 S.dfull=S.dfull||{};
@@ -2798,7 +2798,7 @@ A.noEstCyc=()=>{const ids=[null].concat(G.filter(g=>g.t==='lotto').map(g=>g.id))
 
 /* ---------- E5: digit-game number limits. (a) several draws selected: a combination locked in ANY selected draw cannot be added.
    (b) Rambolito: every permutation is checked; one locked permutation blocks the whole bet. ---------- */
-/* Demo data: EZ2 combination 12-03 is locked only for the 2nd upcoming draw, so picking it for 2+ draws (or as Rambolito 3 + 12) is blocked */
+/* Demo data: 2D Lotto combination 12-03 is locked only for the 2nd upcoming draw, so picking it for 2+ draws (or as Rambolito 3 + 12) is blocked */
 const DLOCKD={ez2:{1:['12-03']}};
 function lockExtra(g){try{const d=DLOCKD[g.id];if(!d)return [];const u=upDraws(g,90),sel=new Set(PL().dsel||[]);const out=[];Object.keys(d).forEach(i=>{const x=u[+i];if(x&&sel.has(x.k))out.push(...d[i])});return out}catch(_){return []}}
 function lockExpand(g,lines){let pc='';try{pc=curPlay(g).c}catch(_){}if(pc!=='RAMBO')return lines;
@@ -2806,10 +2806,10 @@ function lockExpand(g,lines){let pc='';try{pc=curPlay(g).c}catch(_){}if(pc!=='RA
  return lines.flatMap(l=>{const seen=new Set();return perms(l).filter(p=>{const k=p.join(',');if(seen.has(k))return false;seen.add(k);return true})})}
 /* the block message must also appear when the draw selection changes (not only when a digit is typed) */
 {const _dt=A.dtog;A.dtog=function(){_dt.apply(this,arguments);const g=gm(PL().game);if(isNumGame(g)&&plDoneRaw(g)&&comboBlocked()){toast(MSG_NA);if(!document.getElementById('numlock')){const tr=document.getElementById('tray');tr&&tr.insertAdjacentHTML('afterend',`<div class="ferr" id="numlock" style="margin-top:8px">${MSG_NA}</div>`)}}}}
-A.demoMultiLock=()=>{S.dfull={};S.limSim=0;S.play=newPlay('ez2',{picks:[12,3]});S.play.pt=1;toast('EZ2 Rambolito 3 + 12: the permutation 12-03 is locked for the 2nd upcoming draw (Demo data). Select that draw to see it blocked.');if(S.logged)A.tab('play');else toast(t('请先登录','Sign in first'))};
+A.demoMultiLock=()=>{S.dfull={};S.limSim=0;S.play=newPlay('ez2',{picks:[12,3]});S.play.pt=1;toast('2D Lotto Rambolito 3 + 12: the permutation 12-03 is locked for the 2nd upcoming draw (Demo data). Select that draw to see it blocked.');if(S.logged)A.tab('play');else toast(t('请先登录','Sign in first'))};
 /* ===== batch 15 (PROTO14 part B, player). Demo tickets below are invented demo data. ===== */
 
-/* ---------- B1: ticket cover without the big digit art (EZ2 / 3D / 4D / 6D) ---------- */
+/* ---------- B1: ticket cover without the big digit art (2D / 3D / 4D / 6D) ---------- */
 function coverTk(g){if(g.t!=='ez2'&&g.t!=='dig')return cover(g);const a=CVART[g.id];CVART[g.id]='';try{return cover(g)}finally{CVART[g.id]=a}}
 
 /* ---------- B2: LP (Lucky Pick) marker, driven by the boolean k.qp ---------- */
@@ -2845,7 +2845,7 @@ A.tkMore=o=>{S.tkPg=S.tkPg||{};S.tkPg[o]=(S.tkPg[o]||PG_N)+PG_N;renderKeep()};
  const q1=ticket('super','await',{nums:[5,17,23,30,38,46],lines:[[5,17,23,30,38,46]],lineN:1,draw:'2026-10-11',ms:c0-100*60e3,qp:true,pt:'QP',play:'QP'});
  const ql=[[2,11,19,27,33,44],[8,14,21,36,41,49],[4,9,25,31,40,47]];
  const q3=ticket('super','await',{nums:ql[0],lines:ql,lineN:3,amt:3*gm('super').p,draw:'2026-10-11',ms:c0-95*60e3,qp:true,pt:'QP',play:'QP'});
- /* EZ2 Quick Pick (auto) ticket next to the manual EZ2 ticket */
+ /* 2D Lotto Quick Pick (auto) ticket next to the manual 2D Lotto ticket */
  const qe=ticket('ez2','await',{nums:[18,4],play:'Straight',draw:'2026-10-13',amt:10,ms:c0-110*60e3,qp:true});
  S.tickets.push(q1,q3,qe);
  /* System 8 order on Grand Lotto 6/55: 28 tickets, results mixed (Demo data) */
@@ -2987,7 +2987,7 @@ const d4xFull=P=>P.picks.length===plNeed(gm(P.game))&&P.picks.every(x=>x!==null&
 {const _p=A.ppt;A.ppt=function(i){const r=_p.apply(this,arguments);const P=PL(),g=gm(P.game),pl=playsOf(g)[i];if(g&&g.id==='d4'&&pl&&pl.c==='QP')setTimeout(()=>A.roll(),30);return r}}
 /* order summary on the play page */
 {const _s=sumHTML;sumHTML=function(g){const P=PL(),p=curPlay(g);if(!isD4X(g,p.c))return _s.apply(this,arguments);const n=plLines(g),nD=P.draws||1,per=n*g.p*P.mult,tot=per*nD;
- const note=p.c==='PERM'?(d4xFull(P)?(n?t(`PERM：所选 4 位数字的全部排列各出一注，共 ${n} 注（${n} 张票），每注 ${fm0(g.p)}。`,`PERM: every arrangement of your 4 digits is one line: ${n} lines (${n} tickets) at ${fm0(g.p)} each.`):t('四个数字全相同没有排列，不能选 PERM，请改选 Standard。','PERM is not available when all four digits are the same. Pick Standard instead.')):t('选满 4 位数字后显示排列数和金额。','Pick all 4 digits to see the number of permutations and the cost.'))
+ const note=p.c==='PERM'?(d4xFull(P)?(n?t(`Rambol（PCSO 称 PERM）：所选 4 位数字的全部排列各出一注，共 ${n} 注（${n} 张票），每注 ${fm0(g.p)}。`,`Rambol (PCSO calls it PERM): every arrangement of your 4 digits is one line: ${n} lines (${n} tickets) at ${fm0(g.p)} each.`):t('四个数字全相同没有排列，不能选 Rambol，请改选 Standard。','Rambol is not available when all four digits are the same. Pick Standard instead.')):t('选满 4 位数字后显示排列数和金额。','Pick all 4 digits to see the number of permutations and the cost.'))
   :p.c==='R1'?t('Roll 1：您选后 3 位，系统把第 1 位 0–9 各补一注，共 10 注（10 张票）。','Roll 1: you pick the last 3 digits; the system fills the first digit with 0–9: 10 lines (10 tickets).')
   :t('Roll 4：您选前 3 位，系统把最后一位 0–9 各补一注，共 10 注（10 张票）。','Roll 4: you pick the first 3 digits; the system fills the last digit with 0–9: 10 lines (10 tickets).');
  return `<table class="tb"><tr><th>${t('玩法','Play')}</th><th>${t('注数','Lines')}</th><th>${t('倍数','x')}</th><th>${t('期数','Draws')}</th><th>${t('出票数','Tickets')}</th><th style="text-align:right">${t('合计','Total')}</th></tr><tr><td>${pName(p)}</td><td>${n}</td><td>${P.mult}</td><td>${nD}</td><td>${n*nD}</td><td style="text-align:right" class="b grad">${fm0(tot)}</td></tr></table><div class="xs mu" id="d4xnote" style="margin-top:8px;line-height:1.5">${t('每个组合出 1 张票。','One ticket per combination.')} ${n} × ${fm0(g.p)}${P.mult>1?' × '+P.mult:''} = ${fm0(per)} ${t('每期','per draw')}<br><span style="color:var(--am)">${note}</span></div>`}}
@@ -3004,7 +3004,7 @@ const d4xFull=P=>P.picks.length===plNeed(gm(P.game))&&P.picks.every(x=>x!==null&
 /* ticket detail: the chosen digits of the order above this ticket's concrete number */
 {const _d=SC.tkDetail.html;SC.tkDetail.html=function(){const h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!k||!k.roll||!k.sysSel||archived(k))return h;
  const star=`<span class="b" style="font-size:20px;padding:0 4px">*</span>`;const chosen=k.roll==='R1'?star+balls(k.sysSel):k.roll==='R4'?balls(k.sysSel)+star:balls(k.sysSel);
- const lbl=k.roll==='PERM'?t(`PERM：所选数字的全部排列，每个排列一张票；本票号码：`,`PERM: every arrangement of your digits is a ticket. This ticket:`):t(`${k.roll==='R1'?'Roll 1':'Roll 4'}：* 由系统补 0–9，每张票不同；本票号码：`,`${k.roll==='R1'?'Roll 1':'Roll 4'}: * is filled with 0–9 by the system and differs on each ticket. This ticket:`);
+ const lbl=k.roll==='PERM'?t(`Rambol：所选数字的全部排列，每个排列一张票；本票号码：`,`Rambol: every arrangement of your digits is a ticket. This ticket:`):t(`${k.roll==='R1'?'Roll 1':'Roll 4'}：* 由系统补 0–9，每张票不同；本票号码：`,`${k.roll==='R1'?'Roll 1':'Roll 4'}: * is filled with 0–9 by the system and differs on each ticket. This ticket:`);
  const top=`<div class="row" id="tk_d4xtop" style="gap:6px;flex-wrap:wrap">${chosen}</div><div class="xs mu" style="margin:8px 0;line-height:1.5">${lbl}</div>`;
  return h.replace(/(Your numbers<\/h3><div class="card mt">)/,'$1'+top.replace(/\$/g,'$$$$'))}}
 
@@ -3014,6 +3014,14 @@ const d4xFull=P=>P.picks.length===plNeed(gm(P.game))&&P.picks.every(x=>x!==null&
  pm.concat(r1).forEach(k=>{k.demo21=1});S.tickets.push(...pm,...r1)}}
 
 render();
+/* ===== PROTO22 batch 19 (player) · partner UAT round 2, 2026-11-09 =====
+   D1 game names: EZ2 → 2D Lotto, Swertres → 3D Lotto (internal ids ez2 / swer, game codes and draw numbers like EZ2-20261012-2 unchanged).
+   D2 4D play PERM → label Rambol (code PERM kept internally; description says PCSO calls it PERM). Tag order Standard, Quick Pick, Rambol, Roll 1, Roll 4.
+   The renames were done in place in the source files (list in the PROTO22 report):
+   p2_core.js (G entries ez2 / swer, cover label 2D, live-stream title), p2b_rules.js (DPL d4 PERM label Rambol),
+   p3_infra.js (demo wallet row, trial-page buttons), p5_main.js (play-page title map), p7l_batch14.js (demo toast),
+   p7p_batch18.js (Rambol notes on order summary / ticket detail), comments in p7h / p7k / p7m. page-spec (p6z_spec.js) untouched by rule. */
+window.PROTO22_PLAYER='batch19';
 </script>
 </body>
 </html>
