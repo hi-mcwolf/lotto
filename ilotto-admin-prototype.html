@@ -2037,7 +2037,7 @@ function ddProg(i) {
 }
 function ddCard(i, done) {
   const g = gameBy(i.game); const st = ddStatus(i);
-  const meta = `<span class="mono">${i.no}</span><span>${t("开奖时间", "Draw time")} <b class="mono">${i.draw}</b></span><span>${t("本期线上销售额", "Online sales")} <b class="mono">${peso(i.sales || 0)}</b> <em class="dd-demo">Demo data</em></span>`;
+  const meta = `<span class="mono">${i.no}</span><span>${t("开奖时间", "Draw time")} <b class="mono">${i.draw}</b></span><span>${t("本期线上销售额", "Online sales")} <b class="mono">${peso2(i.sales || 0)}</b> <em class="dd-demo">Demo data</em></span>`;
   let right;
   if (done) {
     right = `<span class="dd-badge ok">${st[1]}</span><span class="dd-ago">${t("发布于", "Published at")} <b class="mono">${(i.pubAt || "").slice(11, 16)}</b></span><button type="button" class="dd-cta ghost" data-act="desk-result" data-id="${i.no}">View result</button>`;
@@ -2117,7 +2117,7 @@ function ddGuide(i, route, res, step) {
   else if (!route || route.kind === "wait") s = "Nothing for you to do in this step. Close this screen and come back later.";
   else if (route.kind === "auth") s = "Check the list below. When every item is green, authorize and publish.";
   else if (route.kind === "num") s = step === "sum" ? "Check every number, then confirm and submit. You cannot change it after submitting." : i.st === "review" ? "Enter the winning numbers yourself, one position at a time. You cannot see the first entry." : "Enter the winning numbers from the draw, one position at a time.";
-  else s = step === "sum" ? "Check every amount, then confirm and submit. You cannot change it after submitting." : "Enter the pool amount and the prize per winning bet for each tier, as worked out by PCSO.";
+  else s = step === "sum" ? "Check every amount, then confirm and submit. You cannot change it after submitting." : "Enter the pool amount and the all-platform winners of each tier from the PCSO result; the system works out the prize per winning bet.";
   return `<div class="dd-guide" id="dd-guide"><span class="dd-guide-k">What to do in this step</span><b>${s}</b></div>`;
 }
 
@@ -2667,7 +2667,7 @@ function drawFactsCard(i, g) {
   const lotto = g.kind === "lotto"; const hist = i.ejpHist || [];
   const est = lotto ? `<tr><th>Estimated Jackpot</th><td class="mono" data-ejp-now="1">${ejpOf(i) == null ? "-" : ejpFmt(ejpOf(i))}</td></tr>` : "";
   const hh = lotto ? `<h4 style="margin:12px 0 6px;font-size:13px">Estimated Jackpot History</h4>${hist.length ? `<div class="table-wrap fit"><table data-ejp-hist="1"><thead><tr><th>At</th><th>By</th><th>Before</th><th>After</th><th>Source</th></tr></thead><tbody>${hist.slice().reverse().map((h) => `<tr><td class="mono">${h.at}</td><td>${esc(h.by)}</td><td class="mono">${h.before == null ? "-" : ejpFmt(h.before)}</td><td class="mono">${ejpFmt(h.after)}</td><td>${esc(h.src)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="tiny">No updates yet.</p>`}` : "";
-  return `<div class="card" data-draw-facts="1"><h4>${t("本期规则与预估", "Draw Rules and Estimate")}</h4><table class="kv"><tbody><tr><th>Rule Version</th><td class="mono">${ver.ver}</td></tr><tr><th>Guaranteed Minimum Prize</th><td class="mono" data-gmin-now="1">${gm.length ? esc(gm.join("; ")) : "-"}</td></tr>${est}</tbody></table>${hh}<p class="tiny">${t("保底奖金只在管理端显示，玩家端不显示；奖金按录入的数派发，系统不自动补到保底。", "The guaranteed minimum is shown in the admin console only, never to players. Prizes are paid as entered; the system does not top up to the minimum.")}</p></div>`;
+  return `<div class="card" data-draw-facts="1"><h4>${t("本期规则与预估", "Draw Rules and Estimate")}</h4><table class="kv"><tbody><tr><th>Rule Version</th><td class="mono">${ver.ver}</td></tr><tr><th>Guaranteed Minimum Prize</th><td class="mono" data-gmin-now="1">${gm.length ? esc(gm.join("; ")) : "-"}</td></tr>${est}</tbody></table>${hh}<p class="tiny">${t("保底奖金只在管理端显示，玩家端不显示；奖金按录入的数派发，系统不自动补到保底。", "The guaranteed minimum is shown in the admin console only, never to players. 6D / 4D 1st prize: a computed prize per winning bet below the minimum is paid at the minimum (Guaranteed minimum applied; the difference is settled by PCSO). Lotto jackpot pools below the minimum need a reason.")}</p></div>`;
 }
 function viewEntryPage() {
   const i = S.issues.find((x) => x.no === S.sub.no); const g = gameBy(i.game);
@@ -2684,10 +2684,9 @@ function viewEntryPage() {
   const rows = entTierRows(i, g); const lotto = g.kind === "lotto"; const poolRows = rows.filter((r) => r.isPool);
   const pbOf = (r) => (i.prz && i.prz.pb ? i.prz.pb[r.k] : undefined); const plOf = (r) => (i.prz && i.prz.pl ? i.prz.pl[r.k] : undefined);
   if (done) {
-    const trs = rows.map((r) => `<tr><td>${r.name}${r.isPool ? "" : " " + FIXED_TAG}</td><td class="mono">${r.on}</td><td class="mono amt">${r.isPool ? peso(Number(plOf(r) || 0)) : t("固定奖金，无奖池", "Fixed prize, no pool")}</td><td class="mono amt">${r.isPool ? (r.on === 0 ? t("无线上中奖", "No online winner") : peso(Number(pbOf(r) || 0))) : peso(r.fixed)}</td></tr>`).join("");
+    const trs = sdDoneRows(i, rows); /* batch 24 */
     return head + `<div class="card"><h4>${t("已发布", "Published")}</h4><p class="muted">${t("开奖号码", "Winning numbers")}</p><div class="slots">${slots}</div>
-      ${i.prz && poolRows.length ? `<p class="muted" style="margin-top:8px">${i.nextJp ? ` · ${t("下一期头奖奖池（预估）", "Next draw jackpot (estimate)")}: <b class="mono">${peso(Number(i.nextJp))}</b>` : ""}</p>` : ""}
-      <div class="table-wrap fit"><table><thead><tr><th>${t("奖级", "Tier")}</th><th>${t("线上中奖注数", "Online winners")}</th><th>${t("奖级奖池", "Tier pool")}</th><th>${t("单注奖金", "Prize per line")}</th></tr></thead><tbody>${trs}</tbody></table></div>
+      <div class="table-wrap fit"><table data-sd-done-tbl="1"><thead><tr><th>${t("奖级", "Tier")}</th><th>Online Winners</th><th>Pool Amount</th><th>All Platform Winners</th><th>Prize Per Winning Bet</th></tr></thead><tbody>${trs}</tbody></table></div>
       <p class="tiny">${t("已发布的结果不可修改或撤回。系统已逐票算奖：≤ ₱300,000 自动入奖金余额；> ₱300,000 生成申领码，到“大奖申领”办理。", "A published result cannot be edited or withdrawn. The system has judged every ticket: prizes up to ₱300,000 were credited automatically; larger prizes got a claim code and are handled under Big prize claims.")}</p></div>${trace}`;
   }
   if (i.st === "prize") {
@@ -2695,12 +2694,12 @@ function viewEntryPage() {
     const m = S.mf; const second = !!i.prz1 && !i.przOk; const ref = przRef(i, g);
     const plCell = (r) => {
       if (!r.isPool) return `<span class="mono">—</span>`;
-      if (i.przOk) return `<span class="mono amt">${peso(Number(plOf(r) || 0))}</span>`;
+      if (i.przOk) return `<span class="mono amt">${peso2(Number(plOf(r) || 0))}</span>`;
       return `<input class="mono" style="width:150px" data-f="pl${r.k}" value="${esc(m["pl" + r.k] || "")}" placeholder="${r.demo ? r.demo.toLocaleString("en-US") : "0.00"}" />`;
     };
     const pbCell = (r) => {
-      if (r.isPool) { if (i.przOk) return `<span class="mono amt">${r.on === 0 ? "—" : peso(Number(pbOf(r) || 0))}</span>`; return `<input class="mono" style="width:140px" data-f="pb${r.k}" value="${esc(m["pb" + r.k] || "")}" placeholder="${r.on === 0 ? t("无人中奖填 0", "no winners: enter 0") : "0.00"}" />`; }
-      return `<span class="mono">${r.fixed ? peso(r.fixed) + " " + t("固定", "fixed") : "—"}</span>`;
+      if (r.isPool) { if (i.przOk) return `<span class="mono amt">${peso2(Number(pbOf(r) || 0))}</span>`; return `<input class="mono" style="width:140px" data-f="pb${r.k}" value="${esc(m["pb" + r.k] || "")}" placeholder="${r.on === 0 ? t("无人中奖填 0", "no winners: enter 0") : "0.00"}" />`; }
+      return `<span class="mono">${r.fixed ? peso2(r.fixed) + " " + t("固定", "fixed") : "—"}</span>`;
     };
     const trs = rows.map((r) => `<tr><td>${r.name}${r.isPool ? "" : " " + FIXED_TAG}</td><td class="mono">${r.on}</td><td>${plCell(r)}</td><td>${pbCell(r)}</td></tr>`).join("");
     const refCard = `<div class="card"><h4>${t("参考数字", "Reference")}</h4><p class="tiny" style="margin:0 0 6px">Reference only, not used in calculations</p>
@@ -2718,7 +2717,7 @@ function viewEntryPage() {
     } else {
       entry = `<p class="muted" style="margin-top:8px">${second ? t("第二次奖金录入（财务复核）：看不到第一次内容，请独立再录每个奖级的奖池金额和单注奖金。", "Second prize entry (Finance review): the first entry is hidden. Enter the pool and the prize per line for every tier independently.") : t("第一次奖金录入（运营专员）：逐奖级录入奖池平分类奖级的本期奖池金额和单注奖金（固定金额奖级只读，带 Fixed 标记，不用录）。参考数字不会自动带入。", "First prize entry (Operations): for every Shared Pool tier, enter the tier pool and the prize per line. Fixed Amount tiers are read-only and marked Fixed. Reference numbers are not filled in for you.")}</p>`;
     }
-    const tbl = `<div class="table-wrap fit"><table><thead><tr><th>${t("奖级", "Tier")}</th><th>${t("线上中奖注数", "Online winners")}</th><th>${t("奖级奖池（₱）", "Tier pool (₱)")}</th><th>${t("单注奖金（₱）", "Prize per line (₱)")}</th></tr></thead><tbody>${trs}</tbody></table></div>`;
+    const tbl = `<div class="table-wrap fit"><table><thead><tr><th>${t("奖级", "Tier")}</th><th>${t("线上中奖注数", "Online winners")}</th><th>Pool Amount</th><th>Prize Per Winning Bet</th></tr></thead><tbody>${trs}</tbody></table></div>`;
     const njCell = lotto ? (i.przOk ? `<p class="tiny" style="margin:8px 0">${t("下一期头奖奖池（预估）", "Next draw jackpot (estimate)")}: <b class="mono">${peso(Number(i.prz.nj || 0))}</b></p>` : `<div style="max-width:420px;margin-top:10px"><label class="f">${t("下一期头奖奖池（预估，₱，必填）", "Next draw jackpot (estimate) (₱, required)")}</label><input class="mono" data-f="njp" value="${esc(m.njp || "")}" placeholder="45000000" /><p class="tiny">${t("与奖金一并录入，两次须一致；授权发布后生效，用于首页“当前奖池”。", "Entered with the prizes; both entries must match. It takes effect after authorization and feeds the home page Current jackpot.")}</p></div>`) : "";
     const sub = poolRows.length && !i.przOk ? `${jpWarnBox(i)}${err}<div class="row-actions" style="margin-top:12px"><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="draw-prz-save" data-id="${i.no}">${second ? t("提交并比对", "Submit and compare") : t("提交奖金录入", "Submit prize entry")}</button></div>` : err;
     return head + `<div class="card"><h4>${t("两份号码一致", "Both entries match")}</h4><div class="slots">${slots}</div></div>
@@ -2726,7 +2725,7 @@ function viewEntryPage() {
       <div class="card"><h4>${t("线上中奖统计", "Online winners by tier")}</h4><p class="tiny" style="margin:0 0 6px">${t("系统统计，仅供 PCSO 查看，不发布", "System statistics. PCSO only, not published")}</p>
       ${poolRows.length ? `<div class="banner">${t("线下中奖注数由 PCSO 线下处理，不进系统。", "Offline winners are handled by PCSO offline and are not entered in the system.")}</div>` : ""}
       ${i.przOk ? "" : poolRows.length ? entry : ""}
-      ${tbl}${poolRows.length ? njCell : ""}
+      ${tbl}
       ${i.przOk ? err + entry : poolRows.length ? sub : entry}</div>${trace}`;
   }
   return head + trace;
@@ -8929,40 +8928,33 @@ function onClick(e) {
     const ent = i.prz1 ? 2 : 1;
     const fail = (m) => { logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Entry submission blocked", obj: i.no, before: "—", after: entTxt(i, "prz", ent, "blocked: " + m) }); S.mf.err = m; render(); };
     const p = przParse(rows, S.mf); if (p.err) return fail(p.err);
-    if (g.kind === "lotto") { const nj = String(S.mf.njp || "").trim(); if (!/^\d+(\.\d{1,2})?$/.test(nj) || Number(nj) <= 0) return fail(t("请填写下一期头奖奖池（预估）。", "Enter the next draw jackpot (estimate).")); p.nj = String(Number(nj)); }
     { const ov = przOver(rows, p); if (ov.over) return fail(PRZ_OVER(ov.tier)); }
     const minReasons = {}; const belowRows = rows.filter((r) => r.isPool && scBelow(r, p.pl[r.k], p.pb[r.k]));
     for (const r of belowRows) { const rs = String(S.mf["jpr" + r.k] != null ? S.mf["jpr" + r.k] : (r.k === 0 ? S.mf.jp_reason || "" : "")).trim(); if (!rs) return fail(scWarnTxt(r)); minReasons[r.k] = rs; }
     belowRows.forEach((r) => logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: r.perBet ? "Prize per bet below guaranteed minimum" : "Pool below guaranteed minimum", obj: i.no, before: r.en + " · min ₱" + r.gmin.toLocaleString("en-US"), after: (r.perBet ? "prize per bet ₱" + Number(p.pb[r.k]).toLocaleString("en-US") : "pool ₱" + Number(p.pl[r.k]).toLocaleString("en-US")) + " · " + minReasons[r.k] + " · " + entTxt(i, "prz", ent, "reason") }));
     const minReason = belowRows.map((r) => r.en + ": " + minReasons[r.k]).join("; ");
+    sdAudit(i, g, rows, p, ent); /* batch 24: override / adjust / minimum applied */
     if (!i.prz1) {
-      i.prz1 = { pool: p.pool, pl: p.pl, pb: p.pb, nj: p.nj, by: actor().who, minReason, minReasons }; stamp(i, "win", 0);
+      i.prz1 = { pool: p.pool, pl: p.pl, pb: p.pb, aw: p.aw, ovr: p.ovr, adj: p.adj, adjr: p.adjr, ma: p.ma, by: actor().who, minReason, minReasons }; stamp(i, "win", 0);
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Prize first entry", obj: i.no, before: "prize", after: entTxt(i, "prz", 1, "submitted") });
       S.mf = { err: "" }; S.wzRes = { no: i.no, res: "sub", seg: "prz" }; toast(t("第一次奖金录入已提交，请财务复核独立再录一遍。", "Prize entry submitted. Finance review now enters it independently.")); render(); return;
     }
     if (i.prz1.by === actor().who) return fail("The second entry must be made by a different person");
-    if (JSON.stringify([i.prz1.pl, i.prz1.pb, i.prz1.nj || ""]) !== JSON.stringify([p.pl, p.pb, p.nj || ""])) {
+    if (JSON.stringify([i.prz1.pl, sdAwOf(i.prz1, rows), i.prz1.pb]) !== JSON.stringify([p.pl, p.aw, p.pb])) { /* batch 24 (851): pool, all-platform winners and prize per bet (adjusted included) must all match */
       delete i.prz1; if (i.trace) delete i.trace.win;
       logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Prize entries do not match", obj: i.no, before: "prize", after: entTxt(i, "prz", 2, "submitted, both entries discarded") }); entRound(i, "prz");
       S.mf = {}; S.wzRes = { no: i.no, res: "mismatch", seg: "prz", msg: "The two prize entries do not match. Both entries were discarded." }; render(); return;
     }
-    i.przOk = true; i.prz = { pool: p.pool, pl: p.pl, pb: p.pb, nj: p.nj, won: onlineWinners(g)[0] > 0, minReason2: minReason, minReasons2: minReasons }; stamp(i, "win", 1);
+    i.przOk = true; i.prz = { pool: p.pool, pl: p.pl, pb: p.pb, aw: p.aw, ovr: p.ovr, adj: p.adj, adjr: p.adjr, ma: p.ma, won: onlineWinners(g)[0] > 0, minReason2: minReason, minReasons2: minReasons }; stamp(i, "win", 1);
     logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Second prize entry matches", obj: i.no, before: "prize", after: entTxt(i, "prz", 2, "submitted, ready to authorize") });
-    S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "prz", snap: { firstBy: i.prz1.by, firstAt: (i.trace && i.trace.win && i.trace.win[0] && i.trace.win[0][1]) || "", secondBy: actor().who, secondAt: NOWSTR(), pl: Object.assign({}, p.pl), pb: Object.assign({}, p.pb), nj: p.nj || "" } }; render(); return;
+    S.mf = {}; S.wzRes = { no: i.no, res: "match", seg: "prz", snap: { firstBy: i.prz1.by, firstAt: (i.trace && i.trace.win && i.trace.win[0] && i.trace.win[0][1]) || "", secondBy: actor().who, secondAt: NOWSTR(), pl: Object.assign({}, p.pl), pb: Object.assign({}, p.pb), aw: Object.assign({}, p.aw), ma: p.ma, adj: p.adj } }; render(); return;
   }
   if (act === "draw-auth-go") {
     const i = S.issues.find((x) => x.no === id); const g = gameBy(i.game); const rows = entTierRows(i, g); const nums = i.nums;
     { const ov = przOver(rows, i.prz || { pl: {}, pb: {} }); if (ov.over) { przVoidBoth(i, ov.tier); render(); return; } }
-    if (g.kind === "lotto") {
-      const nj = String((i.prz && i.prz.nj) || "").trim(); /* entered with the two prize entries; authorization only confirms */
-      if (!nj) { S.mf.err = t("请填写下一期头奖奖池（预估）。", "Enter the next draw jackpot (estimate)."); render(); return; }
-      i.nextJp = String(Number(nj)); i.nextJpBy = actor().who;
-      { const nx = S.issues.filter((x) => x.game === i.game && x.no !== i.no && ddDrawMs(x) > ddDrawMs(i) && ["gen", "sale", "closed", "postponed"].includes(x.st)).sort((a, b) => ddDrawMs(a) - ddDrawMs(b))[0]; if (nx) ejpSet(nx, Number(nj), actor().who, "Next draw jackpot (estimate) entered at " + i.no); }
-      g.homeJp = g.homeJp || { draw: "", amt: 0 }; i.homeJpUsed = !g.homeJp.draw || i.draw >= g.homeJp.draw; if (i.homeJpUsed) g.homeJp = { draw: i.draw, amt: Number(nj), from: i.no }; /* 6.7.4: only a draw not earlier than the one behind the home Current jackpot updates it; an earlier draw published later is archived only */
-      logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Next draw jackpot (estimate)", obj: i.no, before: "—", after: "₱" + Number(nj).toLocaleString("en-US") });
-    }
+    /* batch 24 (854): no Next draw jackpot (estimate) here; the next draw shows its Estimated Jackpot (Edit Estimated Jackpot on the draw detail) or "Jackpot to be announced" */
     const per = (r) => (r.isPool ? Number((i.prz.pb || {})[r.k] || 0) : r.fixed);
-    const payout = rows.reduce((a, r) => a + r.on * per(r), 0); i.prz.paid = payout;
+    const payout = Math.round(rows.reduce((a, r) => a + r.on * per(r), 0) * 100) / 100; i.prz.paid = payout;
     stamp(i, "awd", 0); stamp(i, "awd", 1, "system");
     pushHist(i, "status", i.st, "settled", "", 0); i.st = "settled"; i.pubAt = NOWSTR(); S.modal = null;
     S.draws.unshift({ date: i.draw, issue: i.no, game: i.game, ord: i.ordNums || "", nums: nums.split(",").map((n) => n.padStart(2, "0")).join(" "), winners: rows.map((r) => r.on).join(" / "), payout, rollZh: g.kind === "lotto" && rows[0].on === 0 ? "无线上头奖中奖" : "—", rollEn: g.kind === "lotto" && rows[0].on === 0 ? "No online winner" : "—" });
@@ -11190,6 +11182,264 @@ function scPoolsCard() {
   };
 })();
 /* ===== end SC block ===== */
+/* ===== SD block (batch 24 · admin): 851 the prize per winning bet is computed = Pool Amount ÷ All Platform Winners (truncated to the cent), 852 All Platform Winners prefilled with the online winners + Override Reason (≥ online; 0 = Carried forward, blocked when online winners exist), 853 Adjust with a reason + 6D / 4D 1st prize: a computed value below the Guaranteed Minimum Prize is paid at the minimum (Guaranteed minimum applied), 854 the Next draw jackpot (estimate) row leaves the wizard (Edit Estimated Jackpot on the draw detail is the only place), 855 two-decimal amounts in the wizard, review / match / authorize cards, Draw Desk cards and result tables ===== */
+const SD_MSG_AW_MIN = "All-platform winners must be at least the online winners.";
+const SD_MSG_AW_ZERO = "Online winners exist, all-platform winners cannot be 0.";
+const SD_MSG_AW = (en) => `Enter the all-platform winners for ${en} (whole number of winning bets, at least the online winners).`; /* product-drafted */
+const SD_MSG_ADJ = (en) => `Enter the adjusted prize per winning bet for ${en} (more than 0, up to 2 decimals).`; /* product-drafted */
+const SD_MSG_ADJ_MIN = (en, min) => `The adjusted prize per winning bet for ${en} cannot be below the guaranteed minimum (${peso2(min)}).`; /* product-drafted */
+const SD_MSG_OVR = (en) => `Enter the override reason for ${en}: the all-platform winners differ from the online winners.`; /* product-drafted */
+const SD_MSG_ADJR = (en) => `Enter the adjust reason for ${en}.`; /* product-drafted */
+const SD_TAG_MIN = "Guaranteed minimum applied", SD_TAG_CF = "Carried forward", SD_TAG_ADJ = "Adjusted";
+const sdInt = (v) => /^\d+$/.test(String(v == null ? "" : v).trim());
+const sdR2 = (n) => Math.round(Number(n) * 100) / 100;
+/* 851: pool ÷ all-platform winners, truncated to the cent (₱1,400,000 ÷ 612 = 2,287.5817 → ₱2,287.58) */
+function sdCents(pool, aw) { return Math.floor(Math.round(Number(pool) * 100) / Number(aw)); }
+function sdCalc(r, vals) {
+  const pool = String(vals["pl" + r.k] == null ? "" : vals["pl" + r.k]).trim(); const aw = String(vals["aw" + r.k] == null ? "" : vals["aw" + r.k]).trim();
+  const ok = WZ_AMT.test(pool) && Number(pool) > 0 && sdInt(aw) && Number(aw) >= r.on;
+  const o = { ok, aw: sdInt(aw) ? Number(aw) : null, raw: null, pb: null, carried: false, minApplied: false, adjusted: false, adjusting: vals["adj" + r.k] != null, adj: null };
+  if (!ok) return o;
+  if (o.aw === 0) { o.raw = 0; o.pb = 0; o.carried = true; return o; }
+  o.raw = sdCents(pool, aw) / 100; o.pb = o.raw;
+  if (r.perBet && r.gmin > 0 && o.pb < r.gmin) { o.pb = r.gmin; o.minApplied = true; } /* 853: 6D / 4D 1st prize is paid at the minimum */
+  if (o.adjusting) { const a = String(vals["adj" + r.k]).trim(); if (WZ_AMT.test(a) && Number(a) > 0) { o.adj = Number(a); o.pb = o.adj; o.adjusted = true; o.minApplied = false; } }
+  return o;
+}
+function sdOverride(r, vals) { const aw = String(vals["aw" + r.k] == null ? "" : vals["aw" + r.k]).trim(); return sdInt(aw) && Number(aw) > r.on; }
+function sdCheckAw(r, v) { v = String(v == null ? "" : v).trim(); if (!sdInt(v)) return SD_MSG_AW(r.en); if (Number(v) === 0 && r.on > 0) return SD_MSG_AW_ZERO; if (Number(v) < r.on) return SD_MSG_AW_MIN; return ""; }
+function sdCheckAdj(r, v, pool) {
+  v = String(v == null ? "" : v).trim();
+  if (!WZ_AMT.test(v) || Number(v) <= 0) return SD_MSG_ADJ(r.en);
+  if (r.perBet && r.gmin > 0 && Number(v) < r.gmin) return SD_MSG_ADJ_MIN(r.en, r.gmin);
+  if (Math.round(r.on * Number(v) * 100) > Math.round(Number(pool || 0) * 100)) return PRZ_OVER(r.en); /* 853: online winners × adjusted prize must still fit in the pool */
+  return "";
+}
+function sdTags(r, c) {
+  const s = [];
+  if (c.carried) s.push(`<span class="tag tag-muted sd-tag" data-sd-tag="cf">${SD_TAG_CF}</span>`);
+  if (c.minApplied) s.push(`<span class="tag tag-warn sd-tag" data-sd-tag="min">${SD_TAG_MIN}</span>`);
+  if (c.adjusted) s.push(`<span class="tag tag-cyan sd-tag" data-sd-tag="adj">${SD_TAG_ADJ}</span>`);
+  return s.join(" ");
+}
+/* stored entries: all-platform winners of older seeds (no aw) are derived from pool ÷ prize per bet */
+function sdAwOf(p, rows) {
+  if (!p) return {};
+  if (p.aw) return p.aw;
+  const aw = {}; rows.filter((r) => r.isPool).forEach((r) => { const pb = Number((p.pb || {})[r.k] || 0), pl = Number((p.pl || {})[r.k] || 0); aw[r.k] = pb > 0 ? String(Math.max(r.on, 1, Math.round(pl / pb))) : "0"; });
+  return aw;
+}
+function sdTagsP(r, p) { if (!p) return ""; const aw = sdAwOf(p, [r]); return sdTags(r, { carried: String(aw[r.k]) === "0", minApplied: !!((p.ma || {})[r.k]), adjusted: (p.adj || {})[r.k] != null }); }
+(function () { /* seeded entries get their all-platform winners once, so the Finance second entry compares like for like */
+  S.issues.forEach((i) => { const g = gameBy(i.game); if (!g) return; const rows = entTierRows(i, g); if (!rows.some((r) => r.isPool)) return; ["prz1", "prz"].forEach((k) => { if (i[k] && !i[k].aw) i[k].aw = sdAwOf(i[k], rows); }); });
+})();
+/* 852: the All Platform Winners cell is prefilled with the online winners when the prize draft starts */
+(function () {
+  const f0 = wzGet;
+  wzGet = function (i, g, kind) { const w = f0(i, g, kind); if (kind === "prz") entTierRows(i, g).filter((r) => r.isPool).forEach((r) => { if (w.vals["aw" + r.k] == null) w.vals["aw" + r.k] = String(r.on); }); return w; };
+})();
+/* the field order per Shared Pool tier: pool → (lotto below-minimum reason) → all-platform winners → (override reason) → (adjusted prize → adjust reason); no estimate row (854) */
+wzFields = function (i, g, vals) {
+  const s = [];
+  entTierRows(i, g).filter((r) => r.isPool).forEach((r) => {
+    s.push({ id: "pl" + r.k, f: "pl", row: r });
+    if (!r.perBet && r.gmin > 0 && rowBelow(r, vals["pl" + r.k])) s.push({ id: "jpr" + r.k, f: "jpr", row: r });
+    s.push({ id: "aw" + r.k, f: "aw", row: r });
+    if (sdOverride(r, vals)) s.push({ id: "ovr" + r.k, f: "ovr", row: r });
+    if (vals["adj" + r.k] != null) { s.push({ id: "adj" + r.k, f: "adj", row: r }); s.push({ id: "adjr" + r.k, f: "adjr", row: r }); }
+  });
+  return s;
+};
+wzCellRow = function (id) { return String(id).replace(/^[a-z]+/, "") || "n"; };
+scBelow = function (r, pool, pb) { return r.perBet ? false : rowBelow(r, pool); }; /* 853 replaces 845: no reason step for 6D / 4D, the minimum is applied */
+(function () {
+  const f0 = wzCheck;
+  wzCheck = function (i, g, kind, st, v, vals) {
+    if (kind === "prz" && st && st.row) {
+      const r = st.row; const s = String(v == null ? "" : v).trim();
+      if (st.f === "aw") return sdCheckAw(r, s);
+      if (st.f === "ovr") return s ? "" : SD_MSG_OVR(r.en);
+      if (st.f === "adjr") return s ? "" : SD_MSG_ADJR(r.en);
+      if (st.f === "adj") return sdCheckAdj(r, s, vals["pl" + r.k]);
+    }
+    return f0(i, g, kind, st, v, vals);
+  };
+})();
+(function () {
+  const f0 = wzStepName;
+  wzStepName = function (st, i, kind) {
+    if (st.f === "aw") return `${st.row.en} · All Platform Winners`;
+    if (st.f === "ovr") return "Override Reason";
+    if (st.f === "adj") return `${st.row.en} · Adjust Prize Per Winning Bet`;
+    if (st.f === "adjr") return "Adjust Reason";
+    return f0(st, i, kind);
+  };
+})();
+/* text cells (reasons) keep their text; number cells keep the thousands formatting of the old cell handler */
+(function () {
+  const f0 = wzCellInput;
+  wzCellInput = function (el) {
+    const id = el.dataset.cell;
+    if (/^(ovr|adjr)/.test(id)) { const { w } = wzCur(); w.cell = id; w.tryErr = w.tryErr || {}; delete w.tryErr[id]; w.vals[id] = el.value; w.resumed = false; wzTblRefresh(); wzSave(); return; }
+    return f0(el);
+  };
+})();
+/* the prize table: Tier / Online Winners / Pool Amount / All Platform Winners / Prize Per Winning Bet / Amount To Pay */
+wzTblBody = function (i, g, w, kind) {
+  const allRows = entTierRows(i, g); const fields = wzFields(i, g, w.vals); const prev = wzPrev(i, kind); w.tryErr = w.tryErr || {};
+  const valOf = (st) => String(w.vals[st.id] == null ? "" : w.vals[st.id]);
+  if (!w.cell || !fields.some((f) => f.id === w.cell)) { const bad = fields.find((f) => wzCheck(i, g, "prz", f, valOf(f), w.vals) || valOf(f) === ""); w.cell = (bad || fields[fields.length - 1] || {}).id || ""; }
+  const prevRows = prev ? entTierRows(prev, g) : [];
+  const pv = (f, r) => (prev && prev.prz ? (f === "pl" ? (prev.prz.pl || {})[r.k] : f === "aw" ? sdAwOf(prev.prz, prevRows)[r.k] : (prev.prz.pb || {})[r.k]) : undefined);
+  const ref = (f, r, fmt) => { const v = pv(f, r); return v !== undefined && v !== "" ? `<div class="wz-ref tiny" data-wz-ref="${f}${r.k}">${t("上一期", "Previous")}: <b class="mono">${fmt(v)}</b></div>` : ""; };
+  const cell = (id, lab, peso) => `<span class="wz-cell${peso ? "" : " sd-int"}">${peso ? `<span class="wz-pf">₱</span>` : ""}<input class="mono" data-wz="cell" data-cell="${id}" inputmode="${peso ? "decimal" : "numeric"}" autocomplete="off" placeholder="${peso ? "0.00" : "0"}" value="${esc(wzFmt(w.vals[id]))}" aria-label="${esc(lab)}" /></span>`;
+  const rs = (id, ph) => `<input class="sd-rs-in" data-wz="cell" data-cell="${id}" maxlength="100" value="${esc(w.vals[id] || "")}" placeholder="${esc(ph)}" aria-label="${esc(ph)}" />`;
+  const body = allRows.map((r) => {
+    if (!r.isPool) return `<tbody class="wz-row wz-fixed-row" data-row="${r.k}" data-fixed="1"><tr><td class="wz-tier">${esc(r.en)} ${FIXED_TAG}${r.name !== r.en ? `<div class="tiny">${esc(r.name)}</div>` : ""}</td><td class="mono wz-on" data-wz-online="${r.k}">${r.on}</td><td class="mono wz-ro">-</td><td class="mono wz-ro">-</td><td class="mono wz-ro">${wzBig(String(r.fixed))}</td><td class="mono wz-ro sd-pay" data-sd-pay="${r.k}">${peso2(r.on * r.fixed)}</td></tr></tbody>`;
+    const c = sdCalc(r, w.vals);
+    const pbCell = c.adjusting
+      ? `<div class="sd-adj">${cell("adj" + r.k, "Adjust Prize Per Winning Bet", true)}<div class="sd-adj-ft"><span class="tiny">${c.raw == null ? "" : `Computed ${peso2(c.raw)}${r.perBet && r.gmin > 0 && c.raw < r.gmin ? " · minimum " + peso2(r.gmin) : ""}`}</span><button type="button" class="btn btn-sm" data-sd-act="adj-off" data-arg="${r.k}">Cancel adjust</button></div></div>`
+      : `<div class="sd-pb mono" data-sd-pb="${r.k}">${c.ok ? peso2(c.pb) : "—"}</div><div class="sd-tags" data-sd-tags="${r.k}">${sdTags(r, c)}</div><button type="button" class="btn btn-sm sd-adjust" data-sd-act="adj-on" data-sd-adjust="${r.k}" data-arg="${r.k}" ${c.ok && !c.carried ? "" : "disabled"}>Adjust</button>`;
+    return `<tbody class="wz-row" data-row="${r.k}"><tr><td class="wz-tier">${esc(r.en)}${r.name !== r.en ? `<div class="tiny">${esc(r.name)}</div>` : ""}</td><td class="mono wz-on" data-wz-online="${r.k}">${r.on}</td><td>${cell("pl" + r.k, "Pool Amount", true)}${ref("pl", r, wzBig)}</td><td>${cell("aw" + r.k, "All Platform Winners", false)}${ref("aw", r, (v) => String(v))}</td><td class="sd-pbc" data-sd-pbc="${r.k}">${pbCell}</td><td class="mono sd-pay" data-sd-pay="${r.k}">${c.ok ? peso2(r.on * c.pb) : "—"}</td></tr>`
+      + (r.gmin > 0 && !r.perBet ? `<tr class="wz-jr" data-jr="${r.k}" style="display:none"><td colspan="6"><div class="banner amber">${scWarnTxt(r)}</div><input data-wz="cell" data-cell="jpr${r.k}" maxlength="100" value="${esc(w.vals["jpr" + r.k] || "")}" placeholder="${t("原因（必填）", "Reason (required)")}" aria-label="${t("原因", "Reason")}" /></td></tr>` : "")
+      + `<tr class="wz-jr sd-rs" data-ovr="${r.k}" style="${sdOverride(r, w.vals) ? "" : "display:none"}"><td colspan="6"><div class="banner amber" data-sd-ovr-note="${r.k}">All-platform winners differ from the online winners (${r.on}). Enter the override reason, for example the other systems included.</div>${rs("ovr" + r.k, "Override Reason (required)")}</td></tr>`
+      + (c.adjusting ? `<tr class="wz-jr sd-rs" data-adjr="${r.k}"><td colspan="6"><div class="banner" data-sd-adj-note="${r.k}">The adjusted prize per winning bet replaces the computed value; it must still satisfy online winners × prize ≤ pool${r.perBet && r.gmin > 0 ? ` and the guaranteed minimum (${peso2(r.gmin)})` : ""}.</div>${rs("adjr" + r.k, "Adjust Reason (required)")}</td></tr>` : "")
+      + `<tr class="wz-re"><td colspan="6"><div class="wz-rowerr" data-rowerr="${r.k}" style="display:none"></div></td></tr></tbody>`;
+  }).join("");
+  const allOk = allRows.filter((r) => r.isPool).every((r) => sdCalc(r, w.vals).ok);
+  const tot = allRows.reduce((a, r) => a + (r.isPool ? (sdCalc(r, w.vals).ok ? r.on * sdCalc(r, w.vals).pb : 0) : r.on * r.fixed), 0);
+  return `${prev ? `<p class="tiny wz-prevnote">${t(`上一期（${prev.no}，已发布）的值仅供参考，不会自动带入。`, `Previous draw (${prev.no}, published) values are for reference only and are not filled in.`)}</p>` : ""}<p class="tiny" data-sd-note="1">Online Winners is a system count, read-only. All Platform Winners is prefilled with the online winners: change it to the figure for all channels (PCSO result, other systems included) and give the reason. Prize Per Winning Bet = Pool Amount ÷ All Platform Winners, truncated to the cent; Adjust changes it with a reason. Amount To Pay = Prize Per Winning Bet × Online Winners. Press Enter to go to the next cell. Fixed Amount tiers are read-only and marked Fixed.</p><table class="wz-tbl sd-tbl" id="wz-tbl"><thead><tr><th>${t("奖级", "Tier")}</th><th>Online Winners</th><th>Pool Amount</th><th>All Platform Winners</th><th>Prize Per Winning Bet</th><th>Amount To Pay</th></tr></thead>${body}<tfoot><tr class="sd-total"><td colspan="5">Total amount to pay (online)</td><td class="mono sd-pay" data-sd-total="1">${allOk ? peso2(tot) : "—"}</td></tr></tfoot></table>`;
+};
+(function () { /* live refresh of the computed cells */
+  const f0 = wzTblRefresh;
+  wzTblRefresh = function () {
+    f0(); const w = S.wiz; if (!w || w.kind !== "prz" || w.step !== "tbl" || !document.querySelector("#wz-host .sd-tbl")) return;
+    const { i, g } = wzCur(); const rows = entTierRows(i, g); let tot = 0, allOk = true;
+    const q = (sel) => document.querySelector("#wz-host " + sel);
+    rows.forEach((r) => {
+      if (!r.isPool) { tot += r.on * r.fixed; return; }
+      const c = sdCalc(r, w.vals); if (!c.ok) allOk = false; else tot += r.on * c.pb;
+      const pb = q(`[data-sd-pb="${r.k}"]`); if (pb) pb.textContent = c.ok ? peso2(c.pb) : "—";
+      const tg = q(`[data-sd-tags="${r.k}"]`); if (tg) tg.innerHTML = sdTags(r, c);
+      const pay = q(`[data-sd-pay="${r.k}"]`); if (pay) pay.textContent = c.ok ? peso2(r.on * c.pb) : "—";
+      const ab = q(`[data-sd-adjust="${r.k}"]`); if (ab) ab.disabled = !c.ok || c.carried;
+      const ov = q(`[data-ovr="${r.k}"]`); if (ov) ov.style.display = sdOverride(r, w.vals) ? "" : "none";
+    });
+    const te = q("[data-sd-total]"); if (te) te.textContent = allOk ? peso2(tot) : "—";
+  };
+})();
+/* Adjust / Cancel adjust (table and review card) */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("[data-sd-act]"); if (!b || !S.wiz || b.disabled) return;
+  e.preventDefault(); e.stopPropagation(); const w = S.wiz; const k = b.dataset.arg; const { i, g } = wzCur();
+  const r = entTierRows(i, g).find((x) => String(x.k) === String(k)); if (!r) return;
+  if (b.dataset.sdAct === "adj-on") { const c = sdCalc(r, w.vals); if (!c.ok || c.carried) return; if (w.vals["adj" + k] == null) w.vals["adj" + k] = String(c.pb); if (w.step === "sum") { w.ret = true; w.chk = false; } w.step = "tbl"; w.cell = "adj" + k; w.err = ""; S.mf.err = ""; wzSave(); render(); return; }
+  if (b.dataset.sdAct === "adj-off") { delete w.vals["adj" + k]; delete w.vals["adjr" + k]; if (w.tryErr) { delete w.tryErr["adj" + k]; delete w.tryErr["adjr" + k]; } w.cell = "aw" + k; wzSave(); render(); return; }
+}, true);
+/* review card (confirm layer) for the prize segment */
+function sdConfirmRows(i, g, w) {
+  const rows = entTierRows(i, g); const h = []; const edit = (id) => `<button type="button" class="btn btn-sm" data-act="draw-wz-edit" data-arg="${id}">${t("改", "Edit")}</button>`;
+  rows.forEach((r) => {
+    if (!r.isPool) { h.push(`<tr class="wz-fixed-row" data-fixed="1"><td>${r.name} ${FIXED_TAG}</td><td>${t("固定单注奖金", "Fixed prize per winning bet")}</td><td class="mono amt">${wzBig(String(r.fixed))}</td><td></td></tr>`); return; }
+    const c = sdCalc(r, w.vals);
+    h.push(`<tr data-sd-sum="pl${r.k}"><td>${r.name}</td><td>Pool Amount</td><td class="mono amt">${wzBig(w.vals["pl" + r.k])}</td><td>${edit("pl" + r.k)}</td></tr>`);
+    if (wzFields(i, g, w.vals).some((s2) => s2.id === "jpr" + r.k)) h.push(`<tr data-sd-sum="jpr${r.k}"><td>${r.name}</td><td>${t("低于保底原因", "Below-minimum reason")}</td><td>${esc(w.vals["jpr" + r.k] || "")}</td><td>${edit("jpr" + r.k)}</td></tr>`);
+    h.push(`<tr data-sd-sum="aw${r.k}"><td>${r.name}</td><td>All Platform Winners <span class="tiny">(online ${r.on})</span></td><td class="mono amt">${esc(String(w.vals["aw" + r.k] == null ? "" : w.vals["aw" + r.k]))}</td><td>${edit("aw" + r.k)}</td></tr>`);
+    if (sdOverride(r, w.vals)) h.push(`<tr data-sd-sum="ovr${r.k}"><td>${r.name}</td><td>Override Reason</td><td>${esc(w.vals["ovr" + r.k] || "")}</td><td>${edit("ovr" + r.k)}</td></tr>`);
+    h.push(`<tr data-sd-sum="pb${r.k}"><td>${r.name}</td><td>Prize Per Winning Bet ${sdTags(r, c)}</td><td class="mono amt" data-sd-sum-pb="${r.k}">${c.ok ? peso2(c.pb) : "—"}</td><td>${c.adjusting ? edit("adj" + r.k) : `<button type="button" class="btn btn-sm" data-sd-act="adj-on" data-arg="${r.k}" ${c.ok && !c.carried ? "" : "disabled"}>Adjust</button>`}</td></tr>`);
+    if (c.adjusting) h.push(`<tr data-sd-sum="adjr${r.k}"><td>${r.name}</td><td>Adjust Reason</td><td>${esc(w.vals["adjr" + r.k] || "")}</td><td>${edit("adjr" + r.k)}</td></tr>`);
+    h.push(`<tr data-sd-sum="pay${r.k}"><td>${r.name}</td><td>Amount To Pay <span class="tiny">(× ${r.on} online)</span></td><td class="mono amt">${c.ok ? peso2(r.on * c.pb) : "—"}</td><td></td></tr>`);
+  });
+  return h.join("");
+}
+(function () {
+  const f0 = wzConfirmRows;
+  wzConfirmRows = function (i, g, w, steps, kind) { return kind === "prz" ? sdConfirmRows(i, g, w) : f0(i, g, w, steps, kind); };
+})();
+/* the submit handler reads S.mf: carry the new cells and the computed prize per bet over */
+(function () {
+  const f0 = wzPrepare;
+  wzPrepare = function (i, g, w, steps) {
+    f0(i, g, w, steps); if (w.kind !== "prz") return;
+    entTierRows(i, g).filter((r) => r.isPool).forEach((r) => {
+      ["aw", "ovr", "adjr"].forEach((p) => { S.mf[p + r.k] = w.vals[p + r.k] == null ? "" : w.vals[p + r.k]; });
+      if (w.vals["adj" + r.k] != null) S.mf["adj" + r.k] = w.vals["adj" + r.k]; else delete S.mf["adj" + r.k];
+      const c = sdCalc(r, w.vals); S.mf["pb" + r.k] = c.pb == null ? "" : String(sdR2(c.pb));
+    });
+  };
+})();
+/* parse + validate one prize entry from the form values (pool, all-platform winners, reasons, adjustment); the prize per bet is computed */
+przParse = function (rows, m) {
+  const pools = rows.filter((r) => r.isPool); if (!pools.length) return { pool: "", pl: {}, pb: {}, aw: {} };
+  const pl = {}, pb = {}, aw = {}, ovr = {}, adj = {}, adjr = {}, ma = {}, raw = {};
+  for (const r of pools) {
+    const pv = String(m["pl" + r.k] || "").trim();
+    if (!WZ_AMT.test(pv) || Number(pv) <= 0) return { err: t(`请填写“${r.name}”的奖池金额（最多 2 位小数）。`, `Enter the pool amount for ${r.name} (up to 2 decimals).`) };
+    pl[r.k] = String(Number(pv));
+    const e = sdCheckAw(r, m["aw" + r.k]); if (e) return { err: e };
+    aw[r.k] = String(Number(String(m["aw" + r.k]).trim()));
+    if (Number(aw[r.k]) > r.on) { const rs = String(m["ovr" + r.k] || "").trim(); if (!rs) return { err: SD_MSG_OVR(r.en) }; ovr[r.k] = rs.slice(0, 100); }
+    const vals = { ["pl" + r.k]: pl[r.k], ["aw" + r.k]: aw[r.k] }; if (m["adj" + r.k] != null) vals["adj" + r.k] = m["adj" + r.k];
+    const c = sdCalc(r, vals);
+    if (m["adj" + r.k] != null) { const e2 = sdCheckAdj(r, m["adj" + r.k], pl[r.k]); if (e2) return { err: e2 }; const rs = String(m["adjr" + r.k] || "").trim(); if (!rs) return { err: SD_MSG_ADJR(r.en) }; adj[r.k] = String(c.adj); adjr[r.k] = rs.slice(0, 100); }
+    if (c.minApplied) ma[r.k] = true;
+    raw[r.k] = c.raw; pb[r.k] = String(sdR2(c.pb));
+  }
+  const jr = pools.find((r) => r.jp);
+  return { pool: jr ? pl[jr.k] : "", pl, pb, aw, ovr, adj, adjr, ma, raw };
+};
+/* 853: the sanity check (online winners × prize per bet ≤ pool) is waived for a tier paid at the guaranteed minimum; the difference is settled by PCSO (6.11.10) */
+przOver = function (rows, p) {
+  for (const r of rows.filter((x) => x.isPool)) {
+    if (p && p.ma && p.ma[r.k]) continue;
+    const tot = Math.round(r.on * Number(((p && p.pb) || {})[r.k] || 0) * 100) / 100;
+    if (tot > Number(((p && p.pl) || {})[r.k] || 0)) return { tot, over: true, tier: r.en };
+  }
+  return { tot: 0, over: false, tier: "" };
+};
+/* audit rows for overrides, adjustments and the applied minimum (both entries) */
+function sdAudit(i, g, rows, p, ent) {
+  const who = actor().who, role = actor().role, mod = t("期次与开奖", "Draws and results");
+  rows.filter((r) => r.isPool).forEach((r) => {
+    if (p.ovr[r.k] != null) logAudit({ who, role, mod, evt: "All-platform winners override", obj: i.no, before: r.en + " · online " + r.on, after: "all-platform " + p.aw[r.k] + " · " + p.ovr[r.k] + " · " + entTxt(i, "prz", ent, "override") });
+    if (p.adj[r.k] != null) logAudit({ who, role, mod, evt: "Prize per winning bet adjusted", obj: i.no, before: r.en + " · computed " + peso2(p.raw[r.k]), after: peso2(p.adj[r.k]) + " · " + p.adjr[r.k] + " · " + entTxt(i, "prz", ent, "adjust") });
+    if (p.ma[r.k]) logAudit({ who, role, mod, evt: "Guaranteed minimum applied", obj: i.no, before: r.en + " · computed " + peso2(p.raw[r.k]), after: peso2(p.pb[r.k]) + " · min " + peso2(r.gmin) + " · difference settled by PCSO · " + entTxt(i, "prz", ent, "minimum") });
+  });
+}
+/* authorize page: Tier / Online Winners / Prize Per Winning Bet / Amount To Pay, two decimals, no estimate line (854 / 855) */
+wzAuthView = function (i, g) {
+  const rows = entTierRows(i, g); const p = i.prz || { pl: {}, pb: {} }; const per = (r) => (r.isPool ? Number((p.pb || {})[r.k] || 0) : r.fixed);
+  const tot = rows.reduce((a, r) => a + r.on * per(r), 0);
+  const tr = rows.map((r) => `<tr${r.isPool ? "" : ' class="wz-fixed-row" data-fixed="1"'}><td>${r.name}${r.isPool ? " " + sdTagsP(r, p) : " " + FIXED_TAG}</td><td class="mono">${r.on}</td><td class="mono amt">${peso2(per(r))}</td><td class="mono amt">${peso2(r.on * per(r))}</td></tr>`).join("");
+  return `<div class="wzl-card wzl-auth" data-wz-step="auth"><h2 class="wz-t">${z("Authorize and publish", "授权发布")}</h2><div class="table-wrap fit"><table class="wzl-auth-tbl"><thead><tr><th>${t("奖级", "Tier")}</th><th>Online Winners</th><th>Prize Per Winning Bet</th><th>Amount To Pay</th></tr></thead><tbody>${tr}</tbody><tfoot><tr><td colspan="3"><b>${t("合计", "Total")}</b></td><td class="mono amt" id="wzl-total"><b>${peso2(tot)}</b></td></tr></tfoot></table></div><div class="err" id="wz-err" style="margin:10px 0;${S.mf.err ? "" : "display:none"}">${esc(S.mf.err || "")}</div>${ddChecklist(i, g)}<div class="row-actions" style="margin-top:14px"><button type="button" class="btn btn-primary btn-lg" id="dd-auth" data-act="draw-auth" data-id="${i.no}" ${ddChecks(i, g).every((c) => c[1]) ? "" : "disabled"}>Authorize and publish</button>${ddChecks(i, g)[2][1] ? "" : `<button type="button" class="btn btn-lg" data-act="draw-auth-discard" data-id="${i.no}">Discard prize entries</button>`}</div></div>`;
+};
+/* match page (prize segment): pool / all-platform winners / prize per bet for both entries (equal by construction) */
+(function () {
+  const f0 = wzMatchView;
+  wzMatchView = function (i, g, res) {
+    const sn = res.snap; if (!sn || res.seg === "num") return f0(i, g, res);
+    const hd = (lbl, by, at) => `<div class="wzl-mwho"><b>${lbl}</b><span>${esc(by || "")}${at ? " \u00b7 " + esc(at) : ""}</span></div>`;
+    const rows = entTierRows(i, g); const aw = sdAwOf(sn, rows); const p = { aw, ma: sn.ma, adj: sn.adj };
+    const side = (r) => `<td class="mono amt">${wzBig(sn.pl && sn.pl[r.k])}</td><td class="mono">${esc(String(aw[r.k] == null ? "" : aw[r.k]))}</td><td class="mono amt">${wzBig(sn.pb && sn.pb[r.k])}</td>`;
+    const tr = rows.map((r) => !r.isPool ? `<tr class="wz-fixed-row" data-fixed="1"><td>${r.name} ${FIXED_TAG}</td><td class="mono amt">-</td><td class="mono">-</td><td class="mono amt">${wzBig(String(r.fixed))}</td><td class="mono amt">-</td><td class="mono">-</td><td class="mono amt">${wzBig(String(r.fixed))}</td><td class="wzl-mck">\u2713</td></tr>` : `<tr><td>${r.name} ${sdTagsP(r, p)}</td>${side(r)}${side(r)}<td class="wzl-mck">\u2713</td></tr>`).join("");
+    return `<div class="wzl-mtbl sd-mtbl"><table><thead><tr><th rowspan="2">${t("奖级", "Tier")}</th><th colspan="3" class="wzl-mg">${hd("First entry", sn.firstBy, sn.firstAt)}</th><th colspan="3" class="wzl-mg">${hd("Second entry", sn.secondBy, sn.secondAt)}</th><th rowspan="2">${t("比对", "Check")}</th></tr><tr><th>Pool Amount</th><th>All Platform Winners</th><th>Prize Per Winning Bet</th><th>Pool Amount</th><th>All Platform Winners</th><th>Prize Per Winning Bet</th></tr></thead><tbody>${tr}</tbody></table></div>`;
+  };
+})();
+/* reference drawer amounts with two decimals (855) */
+wzRefHtml = function (i, g) {
+  const rows = entTierRows(i, g); const ref = przRef(i, g); const lotto = g.kind === "lotto";
+  return `<p class="tiny" style="margin:0 0 6px">Reference only, not used in calculations</p><div class="table-wrap fit"><table><tbody>
+      ${lotto ? `<tr><td>${t("上一期头奖奖池", "Previous draw jackpot pool")}</td><td class="mono amt">${peso2(ref.pool)}</td><td>${ref.won ? t("上期头奖有人中", "Jackpot was won") : t("上期头奖线上无人中", "No online jackpot winner")}</td></tr>` : ""}
+      <tr><td>${t("本期线上销售额", "This draw online sales")}</td><td class="mono amt">${peso2(ref.sales)}</td><td></td></tr>
+      <tr><td>${t("本期线上奖金基金贡献", "Online prize-fund contribution")}</td><td class="mono amt">${peso2(ref.contrib)}</td><td class="tiny">${t("净销售（线上销售额 − 印花税）× 奖金占比：", "Net sales (online sales − DST) × prize share: ")}${peso2(ref.sales)} × (1 − ${Math.round(BILL.dst * 100)}%) × ${Math.round(BILL.prize * 100)}%</td></tr>
+      <tr><td>${t("线上各奖级中奖注数", "Online winners per tier")}</td><td colspan="2" class="mono">${rows.map((r) => r.on).join(" / ")}</td></tr></tbody></table></div>`;
+};
+/* published result table (draw detail / Draw Desk "View result"): Tier / Online Winners / Pool Amount / All Platform Winners / Prize Per Winning Bet, two decimals */
+function sdDoneRows(i, rows) {
+  const p = i.prz || {}; const aw = sdAwOf(p, rows);
+  return rows.map((r) => `<tr data-sd-done="${r.k}"><td>${r.name}${r.isPool ? " " + sdTagsP(r, p) : " " + FIXED_TAG}</td><td class="mono">${r.on}</td><td class="mono amt">${r.isPool ? peso2(Number((p.pl || {})[r.k] || 0)) : t("固定奖金，无奖池", "Fixed prize, no pool")}</td><td class="mono">${r.isPool ? esc(String(aw[r.k] == null ? "" : aw[r.k])) : "-"}</td><td class="mono amt">${r.isPool ? (String(aw[r.k]) === "0" ? SD_TAG_CF : peso2(Number((p.pb || {})[r.k] || 0))) : peso2(r.fixed)}</td></tr>`).join("");
+}
+/* ===== end SD block ===== */
 
 </script>
 <!--SKIN:START-->
@@ -12044,6 +12294,30 @@ td[data-ry=wl],td[data-ry=wl-total],td[data-ry=ip],[data-ry=tk-sub]~.table-wrap 
 #wz-host .wz-confirm div[data-sb=pcso-row]{align-items:flex-start;gap:4px}
 #wz-host .wz-confirm input[data-wz=pcso]{width:220px;font-size:22px;font-weight:700;padding:6px 12px;text-align:left;margin:0;letter-spacing:.04em}
 #wz-host .wzl-main p.tiny[data-sb=pcso-hint]{margin:-6px 0 12px}
+/* ===== SD skin (batch 24): computed prize per winning bet · 6-column prize table, computed cells, reason rows, badges ===== */
+#wz-host .wzl-main>.card[data-wz-step=tbl]{width:min(1380px,100%);padding:28px 32px}
+#wz-host .sd-tbl{font-size:20px}
+#wz-host .sd-tbl th:nth-child(1){width:17%}#wz-host .sd-tbl th:nth-child(2){width:8%}#wz-host .sd-tbl th:nth-child(3){width:20%}#wz-host .sd-tbl th:nth-child(4){width:15%}#wz-host .sd-tbl th:nth-child(5){width:24%}#wz-host .sd-tbl th:nth-child(6){width:16%}
+#wz-host .sd-tbl .wz-tier{font-size:20px}#wz-host .sd-tbl .wz-on{font-size:26px}
+#wz-host .sd-tbl .wz-cell input,#wz-host .sd-tbl .wz-cell input:focus{font-size:28px;padding:6px 0}#wz-host .sd-tbl .wz-pf{font-size:22px}
+#wz-host .sd-tbl .wz-fixed-row .wz-ro{font-size:20px}
+#wz-host .sd-pb{font-size:26px;font-weight:800;line-height:1.2;color:var(--sk-ink,#111)}
+#wz-host .sd-pay{font-size:22px;font-weight:700;text-align:right;white-space:nowrap}
+#wz-host .sd-tags{min-height:18px;margin:2px 0 4px}#wz-host .sd-tag{font-size:11px;vertical-align:middle}
+#wz-host .sd-adjust{margin-top:2px}
+#wz-host .sd-adj-ft{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}
+#wz-host .sd-rs td{padding-top:4px}
+#wz-host .sd-rs .banner{font-size:15px;margin-bottom:6px}
+#wz-host .sd-rs-in{font-size:20px;padding:10px 14px;width:100%}
+#wz-host .sd-total td{padding:12px 10px;border-top:2px solid var(--sk-line);font-weight:700;font-size:18px;color:var(--sk-muted)}
+#wz-host .sd-total .sd-pay{font-size:26px;color:var(--sk-ink,#111)}
+#wz-host .sd-mtbl th,#wz-host .sd-mtbl td{font-size:14px;padding:10px 6px}
+#wz-host .sd-mtbl td:first-child{min-width:150px}
+#wz-host .wz-sum td .sd-tag{margin-left:6px}
+body[data-dd] #wz-host .sd-pb,body[data-dd] #wz-host .sd-total .sd-pay{color:var(--d-ink)}
+body[data-dd] #wz-host .sd-total td{border-top-color:var(--d-line2);color:var(--d-mid)}
+body[data-dd] #wz-host .sd-rs-in{background:var(--d-surface2);color:var(--d-ink);border-color:var(--d-line2)}
+body[data-dd] #wz-host .sd-tag.tag-muted{background:rgba(148,163,184,.18);color:#cbd5e1}
 
 </style>
 <script id="skin-js">
