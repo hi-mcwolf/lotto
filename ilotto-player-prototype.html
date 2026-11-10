@@ -3047,6 +3047,15 @@ A.luckyPick=()=>{const P=PL(),g=gm(P.game);if(!d4Std(g)||P.rolling)return;A.pmod
 /* ---------- 850: Mega Lotto 6/45 on sale (the demo sale toggle is for 6D only) ---------- */
 if(S.offGame==='mega')S.offGame='';
 render();
+/* ===== PROTO25 batch 21 (player) · CLAR39 reply 859, 2026-11-10 =====
+   859 Ticket details · Prize breakdown: the fixed note under a shared-pool tier now says the system computes the prize per winning bet
+       (tier pool ÷ all winning bets incl. retail, rounded down to the centavo; 6D / 4D first prize never below the guaranteed minimum).
+       Still no formula with numbers. The note is rendered by p5_main.js (SC.tkDetail); this wrapper swaps the sentence. */
+window.PROTO25_PLAYER='batch21';
+const POOL_NOTE_EN='The prize per winning bet is the tier pool divided by all winning bets, including retail, rounded down to the centavo. For 6D and 4D first prize, it is never below the guaranteed minimum.';
+const POOL_NOTE_ZH='单注奖金由系统按该奖级奖池 ÷ 全部中奖注数（含线下）计算，向下截到分；6D、4D 一等不低于保底';
+{const _h=SC.tkDetail.html;const OLD_EN='The per-line prize is calculated by PCSO from the tier prize pool and all winning lines, including offline lines.',OLD_ZH='单注奖金由 PCSO 按该奖级奖池与全部中奖注数（含线下）计算';
+ SC.tkDetail.html=function(){const h=_h.apply(this,arguments);return h.split(OLD_EN).join(POOL_NOTE_EN).split(OLD_ZH).join(POOL_NOTE_ZH)}}
 </script>
 </body>
 </html>

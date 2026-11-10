@@ -2667,7 +2667,7 @@ function drawFactsCard(i, g) {
   const lotto = g.kind === "lotto"; const hist = i.ejpHist || [];
   const est = lotto ? `<tr><th>Estimated Jackpot</th><td class="mono" data-ejp-now="1">${ejpOf(i) == null ? "-" : ejpFmt(ejpOf(i))}</td></tr>` : "";
   const hh = lotto ? `<h4 style="margin:12px 0 6px;font-size:13px">Estimated Jackpot History</h4>${hist.length ? `<div class="table-wrap fit"><table data-ejp-hist="1"><thead><tr><th>At</th><th>By</th><th>Before</th><th>After</th><th>Source</th></tr></thead><tbody>${hist.slice().reverse().map((h) => `<tr><td class="mono">${h.at}</td><td>${esc(h.by)}</td><td class="mono">${h.before == null ? "-" : ejpFmt(h.before)}</td><td class="mono">${ejpFmt(h.after)}</td><td>${esc(h.src)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="tiny">No updates yet.</p>`}` : "";
-  return `<div class="card" data-draw-facts="1"><h4>${t("本期规则与预估", "Draw Rules and Estimate")}</h4><table class="kv"><tbody><tr><th>Rule Version</th><td class="mono">${ver.ver}</td></tr><tr><th>Guaranteed Minimum Prize</th><td class="mono" data-gmin-now="1">${gm.length ? esc(gm.join("; ")) : "-"}</td></tr>${est}</tbody></table>${hh}<p class="tiny">${t("保底奖金只在管理端显示，玩家端不显示；奖金按录入的数派发，系统不自动补到保底。", "The guaranteed minimum is shown in the admin console only, never to players. 6D / 4D 1st prize: a computed prize per winning bet below the minimum is paid at the minimum (Guaranteed minimum applied; the difference is settled by PCSO). Lotto jackpot pools below the minimum need a reason.")}</p></div>`;
+  return `<div class="card" data-draw-facts="1"><h4>${t("本期规则与预估", "Draw Rules and Estimate")}</h4><table class="kv"><tbody><tr><th>Rule Version</th><td class="mono">${ver.ver}</td></tr><tr><th>Guaranteed Minimum Prize</th><td class="mono" data-gmin-now="1">${gm.length ? esc(gm.join("; ")) : "-"}</td></tr>${est}</tbody></table>${hh}<p class="tiny">${t("保底奖金只在管理端显示，玩家端不显示；奖金按录入的数派发，系统不自动补到保底。", "The guaranteed minimum is shown in the admin console only, never to players. 6D / 4D 1st prize: a computed prize per winning bet below the minimum is paid at the minimum (Guaranteed minimum applied; the difference is settled by PCSO); Adjust can only go up from there, and the row is exempt from the pool check, adjusted or not. With 0 all-platform winners the tier is Carried forward and no minimum applies. Lotto jackpot pools below the minimum need a reason.")}</p></div>`;
 }
 function viewEntryPage() {
   const i = S.issues.find((x) => x.no === S.sub.no); const g = gameBy(i.game);
@@ -6691,9 +6691,9 @@ function rcTodoCard() {
 function rcStmtDetail(s) {
   const tot = (k) => rcStmtSum(s, k), net = tot("net");
   const ops = rcOpsOnly(), fin = rcFinOnly(), me = me0();
-  const heads = [z("Sales Date", "销售日"), z("Daily Sales", "当日销售额"), z("Refunds", "退款"), z("Draw Sales Payout", "线上派奖总额（税前）"), z("Tax On Winnings", "中奖预扣税"), z("Total Payout", "净派奖"), z("Net Due To PCSO", "应汇净额"), z("Voucher Deduction", "券抵扣额")];
-  const adjRows = (s.adj || []).map((a, i) => `<tr data-adj="${i}" data-x14="adjrow"><td colspan="6"><b>${z("Prior-period adjustment", "上期调整")}</b> · ${z("Original Statement No", "原计算书单号")} <span class="mono">${esc(a.orig)}</span> · ${z("Adjustment Reason", "调整原因")}: ${esc(a.reason)} <span class="tiny muted">(${esc(a.by)} · ${esc(a.at)})</span></td><td class="mono amt" data-x14="adjamt">${rcFmtP(a.amt)}</td><td></td></tr>`);
-  const body = s.rows.map((r) => `<tr data-srow="${r.date}"><td class="mono">${r.date}</td><td class="mono amt">${rcFmtP(r.sales)}</td><td class="mono amt">${rcFmtP(r.refunds)}</td><td class="mono amt">${rcFmtP(r.gross)}</td><td class="mono amt">${rcFmtP(r.tax)}</td><td class="mono amt">${rcFmtP(r.total)}</td><td class="mono amt" data-x13="rownet">${rcFmtP(r.net)}</td><td class="mono amt">${rcFmtP(r.voucher)}</td></tr>`).concat(adjRows).concat([`<tr style="font-weight:700;background:rgba(255,255,255,.05)" data-x13="totalrow"><td>${z("Total", "合计")}</td><td class="mono amt">${rcFmtP(tot("sales"))}</td><td class="mono amt">${rcFmtP(tot("refunds"))}</td><td class="mono amt">${rcFmtP(tot("gross"))}</td><td class="mono amt">${rcFmtP(tot("tax"))}</td><td class="mono amt">${rcFmtP(tot("total"))}</td><td class="mono amt" data-x13="totalnet">${rcFmtP(net)}</td><td class="mono amt">${rcFmtP(tot("voucher"))}</td></tr>`]);
+  const heads = [z("Sales Date", "销售日"), z("Daily Sales", "当日销售额"), z("Refunds", "退款"), z("Draw Sales Payout", "线上派奖总额（税前）"), z("Tax On Winnings", "中奖预扣税"), z("Total Payout", "净派奖"), z("Net Due To PCSO", "应汇净额"), z("Voucher Deduction", "券抵扣额"), z("Guaranteed Minimum Top-up", "保底补差")]; /* batch 25 (857) */
+  const adjRows = (s.adj || []).map((a, i) => `<tr data-adj="${i}" data-x14="adjrow"><td colspan="6"><b>${z("Prior-period adjustment", "上期调整")}</b> · ${z("Original Statement No", "原计算书单号")} <span class="mono">${esc(a.orig)}</span> · ${z("Adjustment Reason", "调整原因")}: ${esc(a.reason)} <span class="tiny muted">(${esc(a.by)} · ${esc(a.at)})</span></td><td class="mono amt" data-x14="adjamt">${rcFmtP(a.amt)}</td><td></td><td></td></tr>`);
+  const body = s.rows.map((r) => `<tr data-srow="${r.date}"><td class="mono">${r.date}</td><td class="mono amt">${rcFmtP(r.sales)}</td><td class="mono amt">${rcFmtP(r.refunds)}</td><td class="mono amt">${rcFmtP(r.gross)}</td><td class="mono amt">${rcFmtP(r.tax)}</td><td class="mono amt">${rcFmtP(r.total)}</td><td class="mono amt" data-x13="rownet">${rcFmtP(r.net)}</td><td class="mono amt">${rcFmtP(r.voucher)}</td><td class="mono amt" data-se-top="${r.date}">${rcFmtP(seRowTop(r))}</td></tr>`).concat(adjRows).concat([`<tr style="font-weight:700;background:rgba(255,255,255,.05)" data-x13="totalrow"><td>${z("Total", "合计")}</td><td class="mono amt">${rcFmtP(tot("sales"))}</td><td class="mono amt">${rcFmtP(tot("refunds"))}</td><td class="mono amt">${rcFmtP(tot("gross"))}</td><td class="mono amt">${rcFmtP(tot("tax"))}</td><td class="mono amt">${rcFmtP(tot("total"))}</td><td class="mono amt" data-x13="totalnet">${rcFmtP(net)}</td><td class="mono amt">${rcFmtP(tot("voucher"))}</td><td class="mono amt" data-se-top="total">${rcFmtP(seStmtTop(s))}</td></tr>`]);
   const mm = rcMismatches(s), opn = rcStmtOpenTodos(s);
   const btn = (act, label, ok, msg, cls) => `<button type="button" class="btn btn-sm ${cls || ""}" data-act="${act}" data-id="${s.id}"${ok ? "" : rcRO(msg)}>${label}</button>`;
   let acts = "";
@@ -6708,7 +6708,7 @@ function rcStmtDetail(s) {
     ${s.noPay ? `<div class="banner" data-x14="nopay">${z("Closed without payment: the total is exactly ₱0.00, so there is no transfer and no voucher file.", "已无需付款关单：合计恰好为 ₱0.00，没有转账、没有凭证件。")} ${esc(s.noPay.by)} · ${esc(s.noPay.at)} · ${esc(s.noPay.reason)}</div>` : ""}
     ${net < 0 ? `<div class="banner amber" data-x13="neg">${z("The total is negative: payouts or refunds exceed sales, so PCSO owes the platform a top-up. A negative total is submitted and approved as usual; its voucher is registered as a PCSO payment (payer PCSO, receiving account = platform account).", "合计为负：派奖或退款超过销售，PCSO 应向平台补款；负数照常提交、批准，凭证登记为 PCSO 付款（付款方 PCSO，收款为平台账户）。")}</div>` : ""}
     ${table(heads, body)}
-    <p class="tiny" data-x13="stmt-note">${z("Net Due To PCSO = Daily Sales − Refunds − Total Payout, and the total row is the sum of the sales dates; it can be negative. Refunds are the void offset by refund date, at the bet amount (a voucher bet counts at its bet amount). Draw Sales Payout counts online wallet payouts by credit date; prizes paid at the PCSO counter are not included. Tax On Winnings is withheld above the tax-table threshold and remitted with the net amount. The base is the bet amount including the voucher part; the Voucher Deduction column is shown only as an explanation and does not change the calculation. Each line is rounded to the cent. Export to PDF / Excel carries Prepared By, Checked By and Approved By signature blocks: the first two are filled by the system, Approved By is signed offline.", "应汇净额 = 当日销售额 − 退款 − 净派奖，合计行为各销售日之和，可为负；退款为作废冲减（按退款发生日、按投注金额）；线上派奖总额按入账日、不含柜台兑付；中奖预扣税随净额一并汇缴；汇缴基数按投注金额计、含券抵扣部分，“券抵扣额”仅作说明、不改变计算；逐行四舍五入到分；导出 PDF / Excel 含 Prepared By / Checked By / Approved By 三签栏，前两签系统记名，Approved 线下签字。")}</p>
+    <p class="tiny" data-x13="stmt-note">${z("Net Due To PCSO = Daily Sales − Refunds − Total Payout, and the total row is the sum of the sales dates; it can be negative. Refunds are the void offset by refund date, at the bet amount (a voucher bet counts at its bet amount). Draw Sales Payout counts online wallet payouts by credit date; prizes paid at the PCSO counter are not included. Tax On Winnings is withheld above the tax-table threshold and remitted with the net amount. The base is the bet amount including the voucher part; the Voucher Deduction column is shown only as an explanation and does not change the calculation. Each line is rounded to the cent. Export to PDF / Excel carries Prepared By, Checked By and Approved By signature blocks: the first two are filled by the system, Approved By is signed offline.", "应汇净额 = 当日销售额 − 退款 − 净派奖，合计行为各销售日之和，可为负；退款为作废冲减（按退款发生日、按投注金额）；线上派奖总额按入账日、不含柜台兑付；中奖预扣税随净额一并汇缴；汇缴基数按投注金额计、含券抵扣部分，“券抵扣额”仅作说明、不改变计算；逐行四舍五入到分；导出 PDF / Excel 含 Prepared By / Checked By / Approved By 三签栏，前两签系统记名，Approved 线下签字。")}</p>${seTopNote(s)}
     <div class="card" data-x13="precheck" style="margin-top:12px"><h4>${z("Comparison before submission", "提交前比对")}</h4>
       ${mm.length ? table([z("Sales Date", "销售日"), z("Item", "项目"), z("Statement", "计算书"), z("Daily reconciliation", "每日对账")], mm.map((m) => `<tr><td class="mono">${m[0]}</td><td>${m[1]}</td><td class="mono">${rcFmtP(m[2])}</td><td class="mono">${rcFmtP(m[3])}</td></tr>`)) : `<p class="tiny">${tag("ok", "Matched")} ${z("Sales, net payout (against Auto Credited) and refunds (against Void Offset) all agree with the daily reconciliation.", "销售、净派奖（比自动入账）与退款（比作废冲减）三项与每日对账一致。")}</p>`}
       ${opn.length ? `<p class="err" data-x13="blocked">${z("Submission is blocked: close the P2 reconciliation difference to-dos with a reason first.", "提交被拦：请先填原因关闭 P2 核对差异待办。")}</p>` : ""}</div>
@@ -6767,8 +6767,8 @@ function rcSettleAct(act, arg, id) {
   if (act === "rc-reg") { const s = S.rc.stmts.find((x) => x.id === id); S.mf = { acct: "PCSO ON-LINE LOTTERY MAIN ACCOUNT", amount: String(rcStmtSum(s, "net")), err: "" }; S.modal = { type: "rc_vch", id }; render(); return true; }
   if (act === "rc-st-export") {
     const s = S.rc.stmts.find((x) => x.id === id);
-    const rows = s.rows.map((r) => [r.date, r.sales, r.refunds, r.gross, r.tax, r.total, r.net, r.voucher]).concat([["Total", rcStmtSum(s, "sales"), rcStmtSum(s, "refunds"), rcStmtSum(s, "gross"), rcStmtSum(s, "tax"), rcStmtSum(s, "total"), rcStmtSum(s, "net"), rcStmtSum(s, "voucher")], ["Prepared By", s.prep, "Checked By", s.chk, "Approved By", "(signed offline)"]]);
-    adm58Export("remittance-" + s.id, ["Sales Date", "Daily Sales", "Refunds", "Draw Sales Payout", "Tax On Winnings", "Total Payout", "Net Due To PCSO", "Voucher Deduction"], rows, arg, z("PCSO settlement", "PCSO 结算"), s.id);
+    const rows = s.rows.map((r) => [r.date, r.sales, r.refunds, r.gross, r.tax, r.total, r.net, r.voucher, seRowTop(r)]).concat([["Total", rcStmtSum(s, "sales"), rcStmtSum(s, "refunds"), rcStmtSum(s, "gross"), rcStmtSum(s, "tax"), rcStmtSum(s, "total"), rcStmtSum(s, "net"), rcStmtSum(s, "voucher"), seStmtTop(s)], ["Prepared By", s.prep, "Checked By", s.chk, "Approved By", "(signed offline)"]]);
+    adm58Export("remittance-" + s.id, ["Sales Date", "Daily Sales", "Refunds", "Draw Sales Payout", "Tax On Winnings", "Total Payout", "Net Due To PCSO", "Voucher Deduction", "Guaranteed Minimum Top-up"], rows, arg, z("PCSO settlement", "PCSO 结算"), s.id);
     rcAud("Export remittance statement", s.id, "—", arg.toUpperCase() + " · " + s.rows.length + " rows"); return true;
   }
   if (act === "rc-todo-open") { S.mf = { reason: "" }; S.modal = { type: "rc_todo", id }; render(); return true; }
@@ -11260,7 +11260,7 @@ scBelow = function (r, pool, pb) { return r.perBet ? false : rowBelow(r, pool); 
       if (st.f === "aw") return sdCheckAw(r, s);
       if (st.f === "ovr") return s ? "" : SD_MSG_OVR(r.en);
       if (st.f === "adjr") return s ? "" : SD_MSG_ADJR(r.en);
-      if (st.f === "adj") return sdCheckAdj(r, s, vals["pl" + r.k]);
+      if (st.f === "adj") return sdCheckAdj(r, s, vals["pl" + r.k], vals["aw" + r.k]); /* batch 25 (856) */
     }
     return f0(i, g, kind, st, v, vals);
   };
@@ -11303,7 +11303,7 @@ wzTblBody = function (i, g, w, kind) {
     return `<tbody class="wz-row" data-row="${r.k}"><tr><td class="wz-tier">${esc(r.en)}${r.name !== r.en ? `<div class="tiny">${esc(r.name)}</div>` : ""}</td><td class="mono wz-on" data-wz-online="${r.k}">${r.on}</td><td>${cell("pl" + r.k, "Pool Amount", true)}${ref("pl", r, wzBig)}</td><td>${cell("aw" + r.k, "All Platform Winners", false)}${ref("aw", r, (v) => String(v))}</td><td class="sd-pbc" data-sd-pbc="${r.k}">${pbCell}</td><td class="mono sd-pay" data-sd-pay="${r.k}">${c.ok ? peso2(r.on * c.pb) : "—"}</td></tr>`
       + (r.gmin > 0 && !r.perBet ? `<tr class="wz-jr" data-jr="${r.k}" style="display:none"><td colspan="6"><div class="banner amber">${scWarnTxt(r)}</div><input data-wz="cell" data-cell="jpr${r.k}" maxlength="100" value="${esc(w.vals["jpr" + r.k] || "")}" placeholder="${t("原因（必填）", "Reason (required)")}" aria-label="${t("原因", "Reason")}" /></td></tr>` : "")
       + `<tr class="wz-jr sd-rs" data-ovr="${r.k}" style="${sdOverride(r, w.vals) ? "" : "display:none"}"><td colspan="6"><div class="banner amber" data-sd-ovr-note="${r.k}">All-platform winners differ from the online winners (${r.on}). Enter the override reason, for example the other systems included.</div>${rs("ovr" + r.k, "Override Reason (required)")}</td></tr>`
-      + (c.adjusting ? `<tr class="wz-jr sd-rs" data-adjr="${r.k}"><td colspan="6"><div class="banner" data-sd-adj-note="${r.k}">The adjusted prize per winning bet replaces the computed value; it must still satisfy online winners × prize ≤ pool${r.perBet && r.gmin > 0 ? ` and the guaranteed minimum (${peso2(r.gmin)})` : ""}.</div>${rs("adjr" + r.k, "Adjust Reason (required)")}</td></tr>` : "")
+      + (c.adjusting ? `<tr class="wz-jr sd-rs" data-adjr="${r.k}"><td colspan="6"><div class="banner" data-sd-adj-note="${r.k}">${seAdjNote(r, w.vals)}</div>${rs("adjr" + r.k, "Adjust Reason (required)")}</td></tr>` : "")
       + `<tr class="wz-re"><td colspan="6"><div class="wz-rowerr" data-rowerr="${r.k}" style="display:none"></div></td></tr></tbody>`;
   }).join("");
   const allOk = allRows.filter((r) => r.isPool).every((r) => sdCalc(r, w.vals).ok);
@@ -11381,7 +11381,7 @@ przParse = function (rows, m) {
     if (Number(aw[r.k]) > r.on) { const rs = String(m["ovr" + r.k] || "").trim(); if (!rs) return { err: SD_MSG_OVR(r.en) }; ovr[r.k] = rs.slice(0, 100); }
     const vals = { ["pl" + r.k]: pl[r.k], ["aw" + r.k]: aw[r.k] }; if (m["adj" + r.k] != null) vals["adj" + r.k] = m["adj" + r.k];
     const c = sdCalc(r, vals);
-    if (m["adj" + r.k] != null) { const e2 = sdCheckAdj(r, m["adj" + r.k], pl[r.k]); if (e2) return { err: e2 }; const rs = String(m["adjr" + r.k] || "").trim(); if (!rs) return { err: SD_MSG_ADJR(r.en) }; adj[r.k] = String(c.adj); adjr[r.k] = rs.slice(0, 100); }
+    if (m["adj" + r.k] != null) { const e2 = sdCheckAdj(r, m["adj" + r.k], pl[r.k], aw[r.k]); /* batch 25 (856) */ if (e2) return { err: e2 }; const rs = String(m["adjr" + r.k] || "").trim(); if (!rs) return { err: SD_MSG_ADJR(r.en) }; adj[r.k] = String(c.adj); adjr[r.k] = rs.slice(0, 100); }
     if (c.minApplied) ma[r.k] = true;
     raw[r.k] = c.raw; pb[r.k] = String(sdR2(c.pb));
   }
@@ -11440,6 +11440,91 @@ function sdDoneRows(i, rows) {
   return rows.map((r) => `<tr data-sd-done="${r.k}"><td>${r.name}${r.isPool ? " " + sdTagsP(r, p) : " " + FIXED_TAG}</td><td class="mono">${r.on}</td><td class="mono amt">${r.isPool ? peso2(Number((p.pl || {})[r.k] || 0)) : t("固定奖金，无奖池", "Fixed prize, no pool")}</td><td class="mono">${r.isPool ? esc(String(aw[r.k] == null ? "" : aw[r.k])) : "-"}</td><td class="mono amt">${r.isPool ? (String(aw[r.k]) === "0" ? SD_TAG_CF : peso2(Number((p.pb || {})[r.k] || 0))) : peso2(r.fixed)}</td></tr>`).join("");
 }
 /* ===== end SD block ===== */
+/* ===== SE block (batch 25 · admin): 856 Adjust vs the guaranteed minimum — 6D / 4D 1st prize: an adjusted value below the minimum is blocked, final prize per winning bet = max(adjusted or computed, minimum); a row whose computed value (Pool Amount ÷ All Platform Winners) is below the minimum is exempt from the pool check (online winners × prize ≤ pool) in the table, at submit, compare and authorize, adjusted or not; 858 All Platform Winners 0 = Carried forward, no minimum, Amount To Pay ₱0.00; 857 remittance statement column Guaranteed Minimum Top-up (shown only, Net Due To PCSO unchanged) ===== */
+const SE_MSG_ADJ_MIN = (min) => `The adjusted prize per winning bet cannot be below the guaranteed minimum (${peso2(min)}).`;
+/* 856: the computed value of a 6D / 4D 1st prize row is below the guaranteed minimum (all-platform winners > 0) */
+function seExempt(r, pool, aw) {
+  if (!r || !r.isPool || !r.perBet || !(r.gmin > 0)) return false;
+  const p = String(pool == null ? "" : pool).trim(), a = String(aw == null ? "" : aw).trim();
+  if (!WZ_AMT.test(p) || !(Number(p) > 0) || !sdInt(a) || !(Number(a) > 0)) return false; /* 858: 0 all-platform winners = Carried forward, never the minimum */
+  return sdCents(p, a) / 100 < r.gmin;
+}
+/* 856: final = max(adjusted or computed, minimum); exempt flag for the row */
+(function () {
+  const f0 = sdCalc;
+  sdCalc = function (r, vals) {
+    const o = f0(r, vals); o.exempt = false;
+    if (!o.ok || o.carried) return o;
+    o.exempt = seExempt(r, vals["pl" + r.k], vals["aw" + r.k]);
+    if (o.adjusted && r.perBet && r.gmin > 0 && o.pb < r.gmin) { o.pb = r.gmin; o.minApplied = true; }
+    return o;
+  };
+})();
+/* 856: the adjusted value can only go up to / above the minimum; an exempt row skips the pool check */
+sdCheckAdj = function (r, v, pool, aw) {
+  v = String(v == null ? "" : v).trim();
+  if (!WZ_AMT.test(v) || Number(v) <= 0) return SD_MSG_ADJ(r.en);
+  if (r.perBet && r.gmin > 0 && Number(v) < r.gmin) return SE_MSG_ADJ_MIN(r.gmin);
+  if (seExempt(r, pool, aw)) return "";
+  if (Math.round(r.on * Number(v) * 100) > Math.round(Number(pool || 0) * 100)) return PRZ_OVER(r.en);
+  return "";
+};
+/* 856: the pool check at submit, compare and authorize (and the Sanity check passed light) skips the exempt rows */
+przOver = function (rows, p) {
+  p = p || { pl: {}, pb: {} }; const aw = sdAwOf(p, rows);
+  for (const r of rows.filter((x) => x.isPool)) {
+    if (p.ma && p.ma[r.k]) continue;
+    if (seExempt(r, (p.pl || {})[r.k], aw[r.k])) continue;
+    const tot = Math.round(r.on * Number((p.pb || {})[r.k] || 0) * 100) / 100;
+    if (tot > Number((p.pl || {})[r.k] || 0)) return { tot, over: true, tier: r.en };
+  }
+  return { tot: 0, over: false, tier: "" };
+};
+/* note under the Adjust input */
+function seAdjNote(r, vals) {
+  if (seExempt(r, vals["pl" + r.k], vals["aw" + r.k])) return `The adjusted prize per winning bet replaces the computed value and cannot be below the guaranteed minimum (${peso2(r.gmin)}). The computed value is below the minimum, so this row is exempt from the pool check.`;
+  return `The adjusted prize per winning bet replaces the computed value; it must still satisfy online winners × prize ≤ pool${r.perBet && r.gmin > 0 ? ` and the guaranteed minimum (${peso2(r.gmin)})` : ""}.`;
+}
+/* 857 demo: the settled 6D demo draw is paid at the minimum (computed ₱120,000.00 < ₱150,000.00), so its top-up shows in the remittance statement of its credit date */
+(function seSeedMin() {
+  const a = S.issues.find((i) => i.game === "d6" && i.saDemo && i.st === "settled" && i.prz); const g = gameBy("d6"); if (!a || !g) return;
+  const rows = entTierRows(a, g); const r = rows.find((x) => x.isPool && x.perBet && x.gmin > 0); if (!r) return;
+  const aw = Number(sdAwOf(a.prz, rows)[r.k]); if (!(aw > 0)) return;
+  const pool = String(Math.round(r.gmin * 0.8) * aw);
+  [a.prz, a.prz1].forEach((p) => { if (!p) return; p.pl = Object.assign({}, p.pl, { [r.k]: pool }); p.aw = Object.assign({}, p.aw || {}, { [r.k]: String(aw) }); p.ma = Object.assign({}, p.ma || {}, { [r.k]: true }); });
+  a.seMinDemo = true;
+  const d = S.draws.find((x) => x.issue === a.no);
+  if (d) { const pb = Number(a.prz.pb[r.k]); d.rollZh = "一等奖池 " + peso(Number(pool)) + " · 单注 " + peso(pb) + "（按保底）"; d.rollEn = "1st prize pool " + peso(Number(pool)) + " · " + peso(pb) + " per winning bet"; }
+})();
+/* 857: Σ (final prize per winning bet − computed value) over the auto-credited winning bets of the credit date, for 6D / 4D 1st prize rows whose computed value is below the minimum; prizes above the auto-credit cap (claimed at PCSO) are not included. Each winning bet counts at multiplier 1 in the demo. */
+function seTopUpRows(date) {
+  const out = [];
+  S.issues.forEach((i) => {
+    if (!i.prz || !(i.st === "settled" || i.st === "pub")) return;
+    if (String(i.pubAt || i.draw || "").slice(0, 10) !== date) return;
+    const g = gameBy(i.game); if (!g) return; const rows = entTierRows(i, g); const aw = sdAwOf(i.prz, rows);
+    rows.forEach((r) => {
+      if (!seExempt(r, (i.prz.pl || {})[r.k], aw[r.k])) return;
+      const fin = Number((i.prz.pb || {})[r.k] || 0), raw = sdCents((i.prz.pl || {})[r.k], aw[r.k]) / 100;
+      if (!(fin > raw) || fin > BILL.autoCap || !(r.on > 0)) return;
+      out.push({ no: i.no, tier: r.en, on: r.on, fin, raw, amt: rcR2(r.on * (fin - raw)) });
+    });
+  });
+  return out;
+}
+function seTopUp(date) { return rcR2(seTopUpRows(date).reduce((a, x) => a + x.amt, 0)); }
+function seRowTop(r) { return r.topup != null ? r.topup : seTopUp(r.date); }
+(function () {
+  const f0 = rcMkRow;
+  rcMkRow = function (date) { const r = f0(date); r.topup = seTopUp(date); return r; };
+})();
+function seStmtTop(s) { return rcR2(s.rows.reduce((a, r) => a + seRowTop(r), 0)); }
+function seTopNote(s) {
+  const src = []; s.rows.forEach((r) => seTopUpRows(r.date).forEach((x) => src.push(x)));
+  return `<p class="tiny" data-se="topup-note">Guaranteed Minimum Top-up: when the 6D / 4D 1st prize is paid at the guaranteed minimum (Guaranteed minimum applied), PCSO bears the part above Pool Amount ÷ All Platform Winners. Shown only: it is already inside Draw Sales Payout and does not change Net Due To PCSO. = Σ (final prize per winning bet − computed value) × multiplier over the winning tickets credited to wallets that day (prizes paid at the PCSO counter are not included), by credit date; ₱0.00 when no ticket was paid at the minimum.</p>`
+    + (src.length ? `<p class="tiny" data-se="topup-demo">${tag("muted", "Demo data")} ${src.map((x) => `${esc(x.no)} · ${esc(x.tier)}: ${x.on} × (${peso2(x.fin)} − ${peso2(x.raw)}) = ${peso2(x.amt)}`).join("; ")}</p>` : "");
+}
+/* ===== end SE block ===== */
 
 </script>
 <!--SKIN:START-->
