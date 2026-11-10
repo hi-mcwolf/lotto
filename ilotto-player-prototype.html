@@ -631,7 +631,7 @@ const TAILP={dchr:{4:10000,3:800,2:100},d4:{4:10000,3:800,2:100},d6:{6:150000,5:
 const HITT={6:'JP',5:2,4:3,3:4};
 const CNK=(n,k)=>{let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)};
 const LPL=[{c:'STD',zh:'标准',en:'Standard',need:6},{c:'QP',zh:'机选 Quick Pick',en:'Quick Pick',need:0},{c:'R5',zh:'5 号轮转 5-Roll',en:'5-Roll',need:5},{c:'S7',zh:'复式 System 7',en:'System 7',need:7},{c:'S8',zh:'复式 System 8',en:'System 8',need:8},{c:'S9',zh:'复式 System 9',en:'System 9',need:9},{c:'S10',zh:'复式 System 10',en:'System 10',need:10},{c:'S11',zh:'复式 System 11',en:'System 11',need:11},{c:'S12',zh:'复式 System 12',en:'System 12',need:12}];
-const DPL={ez2:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],swer:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],d4:[{c:'STRAIGHT',zh:'标准 Standard',en:'Standard'},{c:'QP',zh:'机选 Quick Pick',en:'Quick Pick'},{c:'PERM',zh:'Rambol',en:'Rambol'},{c:'R1',zh:'Roll 1',en:'Roll 1',need:3},{c:'R4',zh:'Roll 4',en:'Roll 4',need:3}],d6:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'}]};
+const DPL={ez2:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],swer:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}],d4:[{c:'STRAIGHT',zh:'标准 Standard',en:'Standard'},{c:'PERM',zh:'Rambol',en:'Rambol'},{c:'R1',zh:'Roll 1',en:'Roll 1',need:3},{c:'R4',zh:'Roll 4',en:'Roll 4',need:3}],d6:[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'}]};
 DPL.dchr=[{c:'STRAIGHT',zh:'直选 Straight',en:'Straight'},{c:'RAMBO',zh:'Rambolito',en:'Rambolito'}]; /* demo letter game: Straight and Rambolito share ONE character set (6.3.3 / 6.7.2) */
 const rc=g=>g.cs&&g.cs!=='numeric'?csChars(g)[rnd(0,csChars(g).length-1)]:rnd(0,9);
 const playsOf=g=>g.t==='lotto'?LPL:DPL[g.id];
@@ -2964,7 +2964,7 @@ const rollStar=(ttl)=>`<span class="ball mini on rollstar" title="${ttl||t('系�
  <div class="xs mu" style="margin-top:6px;line-height:1.5">${t('一等奖奖池和单注奖金由 PCSO 随开奖结果录入；其余奖级为固定金额。','The pool and the prize per bet are entered by PCSO with the draw result. Other tiers are fixed amounts.')} ${badge('b-am','Demo data')}</div></div>`;
  const i=h.indexOf('<h3 style="margin-top:22px">');return i>0?h.slice(0,i)+card+h.slice(i):h}}
 
-/* ---------- PA4: 4D play types Standard / Quick Pick / PERM / Roll 1 / Roll 4 ---------- */
+/* ---------- PA4: 4D play types Standard / PERM (Rambol) / Roll 1 / Roll 4 (Quick Pick chip removed in batch 20, CLAR37 847) ---------- */
 /* expansion: PERM = every distinct arrangement of the 4 digits; Roll 1 = first digit 0–9 before the chosen last 3; Roll 4 = last digit 0–9 after the chosen first 3 */
 {const _e=expandLines;expandLines=function(g,pc,sel,qp){if(!isD4X(g,pc))return _e.apply(this,arguments);const s=[...sel];
  if(pc==='PERM'){const out=[],seen=new Set();(function go(cur,rest){if(!rest.length){const k=cur.join('');if(!seen.has(k)){seen.add(k);out.push([...cur])}return}for(let i=0;i<rest.length;i++)go([...cur,rest[i]],rest.filter((_,j)=>j!==i))})([],s);return out.sort((a,b)=>a.join('')<b.join('')?-1:1)}
@@ -2983,8 +2983,7 @@ const d4xFull=P=>P.picks.length===plNeed(gm(P.game))&&P.picks.every(x=>x!==null&
  let target;do{target=Array.from({length:need},()=>rnd(0,9))}while(p.c==='PERM'&&new Set(target).size===1);
  const cells=$$('#board [data-b]');let n=0;const iv=setInterval(()=>{cells.forEach(c=>c.classList.remove('roll'));for(let i=0;i<need*2;i++){const c=cells[rnd(0,cells.length-1)];c&&c.classList.add('roll')}n++;if(n>=22){clearInterval(iv);cells.forEach(c=>c.classList.remove('roll'));place()}},55);TM.push([iv,true]);
  function place(){target.forEach((v,i)=>T(()=>{P.picks[i]=v;drawBoard(i);if(i===target.length-1){P.rolling=false;sumUp()}},i*170))}}}
-/* the Quick Pick play chip of 4D = Standard numbers drawn by the system */
-{const _p=A.ppt;A.ppt=function(i){const r=_p.apply(this,arguments);const P=PL(),g=gm(P.game),pl=playsOf(g)[i];if(g&&g.id==='d4'&&pl&&pl.c==='QP')setTimeout(()=>A.roll(),30);return r}}
+/* (CLAR37 847: the 4D Quick Pick chip was removed in batch 20; Lucky Pick lives inside the Standard panel, see p7r_batch20.js) */
 /* order summary on the play page */
 {const _s=sumHTML;sumHTML=function(g){const P=PL(),p=curPlay(g);if(!isD4X(g,p.c))return _s.apply(this,arguments);const n=plLines(g),nD=P.draws||1,per=n*g.p*P.mult,tot=per*nD;
  const note=p.c==='PERM'?(d4xFull(P)?(n?t(`Rambol（PCSO 称 PERM）：所选 4 位数字的全部排列各出一注，共 ${n} 注（${n} 张票），每注 ${fm0(g.p)}。`,`Rambol (PCSO calls it PERM): every arrangement of your 4 digits is one line: ${n} lines (${n} tickets) at ${fm0(g.p)} each.`):t('四个数字全相同没有排列，不能选 Rambol，请改选 Standard。','Rambol is not available when all four digits are the same. Pick Standard instead.')):t('选满 4 位数字后显示排列数和金额。','Pick all 4 digits to see the number of permutations and the cost.'))
@@ -2995,8 +2994,8 @@ const d4xFull=P=>P.picks.length===plNeed(gm(P.game))&&P.picks.every(x=>x!==null&
 {const _c=SC.betConfirm.html;SC.betConfirm.html=function(){let h=_c.apply(this,arguments);const {P,g,pl,n,tickets}=betPlan();if(!isD4X(g,pl.c))return h;const nD=n?tickets/n:1;
  h=h.replace(t('每个组合一张票','One ticket per combination'),t('每个组合一张票','One ticket per combination')+` · <span id="cf_d4x">${n} × ${fm0(g.p)} × ${P.mult}${nD>1?' × '+nD:''} = ${fm0(n*g.p*P.mult*nD)}</span>`);
  if(pl.c!=='PERM'){const nb=balls(P.picks);h=h.replace(nb,pl.c==='R1'?rollStar()+nb:nb+rollStar())}return h}}
-/* issuing: every expanded line is its own e-ticket; the order keeps the chosen digits for the summary card; 4D Quick Pick chip issues Standard tickets */
-{const _m=makeOrder;makeOrder=function(g,pc,pickSel,qp,mult,dates,ms,stFirst){if(g&&g.id==='d4'&&pc==='QP')pc='STRAIGHT';const out=_m.call(this,g,pc,pickSel,qp,mult,dates,ms,stFirst);if(isD4X(g,pc))out.forEach(k=>{k.sysSel=[...pickSel];k.roll=pc});return out}}
+/* issuing: every expanded line is its own e-ticket; the order keeps the chosen digits for the summary card */
+{const _m=makeOrder;makeOrder=function(g,pc,pickSel,qp,mult,dates,ms,stFirst){const out=_m.call(this,g,pc,pickSel,qp,mult,dates,ms,stFirst);if(isD4X(g,pc))out.forEach(k=>{k.sysSel=[...pickSel];k.roll=pc});return out}}
 /* My Tickets summary card: chosen digits with * at the rolled position */
 {const _tg=tkGroup;tkGroup=function(gr0){const h=_tg.apply(this,arguments);const k0=gr0[0];if(!k0||!k0.roll||k0.roll==='PERM'||!isSysOrd(k0))return h;
  const star=`<span class="tkstar b" style="font-size:20px;line-height:1;padding:0 4px" title="${t('该位由系统补 0–9，每张票不同','This digit is filled with 0–9 by the system and differs on each ticket')}">*</span>`;
@@ -3022,6 +3021,32 @@ render();
    p3_infra.js (demo wallet row, trial-page buttons), p5_main.js (play-page title map), p7l_batch14.js (demo toast),
    p7p_batch18.js (Rambol notes on order summary / ticket detail), comments in p7h / p7k / p7m. page-spec (p6z_spec.js) untouched by rule. */
 window.PROTO22_PLAYER='batch19';
+/* ===== PROTO23 batch 20 (player) · CLAR37 replies, 2026-11-10 =====
+   847 4D plays are Standard / Rambol / Roll 1 / Roll 4 only (the Quick Pick chip was removed in p2b_rules.js DPL.d4 in place);
+       the Standard panel has a `Lucky Pick` button = system fills the 4 digits, one Standard ticket of one line, marked LP (same as 2D / 3D).
+   848 My Tickets: Rambol / Roll 1 / Roll 4 orders fold into one summary card (collapsed by default, like System / 5-Roll):
+       Roll 1 shows *123, Roll 4 shows 123*, Rambol shows the chosen 4 digits + "Rambol · N tickets"; expanded rows show each ticket's number
+       (folding itself came with batch 18 via isSysOrd; this batch adds the explanatory line under the chosen numbers).
+   850 Mega Lotto 6/45 is on sale in the demo data (draws Mon/Wed/Fri 21:00 since batch 18; no paused state). */
+window.PROTO23_PLAYER='batch20';
+
+/* ---------- 847: Lucky Pick button inside the 4D Standard panel ---------- */
+const d4Std=g=>!!g&&g.id==='d4'&&curPlay(g).c==='STRAIGHT';
+{const _h=SC.play.html;SC.play.html=function(){let h=_h.apply(this,arguments);const P=PL(),g=gm(P.game);if(!d4Std(g))return h;
+ const btn=`<button class="lnk" id="lpbtn" onclick="A.luckyPick()" title="${t('系统随机填 4 位数字，出一张 Standard 票，标 LP','The system fills 4 random digits: one Standard ticket marked LP')}">${I('dice',14)} Lucky Pick</button>`;
+ const i=h.indexOf('</span></div><div id="board"');return i<0?h:h.slice(0,i)+'</span>'+btn+'</div><div id="board"'+h.slice(i+'</span></div><div id="board"'.length)}}
+/* Lucky Pick = the auto mode of the Standard play: 4 random digits, one line, one ticket, LP marker (isQpBet: mode auto on a non-Roll / non-Rambol play) */
+A.luckyPick=()=>{const P=PL(),g=gm(P.game);if(!d4Std(g)||P.rolling)return;A.pmode('auto')};
+
+/* ---------- 848: one line under the chosen numbers of a folded Rambol / Roll 1 / Roll 4 card ---------- */
+{const _tg=tkGroup;tkGroup=function(gr0){const h=_tg.apply(this,arguments);const k0=gr0[0];if(!k0||!k0.roll||!isSysOrd(k0))return h;
+ const note=k0.roll==='PERM'?t('所选 4 位数字的每个排列各一张票，展开可见每张票的号码。','One ticket per arrangement of your 4 digits. Expand to see each ticket\'s number.')
+  :t('* 由系统补 0–9，每张票不同，展开可见每张票的号码。','* is filled with 0–9 by the system and differs on each ticket. Expand to see each ticket\'s number.');
+ return h.replace(/(<div class="row tkchosen"[^>]*>.*?<\/div>)/,(m)=>m+`<div class="xs mu tkd4note" style="margin-top:4px;line-height:1.5">${note}</div>`)}}
+
+/* ---------- 850: Mega Lotto 6/45 on sale (the demo sale toggle is for 6D only) ---------- */
+if(S.offGame==='mega')S.offGame='';
+render();
 </script>
 </body>
 </html>

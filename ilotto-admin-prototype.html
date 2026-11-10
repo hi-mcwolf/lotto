@@ -473,7 +473,7 @@ const GAMES = [
     ["4 中 · 3 等", "Match 4 · 3rd", "奖池 ₱1,200,000，由中奖注平分", "Pool ₱1,200,000 shared by winning lines"],
     ["3 中 · 4 等", "Match 3 · 4th", "₱50 固定", "₱50 fixed"]
   ]},
-  { id: "m645", zh: "百万乐透 6/45", en: "Mega Lotto 6/45", kind: "lotto", on: false, price: 25, pickZh: "1–45 选 6", pickEn: "Pick 6 from 1–45", freqZh: "每周 3 场 · 周一、三、五 21:00", freqEn: "3 draws / week · Mon, Wed, Fri 21:00", advance: 12, playZh: "标准 / 机选 / 复式 System 7–12 / 5 号轮转", playEn: "Standard / Quick Pick / System 7–12 / 5-Roll", prizes: [
+  { id: "m645", zh: "百万乐透 6/45", en: "Mega Lotto 6/45", kind: "lotto", on: true, price: 25, pickZh: "1–45 选 6", pickEn: "Pick 6 from 1–45", freqZh: "每周 3 场 · 周一、三、五 21:00", freqEn: "3 draws / week · Mon, Wed, Fri 21:00", advance: 12, playZh: "标准 / 机选 / 复式 System 7–12 / 5 号轮转", playEn: "Standard / Quick Pick / System 7–12 / 5-Roll", prizes: [
     ["6 中 · 头奖", "Match 6 · Jackpot", "奖池 ₱15,000,000，由中奖注平分", "Pool ₱15,000,000 shared by winning lines", { gmin: 15000000 }],
     ["5 中 · 2 等", "Match 5 · 2nd", "奖池 ₱1,200,000，由中奖注平分", "Pool ₱1,200,000 shared by winning lines"],
     ["4 中 · 3 等", "Match 4 · 3rd", "奖池 ₱1,100,000，由中奖注平分", "Pool ₱1,100,000 shared by winning lines"],
@@ -494,7 +494,7 @@ const GAMES = [
     ["Rambolito · 三个数字不同", "Rambolito · 3 different", "₱750", "₱750"],
     ["Rambolito · 有一对", "Rambolito · one pair", "₱1,500", "₱1,500"]
   ]},
-  { id: "d4", zh: "4D", en: "4D", kind: "digit", on: true, tail: true, price: 10, pickZh: "0–9 选 4 位", pickEn: "Pick 4 digits from 0–9", freqZh: "每周 3 场 · 周一、三、五 21:00", freqEn: "3 draws / week · Mon, Wed, Fri 21:00", advance: 90, playZh: "标准 / 机选 / Rambol / Roll 1 / Roll 4", playEn: "Standard / Quick Pick / Rambol / Roll 1 / Roll 4", prizes: [
+  { id: "d4", zh: "4D", en: "4D", kind: "digit", on: true, tail: true, price: 10, pickZh: "0–9 选 4 位", pickEn: "Pick 4 digits from 0–9", freqZh: "每周 3 场 · 周一、三、五 21:00", freqEn: "3 draws / week · Mon, Wed, Fri 21:00", advance: 90, playZh: "标准 / Rambol / Roll 1 / Roll 4", playEn: "Standard / Rambol / Roll 1 / Roll 4", prizes: [
     ["1 等 · 4 位全中", "1st · all 4", "奖池平分 · 保底 ₱10,000", "Shared Pool · Guaranteed Minimum Prize ₱10,000", { gmin: 10000 }],
     ["2 等 · 后 3 位", "2nd · last 3", "₱800", "₱800"],
     ["3 等 · 后 2 位", "3rd · last 2", "₱100", "₱100"]
@@ -818,7 +818,7 @@ S.audits = [
   { time: "2026-10-12 20:41:09", who: "Mina Cruz", role: "运营专员", mod: "玩家档案", evt: "临时停用", obj: "PL-104482", res: "结果未知", before: "正常", after: "已生效，管理端处理响应出错，已提示重试" },
   { time: "2026-10-11 10:22:05", who: "Mina Cruz", role: "运营专员", mod: "系统管理", evt: "复核关闭完整性告警", obj: "1729382256910270449", res: "成功", before: "待复核", after: "已关闭 · 核对流水后确认签名为迁移遗留，重新验签通过。" },
   { time: "2026-10-10 01:06:12", who: "系统", role: "—", mod: "玩家档案", evt: "提现锁定", obj: "PL-104482", res: "成功", before: "mfaFails=2", after: "连续 3 次 MFA 失败，锁定提现 30 分钟" },
-  { time: "2026-10-09 22:18:44", who: "Mina Cruz", role: "运营专员", mod: "游戏管理", evt: "下架游戏", obj: "百万乐透 6/45", res: "成功", before: "在售", after: "已下架" },
+  { time: "2026-10-09 22:18:44", who: "Mina Cruz", role: "运营专员", mod: "游戏管理", evt: "上架游戏", obj: "百万乐透 6/45", res: "成功", before: "已下架", after: "在售" },
   { time: "2026-10-09 21:02:09", who: "系统", role: "—", mod: "交易流水", evt: "出票失败回滚", obj: "PL-101552 / 大乐透", res: "已回滚", before: "待出票", after: "未扣款" },
   { time: "2026-10-09 18:40:21", who: "Paolo Santos", role: "身份审核员", mod: "身份审核", evt: "拒绝开户", obj: "KYC-88310", res: "成功", before: "待审", after: "拒绝 · 证件疑似翻拍" },
   { time: "2026-10-09 16:12:03", who: "Amina Bautista", role: "合规审计", mod: "理性购彩", evt: "驳回恢复", obj: "PS-311", res: "成功", before: "待审批", after: "驳回 · 风险确认未勾选" },
@@ -1610,8 +1610,7 @@ function playRulesRaw(g) {
   ];
   const n = { d4: 4, d6: 6 }[g.id]; const pr = peso(g.price);
   if (g.id === "d4") return [
-    ["标准 Standard", "Standard", "按位置选 4 位数字（0–9）。1 注 = 1 个单注价格（" + pr + "）。", "Pick 4 digits (0–9) position by position. One combination costs " + pr + ".", "4 位全对得一等（奖池平分，保底 ₱10,000）；后 3 位、后 2 位对上得二、三等，只取最高奖级。", "All 4 in order wins 1st (Shared Pool, Guaranteed Minimum Prize ₱10,000); last 3 or last 2 in order win 2nd or 3rd; only the highest tier is paid."],
-    ["机选 Quick Pick", "Quick Pick", "系统随机生成 4 位数字。", "The system picks the 4 digits.", "同标准玩法判奖。", "Judged like Standard."],
+    ["标准 Standard", "Standard", "按位置选 4 位数字（0–9）。1 注 = 1 个单注价格（" + pr + "）。标准面板里有 Lucky Pick 机选入口：系统随机填 4 位，出一张标准票一注，票上标 LP。", "Pick 4 digits (0–9) position by position. One combination costs " + pr + ". Lucky Pick is available in Standard: the system fills 4 random digits and issues one Standard ticket with one combination, marked LP.", "4 位全对得一等（奖池平分，保底 ₱10,000）；后 3 位、后 2 位对上得二、三等，只取最高奖级。", "All 4 in order wins 1st (Shared Pool, Guaranteed Minimum Prize ₱10,000); last 3 or last 2 in order win 2nd or 3rd; only the highest tier is paid."],
     ["Rambol", "Rambol", "PCSO 称为 PERM。所选 4 位数字的全部排列各出一注：4 个不同数字 24 注（" + peso(g.price * 24) + "）、2 个不同 + 1 对 12 注（" + peso(g.price * 12) + "）、2 对 6 注（" + peso(g.price * 6) + "）、3 同 + 1 不同 4 注（" + peso(g.price * 4) + "）；4 个全同没有 Rambol。", "PCSO calls it PERM. Every arrangement of the 4 chosen digits is one combination: 4 different digits 24 (" + peso(g.price * 24) + "), 2 different + 1 pair 12 (" + peso(g.price * 12) + "), 2 pairs 6 (" + peso(g.price * 6) + "), 3 equal + 1 different 4 (" + peso(g.price * 4) + "); four equal digits have no Rambol.", "每注一张独立电子票，独立按 4D 奖级判奖。", "Each combination is its own e-ticket and is judged on its own against the 4D tiers."],
     ["Roll 1", "Roll 1", "玩家选后 3 位，系统把第 1 位 0–9 各补一注，共 10 注（" + peso(g.price * 10) + "）。", "Pick the last 3 digits; the system fills the first digit 0–9, 10 combinations (" + peso(g.price * 10) + ").", "每注独立判奖。", "Each combination is judged on its own."],
     ["Roll 4", "Roll 4", "玩家选前 3 位，系统把最后一位 0–9 各补一注，共 10 注（" + peso(g.price * 10) + "）。", "Pick the first 3 digits; the system fills the last digit 0–9, 10 combinations (" + peso(g.price * 10) + ").", "每注独立判奖。", "Each combination is judged on its own."]
@@ -1619,7 +1618,7 @@ function playRulesRaw(g) {
   return [["直选 Straight（前 N 位或后 N 位）", "Straight (first or last N digits)", `选 ${n} 位数字（0–9），按位置依次选。`, `Pick ${n} digits (0–9), position by position.`, `6 位全对得一等（奖池平分，保底 ₱150,000）；前 N 位或后 N 位连续对上按 N 判二到五等，只取最高奖级，不叠加。`, "All 6 in order win 1st (Shared Pool, Guaranteed Minimum Prize ₱150,000); the first N or the last N digits in order win tiers 2–5 by N, and only the highest tier is paid, not added up."]];
 }
 
-const PLAY_KEYS = { lotto: ["std", "qp", "sys", "roll5"], d4: ["straight", "qp", "perm", "roll1", "roll4"] };
+const PLAY_KEYS = { lotto: ["std", "qp", "sys", "roll5"], d4: ["straight", "perm", "roll1", "roll4"] };
 function playRules(g) {
   const rows = playRulesRaw(g); const keys = g.kind === "lotto" ? PLAY_KEYS.lotto : PLAY_KEYS[g.id] || ["straight", "rambo"];
   return rows.map((r, k) => r.concat([keys[k] || "p" + k]));
@@ -1781,12 +1780,13 @@ function egPlays(g) {
     ${rsCsField(lotto, r, dis)}
     <h4 style="margin:14px 0 6px;font-size:13px">${t("玩法参数", "Play parameters")}</h4>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">${lotto ? ri("params.sysMin", "System bet min numbers (7–12)", r.params.sysMin) + ri("params.sysMax", "System bet max numbers (7–12)", r.params.sysMax) + `<div><label class="f">5-Roll fixed numbers <span class="tag muted">${t("固定，只读", "Fixed, read-only")}</span></label><input data-rsro="rollFixed" value="5" readonly disabled /></div>` : ""}${ri("params.qpDef", "Quick Pick default lines", r.params.qpDef)}${ri("params.qpMax", "Quick Pick max lines", r.params.qpMax)}${lotto ? "" : ri("params.multMin", "Multiplier min (1–50)", r.params.multMin == null ? 1 : r.params.multMin) + ri("params.multMax", "Multiplier max (1–50)", r.params.multMax == null ? 50 : r.params.multMax)}</div>
-    ${!lotto ? `<p class="tiny" data-sa="mult-note">${t("Rambolito 在所有数字相同时不能选（如 2D Lotto 两号相同），这是玩法算法内置的限制。倍数 1–50：每注金额 = 单注价格 × 倍数（₱10–₱500）；限额和交易当量按金额计算。", "Rambolito is not available when all numbers are the same (for example both 2D Lotto numbers equal); this is built into the play algorithm. Multiplier 1–50: the line amount is price per line × multiplier (₱10–₱500); limits and transaction counts use the amount.")}</p>` : ""}
+    ${!lotto ? `<p class="tiny" data-sa="mult-note">${t("Rambolito 在所有数字相同时不能选（如 2D Lotto 两号相同），这是玩法算法内置的限制。倍数 1–50：每注金额 = 单注价格 × 倍数（₱10–₱500）；限额和交易当量按金额计算。", "Rambolito is not available when all numbers are the same (for example both 2D Lotto numbers equal); this is built into the play algorithm. Multiplier 1–50: the line amount is price per line × multiplier (₱10–₱500); limits and transaction counts use the amount.")}</p>${g.id === "d4" ? `<p class="tiny" data-sc="d4-codes">${t("4D 玩法参数编码：STANDARD、RAMBOL、ROLL1、ROLL4（不带下划线，ROLL_ 前缀系统按乐透 5 号轮转处理）；CSV 投注类型代码仍为 STANDARD_4D、RAMBOL_4D、ROLL1_4D、ROLL4_4D。机选不是玩法：Lucky Pick 在标准面板里。", "4D play parameter codes: STANDARD, RAMBOL, ROLL1, ROLL4 (no underscore; a ROLL_ prefix is handled as the lotto 5-Roll). CSV bet-type codes stay STANDARD_4D, RAMBOL_4D, ROLL1_4D, ROLL4_4D. Quick Pick is not a play: Lucky Pick is available in Standard.")}</p>` : ""}` : ""}
     <h4 style="margin:14px 0 6px;font-size:13px">${t("判奖方式", "Judging mode")}</h4>
     <div style="max-width:320px">${sel("judge", [["highest", "Highest tier only"], ["all", "All tiers"]], r.judge)}</div>
     <h4 style="margin:14px 0 6px;font-size:13px">${t("奖级结构", "Prize tiers")}</h4>
     ${table(["#", t("奖级名称", "Name"), t("命中说明", "Match description"), t("命中条件", "Match condition"), t("奖金类型", "Prize Type"), t("固定金额（₱）", "Fixed Amount (₱)"), t("保底奖金（₱，选填）", "Guaranteed Minimum Prize (₱, optional)"), ""], trows)}
     <p class="tiny" data-p="tier-note">${t("奖金类型只有两种：固定金额、奖池平分；奖池平分类奖级可以有多个，每期的奖池金额和单注奖金由 PCSO 提供、开奖时人工录入。保底奖金选填，空 = 没有保底，只对奖池平分类奖级；修改走玩法与奖级变更申请。", "There are two prize types: Fixed Amount and Shared Pool. A game can have several Shared Pool tiers; the pool and the prize per winning bet of each draw come from PCSO and are entered by hand at the draw. Guaranteed Minimum Prize is optional: empty means no minimum. It applies to Shared Pool tiers only and is changed through the plays and prizes change request.")}</p>
+    <p class="tiny" data-sc="gmin-v1">${t("种子数据里的保底就是合作方（PCSO）的数值，自规则版本 v1 起生效；以后 PCSO 调整保底时走规则集变更申请。", "The seeded minimums are the partner (PCSO) values and are effective from rule version v1. When PCSO changes a minimum later, it goes through a rule-set change request.")}</p>
     ${ro ? "" : `<div style="margin-top:8px"><button type="button" class="btn btn-sm" data-act="eg-tier-add">${t("新增奖级", "Add tier")}</button> <button type="button" class="btn btn-sm" data-act="eg-rs-reset" style="width:auto">${t("放弃修改", "Discard changes")}</button></div>`}
     <label class="f">${t("起始生效期次（只列未开售期次）", "Effective from draw (draws not yet on sale)")}</label>
     ${up.length ? `<select data-f="eg_from" ${dis}>${up.map((x) => `<option value="${x.no}" ${(S.mf.eg_from || up[0].no) === x.no ? "selected" : ""}>${x.no} · ${x.draw}</option>`).join("")}</select>` : `<p class="err">${t("这个游戏没有未开售的期次，请先在“期次与开奖”生成期次。", "This game has no draws that are not yet on sale. Generate draws first under Draws and results.")}</p>`}
@@ -1841,7 +1841,8 @@ function pvOrderRules(gl, r) {
     if (on("roll5")) ents.push(["5-Roll", p.rollFixed + " fixed numbers"]);
   } else {
     playRules(gl).filter((x) => playOn(gl, x[6])).forEach((x) => ents.push([x[1], x[1] === "Quick Pick" ? "default " + p.qpDef + ", up to " + p.qpMax + " lines" : "digits " + pk.lo + "–" + pk.hi]));
-    if (!ents.some((e) => e[0] === "Quick Pick")) ents.push(["Quick Pick", "default " + p.qpDef + ", up to " + p.qpMax + " lines"]);
+    if (gl.id === "d4") ents.push(["Lucky Pick", "inside Standard · the system picks the 4 digits, 1 combination"]); /* batch 23 (847): not a play */
+    else if (!ents.some((e) => e[0] === "Quick Pick")) ents.push(["Quick Pick", "default " + p.qpDef + ", up to " + p.qpMax + " lines"]);
   }
   const pz = (x) => x.type === "pool" ? "Shared pool" : peso(Number(x.amt)); /* the player side never shows the guaranteed minimum */
   const tiers = r.tiers.map((x) => `<div class="pv-row"><div><b>${esc(x.name)}</b><div style="font-size:10px;color:#94a3b8">${esc(x.match || condText(gl.kind, x.cond))}</div></div><div style="text-align:right;color:#facc15">${esc(pz(x))}</div></div>`).join("");
@@ -2349,8 +2350,9 @@ function wzFields(i, g, vals) { /* batch 11: the prize fields, in entry order; o
   const s = [];
   entTierRows(i, g).filter((r) => r.isPool).forEach((r) => {
     s.push({ id: "pl" + r.k, f: "pl", row: r });
-    if (r.gmin > 0 && rowBelow(r, vals["pl" + r.k])) s.push({ id: "jpr" + r.k, f: "jpr", row: r });
+    if (!r.perBet && r.gmin > 0 && rowBelow(r, vals["pl" + r.k])) s.push({ id: "jpr" + r.k, f: "jpr", row: r });
     s.push({ id: "pb" + r.k, f: "pb", row: r });
+    if (r.perBet && rowBelow(r, vals["pb" + r.k])) s.push({ id: "jpr" + r.k, f: "jpr", row: r }); /* batch 23 (845): 6D / 4D 1st prize is checked per bet, after the prize cell */
   });
   if (g.kind === "lotto") s.push({ id: "njp", f: "njp" });
   return s;
@@ -2389,7 +2391,7 @@ function wzStepName(st, i, kind) {
   if (st.id === "tbl") return t("奖池金额与单注奖金", "Pool amounts and prizes");
   if (st.f === "pl") return t(`${st.row.name} · 本期奖池金额`, `${st.row.en} · Pool amount for this draw`);
   if (st.f === "pb") return t(`${st.row.name} · 单注奖金`, `${st.row.en} · Prize per winning bet`);
-  if (st.f === "jpr") return t("奖池低于保底 · 原因", "Pool below the guaranteed minimum · Reason");
+  if (st.f === "jpr") return st.row && st.row.perBet ? t("单注奖金低于保底 · 原因", "Prize per winning bet below the guaranteed minimum · Reason") : t("奖池低于保底 · 原因", "Pool below the guaranteed minimum · Reason");
   return t("下一期预估头奖奖池", "Next draw jackpot (estimate)");
 }
 function wzGet(i, g, kind) {
@@ -2479,7 +2481,7 @@ function wzFieldBody(i, g, kind, st, w, second) {
   } else {
     const v = w.vals[st.f === "jpr" ? st.id : st.id === "njp" ? "njp" : st.f + r.k] || "";
     if (st.f === "jpr") {
-      body = `<div class="banner amber">${jpWarnTxt(r.en, r.gmin)}</div><input data-wz="jpr" maxlength="100" value="${esc(v)}" aria-label="${t("原因", "Reason")}" />`;
+      body = `<div class="banner amber">${scWarnTxt(r)}</div><input data-wz="jpr" maxlength="100" value="${esc(v)}" aria-label="${t("原因", "Reason")}" />`;
     } else {
       const prev = wzPrev(i, kind); const pv = prev && prev.prz ? (st.f === "pl" ? (prev.prz.pl || {})[r.k] : st.f === "pb" ? (prev.prz.pb || {})[r.k] : prev.prz.nj) : undefined;
       const info = st.f === "pb" ? `<p class="tiny">${t(`该奖级线上中奖注数：${r.on}（系统统计，只读）。线上中奖注数 × 单注奖金不能超过本奖级奖池 ${wzBig(w.vals["pl" + r.k])}。`, `Online winners in this tier: ${r.on} (system count, read-only). Online winners × prize per bet cannot exceed this tier's pool of ${wzBig(w.vals["pl" + r.k])}.`)}${r.on === 0 ? " " + t("无人中奖，填 0。", "No winner: enter 0.") : ""}</p>` : st.f === "pl" ? `<p class="tiny">${t("PCSO 提供的本奖级本期奖池金额；线上线下共享同一奖池。", "The pool PCSO gives for this tier in this draw; online and offline share it.")}</p>` : `<p class="tiny">${t("用于首页“当前奖池”，授权发布后生效。", "Feeds the home page Current jackpot after authorization.")}</p>`;
@@ -2619,7 +2621,7 @@ function wzTblBody(i, g, w, kind) {
   const pv = (st) => (prev && prev.prz ? (st.f === "pl" ? (prev.prz.pl || {})[st.row.k] : st.f === "pb" ? (prev.prz.pb || {})[st.row.k] : prev.prz.nj) : undefined);
   const ref = (st) => { const v = pv(st); return v !== undefined && v !== "" ? `<div class="wz-ref tiny" data-wz-ref="${st.id}">${t("上一期", "Previous")}: <b class="mono">${wzBig(v)}</b></div>` : ""; };
   const cell = (id, lab) => `<span class="wz-cell"><span class="wz-pf">₱</span><input class="mono" data-wz="cell" data-cell="${id}" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(wzFmt(w.vals[id]))}" aria-label="${esc(lab)}" /></span>`;
-  const body = allRows.map((r) => !r.isPool ? `<tbody class="wz-row wz-fixed-row" data-row="${r.k}" data-fixed="1"><tr><td class="wz-tier">${esc(r.en)} ${FIXED_TAG}${r.name !== r.en ? `<div class="tiny">${esc(r.name)}</div>` : ""}</td><td class="mono wz-on" data-wz-online="${r.k}">${r.on}</td><td class="mono wz-ro">-</td><td class="mono wz-ro">${wzBig(String(r.fixed))}</td></tr></tbody>` : `<tbody class="wz-row" data-row="${r.k}"><tr><td class="wz-tier">${esc(r.en)}${r.name !== r.en ? `<div class="tiny">${esc(r.name)}</div>` : ""}</td><td class="mono wz-on" data-wz-online="${r.k}">${r.on}</td><td>${cell("pl" + r.k, t("本期奖池金额", "Pool amount"))}${ref({ f: "pl", row: r, id: "pl" + r.k })}</td><td>${cell("pb" + r.k, t("单注奖金", "Prize per winning bet"))}${ref({ f: "pb", row: r, id: "pb" + r.k })}</td></tr>${r.gmin > 0 ? `<tr class="wz-jr" data-jr="${r.k}" style="display:none"><td colspan="4"><div class="banner amber">${jpWarnTxt(r.en, r.gmin)}</div><input data-wz="cell" data-cell="jpr${r.k}" maxlength="100" value="${esc(w.vals["jpr" + r.k] || "")}" placeholder="${t("原因（必填）", "Reason (required)")}" aria-label="${t("原因", "Reason")}" /></td></tr>` : ""}<tr class="wz-re"><td colspan="4"><div class="wz-rowerr" data-rowerr="${r.k}" style="display:none"></div></td></tr></tbody>`).join("");
+  const body = allRows.map((r) => !r.isPool ? `<tbody class="wz-row wz-fixed-row" data-row="${r.k}" data-fixed="1"><tr><td class="wz-tier">${esc(r.en)} ${FIXED_TAG}${r.name !== r.en ? `<div class="tiny">${esc(r.name)}</div>` : ""}</td><td class="mono wz-on" data-wz-online="${r.k}">${r.on}</td><td class="mono wz-ro">-</td><td class="mono wz-ro">${wzBig(String(r.fixed))}</td></tr></tbody>` : `<tbody class="wz-row" data-row="${r.k}"><tr><td class="wz-tier">${esc(r.en)}${r.name !== r.en ? `<div class="tiny">${esc(r.name)}</div>` : ""}</td><td class="mono wz-on" data-wz-online="${r.k}">${r.on}</td><td>${cell("pl" + r.k, t("本期奖池金额", "Pool amount"))}${ref({ f: "pl", row: r, id: "pl" + r.k })}</td><td>${cell("pb" + r.k, t("单注奖金", "Prize per winning bet"))}${ref({ f: "pb", row: r, id: "pb" + r.k })}</td></tr>${r.gmin > 0 ? `<tr class="wz-jr" data-jr="${r.k}" style="display:none"><td colspan="4"><div class="banner amber">${scWarnTxt(r)}</div><input data-wz="cell" data-cell="jpr${r.k}" maxlength="100" value="${esc(w.vals["jpr" + r.k] || "")}" placeholder="${t("原因（必填）", "Reason (required)")}" aria-label="${t("原因", "Reason")}" /></td></tr>` : ""}<tr class="wz-re"><td colspan="4"><div class="wz-rowerr" data-rowerr="${r.k}" style="display:none"></div></td></tr></tbody>`).join("");
   const nj = g.kind === "lotto" ? `<tbody class="wz-row" data-row="n"><tr><td class="wz-tier" colspan="2">${t("下一期预估头奖奖池", "Next draw jackpot (estimate)")}</td><td colspan="2">${cell("njp", t("下一期预估头奖奖池", "Next draw jackpot (estimate)"))}${ref({ f: "njp", id: "njp" })}</td></tr><tr class="wz-re"><td colspan="4"><div class="wz-rowerr" data-rowerr="n" style="display:none"></div></td></tr></tbody>` : "";
   return `${prev ? `<p class="tiny wz-prevnote">${t(`上一期（${prev.no}，已发布）的值仅供参考，不会自动带入。`, `Previous draw (${prev.no}, published) values are for reference only and are not filled in.`)}</p>` : ""}<p class="tiny">${t("线上中奖注数为系统统计，只读。线上中奖注数 × 单注奖金不能超过本奖级奖池。回车进入下一格。固定金额奖级只读，带 Fixed 标记，不用录入。", "Online winners is a system count, read-only. Online winners × prize per bet cannot exceed the tier's pool. Press Enter to go to the next cell. Fixed Amount tiers are read-only and marked Fixed; there is nothing to enter.")}</p><table class="wz-tbl" id="wz-tbl"><thead><tr><th>${t("奖级", "Tier")}</th><th>${t("线上中奖注数", "Online winners")}</th><th>${t("本期奖池金额", "Pool amount for this draw")}</th><th>${t("单注奖金", "Prize per winning bet")}</th></tr></thead>${body}${nj}</table>`;
 }
@@ -2628,7 +2630,7 @@ function wzTblRefresh() {
   const { i, g } = wzCur(); const rows = entTierRows(i, g).filter((r) => r.isPool); const fields = wzFields(i, g, w.vals); const errs = {}; w.tryErr = w.tryErr || {};
   fields.forEach((st) => { const raw = String(w.vals[st.id] == null ? "" : w.vals[st.id]); const e = raw === "" ? w.tryErr[st.id] || "" : wzCheck(i, g, "prz", st, raw, w.vals); if (e) { const rk = wzCellRow(st.id, rows); if (!errs[rk]) errs[rk] = e; } });
   document.querySelectorAll("#wz-host [data-rowerr]").forEach((el) => { const e = errs[el.dataset.rowerr] || ""; el.textContent = e; el.style.display = e ? "" : "none"; const rw = el.closest(".wz-row"); if (rw) rw.classList.toggle("bad", !!e); });
-  document.querySelectorAll("#wz-host [data-jr]").forEach((jr) => { const jrow = rows.find((x) => String(x.k) === jr.dataset.jr); jr.style.display = jrow && rowBelow(jrow, w.vals["pl" + jrow.k]) ? "" : "none"; });
+  document.querySelectorAll("#wz-host [data-jr]").forEach((jr) => { const jrow = rows.find((x) => String(x.k) === jr.dataset.jr); jr.style.display = jrow && scBelow(jrow, w.vals["pl" + jrow.k], w.vals["pb" + jrow.k]) ? "" : "none"; });
   const cur = wzCellRow(w.cell, rows); document.querySelectorAll("#wz-host .wz-row").forEach((el) => el.classList.toggle("cur", el.dataset.row === cur));
 }
 function wzCellInput(el) {
@@ -3367,10 +3369,7 @@ function viewShare() {
     <div class="card"><h4>${t("分成测算", "Share calculation")}</h4><div class="flow">${steps.map((st) => `<div class="step"><div><b>${st[0]}</b><div class="tiny">${st[2]}</div></div><div class="mono" style="color:#fff;font-size:18px">${st[1]}</div></div>`).join("")}</div></div>
     ${dividendCard(s)}
     <div class="card"><h4>${t("按游戏类别拆分", "Split by game class")}</h4>${table([t("类别", "Class"), t("销售额", "Sales"), t("印花税", "DST"), t("净销售", "Net sales"), t("已派奖金（税前）", "Prizes paid (pre-tax)"), t("可分配", "Distributable"), t("运营分成", "Ops share")], splitRows.concat(totalForSplit))}</div>
-    <div class="card" id="pools"><h4>${t("奖池汇总", "Jackpot pools")}</h4><p class="tiny" data-tf-note="pools">${z(T_NOTE_POOLS, "奖池汇总与未申领待兑付奖金按整体口径展示，不随终端筛选。")}</p><p class="tiny">${t("只列乐透类 5 个游戏。汇总 = 各乐透游戏当前头奖奖池之和（最近一次授权发布期次的头奖奖池）。", "Lotto games only. The summary is the sum of the current jackpot pools of all lotto games (jackpot pool of the latest authorised-published draw).")}</p>
-      ${table([t("游戏", "Game"), t("当前奖池余额（最近一次开奖录入）", "Current pool balance"), t("预计下一期奖池", "Estimated next pool")],
-        S.pools.map((p) => `<tr><td>${gname(gameBy(p.id))}</td><td class="mono amt">${peso(p.bal)}</td><td class="mono amt">${peso(p.next)}</td></tr>`).concat([`<tr style="font-weight:700" data-k8="total"><td>${t("合计（全部乐透游戏）", "Total (all lotto games)")}</td><td class="mono amt">${peso(S.pools.reduce((s, p) => s + p.bal, 0))}</td><td class="mono amt">${peso(S.pools.reduce((s, p) => s + p.next, 0))}</td></tr>`]))}
-    </div>
+    ${scPoolsCard()}
     <div class="card" id="unclaimed"><h4>${t("损益报表 / 未申领待兑付奖金", "Unclaimed prizes")}</h4>
       <article class="kpi warn" style="margin-bottom:12px"><div class="lbl">${t("未申领待兑付总金额", "Unclaimed total")}</div><div class="num">${peso(unclaimed)}</div></article>
       ${table([t("游戏", "Game"), t("期号", "Draw"), t("中奖金额", "Prize"), t("开奖日期", "Draw date"), t("申领截止日期", "Claim deadline"), t("剩余天数", "Days left")],
@@ -3529,7 +3528,7 @@ function viewPrize(v) {
   const accs = [
     f.draw ? "" : pzAcc("recon", z("Reconciliation (draw date vs payment date)", "对账（开奖日 vs 付款日）"), z("Payment-date totals next to draw-date totals, for Finance.", "按付款日与按开奖日的合计并列，供财务对账。"), `<b class="mono pz-accsum" data-pz="recon-diff">${z("Difference", "差异")} ${peso(recDiff)}</b>`, recBody),
     pzAcc("trend", t("奖金率走势", "Prize-rate trend"), tr.cap, "", trBody),
-    pzAcc("jp", t("头奖中奖人清单", "Jackpot winners"), `${jps.length} ${z("winners · claim status", "位中奖者 · 兑奖状态")}`, roleChip("可见角色：合规审计、财务复核", "Visible to: Compliance audit, Finance review"), jpHtml),
+    pzAcc("jp", t("头奖中奖人清单", "Jackpot winners"), `${jps.length} ${z("winners · claim status · lotto jackpots and the 6D / 4D 1st prize (Shared Pool) · Demo data", "位中奖者 · 兑奖状态 · 乐透头奖与 6D、4D 一等（奖池平分） · 演示数据")}`, roleChip("可见角色：合规审计、财务复核", "Visible to: Compliance audit, Finance review"), jpHtml),
     pzAcc("et", t("中奖电子彩票信息", "Winning e-tickets"), z("Same ticket numbers as the prize-claim ledger.", "与大奖申领的兑奖记录同一套彩票号。"), `<span class="tiny">${ets.length}</span>`, etHtml),
     pzAcc("ov", t("逾期未领报告", "Overdue unclaimed report"), `${ovs.length} ${z("draws · big prizes past the claim deadline", "期 · 兑奖截止日已过的大奖")}`, `<b class="mono pz-accsum">${peso(ovSum)}</b>`, ovBody + nrDep("a Finance decision on where overdue unclaimed prizes go", "财务对逾期未领奖金去向的决定"))
   ].join("");
@@ -8932,9 +8931,9 @@ function onClick(e) {
     const p = przParse(rows, S.mf); if (p.err) return fail(p.err);
     if (g.kind === "lotto") { const nj = String(S.mf.njp || "").trim(); if (!/^\d+(\.\d{1,2})?$/.test(nj) || Number(nj) <= 0) return fail(t("请填写下一期头奖奖池（预估）。", "Enter the next draw jackpot (estimate).")); p.nj = String(Number(nj)); }
     { const ov = przOver(rows, p); if (ov.over) return fail(PRZ_OVER(ov.tier)); }
-    const minReasons = {}; const belowRows = rows.filter((r) => r.isPool && rowBelow(r, p.pl[r.k]));
-    for (const r of belowRows) { const rs = String(S.mf["jpr" + r.k] != null ? S.mf["jpr" + r.k] : (r.k === 0 ? S.mf.jp_reason || "" : "")).trim(); if (!rs) return fail(jpWarnTxt(r.en, r.gmin)); minReasons[r.k] = rs; }
-    belowRows.forEach((r) => logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: "Pool below guaranteed minimum", obj: i.no, before: r.en + " · min ₱" + r.gmin.toLocaleString("en-US"), after: "pool ₱" + Number(p.pl[r.k]).toLocaleString("en-US") + " · " + minReasons[r.k] + " · " + entTxt(i, "prz", ent, "reason") }));
+    const minReasons = {}; const belowRows = rows.filter((r) => r.isPool && scBelow(r, p.pl[r.k], p.pb[r.k]));
+    for (const r of belowRows) { const rs = String(S.mf["jpr" + r.k] != null ? S.mf["jpr" + r.k] : (r.k === 0 ? S.mf.jp_reason || "" : "")).trim(); if (!rs) return fail(scWarnTxt(r)); minReasons[r.k] = rs; }
+    belowRows.forEach((r) => logAudit({ who: actor().who, role: actor().role, mod: t("期次与开奖", "Draws and results"), evt: r.perBet ? "Prize per bet below guaranteed minimum" : "Pool below guaranteed minimum", obj: i.no, before: r.en + " · min ₱" + r.gmin.toLocaleString("en-US"), after: (r.perBet ? "prize per bet ₱" + Number(p.pb[r.k]).toLocaleString("en-US") : "pool ₱" + Number(p.pl[r.k]).toLocaleString("en-US")) + " · " + minReasons[r.k] + " · " + entTxt(i, "prz", ent, "reason") }));
     const minReason = belowRows.map((r) => r.en + ": " + minReasons[r.k]).join("; ");
     if (!i.prz1) {
       i.prz1 = { pool: p.pool, pl: p.pl, pb: p.pb, nj: p.nj, by: actor().who, minReason, minReasons }; stamp(i, "win", 0);
@@ -11039,7 +11038,7 @@ function saPlayNote(g) {
 })();
 /* ===== end SA block ===== */
 /* ===== SB block (batch 22 · admin): PB1 game names 2D Lotto / 3D Lotto (ids and draw numbers unchanged), PB2 4D Rambol (code RAMBOL_4D), PB3 PCSO Draw Number inside the result-entry wizard, PB4 draw info line inside the wizard cards ===== */
-const SB_PCSO_DUP = "This PCSO Draw Number is already used by another draw.";
+const SB_PCSO_DUP = "This PCSO Draw Number is already used by another draw of this game.";
 const SB_PCSO_DIG = "PCSO Draw Number can contain digits only.";
 /* previous number + 1, keeping the digit count and leading zeros (02057 -> 02058) */
 function sbPcsoInc(v) {
@@ -11136,6 +11135,61 @@ function sbInfoLine(i, g) {
   };
 })();
 /* ===== end SB block ===== */
+/* ===== SC block (batch 23 · admin): 845 6D / 4D 1st-prize sanity check compares the prize per winning bet with the Guaranteed Minimum Prize (warn + reason, not blocking; lotto jackpots still compare the pool), 846 minimum effective from v1, 847 4D plays Standard / Rambol / Roll 1 / Roll 4 (Lucky Pick lives in Standard), 849 6D / 4D rows in the Jackpot pool summary, the Jackpot winners list and the Jackpot report, 850 Mega Lotto 6/45 on sale, 843 parameter codes RAMBOL / ROLL1 / ROLL4, PCSO duplicate message "of this game" ===== */
+const SC_PB_WARN = (en, min) => `The prize per winning bet for ${en} is below the guaranteed minimum (₱${Number(min).toLocaleString("en-US")}). Enter a reason to continue.`;
+/* 845: a Shared Pool tier with a minimum on a digit game (6D / 4D 1st prize) is checked per bet */
+(function () {
+  const f0 = entTierRows;
+  entTierRows = function (i, g) { const r = f0(i, g); r.forEach((x) => { x.perBet = !!(x.isPool && x.gmin > 0 && g.kind !== "lotto"); }); return r; };
+})();
+function scBelow(r, pool, pb) { return r.perBet ? rowBelow(r, pb) : rowBelow(r, pool); }
+function scWarnTxt(r) { return r.perBet ? SC_PB_WARN(r.en, r.gmin) : jpWarnTxt(r.en, r.gmin); }
+/* 847 / 843: the 4D play table in Edit game · Sales and draws, with the rule-set parameter and the CSV bet-type code */
+saPlayNote = function (g) {
+  if (!g || g.id !== "d4") return "";
+  const rows = [
+    ["Standard", "STANDARD", btCode(g, "STANDARD"), "1 combination · Lucky Pick available in Standard (system picks the 4 digits, ticket marked LP)", peso(g.price)],
+    ["Rambol", "RAMBOL", btCode(g, "PERM"), "4 different digits 24 · 2 different + 1 pair 12 · 2 pairs 6 · 3 equal + 1 different 4 (4 equal digits: Standard only; PCSO calls it PERM)", peso(g.price * 24) + " / " + peso(g.price * 12) + " / " + peso(g.price * 6) + " / " + peso(g.price * 4)],
+    ["Roll 1", "ROLL1", btCode(g, "ROLL1"), "last 3 digits chosen, first digit 0–9 by the system: 10 combinations", peso(g.price * 10)],
+    ["Roll 4", "ROLL4", btCode(g, "ROLL4"), "first 3 digits chosen, last digit 0–9 by the system: 10 combinations", peso(g.price * 10)]
+  ];
+  return `<div class="card" data-sa="d4-plays" data-sc="d4-plays" style="margin-top:10px"><h4 style="margin:0 0 6px">${t("4D 玩法与注数", "4D play types and combinations")} ${tag("muted", t("合作方提供 · PCSO Game Mechanics", "Partner data · PCSO Game Mechanics"))}</h4>${table([t("玩法", "Play type"), t("规则集参数", "Rule-set parameter"), t("CSV 代码", "CSV code"), t("注数", "Combinations"), t("金额（倍数 1）", "Amount (multiplier 1)")], rows.map((r) => `<tr data-sa-play="${r[0]}"><td>${r[0]}</td><td class="mono">${r[1]}</td><td class="mono">${r[2]}</td><td>${r[3]}</td><td class="mono">${r[4]}</td></tr>`))}<p class="tiny" data-sc="d4-note" style="margin:6px 0 0">${t("Quick Pick 不是独立玩法：Lucky Pick 是标准玩法面板里的机选入口，出一张标准票一注，票上标 LP。规则集参数不带下划线（ROLL_ 前缀按乐透 5 号轮转处理）；CSV 代码不变。每注一张独立电子票，按 4D 奖级独立判奖；倍数对每注生效；号码限额按展开的各注分别累计。", "Quick Pick is not a play: Lucky Pick is the system-pick entry inside the Standard panel; it issues one Standard ticket with one combination, marked LP. Rule-set parameters have no underscore (a ROLL_ prefix is handled as the lotto 5-Roll); CSV codes are unchanged. Every combination is its own e-ticket and is judged on its own against the 4D tiers; the multiplier applies to each combination; number limits accumulate per expanded combination.")}</p></div>`;
+};
+/* 849: Jackpot pool summary with 6D and 4D (1st prize pool + Guaranteed Minimum Prize); the home banner and Edit Estimated Jackpot stay lotto only */
+function scDigitPool(id) {
+  const g = gameBy(id); const min = g && g.prizes[0] && g.prizes[0][4] && g.prizes[0][4].gmin ? Number(g.prizes[0][4].gmin) : 0;
+  const d = S.issues.filter((x) => x.game === id && (x.st === "settled" || x.st === "pub") && x.prz && x.prz.pl && Number(x.prz.pl[0]) > 0).sort((a, b) => b.draw.localeCompare(a.draw))[0];
+  return { id, min, bal: d ? Number(d.prz.pl[0]) : min, draw: d ? d.no : "" };
+}
+function scPoolsCard() {
+  const lotto = S.pools.map((p) => { const g = gameBy(p.id); return `<tr data-sc="pool-row" data-game="${p.id}"><td>${gname(g)}</td><td class="mono amt">${peso(p.bal)}</td><td class="mono amt">${peso(p.next)}</td><td class="mono amt">${jpMin(g) ? peso(jpMin(g)) : "—"}</td></tr>`; });
+  const digit = ["d6", "d4"].map(scDigitPool).map((p) => `<tr data-sc="pool-row" data-game="${p.id}"><td>${gname(gameBy(p.id))} <span class="tiny">${t("一等奖池", "1st prize pool")}${p.draw ? ` · <span class="mono">${esc(p.draw)}</span>` : ""}</span> ${tag("muted", t("演示数据", "Demo data"))}</td><td class="mono amt">${peso(p.bal)}</td><td class="mono">—</td><td class="mono amt">${peso(p.min)}</td></tr>`);
+  const all = S.pools.map((p) => p.bal).concat(["d6", "d4"].map((id) => scDigitPool(id).bal));
+  return `<div class="card" id="pools"><h4>${t("奖池汇总", "Jackpot pools")}</h4><p class="tiny" data-tf-note="pools">${z(T_NOTE_POOLS, "奖池汇总与未申领待兑付奖金按整体口径展示，不随终端筛选。")}</p><p class="tiny" data-sc="pools-note">${t("列 5 个乐透游戏和 6D、4D（一等为奖池平分奖级，头奖奖池 = 一等奖池；6D、4D 没有预计下一期奖池）。2D Lotto、3D Lotto 全是固定金额，不列。合计 = 所列各游戏当前头奖奖池之和（最近一次授权发布期次）。", "The 5 lotto games plus 6D and 4D (their 1st prize is a Shared Pool tier: jackpot pool = 1st prize pool; 6D and 4D have no estimated next pool). 2D Lotto and 3D Lotto pay fixed amounts only and are not listed. Total = sum of the current jackpot pools of the games listed (latest authorised-published draw).")}</p>
+      ${table([t("游戏", "Game"), t("当前奖池余额（最近一次开奖录入）", "Current pool balance"), t("预计下一期奖池", "Estimated next pool"), t("保底", "Guaranteed Minimum Prize")],
+        lotto.concat(digit).concat([`<tr style="font-weight:700" data-k8="total"><td>${t("合计（所列游戏）", "Total (games listed)")}</td><td class="mono amt">${peso(all.reduce((s, v) => s + v, 0))}</td><td class="mono amt">${peso(S.pools.reduce((s, p) => s + p.next, 0))}</td><td></td></tr>`]))}
+    </div>`;
+}
+/* 849: 6D / 4D 1st-prize winning tickets in the Jackpot winners list (Demo data) */
+(function () {
+  const add = [
+    { player: "PL-103***41", game: "d6", issue: "6D-20261003-1", amt: 150000, st: "paid", date: "2026-10-05", scDemo: true },
+    { player: "PL-102***77", game: "d4", issue: "4D-20260930-1", amt: 10000, st: "paid", date: "2026-10-01", scDemo: true },
+    { player: "PL-104***09", game: "d4", issue: "4D-20260930-1", amt: 10000, st: "pending", date: "—", scDemo: true }
+  ];
+  add.forEach((r) => { if (!S.jackpots.some((x) => x.issue === r.issue && x.player === r.player)) { r.term = T_TAG(r.issue); S.jackpots.push(r); } });
+})();
+/* 849: the Jackpot report lists the 6D / 4D draws whose 1st prize (Shared Pool) was won; same 8 columns (Demo data) */
+(function () {
+  const f0 = jpRows;
+  jpRows = function () {
+    return f0().concat([
+      ["d6", "6D-20261003-1", "2026-10-03", "5-1-7-3-0-6", 1, 150000, 150000, "6D 1st prize (Shared Pool) · Demo data"],
+      ["d4", "4D-20260930-1", "2026-09-30", "8-2-5-0", 2, 20000, 10000, "4D 1st prize (Shared Pool), 2 winning bets · Demo data"]
+    ]);
+  };
+})();
+/* ===== end SC block ===== */
 
 </script>
 <!--SKIN:START-->
