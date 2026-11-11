@@ -438,7 +438,7 @@ const tr2=n=>Math.floor(Math.abs(Number(n))*100+1e-6)/100*(n<0?-1:1);
 const AMT2=el=>{let v=String(el.value),m=v.match(/^(\d*)(\.\d{0,2})?/);const n=m?(m[1]+(m[2]||'')):v;if(n!==v){el.value=n;toast(t('金额最多保留两位小数','Up to 2 decimal places'))}return el.value}
 const fm0=n=>'₱'+tr2(n).toLocaleString('en-US',{maximumFractionDigits:2});
 /* PRD 6.3.2 pool display (CLAR25 D10): < 10 digits => thousands + K, >= 10 digits => millions + M, integers only; below 1,000 as is */
-const fmPool=n=>{n=Math.round(+n||0);if(n<1000)return fm0(n);return '₱'+(String(n).length>=10?Math.round(n/1e6).toLocaleString('en-US')+'M':Math.round(n/1e3).toLocaleString('en-US')+'K')};
+const fmPool=n=>'₱'+(+n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});/* 6B.3.2: full amount, two decimals, no K / M */
 const fm2=n=>'₱'+tr2(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fts=ms=>new Date(ms+8*3600e3).toISOString().slice(0,16).replace('T',' ');
 const fdt=ms=>fts(ms).slice(0,10);
@@ -971,7 +971,7 @@ A.regNext=()=>{const g=V,r={last:g('r_last').trim(),first:g('r_first').trim(),mi
  ['r_dob',!r.dob?'Select your date of birth':age<18?'You must be 18 or older to register':''],
  ['r_pwd',!g('r_pwd')?'Enter a password':PW_RE.test(g('r_pwd'))?'':pwMsg()]];
  if(S.regTmp.atype==='ab'){const f=['r_st','r_tw','r_sta','r_zip','r_ctry'],n=f.filter(x=>g(x)).length;if(n>0&&n<5)f.forEach(x=>{if(!g(x))rules.push([x,'Required — fill all 5 fields for a foreign address'])})}
- rules.push(['r_ag',$('#r_ag').checked?'':'Please accept the Terms and Privacy Policy to continue']);
+ rules.push(['r_ag',$('#r_ag').checked?'':'Please accept the Terms of Service and Privacy Notice to continue.']);
  if(!fCheck(rules))return;
  S.reg=r;S.j.reg=1;S.nick=r.first+r.last.replace(/\s/g,'').slice(0,4);A.go('verify',{vs:1})};
 SC.verify={auth:true,back:true,html:()=>{const v=S.p.vs||1;return `${AUTHHEAD(t('验证联系方式','Verify your contact'),t('验证只证明这是你的联系方式，还不代表已开通投注。','Verification only proves this contact is yours — it does not enable betting yet.'))}<div class="steps" style="margin-top:14px">${[1,2].map(i=>`<i class="${i<=v?'on':''}"></i>`).join('')}</div>
@@ -1143,7 +1143,7 @@ A.phelp=k=>toast(k==='mult'?t('倍数：每注重复投注的倍数，金额按�
 function sumUp(){const g=gm(PL().game),P=PL();const e=$('#sum');if(e)e.innerHTML=sumHTML(g);const dl=$('#dl');if(dl)dl.innerHTML=drawsHTML(g);const b=$('#bet');if(b){b.disabled=!plDone(g)||P.rolling||cdLeft(g)<=0;b.textContent=t('确认投注','Confirm bet')+' · '+fm2(betPlan().tot)}}
 function playStrip(g){const d=latestDraw(g);return `<div class="pstrip"><div class="row sp"><span class="xs mu">${t('最近开奖','Latest draw')}</span><a class="xs" style="color:var(--bl);cursor:pointer;font-weight:700" onclick="A.viewHist('${g.id}')">View history ›</a></div>${d?`<div class="xs" style="margin-top:4px;font-weight:600">${d.no} · ${d.date}${d.time?' '+d.time:' 21:00'}</div><div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">${d.nums.map(rb).join('')}</div>`:`<div class="xs mu" style="margin-top:4px">No result yet</div>`}</div>`}
 A.viewHist=id=>{S.res.game=id;A.tab('result')};
-const opensAt=(g,d,tm)=>Date.parse(d+'T'+(tm||g.sess[0])+':00+08:00')-48*3600e3;
+const opensAt=(g,d,tm)=>0;/* 6B.3.3: presale draws are open from generation; draws not yet on sale are not listed (upDraws window) */
 const opensTxt=(g,d,tm)=>{const o=opensAt(g,d,tm);return o>nowEff()?'Opens at '+fts(o).slice(5):''};
 function drawInit(g){const P=PL();if(!P.dsel||!P.dsel.length){const u=upDraws(g,1);if(u.length){P.dsel=[u[0].k];P.draws=1}}return new Set(P.dsel||[])}
 function drawChips(g){const sel=drawInit(g);const u=upDraws(g,Math.max(6,g.sess.length*2));
@@ -3074,7 +3074,7 @@ const V13={upidNew:'UP-000231907',upidOld:'UP-000104482'};
 const TERMS_INIT=()=>({tos:{ver:'TOS-2026-01',eff:'2026-09-01'},privacy:{ver:'PN-2026-01',eff:'2026-09-01'}});
 const TV=()=>S.termsV||(S.termsV=TERMS_INIT());
 const MSG_TERMS_RST='Accept the updated Terms of Service to place bets or deposit.';
-const MSG_CORE_RST='Your account is restricted. You can view your balance and withdraw your prize balance, but you cannot place bets or deposit.';
+const MSG_CORE_RST='Your account is restricted by PCSO. You can view your balances, withdraw prize funds and use Help.';
 const MSG_PCSO_X='Your account is excluded by PCSO. You can view your balance and withdraw your prize balance, but you cannot place bets or deposit.';
 const MSG_CHECKING='We are checking your details with PCSO. You can place bets once the check is complete.';
 const MSG_CHECKFAIL='We could not complete your registration. Please contact customer support.';
@@ -3341,6 +3341,255 @@ function panelV13(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id=
  const cb=B(/A\.counter\(\)/)[0];if(cb){cb.textContent='Simulate Core write-back (CLAIMED)';if(!el.querySelector('#v13_adj'))cb.insertAdjacentHTML('afterend',`<button class="pb" id="v13_adj" onclick="A.v13Adj()">Simulate result adjustment (PCSO)</button><button class="pb" id="v13_adj_pcso" onclick="A.v13Adj('pcso')">Simulate result adjustment · prize already paid at PCSO</button><button class="pb" id="v13_adj_up" onclick="A.v13AdjAmt('up')">Simulate result adjustment · Prize Increased</button><button class="pb" id="v13_adj_down" onclick="A.v13AdjAmt('down')">Simulate result adjustment · Prize Decreased</button>`)}
  [...el.querySelectorAll('h4')].forEach(h=>{if(/^Terminal restrictions/.test(h.textContent))h.textContent='App version (local)'});
  [...el.querySelectorAll('.st div')].forEach(d=>{if(d.firstChild&&d.firstChild.nodeType===3&&/PCSO pushes/.test(d.firstChild.nodeValue))d.firstChild.nodeValue='Core writes back CLAIMED'})}}
+/* ===== PROTO-131 player · PRD 6B.1–6B.5 follow-up, V13-PC36, partner item 3 (full jackpot amount) =====
+   Wrapper layer (one <script>: function bindings re-wrapped; const edits live in patch131.py):
+   6B.1.3   Core sign-out notice card; Core Mark as Deleted = "incorrect account or password"; mobile + email both transferred;
+            forgot password follows the transferred contact; re-verification reported to Core (T0218)
+   6B.1.9   Terms of Service then Privacy Notice re-consent in sequence; pop-up after sign-in regardless of identity status;
+            deposit not greyed while terms are pending; MSG_PRIVACY_NOTICE_UPDATED; PCSO website link until Core publishes
+   6B.1.10  unified Federation Status (Not Federated / Querying / Pending Match Review / Awaiting Verification / Federated / Rejected)
+   6B.2.4   restriction priority on the banner; self-exclusion during a PCSO exclusion; iLotto-only self-exclusion before federation;
+            {play_status} on exclusion-end messages; MSG_SELF_EXCLUSION_CORRECTED from Core
+   6B.3.2   jackpot full amount with two decimals, auto-shrink to fit; Display Tagline; draw-level suspension
+   6B.3.3   only open draws listed; per-draw suspension greyed / multi-draw blocked; max bet per ticket; channel message as before
+   6B.3.4   results shown after the winning reconciliation is confirmed; previous version kept during an adjustment;
+            Carried forward without an amount when the published amount is missing
+   6B.4.2   void reasons Excluded from this draw by PCSO / Corrected by PCSO; claim code registering notice; local freeze voids codes
+            (no On hold, no deadline extension); prize held while Core-suspended; result adjustment for five more ticket states and
+            Prize Increased above the threshold; Prize Breakdown note in winning lines
+   6B.4.5   Prize Reversal / Prize Top-up (Result Adjustment) rows */
+(function(){const st=document.createElement('style');st.textContent='.jpfit{white-space:nowrap;overflow:hidden}.gcard .ga.jpna{white-space:normal}[data-dsusp]{opacity:.45;cursor:not-allowed}.gtag{font-size:11.5px;line-height:1.35;margin-top:2px;font-weight:500}.c131{margin-top:10px;padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.55;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.07)}';document.head.appendChild(st)})();
+const MSG_SIGNED_OUT='You have been signed out. Please sign in again.';
+const MSG_BAD_LOGIN='Incorrect account or password.';
+const MSG_BOTH_GONE='For your security, please contact customer support to verify your account.';
+const MSG_CREG='Your claim code is being registered with PCSO. Go to the PCSO Main Office after registration is complete.';
+const MSG_DNOS='One or more of the selected draws are not on sale. Please change the number of draws.';
+const MSG_DRAW_OFF='This draw is not on sale.';
+const MSG_MAXBET='This bet is above the maximum allowed for this game.';
+const MSG_SX_LOCAL='This self-exclusion applies to iLotto only. It will apply to all PCSO e-channels once your identity check is complete.';
+const MSG_PN_RST='Accept the updated Privacy Notice to place bets or deposit.';
+const PLAY_AGAIN='You can play again.',PLAY_OTHER='Other restrictions on your account still apply. See PlaySafe for details.';
+const POOL_NOTE_LINES='The prize per winning line is the tier pool divided by all winning lines, including retail, rounded down to the centavo. For 6D and 4D first prize, it is never below the guaranteed minimum.';
+const MSG_HELD='Your account is suspended by PCSO. This prize will be credited to your prize balance when your account is reactivated.';
+const PCSO_SITE={tos:'https://www.pcso.gov.ph/terms',privacy:'https://www.pcso.gov.ph/privacy'};
+const DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+/* 6B.3.3: channel suspension keeps the sentence already shipped (PC25 ④ B) */
+RMSG.stop='Betting is temporarily unavailable on this channel. Your tickets, wallet and prize claims are not affected.';
+/* 6B.4.2: four void reasons */
+VOIDTXT.excl=['该期本渠道被 PCSO 排除，已作废，付款已按原扣款构成退回。','Excluded from this draw by PCSO. Your payment has been refunded to the balances it was paid from.'];
+VOIDTXT.corr=['该票经 PCSO 交易调整作废，付款已按原扣款构成退回。','Corrected by PCSO. Your payment has been refunded to the balances it was paid from.'];
+const VR_TX={excl:'Excluded from this draw by PCSO',corr:'Corrected by PCSO'};
+const VR_MSG={excl:'was excluded from this draw by PCSO',corr:'was corrected by PCSO'};
+const otherRestr=()=>!!(S.coreRst||(S.cool&&S.cool.until>S.clock)||(S.excl&&!S.excl.expired));
+
+{const _f=fresh;fresh=function(){_f.apply(this,arguments);Object.assign(S,{sOut:0,termsQ:[],termsNA:{},fed:'Not Federated',fedRej:'',dSusp:null,maxBet:null,jpNA:null,resWait:null,adjWait:null})}}
+{const _sd=seedDemo;seedDemo=function(){_sd.apply(this,arguments);S.holdSegs=[];S.fedRej=''}}
+
+/* ---------- 6B.3.2 jackpot: full amount, two decimals, shrink the font until it fits the card ---------- */
+function fitJp(){document.querySelectorAll('#phone .gcard .ga').forEach(el=>{if(el.textContent.trim()==='Jackpot to be announced')el.classList.add('jpna')});document.querySelectorAll('#phone .gcard .ga, #phone .bn-a, #phone .gh-j').forEach(el=>{if(!/₱/.test(el.textContent))return;const tg=el.matches('.gh-j')?el.querySelector('b'):el;if(!tg)return;
+ el.classList.add('jpfit');tg.style.fontSize='';if(!el.clientWidth)return;let fs=parseFloat(getComputedStyle(tg).fontSize),n=0;while(el.scrollWidth>el.clientWidth+0.5&&fs>9&&n++<60){fs-=0.5;tg.style.fontSize=fs+'px'}tg.dataset.fit=fs})}
+/* 6B.3.2 Display Tagline (iLotto local display item, 0–60 characters, empty = not shown); demo values from the draw weekdays */
+const tagline=g=>{if(g.t!=='lotto'||!DOWS[g.id])return '';const d=DOWS[g.id].slice().sort((a,b)=>((a+6)%7)-((b+6)%7));return ('Draws every '+d.map(i=>DAYN[i]).join(', ')).slice(0,60)};
+{const _gc=gcard;gcard=function(g){const h=_gc.apply(this,arguments);const tl=tagline(g);return tl?h.replace(`<div class="gn">${gname(g)}</div>`,`<div class="gn">${gname(g)}</div><div class="gtag mu" data-tagline="1">${tl}</div>`):h}}
+{const _pl=SC.play.html;SC.play.html=function(){const h=_pl.apply(this,arguments);const g=gm(PL().game);const tl=tagline(g);return tl?h.replace(`<div class="gh-n">${gname(g)}</div>`,`<div class="gh-n">${gname(g)}</div><div class="gtag mu" data-tagline="1">${tl}</div>`):h}}
+
+/* ---------- 6B.3.3 draw-level suspension (registry version not applied / Critical deviation): greyed draw, multi-draw purchase blocked ---------- */
+const dSusp=(g,k)=>!!(S.dSusp&&S.dSusp[g.id]&&S.dSusp[g.id]===k);
+const markDraws=(g,h)=>{if(!S.dSusp||!S.dSusp[g.id])return h;const k=S.dSusp[g.id];const esc=k.replace(/[|]/g,'\\|');
+ return h.replace(new RegExp(`onclick="A\\.dtog\\('${esc}'\\)"([^>]*)>([^]*?)</button>`,'g'),(m,a,b)=>`onclick="toast(MSG_DRAW_OFF)" data-dsusp="1" aria-disabled="true"${a}>${b} <span class="xs" style="color:var(--am);font-weight:700">· Suspended</span></button>`)};
+{const _c=drawChips;drawChips=function(g){return markDraws(g,_c.apply(this,arguments))}}
+{const _r=drawRows;drawRows=function(g){return markDraws(g,_r.apply(this,arguments))}}
+{const _l=lottoRow;lottoRow=function(g,d){const h=_l.apply(this,arguments);if(!dSusp(g,d))return h;return h.replace(/<b style="color:[^"]*">On sale<\/b>/,'<b style="color:var(--am)" data-dsusp-row="1">Suspended</b>')}}
+{const _t=A.dtog;A.dtog=function(k){const g=gm(PL().game);if(dSusp(g,k))return toast(MSG_DRAW_OFF);return _t.apply(this,arguments)}}
+const planHitsSusp=()=>{if(!S.dSusp||!S.play)return false;const {g,dates,times}=betPlan();const k=S.dSusp[g.id];if(!k)return false;return g.t==='lotto'?dates.includes(k):dates.some((d,i)=>d+'|'+times[i]===k)};
+/* 6B.3.3 Amount Payable: registry "max bet per ticket" (per ticket = per transaction; empty = no limit) */
+const overMax=()=>{if(!S.maxBet||!S.play)return false;const {g,tot,tickets}=betPlan();const mx=S.maxBet[g.id];return mx!=null&&tickets>0&&tot/tickets>mx};
+{const _b=A.bet;A.bet=function(){if(S.play&&planHitsSusp())return toast(MSG_DNOS);if(overMax())return toast(MSG_MAXBET);return _b.apply(this,arguments)}}
+{const _bg=A.betGo;A.betGo=function(){if(S.play&&planHitsSusp())return toast(MSG_DNOS);if(overMax())return toast(MSG_MAXBET);return _bg.apply(this,arguments)}}
+A.v131DrawSusp=()=>{if(S.dSusp){S.dSusp=null;v13Audit('draw-level-sale-resumed');toast('Draw-level suspension cleared');return render()}
+ const sg=gm('super'),dl=drawList(sg,3),dg=gm('swer'),u=upDraws(dg,6);S.dSusp={super:dl[1],swer:u[2]?u[2].k:''};v13Audit('draw-level-sale-suspended');
+ toast('Not on sale: Super Lotto 6/49 '+dno(sg,dl[1],'')+' and 3D Lotto '+(u[2]?dno(dg,u[2].d,u[2].tm):''));render()};
+A.v131MaxBet=()=>{S.maxBet=S.maxBet?null:{super:100};toast(S.maxBet?'Core registry: max bet per ticket ₱100 for Super Lotto 6/49':'Max bet per ticket cleared (no limit)');render()};
+
+/* ---------- 6B.1.3 / 6B.2.4 forced sign-out card, Core Mark as Deleted, both contacts transferred ---------- */
+['v13Pcso','v13Restrict','v13Suspend'].forEach(n=>{const o=A[n];A[n]=function(on){if(on)S.sOut=1;return o.apply(this,arguments)}});
+{const _l=SC.login.html;SC.login.html=function(){const h=_l.apply(this,arguments);if(!S.sOut||S.logged||S.sxOut)return h;
+ const card=`<div class="card c2 mt" id="so_card" style="border:1px solid rgba(245,158,11,.4);font-size:13px;line-height:1.6">${MSG_SIGNED_OUT}</div>`;
+ return /^<div class="fade"[^>]*>/.test(h)?h.replace(/^(<div class="fade"[^>]*>)/,'$1'+card):card+h}}
+{const _li=A.login;A.login=function(){const acc=V('l_acc'),pw=V('l_pwd');
+ if(acc&&pw&&S.closed){const w=$('#l_pwd');w&&w.classList.add('shake');return toast(MSG_BAD_LOGIN)}
+ if(acc&&pw&&S.reverify==='both'&&!S.frozen){v13Audit('login-blocked-no-contact-channel');return modal(()=>`<div style="text-align:center"><div style="width:90px;height:90px;margin:0 auto">${illo('shield')}</div><div class="sm mt3" id="both_msg" style="line-height:1.6">${MSG_BOTH_GONE}</div><button class="btn c mt2" onclick="A.close();A.v13Support()">Contact support</button></div>`,true)}
+ return _li.apply(this,arguments)}}
+{const _ld=A.loginDone;A.loginDone=function(){const r=_ld.apply(this,arguments);if(S.logged){S.sOut=0;
+ /* 6B.1.9 (PC36 ⑤): re-consent pop-up after the second factor, whatever the identity status */
+ if(S.termsPend&&!S.rvNeed&&!S.modal)A.termsModal()}return r}}
+A.v131Delete=()=>{if(!S.logged&&!S.reg)seedDemo();S.closed=true;S.frozen=false;S.trusted=[];S.sOut=1;
+ addNotif('lock','Account deleted','Account deleted','Your account was deleted. Reason: '+PCSO_REASON,'Your account was deleted. Reason: '+PCSO_REASON);S.notifs[0].tpl='MSG_ACCOUNT_DELETED';v13Audit('core-mark-deleted');
+ v13Out('Core: Mark as Deleted received. All sessions were signed out and trusted devices removed.')};
+{const _rc=A.resetCodeOk;A.resetCodeOk=function(c){if(S.reverify==='both')return false;return _rc.apply(this,arguments)}}
+{const _fg=SC.forgot.html;SC.forgot.html=function(){const h=_fg.apply(this,arguments);if(S.reverify!=='phone')return h;
+ return h.replace('Enter the SMS code (OTP_RESET)','Enter the code sent to your email '+maskEm(S.reg&&S.reg.email)+' (EMAIL_OTP)')}}
+{const _rd=A.rvDone;A.rvDone=function(){const r=_rd.apply(this,arguments);v13Audit('contact-reverification-reported-to-core');return r}}
+
+/* ---------- 6B.1.9 terms: sequential re-consent, privacy notice, transition to the PCSO website ---------- */
+const pnPublish=re=>{const v=TV().privacy;const n=+(v.ver.split('-').pop())+1;S.termsV.privacy={ver:'PN-2026-'+String(n).padStart(2,'0'),eff:fdt(S.clock),sum:'Updated data retention section'};v13Audit('privacy-version-switch');
+ if(S.termsNA)S.termsNA.privacy=0;
+ nfV13('list','Privacy Notice updated','Our Privacy Notice has been updated. Tap to read the new version.','MSG_PRIVACY_NOTICE_UPDATED','terms');S.notifs[0].navp={type:'privacy'};
+ if(re){const it={type:'privacy',sum:'Updated data retention section'};if(S.termsPend){S.termsQ=S.termsQ||[];S.termsQ.push(it)}else{S.termsPend=it;S.termsNotNow=0}}};
+A.v131Privacy=re=>{if(!S.logged&&S.mode!=='demo')seedDemo();pnPublish(re);toast(re?'Core published a new Privacy Notice (re-consent required).':'Core published a new Privacy Notice (no re-consent). Message sent.');render()};
+A.v131TermsBoth=()=>{if(!S.logged&&S.mode!=='demo')seedDemo();A.termsPublish(1);pnPublish(1);toast('Core published new Terms of Service and Privacy Notice (both need re-consent): Terms of Service first, then Privacy Notice.');render()};
+{const _ta=A.termsAccept;A.termsAccept=function(){const p=S.termsPend;if(!p||!S.tmAg||!(S.termsQ&&S.termsQ.length))return _ta.apply(this,arguments);
+ const nx=S.termsNext;S.termsNext=null;_ta.apply(this,arguments);S.termsPend=S.termsQ.shift();S.termsNotNow=0;S.termsNext=nx;S.tmAg=false;A.termsModal()}}
+{const _rb=rstBars;rstBars=function(){let out=_rb.apply(this,arguments);if(!S.logged)return out;
+ if(S.termsPend&&S.termsPend.type==='privacy')out=out.map(b=>b[0]==='terms'?['terms',MSG_PN_RST]:b);
+ /* 6B.2.4: one banner only, the most severe: Core suspension > PCSO exclusion > self-exclusion > Core restriction > cool-off */
+ if(S.excl&&!S.excl.expired)out=out.filter(b=>b[0]!=='coreR');return out}}
+{const _t=A.terms;A.terms=function(ty,ev){if(S.termsNA&&S.termsNA[ty||'tos']){if(ev&&ev.preventDefault){ev.preventDefault();ev.stopPropagation()}S.extLink=PCSO_SITE[ty||'tos'];v13Audit('terms-link-pcso-website');return toast('Opening the PCSO website: '+S.extLink)}return _t.apply(this,arguments)}}
+{const _hp=SC.help.html;SC.help.html=function(){let h=_hp.apply(this,arguments);if(S.termsNA&&S.termsNA.privacy)h=h.replace(new RegExp(`(id="help_privacy"[^]*?<div class="xs mu">)Version [^<]*`),'$1PCSO website');return h}}
+A.v131PnNA=()=>{S.termsNA=S.termsNA||{};S.termsNA.privacy=S.termsNA.privacy?0:1;toast(S.termsNA.privacy?'Core has not published a Privacy Notice yet: the link opens the PCSO website':'Privacy Notice published by Core: in-app full text');render()};
+
+/* ---------- 6B.1.10 unified Federation Status ---------- */
+{const _fa=fedApply;fedApply=function(){const m=S.fedMode||'none';S.fedRej='';
+ if(m==='queue'){S.kyc='checking';S.fed='Querying';nfV13('shield','Checking your details',MSG_CHECKING,'MSG_PROFILE_CHECK_PENDING','kycStatus');return 'checking'}
+ const r=_fa.apply(this,arguments);
+ if(m==='reject')S.fedRej='KYC Not Accepted';
+ if(m==='matchx'&&r==='approved'){S.upid=V13.upidOld;S.fedRole='Credential Only';S.excl={label:'6 months',perm:false,expired:false,req:false,rej:'',endTs:S.clock+120*864e5,channel:'OTH'};v13Audit('federation-match-exclusion-applied')}
+ return r}}
+{const _fm=A.fedMode;A.fedMode=function(m){if(m!=='queue'&&m!=='matchx')return _fm.apply(this,arguments);S.fedMode=m;toast('Core federation result: '+(m==='queue'?'Core unreachable (queued, retried later)':'Match · existing self-exclusion on another channel'));render()}}
+{const _fd=A.fedDecide;A.fedDecide=function(d){const r=_fd.apply(this,arguments);if(d==='reject'&&S.fed==='Rejected')S.fedRej='Match Review Rejected';render();return r}}
+A.v131FedRetry=()=>{if(S.fed!=='Querying')return toast('No federation request is queued.');tick(10);S.upid=V13.upidNew;S.fedRole='Registration Origin';S.fed='Federated';S.kyc='approved';S.j.ok=1;
+ addNotif('shield','实名认证已通过','Identity verified','您的实名认证已通过，已解锁全部功能。','Your identity is verified. All features unlocked.');S.notifs[0].tpl='MSG_KYC_RESULT';toast('Core reachable again · queued federation sent · Unique Player ID received');if(S.screen==='kycStatus')A.reset('home');else render()};
+
+/* ---------- 6B.2.4 self-exclusion during a PCSO exclusion; iLotto-only before federation; Core correction ---------- */
+{const _x=A.exclDo;A.exclDo=function(l,perm){const P=S.excl&&S.excl.pcso?S.excl:null;
+ if(P&&P.self){const nE=perm?Infinity:S.clock+(EXD[l]||90)*864e5,oE=P.self.perm?Infinity:P.self.endTs;if(nE<=oE)return toast(MSG_EXT)}
+ const local=!S.upid;const r=_x.apply(this,arguments);
+ if(P){const s=S.excl;P.self={label:s.label,perm:s.perm,endTs:s.endTs,channel:'ILT'};S.excl=P;v13Audit('self-exclusion-during-pcso-exclusion');render()}
+ else if(local&&S.excl){S.excl.local=1;v13Audit('self-exclusion-local-only')}
+ return r}}
+{const _ex=A.excl;A.excl=function(){const r=_ex.apply(this,arguments);if(!S.upid){const el=document.getElementById('ex_confirm');if(el)el.innerHTML=el.innerHTML.replace('It applies to all PCSO e-channels and cannot be lifted before it ends.','It cannot be lifted before it ends. '+MSG_SX_LOCAL)}return r}}
+{const _e=A.exclExp;A.exclExp=function(){const e=S.excl;
+ if(e&&e.pcso&&e.self){const sf=e.self;S.excl={label:sf.label,perm:sf.perm,expired:false,req:false,rej:'',endTs:sf.endTs,channel:'ILT'};
+  nfV13('shield','Exclusion ended','Your exclusion by PCSO has ended. '+PLAY_OTHER,'MSG_PCSO_EXCLUSION_END','playsafe');v13Audit('pcso-exclusion-ended-self-exclusion-continues');toast('Core: PCSO exclusion ended · the self-exclusion continues until '+fts(sf.endTs||S.clock));return render()}
+ const n0=S.notifs.length;const r=_e.apply(this,arguments);
+ if(S.notifs.length>n0&&/^MSG_(PCSO_EXCLUSION|SELF_EXCLUSION)_END$/.test(S.notifs[0].tpl||'')&&otherRestr()){const x=S.notifs[0];x.be=x.be.replace(PLAY_AGAIN,PLAY_OTHER);x.bz=x.bz.replace(PLAY_AGAIN,PLAY_OTHER)}
+ return r}}
+A.v131SxCorrect=()=>{const e=S.excl;if(!e||e.pcso||e.perm)return toast('No fixed-term self-exclusion to correct.');e.endTs=(e.endTs||S.clock)+2*864e5;v13Audit('core-self-exclusion-corrected');
+ nfV13('shield','Self-exclusion updated',`Your self-exclusion was updated by PCSO. It now runs ${e.label}, ending ${fts(e.endTs)}.`,'MSG_SELF_EXCLUSION_CORRECTED','playsafe');toast('Core: self-exclusion corrected · new end '+fts(e.endTs));render()};
+{const _ps=SC.playsafe.html;SC.playsafe.html=function(){let h=_ps.apply(this,arguments);const e=S.excl;
+ if(e&&e.local)h=h.replace(/(<h3 id="ps_lim")/,`<div class="c131" id="sx_local">${MSG_SX_LOCAL}</div>$1`);
+ if(e&&e.pcso&&e.self)h=h.replace(/(<h3 id="ps_lim")/,`<div class="card mt" id="pcso_self"><div class="row sp"><b>Self-exclusion</b>${badge('b-ro',e.self.perm?'Permanent':'Until '+fts(e.self.endTs).slice(0,10))}</div><div class="mu sm mt3" style="line-height:1.6">Period: ${e.self.label}. It continues after the PCSO exclusion ends.</div></div>$1`);
+ if(S.coreRst&&e)h=h.replace(/(<h3 id="ps_lim")/,`<div class="card mt" id="ps_other"><b>Restricted by PCSO</b><div class="mu sm mt3" style="line-height:1.6">${MSG_CORE_RST}</div></div>$1`);
+ return h}}
+{const _eb=exBanner;exBanner=function(){const h=_eb.apply(this,arguments);return S.excl&&S.excl.local?h.replace('It applies to all PCSO e-channels.',MSG_SX_LOCAL):h}}
+
+/* ---------- 6B.3.4 results: shown after the winning reconciliation is confirmed; previous version during an adjustment ---------- */
+A.v131ResRecv=()=>{if(!S.logged)seedDemo();const k=S.tickets.find(x=>x.st==='await'&&!x.susp&&!x.tfz);if(!k)return toast('No ticket awaiting a draw — place a bet first');
+ S.resWait={id:k.id,g:k.g,no:dno(gm(k.g),k.draw,k.dtime)};v13Audit('core-result-received');toast('Core result received for '+S.resWait.no+': not shown until the winning reconciliation is confirmed');render()};
+A.v131ResConfirm=()=>{const w=S.resWait;if(!w)return toast('Receive a Core result first.');S.resWait=null;v13Audit('winning-reconciliation-confirmed');A.sim('l1');toast('Winning reconciliation confirmed: result shown, MSG_DRAW_RESULT sent')};
+{const _tk=SC.tkDetail.html;SC.tkDetail.html=function(){let h=_tk.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!k)return h;
+ /* claim code: registering with PCSO until Core acknowledges */
+ h=h.replace(/<div class="v13note" id="claimsync"[^>]*>[^<]*<\/div>/,k.cs&&!k.cv&&!k.coreAck?`<div class="v13note" id="claimreg" style="color:var(--am)">${MSG_CREG}</div>`:'');
+ if(k.cv)h=h.replace(new RegExp(`<button[^>]*A\\.regen\\('${k.id}'\\)[^>]*>[^<]*</button>`),'');
+ if(k.st==='winPending'&&S.wFrozen&&!k.cv)h=h.replace(/<button class="btn c mt" id="startclaim"[^>]*>[^<]*<\/button>/,'').replace('<h3 style="margin-top:20px">Bet details</h3>',`<div class="c131" id="frz_claim">${RMSG.frozen}</div><h3 style="margin-top:20px">Bet details</h3>`);
+ if(k.held)h=h.replace(/<button class="btn c mt" id="startclaim"[^>]*>[^<]*<\/button>/,'').replace('<h3 style="margin-top:20px">Bet details</h3>',`<div class="c131" id="held_note">${MSG_HELD}</div><h3 style="margin-top:20px">Bet details</h3>`);
+ if(k.crossNote)h=h.replace('<h3 style="margin-top:20px">Bet details</h3>',`<div class="c131" id="cross_note">${k.crossNote}</div><h3 style="margin-top:20px">Bet details</h3>`);
+ if(k.corrNote)h=h.replace('<h3 style="margin-top:20px">Bet details</h3>',`<div class="c131" id="tk_corr">These results were corrected by PCSO on ${k.corrNote}.</div><h3 style="margin-top:20px">Bet details</h3>`);
+ return h.split(POOL_NOTE_EN).join(POOL_NOTE_LINES)}}
+A.v131AdjRecv=()=>{if(!S.logged)seedDemo();const g=gm('super');S.adjWait=dno(g,'2026-10-08','');v13Audit('core-result-adjustment-received');toast('Core result adjustment received for '+S.adjWait+': the previous version stays on screen until the reconciliation is confirmed');render()};
+A.v131AdjConfirm=()=>{if(!S.adjWait)return toast('Receive a Core result adjustment first.');const g=gm('super'),d=(S.draws.super||[]).find(x=>x.no===S.adjWait);
+ if(d&&!d.v0){d.v0=d.nums.slice();const used=new Set(d.nums);let n=d.nums[d.nums.length-1];do{n=n%g.n+1}while(used.has(n));d.nums=d.nums.slice(0,-1).concat([n])}
+ S.adjWait=null;v13Audit('adjustment-reconciliation-confirmed');A.v13Adj()};
+{const _rh=SC.result.html;SC.result.html=function(){let h=_rh.apply(this,arguments);
+ if(S.jpNA&&S.res.game===S.jpNA){const d0=(S.draws[S.jpNA]||[])[0];if(d0&&!d0.winners)h=h.replace(/(<div class="b glowtxt" id="jpprize"[^>]*>)[^<]*(<\/div>)/,'$1$2')}return h}}
+A.v131JpNA=()=>{S.jpNA=S.jpNA?null:'grand';S.res.game='grand';toast(S.jpNA?'Latest Grand Lotto result: published jackpot amount not maintained · only Carried forward is shown':'Published jackpot amount restored');render()};
+
+/* ---------- 6B.4.2 claim code registration, local freeze, Core-suspended prize held ---------- */
+{const _sc=A.startClaim;A.startClaim=function(id){const k=S.tickets.find(x=>x.id===id);if(k&&k.held)return toast(MSG_HELD);const was=k&&k.cs;const r=_sc.apply(this,arguments);if(k&&!was&&k.cs){k.coreAck=0;toast('Claim code generated · registering with PCSO')}return r}}
+{const _rg=A.regen;A.regen=function(id){const k=S.tickets.find(x=>x.id===id);if(k&&k.cv)return toast('PCSO has verified this code. It cannot be regenerated now.');const c0=k&&k.code;const r=_rg.apply(this,arguments);
+ if(k&&k.code&&k.code!==c0){k.coreAck=0;v13Audit('old-claim-code-void-reported');v13Audit('new-claim-code-reported');render()}return r}}
+A.v131CodeAck=()=>{const ks=S.tickets.filter(x=>x.st==='winPending'&&x.cs&&!x.coreAck);if(!ks.length)return toast('No claim code is waiting for PCSO registration.');ks.forEach(k=>k.coreAck=1);v13Audit('core-claim-code-acknowledged');toast('Core acknowledged the claim code · the registering notice is removed');render()};
+{const _r=render;render=function(){if(S.wFrozen)(S.tickets||[]).forEach(k=>{if(k.st==='winPending'&&k.cs&&!k.cv){k.cs=0;k.code='';k.coreAck=0;k.codeVoid='freeze';v13Audit('claim-code-voided-local-freeze')}});
+ const r=_r.apply(this,arguments);
+ document.querySelectorAll('#phone [data-rst="terms"]').forEach(e=>{e.removeAttribute('aria-disabled');e.classList.remove('rstd')});
+ if(S.upid&&S.excl&&S.excl.local){S.excl.local=0;v13Audit('self-exclusion-submitted-to-core')}
+ fitJp();return r}}
+A.v131Freeze=()=>{A.wFreeze();toast(S.wFrozen?'Local wallet freeze: unverified claim codes voided and reported to PCSO; Start claim hidden':'Wallet unfrozen: Start claim is available again before the claim deadline')};
+/* MSG_PRIZE_TO_CLAIM text; Core Suspended: prize within the threshold held (no credit, no MSG_PRIZE_TO_CLAIM) */
+{const _s=A.sim;A.sim=function(out){const n0=S.notifs.length,t0=S.tx.length,pb=S.bal.prize;const r=_s.apply(this,arguments);
+ const k=S.tickets.find(x=>x.res&&x.dn===x.res.win&&S.draws[x.g]&&S.draws[x.g][0]&&S.draws[x.g][0].nums===x.res.win);
+ S.notifs.slice(0,S.notifs.length-n0).forEach(x=>{if(x.tpl==='MSG_PRIZE_TO_CLAIM'&&k){const g=gm(k.g),m=`You have a prize to claim for ${gname(g)} draw ${dno(g,k.draw,k.dtime)}. Tap Start claim in My Tickets, then bring your valid ID to the PCSO Main Office.`;x.be=m;x.bz=m;x.en='Prize to claim';x.zh='Prize to claim'}});
+ if(S.coreSusp&&k&&k.st==='claimed'&&k.paid==='auto'){S.bal.prize=pb;if(S.tx.length>t0)S.tx.splice(0,S.tx.length-t0);
+  const i=S.notifs.findIndex((x,j)=>j<S.notifs.length-n0&&x.en==='You won! Prize credited');if(i>=0)S.notifs.splice(i,1);
+  k.st='winPending';k.paid='';k.held=1;v13Audit('prize-held-core-suspended');toast('Core-suspended player won within the threshold: prize held, not credited');render()}
+ return r}}
+{const _su=A.v13Suspend;A.v13Suspend=function(on){const r=_su.apply(this,arguments);if(!on){S.tickets.filter(k=>k.held).forEach(k=>{const g=gm(k.g),net=k.res?k.res.net:r2(k.prize-taxOf(k.prize));
+ k.held=0;k.st='claimed';k.paid='auto';S.bal.prize=r2(S.bal.prize+net);addTx('prize',net,'auto',gname(g));
+ const m=`${gname(g)} ${k.tier||'Prize'}: ${fm0(net)} credited to your prize balance.`;addNotif('trophy','You won! Prize credited','You won! Prize credited',m,m);S.notifs[0].tpl='MSG_PRIZE_CREDITED';v13Audit('held-prize-credited')});render()}return r}}
+A.v131SuspWin=()=>{if(!S.logged&&!S.coreSusp)seedDemo();if(!S.coreSusp)A.v13Suspend(1);A.sim('l1')};
+
+/* ---------- 6B.4.2 void reasons: excluded from this draw by PCSO / corrected by PCSO ---------- */
+const voidAs=(k,vr)=>{const n0=S.notifs.length;A.voidTk(k.id);k.vr=vr;const x=S.tx.find(t=>t.type==='refund'&&t.tk===k.id);if(x)x.reason=VR_TX[vr];
+ S.notifs.slice(0,S.notifs.length-n0).forEach(m=>{if(/^MSG_BET_REFUND/.test(m.tpl||'')){m.be=m.be.replace('was cancelled',VR_MSG[vr]);m.bz=m.bz.replace('was cancelled',VR_MSG[vr])}})};
+A.v131Void=vr=>{if(!S.logged)seedDemo();const k=S.tickets.find(x=>(x.st==='await'||x.st==='pre')&&!x.susp&&!x.tfz);if(!k)return toast('No open ticket to void');voidAs(k,vr);v13Audit(vr==='excl'?'core-removed-from-closure-record':'core-transaction-adjustment-void');
+ toast(vr==='excl'?'Core: ticket removed from the draw closure record · voided and refunded':'Core: transaction adjustment approved · voided and refunded');render()};
+A.v131VoidDraw=()=>{if(!S.logged)seedDemo();const g=gm('mega');const ks=S.tickets.filter(x=>x.g==='mega'&&(x.st==='await'||x.st==='pre'));if(!ks.length)return toast('No open Mega Lotto 6/45 ticket');const no=dno(g,ks[0].draw,ks[0].dtime);
+ ks.filter(x=>x.draw===ks[0].draw).forEach(k=>voidAs(k,'excl'));v13Audit('core-channel-excluded-from-draw');toast('Core: iLotto excluded from '+no+' · tickets voided and refunded; no result will be received for this draw');render()};
+
+/* ---------- 6B.4.2 result adjustment: Prize Increased above the threshold; five more ticket states ---------- */
+const THRESH=300000;
+A.v131AdjCross=()=>{if(!S.logged)seedDemo();const g=gm('super'),no=dno(g,'2026-10-06','');
+ const k=S.tickets.find(x=>x.g==='super'&&dno(g,x.draw,x.dtime)===no&&x.st==='claimed'&&x.paid==='auto'&&x.res&&x.res.tiers.some(y=>y.type==='POOL'));if(!k)return toast('No auto-credited pool-tier ticket in '+no);
+ const R=k.res,tr=R.tiers.find(y=>y.type==='POOL'),oldNet=R.net,other=r2(R.gross-tr.amt);tr.amt=r2(350000-other);tr.per=r2(tr.amt/(tr.n||1));R.gross=r2(R.tiers.reduce((a,y)=>a+y.amt,0));R.tax=taxOf(R.gross);R.net=r2(R.gross-R.tax);
+ k.prize=R.gross;k.st='winPending';k.paid='';k.cs=0;k.code='';k.adj='Prize Increased';k.chPaid=oldNet;k.cheque=r2(R.net-oldNet);tick(5);S.corr=S.corr||{};S.corr[no]=fdt(S.clock);
+ k.crossNote=`The prize was increased after PCSO corrected the draw results. ${fm2(oldNet)} is already in your prize balance. Tap Start claim and bring your valid ID to the PCSO Main Office to collect the remaining ${fm2(k.cheque)}.`;
+ nfV13('ticket','Draw result corrected',`PCSO corrected the results of ${gname(g)} draw ${no}. Check My Tickets for your updated result.`,'MSG_RESULT_ADJUSTED','tickets');v13Audit('core-result-adjusted-above-threshold');
+ toast('Prize Increased above the threshold: '+fm2(oldNet)+' stays credited; PCSO pays '+fm2(k.cheque)+' by cheque');render()};
+A.v131AdjStates=()=>{if(!S.logged)seedDemo();const g=gm('ultra'),d='2026-10-09',ms=Date.parse('2026-10-08T10:00:00+08:00');S.tickets=S.tickets.filter(x=>!x.st131);
+ const mk=(nums,dt)=>{const k=makeOrder(g,'STD',nums,[],1,[dt||d],ms,'await')[0];k.st131=1;k.pt=pcOf(k);S.tickets.unshift(k);return k};
+ const A1=mk([1,2,3,4,5,6]),B=mk([7,8,9,10,11,12]),C=mk([13,14,15,16,17,18]),D=mk([19,20,21,22,23,24],'2025-10-01'),E=mk([25,26,27,28,29,30]);
+ Object.assign(A1,{st:'winPending',held:1,prize:4000,tier:'Prize',s131:'held'});Object.assign(B,{st:'await',susp:1,s131:'notInList'});
+ Object.assign(C,{st:'winPending',prize:400000,tier:'Prize',cs:1,cv:1,cvAt:S.clock,csAt:S.clock,code:'K7M2X9QD',coreAck:1,s131:'verified'});
+ Object.assign(D,{st:'winPending',prize:5000,tier:'Prize',s131:'expired'});Object.assign(E,{st:'await',s131:'unsettled'});
+ S.adjStatesReady=1;toast('Five Ultra Lotto 6/58 tickets set up: held, not in list, verified, expired, not yet paid');render()};
+A.v131AdjStatesRun=()=>{const T=S.tickets.filter(x=>x.st131);if(!T.length)return toast('Set up the five tickets first.');const g=gm('ultra'),no=dno(g,'2026-10-09','');tick(5);const day=fdt(S.clock);S.corr=S.corr||{};S.corr[no]=day;
+ T.forEach(k=>{const s=k.s131;if(k.done131)return;k.done131=1;
+  if(s==='held'){k.prize=5000;k.adj='Held prize recalculated'}
+  else if(s==='notInList'){k.susp=0;k.st='claimed';k.paid='auto';k.prize=2000;k.tier='Prize';k.adj='Newly Won';S.bal.prize=r2(S.bal.prize+2000);adjTx(k,2000)}
+  else if(s==='verified'){k.prize=450000;k.adj='Prize Increased'}
+  else if(s==='expired'){k.corrNote=day;k.adj131='Not Applicable'}
+  else if(s==='unsettled'){k.st='claimed';k.paid='auto';k.prize=1500;k.tier='Prize';S.bal.prize=r2(S.bal.prize+1500);addTx('prize',1500,'auto',gname(g));k.adj131='Paid by the latest version'}});
+ nfV13('ticket','Draw result corrected',`PCSO corrected the results of ${gname(g)} draw ${no}. Check My Tickets for your updated result.`,'MSG_RESULT_ADJUSTED','tickets');v13Audit('core-result-adjusted-five-states');
+ toast('Result adjustment applied to '+no+': held prize recalculated, not-in-list ticket newly won, verified prize updated (code kept), expired ticket note only, unpaid ticket paid by the new version');render()};
+/* 6B.4.5: Prize Reversal / Prize Top-up (Result Adjustment), same names as the admin side */
+{const _tr=txRow;txRow=function(x){const h=_tr.apply(this,arguments);if(!x.adj)return h;return h.replace('>Prize Adjustment<','>'+(x.amt>0?'Prize Top-up (Result Adjustment)':'Prize Reversal (Result Adjustment)')+'<')}}
+
+/* ---------- demo panel ---------- */
+function panel131(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
+ return `<h4>PCSO Core instructions (more)</h4><div class="xs" id="v131_fedst" style="color:#666;margin:2px 0 4px">Federation Status: ${S.fed||'Not Federated'}${S.fed==='Federated'&&S.fedRole?' · '+S.fedRole:''}${S.fedRej?' · '+S.fedRej:''}</div>
+ <div class="row" style="gap:4px;flex-wrap:wrap">${pb('Federation: Core unreachable (queued)',"A.fedMode('queue')",S.fedMode==='queue'?'on':'','v131_fed_queue')}${pb('Core reachable again (no match)',"A.v131FedRetry()",'','v131_fed_retry')}${pb('Federation: Match · existing exclusion',"A.fedMode('matchx')",S.fedMode==='matchx'?'on':'','v131_fed_matchx')}</div>
+ ${pb('Core: mobile and email both confirmed transferred',"A.v13Transfer('both')",S.reverify==='both'?'on':'','v131_tr_both')}${pb('Core: Mark as Deleted',"A.v131Delete()",S.closed?'on':'','v131_del')}
+ ${pb('Simulate Terms of Service + Privacy Notice update (both re-consent)',"A.v131TermsBoth()",'','v131_tos_pn')}${pb('Simulate Privacy Notice update (no re-consent)',"A.v131Privacy(0)",'','v131_pn')}${pb('Core has not published a Privacy Notice yet',"A.v131PnNA()",S.termsNA&&S.termsNA.privacy?'on':'','v131_pn_na')}
+ ${pb('Core: self-exclusion corrected (end date later)',"A.v131SxCorrect()",'','v131_sx_corr')}
+ <div class="xs" style="color:#666;margin:6px 0 4px">Results and adjustments</div>
+ ${pb('Core result received (not shown yet)',"A.v131ResRecv()",S.resWait?'on':'','v131_res_recv')}${pb('Winning reconciliation confirmed (show result)',"A.v131ResConfirm()",'','v131_res_conf')}
+ ${pb('Core result adjustment received (old version stays)',"A.v131AdjRecv()",S.adjWait?'on':'','v131_adj_recv')}${pb('Adjustment reconciliation confirmed (switch version)',"A.v131AdjConfirm()",'','v131_adj_conf')}
+ ${pb('Result adjustment · Prize Increased above the threshold',"A.v131AdjCross()",'','v131_adj_cross')}${pb('Set up five ticket states (Ultra Lotto 6/58)',"A.v131AdjStates()",'','v131_st_setup')}${pb('Result adjustment · five ticket states',"A.v131AdjStatesRun()",'','v131_st_run')}
+ ${pb('Latest Grand Lotto result: jackpot amount not published',"A.v131JpNA()",S.jpNA?'on':'','v131_jpna')}
+ <div class="xs" style="color:#666;margin:6px 0 4px">Tickets and claims</div>
+ ${pb('Core: claim code registered',"A.v131CodeAck()",'','v131_code_ack')}${pb('Local wallet freeze (voids claim codes)',"A.v131Freeze()",S.wFrozen?'on':'','v131_wfreeze')}
+ ${pb('Push draw while Core-suspended (prize held)',"A.v131SuspWin()",'','v131_susp_win')}
+ ${pb('Core: ticket removed from the draw closure record',"A.v131Void('excl')",'','v131_void_excl')}${pb('Core: iLotto excluded from a draw (Mega Lotto 6/45)',"A.v131VoidDraw()",'','v131_void_draw')}${pb('Core: transaction adjustment (void and refund)',"A.v131Void('corr')",'','v131_void_corr')}
+ <div class="xs" style="color:#666;margin:6px 0 4px">Core registry and calendar</div>
+ ${pb('One draw not on sale (Super Lotto 6/49 · 3D Lotto)',"A.v131DrawSusp()",S.dSusp?'on':'','v131_dsusp')}${pb('Max bet per ticket ₱100 (Super Lotto 6/49)',"A.v131MaxBet()",S.maxBet?'on':'','v131_maxbet')}`}
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-v131]');if(old)old.remove();const v=el.querySelector('[data-v13]');const html=`<div data-v131="1">${panel131()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html);
+ const B=sel=>[...el.querySelectorAll('button[onclick]')].filter(b=>sel.test(b.getAttribute('onclick')));
+ /* retired: claim-deadline hold / extension (On hold) and payout-cap suspension demos */
+ B(/A\.(holdStart|holdLift|holdPast|holdClear|bothSetup|bothLose|bothSuspWin|bothReview)\(/).forEach(b=>b.remove());
+ [...el.querySelectorAll('h4')].forEach(h=>{if(/^Claim deadline hold|^Draw message with both a capped/.test(h.textContent))h.remove()});
+ B(/A\.suspTk\(\)/).forEach(b=>b.textContent='Ticket not in the Core winners list (result being finalized)')}}
+render();
 </script>
 </body>
 </html>

@@ -13030,6 +13030,873 @@ function a2SimConn() {
 document.addEventListener("click", a2Click, true);
 if (S.authed) render();
 /* ===== V13-A2 END ===== */
+/* ===== V13-131 block (PRD 1.3.1 admin: V13-PC37, 6B.6–6B.14 batch changes, partner report items, PC40 Game column, PC42 profit and loss) =====
+   Injected by patch46_v131.py right after the V13-A2 block. Every act of this block starts with "v131-" and is handled by b1Click, a window
+   capture listener (it runs before the A1 / A2 document listeners, so it can also take over a few A2 acts: Retry Now, emergency accounts,
+   adjustment requests, directive replies). Inputs: data-v131f (form → S.v131.f), data-v131q="group.key" (filters → S.v131.q[group][key]).
+   Overrides are runtime assignments (viewX = function …) so they beat every earlier declaration. Demo values are marked Demo data. */
+S.v131 = { f: {}, q: {}, open: {}, n: 0, exp: null };
+function b1Is(...r) { return v13Is(...r); }
+function b1Q(g, def) { S.v131.q[g] = Object.assign({}, def || {}, S.v131.q[g] || {}); return S.v131.q[g]; }
+function b1Btn(act, label, opt) { opt = opt || {}; return `<button type="button" class="btn btn-sm ${opt.cls || ""}" style="width:auto;flex:none" data-act="${act}"${opt.id != null ? ` data-id="${esc(opt.id)}"` : ""}${opt.arg != null ? ` data-arg="${esc(opt.arg)}"` : ""}${opt.dis ? ` disabled title="${esc(opt.dis)}"` : ""}${opt.attr ? " " + opt.attr : ""}>${label}</button>`; }
+function b1Link(act, label, opt) { opt = opt || {}; return `<button type="button" class="link" data-act="${act}"${opt.id != null ? ` data-id="${esc(opt.id)}"` : ""}${opt.arg != null ? ` data-arg="${esc(opt.arg)}"` : ""}>${label}</button>`; }
+function b1R2(v) { return Math.round(v * 100) / 100; }
+function b1P(v) { return (v < 0 ? "−" : "") + peso2(Math.abs(v)); }
+function b1Hm(dt) { return String(dt || "").slice(11, 19); }
+function b1Today() { return a2NowFull().slice(0, 10); }
+function b1Days(a, b) { return Math.round((btMs(b + " 00:00") - btMs(a + " 00:00")) / 86400000); }
+function b1AddDays(d, n) { return btFmt(btMs(d + " 00:00") + n * 86400000).slice(0, 10); }
+function b1Export(name, heads, rows, mod, filt) { S.v131.exp = { name, heads, rows }; adm58Export(name, heads, rows, "csv", mod, filt || ""); }
+function b1Gid(drawNo) { const i = S.issues.find((x) => x.no === drawNo); if (i) return i.game; const code = String(drawNo || "").split("-")[0]; const g = GAMES.find((x) => v13Code(x) === code); return g ? g.id : ""; }
+function b1Gname(drawNo) { const id = b1Gid(drawNo); return id ? gameBy(id).en : "-"; }
+function b1Th(c, label, afterLabel, attr) { const ths = [...c.querySelectorAll("thead th")]; const k = ths.findIndex((h) => h.textContent.trim() === afterLabel); return k; }
+(function () { if (!document.getElementById("v131-css")) document.head.insertAdjacentHTML("beforeend", '<style id="v131-css">.b1w th{white-space:nowrap}.b1ms{min-width:150px;height:64px}</style>'); })();
+
+/* ---------- 6B.6.4 / 6B.13.2 roles: matrix cells, staff e-mail domain, matrix notes (PC37 ③) ---------- */
+(function b1Roles() {
+  const i = (k) => MENUS.findIndex((m) => m[0] === k);
+  if (i("dash") >= 0) MATRIX.compliance[i("dash")] = "ro"; /* Compliance audit: dashboard read-only (6B.6.4) */
+  if (i("txn") >= 0) MATRIX.ops[i("txn")] = "rw"; /* Operations submits adjustment requests under Transactions (6B.10.4) */
+  S.staff.forEach((s) => { if (/@pcso\.gov\.ph$/i.test(s.email || "")) s.email = s.email.replace(/@pcso\.gov\.ph$/i, "@ilotto.ph"); });
+})();
+const B1_NOTES_ADD = [
+  "Adjustment requests (under Transactions): Operations submits, withdraws and retries a failed execution; Finance review checks locally and submits to Core; Compliance audit is read-only; Ops reviewer, Identity reviewer and System admin cannot see it.",
+  "Emergency accounts tab: System admin registers accounts, requests use, and as a custodian confirms release and rotation; Compliance audit approves or rejects use and records the post-use review; other roles cannot see it. The built-in role BREAK_GLASS_ADMIN is not offered in role assignment.",
+  "Core integration menu: tab access per role as set for Directives, Reference changes, Reporting queue, Reconciliation and Core connection."
+];
+const b1Users0 = viewUsers;
+viewUsers = function () {
+  return v13Tpl(b1Users0(), (c) => {
+    const card = [...c.querySelectorAll(".card")].find((cd) => { const h = cd.querySelector("h4"); return h && /Permission matrix notes|权限矩阵备注/.test(h.textContent); });
+    if (!card) return;
+    const ul = card.querySelector("ul"); if (!ul) return;
+    [...ul.children].forEach((li) => {
+      const tx = li.textContent;
+      if (/Terminal Control|Channel control|channel control|Webhook|Change Register|Change register|Document Register|Document register|Draw Desk|restoration/.test(tx)) li.remove();
+      else if (/^Global parameters/.test(tx.trim())) li.textContent = "Global parameters: Core parameters such as the transaction unit value and the tax rate table are read-only; local parameters are still submitted by Operations and approved by Finance review.";
+    });
+    B1_NOTES_ADD.forEach((n) => ul.insertAdjacentHTML("beforeend", `<li data-v131="note">${esc(n)}</li>`));
+  });
+};
+
+/* ---------- 6B.6 dashboard: two-state Core connection by heartbeat, 30-second refresh, new to-do items ---------- */
+const b1Card0 = v13CoreCard;
+v13CoreCard = function () {
+  return b1Card0().replace("Refreshed with the dashboard every 60 seconds.", "Online or Offline by heartbeat: three heartbeats in a row not acknowledged by Core turn it Offline. Refreshed with the dashboard every 30 seconds.").replace("随仪表盘 60 秒刷新", "以心跳为准，连续 3 次心跳未获确认转 Offline；随仪表盘 30 秒刷新");
+};
+function b1Rejected() { return b1PrizeRows().filter((r) => r.src === "Auto Credit" && r.cv === "Rejected" && !r.resolved); }
+function b1StmtMissing() { const due = S.v131.stmtExpect || []; return due.filter((x) => !S.v13a2.cnd.some((c) => c.per === x.per) && b1Today() > x.due); }
+S.v131.stmtExpect = [{ per: "2026-09", due: "2026-10-08" }, { per: "2026-10", due: "2026-11-08" }];
+const b1Todos0 = v13Todos;
+v13Todos = function () {
+  const L = b1Todos0(), me = myRole(), all = demoAll(), can = (roles) => all || roles.indexOf(me) >= 0;
+  const kc = S.kyc.filter((k) => ["core", "addver", "agerej"].includes(k.src) && k.status === "pending");
+  const ki = L.findIndex((r) => /players? awaiting KYC review/.test(r.title));
+  const kItem = { act: "v13-kyc-core", arg: "", title: kc.length + (kc.length === 1 ? " player" : " players") + " awaiting KYC review or additional verification", sub: "Core KYC review directive · Core additional verification · Core age or KYC rejection", pri: "P2" };
+  if (ki >= 0) L.splice(ki, 1, kItem); else if (kc.length && can(["kyc"])) L.push(kItem);
+  const si = L.findIndex((r) => /sealed summary not verified/.test(r.title)); if (si >= 0) L.splice(si, 1);
+  const seal = S.issues.filter((i) => ["closed", "recon", "pub", "settled"].includes(i.st) && ["Submitted", "Awaiting", "Missing Transactions", "Mismatch", "Overdue"].includes(i.sealed));
+  if (seal.length && can(["ops"])) L.push({ act: "v13-core-go", arg: "queue", title: seal.length + (seal.length > 1 ? " draws" : " draw") + " with sealed summary not verified", sub: seal.map((i) => i.no + " · " + i.sealed).join(", "), pri: "P1" });
+  const rj = b1Rejected();
+  if (rj.length && can(["finance", "ops"])) L.push({ act: "v131-go-prize-rej", arg: "", title: rj.length + (rj.length > 1 ? " claim records" : " claim record") + " rejected by Core", sub: "Not reversed automatically; Finance review decides · " + rj.map((r) => r.clm).join(", "), pri: "P1" });
+  const cf = S.v13.claims.filter((c) => c.conflict && !c.conflictDone);
+  if (cf.length && can(["ops", "finance"])) L.push({ act: "v131-go-claims", arg: "", title: cf.length + (cf.length > 1 ? " tickets" : " ticket") + " with CLAIMED conflicting with the local status", sub: "Turned Claimed per Core; " + cf.map((c) => c.ref + " was " + c.conflict).join(", "), pri: "P1" });
+  const ef = S.v13a2.arq.filter((r) => r.st === "Execution Failed");
+  if (ef.length && can(["ops"])) L.push({ act: "v131-go-arq-failed", arg: "", title: ef.length + (ef.length > 1 ? " transaction adjustments" : " transaction adjustment") + " failed to execute", sub: "Approved by Core, local correction failed · " + ef.map((r) => r.id).join(", "), pri: "P1" });
+  const sm = b1StmtMissing();
+  if (sm.length && can(["finance"])) L.push({ act: "v13a2-go-cnd", arg: "", title: "Settlement statement not received", sub: "Settlement period " + sm.map((x) => x.per + " · remittance due " + x.due).join(", "), pri: "P2" });
+  return L;
+};
+
+/* ---------- 6B.7.2 games: per-draw stop on failed implementation or Critical divergence; billing panel sources; tagline 60; bet limits export ---------- */
+const b1GamesList0 = viewGamesList;
+viewGamesList = function () {
+  return v13Tpl(b1GamesList0(), (c) => { const b = c.querySelector("[data-v13=games-banner]"); if (b) b.textContent = "When iLotto Core sends a reference change, the new version is written to the local pending configuration (Implemented) and a Pre-effective configuration declaration is submitted. Only the draws bound to a version that is not implemented by its effective time, or affected by a Critical divergence, stop taking new bets until it is implemented or the divergence is resolved; the game's other draws stay on sale. iLotto has no local stop-sale switch."; });
+};
+const b1Game0 = v13ViewGame;
+v13ViewGame = function (g) {
+  return b1Game0(g).replace("Core claim policy · enhanced verification threshold", "Core claim policy threshold · each draw uses the claim policy version in effect when its result was authorized").replace("Core 兑奖政策 · 加强核验门槛", "Core 兑奖政策门槛 · 每期取结果授权时生效的版本").replace(">from the register<", ">from the register version bound to the draw<").replace(">取登记册<", ">取期次绑定的登记册版本<").replace(">from iLotto Core<", ">from iLotto Core, value in effect at ticket confirmation<");
+};
+const b1Disp0 = v13DispSec;
+v13DispSec = function (g) { return b1Disp0(g).replace('maxlength="80"', 'maxlength="60"'); };
+const b1BetLimits0 = viewBetLimits;
+viewBetLimits = function () { return b1BetLimits0() + `<p class="tiny" data-v131="bl-export-note">${z("Exports of the play type table and the number table carry Game and Draw ID as the first two columns. Exports never carry a logo.", "玩法统计表与号码表导出各在最前加 Game、Draw ID 两列；导出不放 Logo。")}</p>`; };
+const b1BlNd0 = blNdAct;
+blNdAct = function (act, arg, id) {
+  if (act !== "bl-export") return b1BlNd0(act, arg, id);
+  const g = gameBy(S.bl.game), iss = blIssues(g).find((i) => i.no === S.bl.draw); if (!iss) return true; const d = blData(g, iss);
+  const byType = {}; btLive(iss).forEach((x) => { const k = BT_TYPE_LBL[x.type] || x.type; byType[k] = byType[k] || { n: 0, a: 0 }; byType[k].n++; byType[k].a += x.amt; });
+  const rows = Object.keys(byType).map((k) => [g.en, iss.no, k, byType[k].n, byType[k].a.toFixed(2)]);
+  const rows2 = blCombos(g, iss).map((c) => { const lim = blLimOf(d, c.key); return [g.en, iss.no, c.key, !!d.locks[c.key], lim != null ? lim : "", c.amt.toFixed(2)]; });
+  const lines = [["Game", "Draw ID", "Play Type", "Orders", "Amount"]].concat(rows).concat([[""], ["Game", "Draw ID", "Number Combination", "Lock", "Limit", "Current Bet Amount"]]).concat(rows2);
+  S.v131.exp = { name: "bet-limits-" + iss.no, heads: lines[0], rows: lines.slice(1) };
+  try { download("bet-limits-" + iss.no + ".csv", lines.map((r) => r.join(",")).join("\n"), "text/csv"); } catch (e) {}
+  logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), type: "Audit", evt: "Export bet limits", obj: g.en + " · " + iss.no, before: "—", after: "Game and Draw ID columns · no logo" });
+  toast(t("已导出。", "Exported.")); return true;
+};
+
+/* ---------- 6B.7.3 draws: list columns (PC37 ⑤), resume by the new times, channel exclusion void, sealed summary values ---------- */
+function b1SaleOk(i) { const g = gameBy(i.game), r = v13Reg(g); if (r.st !== "Active" || r.impl === "Failed") return false; return !a2Suspension().some((d) => /Full Suspension/.test(d.type)); }
+const b1DrawList0 = viewDrawList;
+viewDrawList = function (tb) {
+  return v13Tpl(b1DrawList0(tb), (c) => {
+    const tbl = [...c.querySelectorAll("table")].find((x) => [...x.querySelectorAll("thead th")].some((h) => h.textContent.trim() === "Draw Sequence No")); if (!tbl) return;
+    const ths = [...tbl.querySelectorAll("thead th")], k = ths.findIndex((h) => h.textContent.trim() === "Result Version"); if (k < 0) return;
+    ["Actual Publish Time", "Result Received At", "Jackpot / Prize Pool Amount"].forEach((h) => { const th = document.createElement("th"); th.textContent = h; th.setAttribute("data-v131-col", h); ths[k].after(th); });
+    tbl.querySelectorAll("tbody tr[data-v13-draw]").forEach((tr) => {
+      const i = S.issues.find((x) => x.no === tr.dataset.v13Draw); if (!i) return; const g = gameBy(i.game);
+      const cells = [g.kind === "lotto" ? (i.jackpot ? peso2(i.jackpot) : "Jackpot to be announced") : "-", i.res ? (i.res.prev && i.res.prev.length ? i.res.prev[0].recv : i.res.recv) : "-", i.pubAt || "-"];
+      const td0 = tr.children[k]; cells.reverse().forEach((v) => { const td = document.createElement("td"); td.className = "mono"; td.textContent = v; td0.after(td); });
+    });
+    const nt = c.querySelector("[data-p=drawnote] p"); if (nt) nt.insertAdjacentHTML("beforeend", ` <span data-v131="core-st-note">${z("Core Draw Status is the state carried by the latest Core calendar notice, shown for comparison only and never a sale condition. A draw opens for sale by the locally synchronized calendar, also while Core is unreachable, when the register version it is bound to is implemented with no open Critical divergence, the game is Active and the channel is not suspended.", "Core 期次状态取最近一次日历通知所带状态，只用于对照，不作开售条件；按本地已同步日历开售（Core 不可达时照常），并须登记册版本已落地且无未消除 Critical 偏离、游戏为 Active、渠道未被停用。")}</span>`);
+  });
+};
+const b1Dir0 = v13Directive;
+v13Directive = function (i, kind) {
+  if (kind !== "resume" && kind !== "resume-late" && kind !== "chex") return b1Dir0(i, kind);
+  const id = "DIR-" + NOWSTR().slice(0, 10).replace(/-/g, "") + "-000" + (160 + (S.v131.n += 1)), b = i.st;
+  if (kind === "chex") {
+    i.st = "void"; i.voidKind = "chex"; i.reason = "Excluded from this draw by PCSO"; const tk = btLive(i); i.refT = tk.length;
+    S.v131.excluded = (S.v131.excluded || []).concat(tk.map((x) => "ILT-" + x.sn));
+    S.v13a2.dirs.push({ id, type: "Channel Exclusion Void", sub: "", mode: "auto", sum: "ILT excluded from " + i.no + "; void and refund every ticket", reason: "Channel excluded by PCSO", by: "core.sa01", issued: a2NowFull(), recv: a2NowFull(), deadline: btFmt(a2NowMs() + 30 * 60000), exec: "Executed", execAt: a2NowFull(), ack: "Received " + b1Hm(a2NowFull()) + " · Result " + b1Hm(a2NowFull()), handler: "System", fail: "", players: [], detail: "Draw voided (reason: Excluded from this draw by PCSO); " + tk.length + " tickets refunded, one Void transaction (original reference + -V) reported per ticket. Core sends no result of this draw to ILT.", ackHist: [[a2NowFull(), "Receipt confirmation sent"], [a2NowFull(), "Execution result sent"]], round: 0 });
+  } else {
+    const late = kind === "resume-late";
+    const nd = late ? minusMin(NOWSTR(), -20) : minusMin(NOWSTR(), -24 * 60); i.draw = nd; i.cut = minusMin(nd, 30); i.reason = "";
+    const now = sysNow();
+    i.st = i.cut <= now ? "closed" : (i.open <= now && b1SaleOk(i) ? "sale" : "gen");
+  }
+  i.dir = id; i.hist = i.hist || []; i.hist.push({ at: NOWSTR(), act: kind === "chex" ? "cancel" : "resume", before: b, after: i.st, reason: kind === "chex" ? i.reason : "Resumed by PCSO", by: id, notices: 0, dB: i.draw, dA: i.draw, cB: i.cut, cA: i.cut });
+  v13Sys(t("期次与开奖", "Draws and results"), "Core directive executed and acknowledged", id + " · " + i.no, V13_ST[i.st][1]);
+  if (kind === "chex" && i.refT) v13Sys(t("期次与开奖", "Draws and results"), "Void transactions reported to Core (one per ticket, -V)", i.no, i.refT + " tickets");
+};
+
+/* ---------- 6B.7.4 result receipt: pools, calculated value before guarantee, claim threshold, highest version only, Local Voided ---------- */
+(function b1SeedResults() {
+  const d6 = S.issues.find((x) => x.no === "6D-20261008-1");
+  if (d6 && !d6.res) Object.assign(d6, { sealed: "Match", res: { ver: "v1", auth: "2026-10-08 21:41:10", recv: "2026-10-08 21:41:13", nums: "4,0,9,1,7,3", tiers: v13Tiers(gameBy("d6"), [[1, 1, 150000, "Guaranteed minimum applied"]]) }, cmp: { st: "Completed", matched: 1, diffs: [] }, recon: "Agreed", reconAt: "2026-10-08 21:42:30", pubAt: "2026-10-08 21:42:31", settledAt: "2026-10-08 21:44:02", rep: [1, 1] });
+  if (d6 && d6.res && d6.res.tiers[0]) { d6.res.tiers[0].calc = 120000; d6.res.tiers[0].pool = 120000; }
+  S.issues.forEach((i) => { if (i.res) { i.res.policy = i.res.policy || "v2"; i.res.cap = V13_CAP; if (i.reconAt && !i.reconAck) i.reconAck = btFmt(v13Ms(i.reconAt) + 2000); } });
+})();
+function b1Pool(i, x, k) { if (x.fixed) return null; if (x.pool != null) return x.pool; if (x.all) return b1R2(x.all * x.prize); return k === 0 && i.jackpot ? i.jackpot : 0; }
+const b1Compare0 = v13Compare;
+v13Compare = function (i, fail) { const r = b1Compare0(i, fail); if (r) { i.reconAck = S.v13.core.conn === "Offline" ? "" : btFmt(v13Ms(i.reconAt) + 2000); i.res.policy = i.res.policy || "v2"; i.res.cap = V13_CAP; } return r; };
+v13ResultCard = function (i) {
+  const r = i.res, vers = (r.prev || []).map((p) => p.ver).concat([r.ver]), pick = S.v13.resVer && S.v13.resVer[i.no] && S.v13.resVer[i.no] !== r.ver ? (r.prev || []).find((p) => p.ver === S.v13.resVer[i.no]) : null, R = pick || r;
+  const lab = (v) => { const p = (r.prev || []).find((x) => x.ver === v); return v + (p && p.sup ? " (Superseded)" : ""); };
+  const sel = vers.length > 1 ? `<select data-v13sel="resver" data-id="${i.no}">${vers.map((v) => `<option value="${v}" ${v === (pick ? pick.ver : r.ver) ? "selected" : ""}>${lab(v)}</option>`).join("")}</select>` : `<span class="mono">${r.ver}</span>`;
+  const rows = R.tiers.map((x, k) => { const pool = b1Pool(i, x, k); return `<tr data-v131-tier="${esc(x.name)}"><td>${esc(x.name)}</td><td class="mono">${x.all.toLocaleString("en-US")}${x.fixed ? " " + tag("muted", "E-Channel only") : ""}</td><td class="mono">${x.ilt}</td><td class="mono amt" data-v131="pool">${pool == null ? "-" : peso2(pool)}</td><td class="mono amt">${peso2(x.prize)}${x.flag && x.flag !== "E-Channel only" ? " " + tag("cyan", x.flag) : ""}</td><td class="mono amt" data-v131="calc">${peso2(x.calc != null ? x.calc : x.prize)}</td></tr>`; });
+  const sup = (r.prev || []).filter((p) => p.sup).map((p) => p.ver);
+  return `<div class="card" data-v13="res"><h4>Result ${v13Demo()}</h4>${v13KV([["Result Version", sel + (sup.length ? ` <span class="tiny" data-v131="superseded">${sup.join(", ")} Superseded: replaced by a higher version before its confirmation was submitted; only the highest version is compared, confirmed and paid.</span>` : "")], ["Authorized At", `<span class="mono">${r.auth}</span>`], ["Received At", `<span class="mono">${pick ? pick.recv : r.recv}</span>`], ["Winning Numbers", `<span class="mono" data-v13="nums">${R.nums}</span>`], ["Claim Threshold", `<span class="mono" data-v131="cap">${peso2(r.cap || V13_CAP)}</span> <span class="tiny">Claim policy ${esc(r.policy || "v2")} · sent with the result (in effect when the result was authorized); this draw's payout is split by it</span>`]])}${table(["Prize Tier", "All Winners", "ILT Winners", "Pool Amount", "Prize Per Winning Bet", "Calculated Prize Before Guarantee"], rows)}<p class="tiny">${z("Pool Amount and the calculated prize before the guarantee are sent by Core with the result; a fixed-amount tier shows - for the pool. Winner counts are summed by multiple.", "奖池金额与保底前计算值随 Core 结果下发；固定金额奖级奖池显示 -；中奖注数按倍数求和。")}</p></div>`;
+};
+v13ReconCard = function (i) {
+  const c = i.cmp || { st: "Running", matched: 0, diffs: [] }, open = S.v13.dOpen[i.no];
+  const can = v13Is("ops") && i.st === "recon" && c.st === "Failed";
+  const payCell = (x) => x.pay === "Not paid" ? tag("warn", "Not paid") + (x.type === "Local Only" ? ` <span class="tiny">Under review</span>` : "") : esc(x.pay);
+  const dl = c.diffs.length ? table(["Transaction Reference", "Line", "Difference Type", "Core Tier / Prize", "Local Tier / Prize", "Payout Handling", "Handling Status"], c.diffs.map((x) => `<tr data-v131-diff="${esc(x.type)}"><td class="mono">${x.ref}</td><td class="mono">${x.line}</td><td>${esc(x.type)}</td><td class="mono">${esc(x.core)}</td><td class="mono">${esc(x.local)}</td><td>${payCell(x)}</td><td>${x.st === "Open" ? tag("warn", "Open") : tag("ok", "Resolved")}</td></tr>`)) : "";
+  const sub = i.reconAt ? `<span class="mono">${i.reconAt}</span> <span class="tiny" data-v131="recon-ack">${i.reconAck ? "Core acknowledged " + b1Hm(i.reconAck) : "Awaiting acknowledgement"}</span>` : "-";
+  return `<div class="card" data-v13="recon"><h4>Reconciliation</h4>${v13KV([["Comparison Status", c.st === "Failed" ? tag("rose", "Failed") : c.st === "Completed" ? tag("ok", "Completed") : tag("cyan", c.st)], ["Matched", `<span class="mono">${c.matched}</span> <span class="tiny">summed by multiple</span>`], ["Differences", c.diffs.length ? `<button type="button" class="link mono" data-act="v13-diff-open" data-id="${i.no}">${c.diffs.length}</button>` : `<span class="mono">0</span>`], ["Reconciliation", `<b data-v13="recon-st">${esc(v13Recon(i))}</b>`], ["Submitted At", sub], ["Confirmation Due", `<span class="mono">${v13Due(i)}</span>`]])}
+    ${open && dl ? dl : ""}
+    <div class="row-actions" style="margin-top:8px"><button type="button" class="btn btn-primary btn-sm" style="width:auto;flex:none" data-act="v13-rerun" data-id="${i.no}" ${can ? "" : "disabled"} title="${can ? "" : "Available to Operations when the comparison failed"}">Re-run comparison</button><span class="tiny">${z("The comparison and the reconciliation confirmation run automatically: Agreed when nothing differs, otherwise Differences Reported with the list. The confirmation counts as submitted once it is written to the local reporting queue; the draw is then published and the Core acknowledgement is filled in later. Differences are paid per the Core list; bets outside the Core list are never paid. Local Voided (on the Core list but voided and refunded here, or unknown here) is not paid and also opens a Critical divergence.", "比对与对账确认自动执行；写入本地上报队列即算提交，期次随即发布，Core 回执后台补登；一律按 Core 清单派奖。Local Voided 不派奖并记 Critical 差异。")}</span></div></div>`;
+};
+const b1PayCard0 = v13PayCard;
+v13PayCard = function (i) {
+  const n = b1PrizeRows().filter((r) => r.draw === i.no && r.src === "Auto Credit" && r.cv === "Rejected").length;
+  return v13Tpl(b1PayCard0(i), (c) => { const tb = c.querySelector("table.kv tbody"); if (tb) tb.insertAdjacentHTML("beforeend", `<tr><th>Claim Records Rejected</th><td>${n ? `<button type="button" class="link mono" data-act="v131-go-prize-rej" data-v131="pay-rej">${n}</button>` : `<span class="mono" data-v131="pay-rej">0</span>`}</td></tr>`); });
+};
+/* result adjustment: rows per the PRD example (6B.7.4 item 5), reversal or top-up by the after-tax difference */
+v13ReceiveAdjustment = function (i) {
+  const pv = i.res.ver, nv = "v" + (Number(pv.slice(1)) + 1), k = i.res.tiers.findIndex((x) => x.ilt > 0 && x.prize > 0 && x.prize <= V13_CAP);
+  if (k < 0) { toast("This draw has no auto-credited winning bet to adjust."); return; }
+  const tier = i.res.tiers[k], prize = tier.prize, low = i.res.tiers[k + 1] || tier, np = prize === 2287.58 ? 1250 : Math.floor(prize * 50) / 100;
+  i.res.prev = (i.res.prev || []).concat([{ ver: pv, nums: i.res.nums, tiers: JSON.parse(JSON.stringify(i.res.tiers)), recv: i.res.recv }]);
+  i.res = Object.assign({}, i.res, { ver: nv, auth: sysNow() + ":01", recv: sysNow() + ":03", tiers: i.res.tiers.map((x, j) => j === k ? Object.assign({}, x, { ilt: Math.max(0, x.ilt - 2) }) : x), adjusted: true });
+  /* rows per the PRD example (6B.7.4 item 5, appendix B T105 / T106) plus one ticket that crosses the ₱10,000 withholding threshold */
+  const rows = [
+    { ref: "ILT-TKT202610090231", line: 1, type: "Prize Decreased", oTier: tier.name, oPrize: prize, nTier: low.name, nPrize: np, bal: 12480 },
+    { ref: "ILT-TKT202610090244", line: 1, type: "Prize Decreased", oTier: tier.name, oPrize: prize, nTier: low.name, nPrize: np, bal: 500 },
+    { ref: "ILT-TKT202610090258", line: 2, type: "No Longer Won", oTier: "Match 3 · 4th", oPrize: 60, nTier: "-", nPrize: 0, bal: 12480 },
+    { ref: "ILT-TKT202610090263", line: 1, type: "Prize Decreased", oTier: "Match 5 · 2nd", oPrize: 12000, nTier: "Match 5 · 2nd", nPrize: 10000, bal: 0 }
+  ];
+  const adj = { ver: nv, from: pv, why: "Winning numbers corrected by PCSO", at: sysNow(), rows };
+  i.adj = (i.adj || []).concat([adj]);
+  v13Sys(t("期次与开奖", "Draws and results"), "Core result adjustment received and acknowledged", i.no + " · " + pv + " → " + nv);
+  v13Move(i, "recon", "Result adjustment " + pv + " → " + nv); i.recon = "Pending";
+  v13Compare(i, false);
+  rows.forEach((r) => {
+    const o = taxOf(r.oPrize), n = taxOf(r.nPrize || 0), diff = b1R2((r.nPrize ? n.net : 0) - o.net);
+    r.taxDiff = b1R2((r.nPrize ? n.tax : 0) - o.tax); r.diffNet = diff;
+    if (diff > 0) { r.topup = diff; r.recovered = 0; r.unrec = 0; r.result = "Topped Up"; r.handling = "Top up " + peso2(diff) + " to the prize balance (Top-up claim record)"; }
+    else if (diff < 0) { const back = Math.min(-diff, r.bal); r.recovered = b1R2(back); r.unrec = b1R2(-diff - back); r.topup = 0; r.result = r.unrec > 0 ? "Not Recovered" : "Recovered"; r.handling = "Reverse " + peso2(-diff) + " from the prize balance"; }
+    else { r.recovered = 0; r.unrec = 0; r.topup = 0; r.result = "Not Applicable"; r.handling = "No wallet change"; }
+    r.done = true; r.doneAt = sysNow(); r.repAt = S.v13.core.conn === "Offline" ? "Queued" : sysNow();
+    v13Sys(t("期次与开奖", "Draws and results"), r.topup ? "Prize Top-up (Result Adjustment)" : "Prize Reversal (Result Adjustment)", r.ref + " · " + peso2(r.topup || r.recovered), r.result);
+  });
+  if (i.st === "pub") { i.settledAt = sysNow() + ":20"; v13Move(i, "settled", "Adjustment rows handled"); }
+};
+v13AdjCard = function (i) {
+  if (!i.adj || !i.adj.length) return "";
+  const rows = i.adj.map((a, k) => {
+    const done = a.rows.filter((r) => r.done).length, sum = (f) => b1R2(a.rows.reduce((s, r) => s + (r[f] || 0), 0)), q = a.rows.some((r) => r.repAt === "Queued");
+    const types = {}; a.rows.forEach((r) => { types[r.type] = (types[r.type] || 0) + 1; });
+    const open = S.v13.aOpen[i.no + k];
+    return `<tr class="click" data-act="v13-adj-open" data-id="${i.no + k}" data-v131-adj="${a.ver}"><td>${esc(a.why)}</td><td class="mono">${a.from} → ${a.ver}</td><td class="mono">${Object.keys(types).map((t1) => types[t1] + " " + t1).join(" · ")}</td><td class="mono">${done} / ${a.rows.length - done}</td><td class="mono amt">${peso2(sum("recovered"))}</td><td class="mono amt">${peso2(sum("unrec"))}</td><td class="mono amt" data-v131="adj-top">${peso2(sum("topup"))}</td><td class="mono amt" data-v131="adj-tax">${b1P(sum("taxDiff"))}</td><td>${q ? tag("warn", "Queued") : tag("ok", "Reported")}</td></tr>${open ? `<tr><td colspan="9">${table(["Transaction Reference · Line", "Difference Type", "Original → New Tier / Prize", "After-tax Difference", "Handling", "Result Reported", "Recovered / Not Recovered / Topped Up", "Handled At / Reported At"], a.rows.map((r) => `<tr data-v13-adjrow="${r.ref}"><td class="mono">${r.ref} · ${r.line}</td><td>${r.type}</td><td class="mono">${esc(r.oTier)} / ${peso2(r.oPrize)}<div class="tiny">→ ${esc(r.nTier)} / ${peso2(r.nPrize)}</div></td><td class="mono">${b1P(r.diffNet || 0)}</td><td>${esc(r.handling || "-")}</td><td>${r.result === "Recovered" || r.result === "Topped Up" ? tag("ok", r.result) : tag("warn", r.result || "-")}</td><td class="mono">${peso2(r.recovered || 0)}<div class="tiny">${peso2(r.unrec || 0)} · ${peso2(r.topup || 0)}</div></td><td class="mono">${r.doneAt || "-"}<div class="tiny">${r.repAt || "-"}</div></td></tr>`))}</td></tr>` : ""}`;
+  }).join("");
+  return `<div class="card" data-v13="adj"><h4>Adjustments</h4>${table(["Reason", "Version", "Differences", "Handled / Not Handled", "Reversed", "Not Recovered", "Topped Up", "Tax Difference", "Reporting"], [rows])}<p class="tiny">${z("Auto-credited tickets are topped up or reversed by the after-tax difference (new after tax − original after tax, taxed with the draw's register tax table), not by the Core difference type: crossing the ₱10,000 withholding threshold can turn a Prize Decreased into a top-up. Reversals come only from the prize balance and never take it below zero; the part that cannot be recovered is fixed at the balance at handling time and is borne by the channel. Already claimed at PCSO: no action. The Adjusted mark is shown in the admin portal only.", "门槛内已入账的票按税后差额正负决定补发或冲回，不按 Core 差异类型；冲回只从奖金余额扣；已在 PCSO 兑奖的不处理；Adjusted 标记只在管理端。")}</p></div>`;
+};
+const b1DrawDetail0 = viewDrawDetail;
+viewDrawDetail = function () {
+  const i = S.issues.find((x) => x.no === (S.sub && S.sub.no)); const h = b1DrawDetail0(); if (!i) return h;
+  const more = [];
+  if (i.st === "postponed") more.push(["resume-late", z("Demo: Core resume directive (new cut-off already passed)", "演示：Core 恢复指令（新封盘时间已过）")]);
+  if (["gen", "sale", "closed", "postponed"].includes(i.st)) more.push(["chex", z("Demo: Core channel exclusion void", "演示：Core 渠道排除作废")]);
+  if (i.st === "recon" && i.res) more.push(["hiver", z("Demo: a higher result version arrives", "演示：收到更高结果版本")]);
+  if (["pub", "settled"].includes(i.st) && i.cmp && !i.cmp.diffs.some((x) => x.type === "Local Voided")) more.push(["ldvoid", z("Demo: Core list has a ticket voided here", "演示：Core 清单含本地已作废的票")]);
+  if (!more.length) return h;
+  return v13Tpl(h, (c) => { const btns = more.map(([k, l]) => `<button type="button" class="btn btn-sm" style="width:auto" data-act="v131-draw-sim" data-arg="${k}" data-id="${i.no}">${l}</button>`).join(""); const ra = c.querySelector("[data-v13=draw-demo] .row-actions"); if (ra) ra.insertAdjacentHTML("beforeend", btns); else c.append(document.createRange().createContextualFragment(`<div class="card" data-v13="draw-demo"><h4>${z("Simulate iLotto Core", "模拟 Core 下发")} ${v13Demo()}</h4><div class="row-actions">${btns}</div></div>`)); });
+};
+function b1HigherVersion(i) {
+  const pv = i.res.ver, nv = "v" + (Number(pv.slice(1)) + 1);
+  i.res.prev = (i.res.prev || []).concat([{ ver: pv, nums: i.res.nums, tiers: JSON.parse(JSON.stringify(i.res.tiers)), recv: i.res.recv, sup: true }]);
+  i.res = Object.assign({}, i.res, { ver: nv, auth: sysNow() + ":01", recv: sysNow() + ":03" });
+  v13Sys(t("期次与开奖", "Draws and results"), "Core result " + nv + " received; " + pv + " superseded (its confirmation is not submitted)", i.no);
+  v13Compare(i, false);
+}
+function b1LocalVoided(i) {
+  const ref = "ILT-TKT2026100800000000388";
+  i.cmp.diffs.push({ ref, line: 1, type: "Local Voided", core: "Match 4 · 3rd / ₱61.82", local: "Voided and refunded", pay: "Not paid", st: "Open" });
+  const id = "DIV-" + sysNow().slice(0, 10).replace(/-/g, "") + "-0001" + (S.v131.n += 1);
+  S.v13.divs.push({ id, kind: "Winner reconciliation", dom: "Draw Results", type: "Local Voided", obj: ref, core: "On the winning list v" + i.res.ver.slice(1), local: "Voided and refunded", level: "Critical", coreSt: "Open", local2: "Needs Action", rep: 0, at: a2NowFull(), st: "Open", note: "Closed by Core through a result adjustment or a transaction adjustment" });
+  v13Sys(t("期次与开奖", "Draws and results"), "Local Voided difference recorded (Critical local divergence)", i.no + " · " + ref);
+}
+
+/* ---------- 6B.7.5 Big prize claim records: multi-select status, draw date range, Paid By Channel, Withheld by PCSO, CLAIMED conflicts ---------- */
+S.v13.claims.push({ ref: "ILT-TKT2026100918021100299", player: "PL-102901", upid: "UP-000102297", game: "g655", draw: "L655-20261012-1", date: "2026-10-12", tier: "Match 5 · 2nd", gross: 310000, paidByCh: 280000, st: "For claiming", code: "Not generated", exp: "", hash: "-", deadline: "2027-10-13", adjNote: "Turned For claiming after result adjustment v1 → v2" });
+S.v13.claims.forEach((c) => { if (c.st === "Claimed") { const x = taxOf(c.gross); c.coreTax = x.tax; c.coreNet = x.net; } });
+function b1ClaimRows() {
+  const q = S.v13.clq, ref = String(q.ref || "").trim().toUpperCase(), pl = String(q.player || "").trim().toUpperCase();
+  const sts = Array.isArray(q.sts) ? q.sts : (q.st && q.st !== "all" ? [q.st] : []);
+  if (q.from === undefined) { q.from = b1AddDays(b1Today(), -89); q.to = b1Today(); }
+  const useRange = q.draw === "all" && !b1ClaimRangeErr();
+  return S.v13.claims.filter((c) => (!sts.length || sts.includes(c.st)) && (q.game === "all" || c.game === q.game) && (q.draw === "all" || c.draw === q.draw) && (!useRange || ((!q.from || c.date >= q.from) && (!q.to || c.date <= q.to))) && (!ref || c.ref.toUpperCase() === ref || c.ref.toUpperCase() === "ILT-" + ref) && (!pl || c.player.toUpperCase() === pl || c.upid.toUpperCase() === pl));
+}
+function b1ClaimRangeErr() { const q = S.v13.clq; if (q.draw !== "all" || !q.from || !q.to) return ""; if (q.to < q.from || b1Days(q.from, q.to) + 1 > 366) return "Select a range of up to 366 days."; return ""; }
+v13ClaimRows = b1ClaimRows;
+viewClaimsMenu = function () {
+  const q = S.v13.clq; b1ClaimRows();
+  const sts = Array.isArray(q.sts) ? q.sts : (q.st && q.st !== "all" ? [q.st] : []);
+  const rows = b1ClaimRows(), err = b1ClaimRangeErr(), canProfile = !menuHidden("players");
+  const tr = rows.map((c) => {
+    const tx = taxOf(c.gross), claimed = c.st === "Claimed", tax = claimed ? c.coreTax : tx.tax, net = claimed ? c.coreNet : tx.net;
+    return `<tr data-v13-claim="${c.ref}"><td class="mono">${c.ref}${c.conflict ? `<div>${tag("rose", "CLAIMED conflict")}</div><div class="tiny">${esc("Local status was " + c.conflict)}</div>` : ""}</td><td class="mono">${canProfile ? `<button type="button" class="link mono" data-act="open-player" data-id="${c.player}">${c.player}</button>` : c.player}<div class="tiny">${c.upid}</div></td><td>${esc(gname(gameBy(c.game)))}<div class="tiny mono">${c.draw} · ${c.date}</div></td><td style="white-space:nowrap">${esc(c.tier).split(" + ").join("<br>")}</td><td class="mono amt">${peso2(c.gross)}<div class="tiny">${peso2(tax)}${claimed ? ` <span data-v131="withheld">Withheld by PCSO</span>` : ""} / ${peso2(net)}</div></td><td class="mono amt" data-v131="paid-by-ch">${c.paidByCh ? peso2(taxOf(c.paidByCh).net) + `<div class="tiny">Cheque = ${peso2(net)} − ${peso2(taxOf(c.paidByCh).net)} = ${peso2(b1R2(net - taxOf(c.paidByCh).net))}</div>` : "-"}</td><td>${claimed ? tag("ok", "Claimed") : c.st === "Expired" ? tag("muted", "Expired") : tag("warn", "For claiming")}${c.adjNote ? `<div class="tiny">${esc(c.adjNote)}</div>` : ""}</td><td>${esc(c.code)}<div class="tiny mono">${c.exp || "-"}</div></td><td>${esc(c.hash)}</td><td class="mono">${c.deadline}</td><td class="mono">${c.paidAt || "-"}<div class="tiny">${esc(c.loc || "-")}</div></td><td class="mono">${c.clm || "-"}<div class="tiny">${c.ack || "-"}</div></td></tr>`;
+  });
+  const sel = (k, list) => `<select data-v13q="clq.${k}">${list.map(([v, l]) => `<option value="${v}" ${q[k] === v ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+  const draws = [...new Set(S.v13.claims.filter((c) => q.game === "all" || c.game === q.game).map((c) => c.draw))];
+  const ms = `<select multiple class="b1ms" data-v131ms="clq.sts">${["For claiming", "Claimed", "Expired"].map((v) => `<option value="${v}" ${sts.includes(v) ? "selected" : ""}>${v}</option>`).join("")}</select>`;
+  const dis = q.draw !== "all" ? "disabled" : "";
+  return `<div class="page-h"><div><h3>${z("Big prize claim records", "大奖兑奖记录")}</h3><p class="muted">${z("Read-only. Winning tickets above the claim policy threshold of their draw (₱300,000 pre-tax), including tickets that crossed it after a result adjustment, are claimed and paid at PCSO Main Office through iLotto Core; the ticket turns Claimed when Core sends the CLAIMED notice, which always prevails. Nothing here is credited to the wallet.", "只读。单票税前超过该期兑奖政策门槛的中奖票（含结果调整后越过门槛转来的票）在 PCSO Main Office 经 Core 兑付；CLAIMED 以 Core 为准，不向钱包入账。")}</p></div><div class="row-actions"><button type="button" class="btn btn-sm" style="width:auto;flex:none" data-act="v131-claimed-sim">${z("Demo: CLAIMED for an auto-credited ticket", "演示：自动入账票收到 CLAIMED")}</button><button type="button" class="btn btn-sm" style="width:auto;flex:none" data-act="v13-claim-export">Export</button></div></div>
+    <div class="card"><div class="tools" data-v131="claim-filters">
+      <label class="f">Ticket Status ${ms}<span class="tiny">${sts.length ? sts.join(", ") : "All"}</span></label>
+      <label class="f">Game${sel("game", [["all", "All games"]].concat(GAMES.map((g) => [g.id, gname(g)])))}</label>
+      <label class="f">Draw ID${sel("draw", [["all", "All draws"]].concat(draws.map((d) => [d, d])))}</label>
+      <label class="f">Draw Date From<input type="date" data-v131q="clq.from" value="${esc(q.from || "")}" ${dis} /></label><label class="f">Draw Date To<input type="date" data-v131q="clq.to" value="${esc(q.to || "")}" ${dis} /></label>
+      <label class="f">Transaction Reference / Ticket SN<input data-v13q="clq.ref" value="${esc(q.ref)}" placeholder="ILT-TKT2026100918021100231" /></label>
+      <label class="f">Player<input data-v13q="clq.player" value="${esc(q.player)}" placeholder="UP-000104482" /></label>
+      <button type="button" class="btn btn-sm" data-act="v13-claim-search">${z("Search", "搜索")}</button></div>${err ? `<div class="err" data-v131="claim-err">${err}</div>` : ""}<p class="tiny" style="margin:6px 0 0">${z("Draw date defaults to the last 90 days (up to 366 days) and is greyed out when a draw is selected. Ticket Status is a multi-select (none selected = all). A ticket is Expired locally at 23:59:59 (UTC+8) on its claim deadline.", "开奖日期默认近 90 天（跨度 ≤ 366 天），选了期次时置灰；票据状态多选（不选 = 全部）；兑奖截止日 23:59:59 本地判已过期。")}</p></div>
+    <div class="b1w">${table(["Transaction Reference", "Player", "Game / Draw ID / Draw Date", "Prize Tier", "Gross / Tax / Net", "Paid By Channel", "Ticket Status", "Claiming Code Status / Code Expires At", "Code Hash Reported", "Claim Deadline", "Paid At / Payout Location", "Claim Record ID / Claimed Acknowledged At"], tr)}</div>
+    <p class="tiny">${v13Demo()} ${z("Before payment, gross, tax and net are computed by iLotto from the Core list and the register tax table; after CLAIMED they are the values sent by Core, with the tax marked Withheld by PCSO. Paid By Channel: only for tickets that crossed the threshold after a result adjustment, the after-tax amount credited before the adjustment; cheque = new net − Paid By Channel (provisional, pending PCSO). Paid At is the Core payment time and is used for every report date; Claimed Acknowledged At is tracking only. The claiming code itself is never shown. Exports mask player IDs and are written to the audit log.", "兑付前为 iLotto 按 Core 清单与登记册税率计算的值，收到 CLAIMED 后取 Core 下发值并标 Withheld by PCSO；渠道已付仅结果调整后越过门槛转来的票有值；兑付时间为 Core 兑付时间，报表按此归日。")}</p>`;
+};
+function b1ClaimedSim() {
+  if (S.v13.claims.some((c) => c.conflict)) return;
+  S.v13.claims.unshift({ ref: "ILT-TKT2026101118051400870", player: "PL-104266", upid: "UP-000104270", game: "m645", draw: "L645-20261011-1", date: "2026-10-11", tier: "Match 5 · 2nd", gross: 286000, st: "Claimed", code: "Used", exp: "", hash: "Reported", deadline: "2027-10-12", paidAt: a2NowFull().slice(0, 16), loc: "PCSO Main Office", clm: "CLM-" + b1Today().replace(/-/g, "") + "-000063", ack: a2NowFull().slice(0, 16), conflict: "Auto-credited (threshold judged differently)", coreTax: 57200, coreNet: 228800 });
+  S.v13a2.lrep.push({ id: "LR-ILT-" + b1Today().replace(/-/g, "") + "-00" + (S.v13a2.lrep.length + 1), dom: "Prize Claims", obj: "ILT-TKT2026101118051400870", desc: "CLAIMED received for a ticket already auto-credited; turned Claimed per Core, the credited amount was not reversed", at: sysNow(), by: "System", div: "" });
+  v13Sys(z("Big prize claim records", "大奖兑奖记录"), "CLAIMED received; ticket turned Claimed per Core (local status was Auto-credited)", "ILT-TKT2026101118051400870", "Acknowledged · local inconsistency reported");
+}
+
+/* ---------- 6B.8 identity review: three Core sources, federation status enum, additional verification, age or KYC rejection ---------- */
+Object.assign(V13_FED, { reg: "Federated · Registration Origin", link: "Federated · Credential Only", none: "Not Federated", ing: "Querying", pend: "Pending Match Review", rej: "Rejected", ver: "Awaiting Verification" });
+(function b1SeedKyc() {
+  if (S.kyc.some((k) => k.src === "addver")) return;
+  const base = S.kyc.find((k) => k.src === "core") || S.kyc[0];
+  [["KYC-89611", "Ana Villanueva", "PL-105001", "", "addver", "ver", "MR-20261012-0007", "Date of birth read from the ID (1998-07-14) differs from the candidate record (1998-04-17). Confirm the date of birth."], ["KYC-89612", "Leo Garcia", "PL-103774", "", "agerej", "rej", "FED-20261012-0031", "Below minimum age"]].forEach(([id, name, pl, up, src, fed, cse, need]) => S.kyc.push(Object.assign(JSON.parse(JSON.stringify(base)), { id, name, player: pl, upid: up, src, fed, cse, need, dir: "", due: "", status: "pending", checks: ["ok", "ok", "ok", "ok", "ok", "ok"], reasons: ["", "", "", "", "", ""], reasonsEn: ["", "", "", "", "", ""], wait: "1 天", waitEn: "1 day", submit: "2026-10-12 11:20", hist: [] })));
+  const p = S.players.find((x) => x.id === "PL-105001"); if (p) p.fed = "ver";
+})();
+const b1KycKind0 = kycKind;
+kycKind = function (k, kind) { if (kind === "addver" || kind === "agerej") return k.src === kind; if ((k.src === "addver" || k.src === "agerej") && kind !== "all") return false; return b1KycKind0(k, kind); };
+const B1_SRC = { core: "Core KYC review directive", addver: "Core additional verification", agerej: "Core age or KYC rejection", ekyc: "eKYC auto-check" };
+const b1Kyc0 = viewKyc0;
+viewKyc0 = function () {
+  if (S.kycId) { const k = S.kyc.find((x) => x.id === S.kycId); if (k && (k.src === "addver" || k.src === "agerej")) return b1KycDetail(k); }
+  const h = b1Kyc0(); if (S.kycId) return h;
+  const n = (s) => S.kyc.filter((k) => k.src === s && k.status === "pending").length;
+  return v13Tpl(h, (c) => {
+    const fl = c.querySelector(".filters"); if (fl) [["addver", "Core Additional Verification Count"], ["agerej", "Core Age Or KYC Rejection Count"]].forEach(([s, l]) => fl.insertAdjacentHTML("beforeend", `<button type="button" class="fcard ${S.kycFilter === s ? "on" : ""}" data-act="kyc-filter" data-arg="${s}" data-v131-kcard="${s}"><span>${l}</span><b class="mono">${n(s)}</b></button>`));
+    c.querySelectorAll("tbody tr[data-id]").forEach((tr) => { const k = S.kyc.find((x) => x.id === tr.dataset.id); if (!k || (k.src !== "addver" && k.src !== "agerej")) return; const td = tr.children[1]; if (td) td.innerHTML = tag("cyan", B1_SRC[k.src]) + `<div class="tiny mono">${esc(k.cse)}</div>`; });
+  });
+};
+function b1KycDetail(k) {
+  const f = S.v131.f, done = k.status !== "pending", add = k.src === "addver";
+  const head = `<div class="page-h"><div><button type="button" class="link" data-act="kyc-back">${z("← Back to list", "← 返回列表")}</button><h3>${esc(k.name)} · ${B1_SRC[k.src]}</h3><p class="mono tiny">${k.id} · ${k.player} · ${esc(k.cse)} · Federation Status: ${esc(V13_FED[k.fed] || "-")}</p></div></div>`;
+  const ban = `<div class="banner" data-v131="kyc-need">${add ? "Core asks for additional verification: " + esc(k.need) + " The player app has no upload entry; documents come through customer service or direct messages. On submit the system reports completion to Core: review ID, completion time, result, and any corrected registry fields with the salted ID number hash (no ID images or ID numbers)." : "Core rejected federation: " + esc(k.need) + ". The player is shown Verification not passed. Keep the rejection, or correct the details and federate again."}</div>`;
+  const form = done ? `<div class="card" data-v131="kyc-res"><h4>${add ? "Verification result" : "Decision"}</h4>${v13KV([[add ? "Result" : "Decision", esc(k.concl)], ["Remark", esc(k.conclNote || "-")], ["Recorded", `<span class="mono">${k.conclBy} · ${k.conclAt}</span>`]].concat(add && k.fix ? [["Corrected Date Of Birth", `<span class="mono">${esc(k.fix)}</span>`]] : []))}</div>`
+    : add ? `<div class="card" data-v131="kyc-form"><h4>Verification result</h4>${["Verified", "Unable To Verify"].map((v) => `<label style="display:block;margin:4px 0"><input type="radio" name="b1av" data-v131f="concl" value="${v}" ${f.concl === v ? "checked" : ""} /> ${v}</label>`).join("")}<label class="f">Corrected Date Of Birth (optional)<input type="date" data-v131f="fix" value="${esc(f.fix || "")}" /></label><label class="f">Remark<textarea data-v131f="cnote" rows="2" maxlength="500">${esc(f.cnote || "")}</textarea></label><div class="err" data-v131="kyc-err">${esc(S.v131.err || "")}</div><div class="row-actions">${b1Btn("v131-kyc-av", "Submit and report to Core", { cls: "btn-primary", id: k.id, dis: b1Is("kyc") ? "" : "Identity reviewer only" })}</div></div>`
+    : `<div class="card" data-v131="kyc-form"><h4>Decision</h4>${[["Keep Rejected", "the player stays Verification not passed"], ["Correct And Resubmit", "correct the details, then federate again"]].map(([v, d]) => `<label style="display:block;margin:4px 0"><input type="radio" name="b1ar" data-v131f="concl" value="${v}" ${f.concl === v ? "checked" : ""} /> ${v} <span class="tiny">${d}</span></label>`).join("")}<label class="f">Remark<textarea data-v131f="cnote" rows="2" maxlength="500">${esc(f.cnote || "")}</textarea></label><div class="err" data-v131="kyc-err">${esc(S.v131.err || "")}</div><div class="row-actions">${b1Btn("v131-kyc-ar", "Submit decision", { cls: "btn-primary", id: k.id, dis: b1Is("kyc") ? "" : "Identity reviewer only" })}</div></div>`;
+  return head + ban + form + v13Tpl(viewKycDetail(k), (c) => { c.querySelectorAll("[data-act=kyc-ask]").forEach((b) => b.remove()); const ph = c.querySelector(".page-h"); if (ph) ph.remove(); });
+}
+const b1KycDet0 = v13KycDetail;
+v13KycDetail = function (k) { return b1KycDet0(k).replace("identity status returns to In review; betting is restricted until it passes again", "restricted sign-in (balances, tickets and withdrawals only; no betting or deposits) and the player is asked to resubmit identity details; a player who already has a Unique Player ID is not federated again").replace("When every player on the directive has a conclusion, the system replies to Core.", "When every player on the directive has a conclusion, the system sends the per-player conclusions to Core as the directive reply; there is no separate reply form."); };
+const b1KycConcl0 = v13KycConclude;
+v13KycConclude = function (id) {
+  const k = S.kyc.find((x) => x.id === id), before = k ? k.status : "";
+  b1KycConcl0(id);
+  if (!k || before !== "pending" || k.status === "pending") return;
+  const p = S.players.find((x) => x.id === k.player); if (p && k.concl === "Re-KYC Required") p.rekyc = true;
+  const left = S.kyc.filter((x) => x.dir === k.dir && x.status === "pending").length, d = S.v13a2.dirs.find((x) => x.id === k.dir);
+  if (!left && d && d.exec === "Awaiting Reply") { const L = S.kyc.filter((x) => x.dir === k.dir); d.players = L.map((x) => [x.upid, x.concl, x.conclAt]); d.reply = "Per-player conclusions: " + L.map((x) => x.upid + " " + x.concl).join("; "); d.handler = "System"; a2DirExec(d, "Replied"); d.ack = "Received " + b1Hm(d.recv) + " · Result " + b1Hm(d.execAt); render(); }
+};
+
+/* ---------- 6B.9 PlaySafe: Local only exclusions, Exclusion Evasion item ⑤ (PC37 ②) ---------- */
+(function () {
+  const row = A2_IND.find((x) => x[0] === "ee"); if (row) row[5] = "Counted: (1) a deactivated (by admin) account sign-in rejected by the server; (2) a bet rejected by the server during a restricted period; (3) a new registration whose federation links to a Unique Player ID already excluded in Core, or that matches the local exclusion list (ID type + ID number); (4) sign-in of another account linked by the same ID to a player under any exclusion notified by Core (PCSO-imposed included); (5) a transaction whose Core receipt is Non-conformant with reason Player Excluded (instant alert). Front-end blocks do not count.";
+  if (!S.v13.excl.some((e) => e.id === "LEX-ILT-20260928-0003")) S.v13.excl.push({ id: "LEX-ILT-20260928-0003", player: "PL-102110", upid: "-", type: "Self-Exclusion", from: "2026-09-28 10:15", until: "2026-12-28", by: "ILT", st: "In Effect", sub: "Local only", applied: "2026-09-28 10:15", dir: "", local: true });
+})();
+const b1Excl0 = v13ViewExcl;
+v13ViewExcl = function () {
+  return v13Tpl(b1Excl0(), (c) => {
+    c.querySelectorAll("tr[data-v13-excl]").forEach((tr) => { const e = S.v13.excl.find((x) => x.id === tr.dataset.v13Excl); if (e && e.local) { const td = tr.lastElementChild; if (td) td.textContent = "-"; } });
+    const p = c.querySelector("p.tiny:last-of-type"); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v131="local-only">${z("Local only: a player without a Unique Player ID (identity check pending, not passed or rejected) is excluded on iLotto only and through the local eKYC exclusion list; after federation the remaining period is submitted to Core. Exclusions not yet registered at Core (queued, or rejected and waiting to be re-reported) are not corrected automatically; reconciliation can only extend an exclusion, never lift one. A self-exclusion can also be submitted during a PCSO-imposed exclusion; the later end date applies.", "Local only：未联邦玩家的自我排除只在本地生效，并进本地排除名单，联邦后按剩余期限补交 Core；未登记到 Core 的代交不参与自动纠正，对账只能延长不能解除。")}</span>`);
+  });
+};
+
+/* ---------- 6B.10 transactions: -V void references, conformance values, Unique Player ID on every tab, optional reporting items ---------- */
+const b1Upid0 = a2Upid;
+a2Upid = function (pid) { const p = S.players.find((x) => x.id === pid); if (p && (!p.upid || p.upid === "-" || ["none", "ing", "pend", "rej", "ver"].includes(p.fed))) return "-"; return b1Upid0(pid); };
+const b1TxAll0 = a2TxAll;
+a2TxAll = function () {
+  const L = b1TxAll0(), ex = S.v131.excluded || [];
+  L.forEach((x) => {
+    if (x.tab === "refund") { const r = S.refunds.find((y) => a2Ref(y.id) === x.ref); if (r) { x.rid = r.id; x.ref = a2Ref(r.ticket) + "-V"; x.kind = "Void"; x.orig = a2Ref(r.ticket); x.rep = a2Tx(x.ref, r.time); } }
+    if (ex.includes(x.ref)) x.rep = Object.assign({}, x.rep, { conf: "Excluded" });
+    else if (x.rep && x.rep.conf === "Conformant" && x.draw) { const i = S.issues.find((d) => d.no === x.draw); if (i && ["gen", "sale", "closed", "postponed"].includes(i.st)) x.rep = Object.assign({}, x.rep, { conf: "Pending" }); }
+  });
+  return L;
+};
+const b1Conf0 = a2ConfCell;
+a2ConfCell = function (x) { if (x.conf === "Pending") return tag("muted", "Pending") + `<div class="tiny">closure record not built yet</div>`; if (x.conf === "Excluded") return tag("rose", "Excluded") + `<div class="tiny">voided by the Core excluded-transactions directive</div>`; return b1Conf0(x); };
+viewRefunds = function () {
+  const all = a2TxAll();
+  return a2TxBar() + a2Inject(a2Refunds0(), [0, 11], (id) => { const x = all.find((y) => y.tab === "refund" && y.rid === id); if (!x || !a2TxMatch(x)) return null; return { cells: a2TxCells(x, x.orig), act: a2ReqBtn(x.ref), attr: x.ref }; }, A2_TXH, "last") + `<p class="tiny" data-v131="void-note">${z("Each voided ticket is reported to Core as one Void transaction: reference = the original Transaction Reference + -V, amount = minus the ticket amount. Refund is only for a partial refund without voiding (not used in this release); Cancellation is not used.", "每张作废票只上报一笔 Void 交易：编号 = 原交易编号 + -V，金额为原票金额的负值；Refund 只用于不作废票的部分退款（本期无），Cancellation 本期不用。")}</p>`;
+};
+const b1Orders0 = viewOrders;
+viewOrders = function () {
+  const os = rcOrderRows();
+  return v13Tpl(b1Orders0(), (c) => {
+    const tb = [...c.querySelectorAll("table")].find((t1) => [...t1.querySelectorAll("thead th")].some((h) => h.textContent.trim() === "Core Consolidation Reference")); if (!tb) return;
+    const ths = [...tb.querySelectorAll("thead th")], k = ths.findIndex((h) => h.textContent.trim() === "Conformance"); if (k < 0) return;
+    ["Voucher Deduction", "Combination No", "Bet Order No"].forEach((h) => { const th = document.createElement("th"); th.textContent = h; th.setAttribute("data-v131-col", h); ths[k].after(th); });
+    tb.querySelectorAll("tbody tr[data-a2-tx]").forEach((tr) => { const o = os.find((y) => a2Ref(y.ticket) === tr.dataset.a2Tx); const sib = o && o.bo ? os.filter((y) => y.bo === o.bo) : []; const vals = [o && o.bo ? o.bo : "-", sib.length > 1 ? String(sib.indexOf(o) + 1) : "-", peso2(o ? o.vch || 0 : 0)]; const td0 = tr.children[k]; vals.reverse().forEach((v) => { const td = document.createElement("td"); td.className = "mono"; td.textContent = v; td0.after(td); }); });
+  });
+};
+function b1UpidCol(html, headName) {
+  return v13Tpl(html, (c) => {
+    const q = b1Q("dw", { upid: "" }), up = q.upid.trim().toUpperCase();
+    c.querySelectorAll("table").forEach((tb) => {
+      const ths = [...tb.querySelectorAll("thead th")], k = ths.findIndex((h) => h.textContent.trim() === headName); if (k < 0) return;
+      const th = document.createElement("th"); th.textContent = "Unique Player ID"; th.setAttribute("data-v131-col", "upid"); ths[k].after(th);
+      tb.querySelectorAll("tbody tr").forEach((tr) => { const td0 = tr.children[k]; if (!td0 || tr.children.length < ths.length) return; const u = a2Upid(td0.textContent.trim()); const td = document.createElement("td"); td.className = "mono"; td.textContent = u; td0.after(td); if (up && u.toUpperCase() !== up) tr.remove(); });
+    });
+  });
+}
+function b1UpidBar() { const q = b1Q("dw", { upid: "" }); return `<div class="card" data-v131="dw-filter" style="margin-bottom:10px"><div class="tools"><label class="f">${z("Unique Player ID", "唯一玩家 ID")}<input data-v131q="dw.upid" value="${esc(q.upid)}" placeholder="UP-000104482" /></label>${b1Btn("v131-search", z("Search", "搜索"), { cls: "btn-primary" })}</div><p class="tiny" style="margin:6px 0 0">${z("Unique Player ID is shown beside the local Player Id; - until the player is federated.", "唯一玩家 ID 显示在本地玩家 ID 旁；联邦完成前显示 -。")}</p></div>`; }
+const b1Txn0 = viewTxn;
+viewTxn = function () {
+  const h = b1Txn0();
+  if (S.tab.txn === "dep" || S.tab.txn === "wd") return v13Tpl(b1UpidCol(h, "Player Id"), (c) => { const ph = c.querySelector(".page-h"); if (ph) ph.insertAdjacentHTML("afterend", b1UpidBar()); });
+  if (S.tab.txn === "ticket") return v13Tpl(h, (c) => {
+    const tb = [...c.querySelectorAll("table")].find((t1) => [...t1.querySelectorAll("thead th")].some((x) => x.textContent.trim() === "Transaction Reference")); if (!tb) return;
+    const ths = [...tb.querySelectorAll("thead th")], k = ths.findIndex((x) => x.textContent.trim() === "Transaction Reference"); const all = a2TxAll();
+    const th = document.createElement("th"); th.textContent = "Unique Player ID"; th.setAttribute("data-v131-col", "upid"); ths[k].after(th);
+    tb.querySelectorAll("tbody tr[data-a2-tx]").forEach((tr) => { const x = all.find((y) => y.ref === tr.dataset.a2Tx); const td = document.createElement("td"); td.className = "mono"; td.textContent = x ? a2Upid(x.player) : "-"; tr.children[k].after(td); });
+  });
+  return h;
+};
+/* 6B.10.3 prize payments: one record per ticket, record type, tier breakdown, gross / tax / net, Core verification values */
+S.v131.pp = { flags: { "PRC-ILT-20261007-0002": "Credited after a result adjustment notice; kept as channel-paid" } };
+function b1PrizeRows() {
+  const L = a2PrizeRows().map((r, k) => {
+    const o = Object.assign({}, r), tx = taxOf(r.gross);
+    o.type = "Standard"; o.tax = r.src === "PCSO Counter" ? (S.v13.claims.find((c) => c.clm === r.clm) || {}).coreTax || tx.tax : tx.tax; o.net = b1R2(r.gross - o.tax);
+    o.tiers = r.src === "PCSO Counter" ? ((S.v13.claims.find((c) => c.clm === r.clm) || {}).tier || "Jackpot") + " × 1 · " + peso2(r.gross) : (r.gross === 2287.58 ? "Match 5 · 2nd × 1 · ₱2,287.58" : "Prize × 1 · " + peso2(r.gross));
+    o.cv = r.cv === "Passed" ? (S.v131.pp.flags[r.clm] ? "Accepted – Flagged" : "Accepted") : r.cv; o.flag = S.v131.pp.flags[r.clm] || "";
+    o.claimedAt = r.src === "PCSO Counter" ? r.at : r.at; o.ackAt = r.src === "PCSO Counter" ? r.claimed : "-";
+    const rs = (S.v131.pp.res || {})[r.clm]; if (rs) { o.resolved = rs; }
+    return o;
+  });
+  S.issues.forEach((i) => (i.adj || []).forEach((a) => a.rows.filter((r) => r.topup > 0).forEach((r, k) => L.push({ src: "Auto Credit", type: "Top-up", clm: "PRC-ILT-" + String(a.at).slice(0, 10).replace(/-/g, "") + "-T" + String(k + 1).padStart(3, "0"), orig: "PRC-ILT-20261009-00" + String(31 + k), ref: r.ref, player: "PL-104482", game: i.game, draw: i.no, ver: a.ver, how: "Standard", gross: r.topup, tax: 0, net: r.topup, paid: r.topup, at: a.at, claimedAt: r.doneAt, ackAt: "-", rep: r.repAt === "Queued" ? "Queued" : "Reported", cv: "Awaiting", why: "", tiers: "(" + peso2(r.nPrize) + " − " + peso2(r.oPrize) + ") × 1 after tax", flag: "" }))));
+  return L;
+}
+viewPrizePay = (function (f0) {
+  return function () {
+    const base = f0(), f = S.pp || {}, rq = b1Q("pp", { cv: "all" }), fin = b1Is("finance");
+    const card = v13Tpl(base, (c) => { [...c.children].slice(1).forEach((x) => x.remove()); const n = c.querySelector("[data-pp=note]"); if (n) n.textContent = "Read-only. Auto Credit rows are prizes credited by iLotto within the claim policy threshold of the draw: one record per Transaction Reference with the tier breakdown and ticket-level gross, tax and net, reported to Core with the Core verification result; a result-adjustment top-up is its own Top-up record. PCSO Counter rows are big prizes paid at the Core big prize claim desk; iLotto only records the CLAIMED write-back and pays nothing."; });
+    const rows = b1PrizeRows().filter((r) => (!f.from || String(r.at).slice(0, 10) >= f.from) && (!f.to || String(r.at).slice(0, 10) <= f.to) && (rq.cv === "all" || r.cv === rq.cv));
+    const cvTag = (r) => r.cv === "Accepted" ? tag("ok", "Accepted") : r.cv === "Accepted – Flagged" ? tag("warn", "Accepted – Flagged") + `<div class="tiny">${esc(r.flag)}</div>` : r.cv === "Rejected" ? `${tag("rose", "Rejected")}<div class="tiny">${esc(r.why)} · ${a2Link("v13a2-go", "Reconciliation", { arg: "recon" })}</div>${r.resolved ? `<div class="tiny" data-v131="pp-resolved">${esc(r.resolved)}</div>` : ""}` : tag("warn", r.cv);
+    const act = (r) => r.src === "Auto Credit" && r.cv === "Rejected" && !r.resolved && fin ? b1Btn("v131-pp-resolve", z("Decide", "判定"), { id: r.clm, cls: "btn-primary" }) : r.src === "Auto Credit" && r.type === "Standard" && a2Is("ops") && !a2OpenAdj(r.clm) ? `<button type="button" class="btn btn-sm" data-act="v13a2-arq-new" data-id="${esc(r.clm)}" data-arg="Prize Claim Record" data-a2="req-adj">${z("Request Adjustment", "发起调整")}</button>` : "";
+    const filt = `<div class="tools" style="margin:8px 0" data-v131="pp-filter"><label class="f">Core Verification${a2Sel("x.x", [], "", "")}</label></div>`.replace(a2Sel("x.x", [], "", ""), `<select data-v131q="pp.cv">${[["all", "All"], "Awaiting", "Accepted", "Accepted – Flagged", "Rejected"].map((v) => { const [k, l] = Array.isArray(v) ? v : [v, v]; return `<option value="${k}" ${rq.cv === k ? "selected" : ""}>${l}</option>`; }).join("")}</select>`);
+    return card + filt + `<div class="b1w">` + table([z("Claim Source", "兑奖来源"), z("Record Type", "记录类型"), z("Claim Record", "兑奖记录"), z("Transaction Reference", "交易编号"), z("Unique Player ID", "唯一玩家 ID"), z("Draw ID", "期次"), z("Result Version", "结果版本"), z("Tier Breakdown", "奖级明细"), z("Gross / Tax / Net", "税前 / 代扣税 / 实付"), z("Verification Method", "核验方式"), z("Reporting Status", "上报状态"), z("Core Verification", "Core 核验结果"), z("Claimed At", "兑奖时间"), z("CLAIMED Acknowledged At", "CLAIMED 回执时间"), ""],
+      rows.map((r) => `<tr data-a2-prize="${esc(r.clm)}"><td>${r.src === "Auto Credit" ? tag("ok", "Auto Credit") : tag("cyan", "PCSO Counter")}</td><td>${r.src === "Auto Credit" ? (r.type === "Top-up" ? tag("warn", "Top-up") + `<div class="tiny mono">${esc(r.orig)} · ${esc(r.ver)}</div>` : "Standard") : "-"}</td><td class="mono">${esc(r.clm)}</td><td class="mono">${esc(r.ref)}</td><td class="mono">${esc(a2Upid(r.player))}</td><td class="mono">${esc(r.draw)}</td><td class="mono">${esc(r.ver)}</td><td class="tiny">${esc(r.tiers)}</td><td class="mono amt">${peso2(r.gross)}<div class="tiny">${peso2(r.tax)}${r.src === "PCSO Counter" ? " Withheld by PCSO" : ""} / ${peso2(r.net)}</div></td><td>${r.how}</td><td>${r.src === "Auto Credit" ? a2RepTag(r.rep) : "-"}</td><td>${cvTag(r)}</td><td class="mono">${esc(r.claimedAt || "-")}</td><td class="mono">${esc(r.ackAt || "-")}</td><td>${act(r)}</td></tr>`)) + `</div>`
+      + `<p class="tiny">${v13Demo()} ${z("Claimed At: Auto Credit = credit time (a store-and-forward report keeps it); PCSO Counter = the Core payment time sent with CLAIMED, used for every big-prize report date. A Rejected record of the result-not-published kind is re-reported automatically; any other Rejected record is not reversed automatically: Finance review decides, and Core's error goes to a claim record adjustment request while iLotto's error is reversed from the prize balance. Accepted – Flagged counts as channel-paid. Big prizes are not in the local payout totals and are not deducted in the remittance statement.", "兑奖时间：自动入账 = 入账时间；PCSO 柜台 = Core 兑付时间。Rejected（结果未发布类自动重报除外）不自动冲回，由财务复核判定。")}</p>`;
+  };
+})(viewPrizePay);
+
+/* ---------- 6B.10.4 adjustment requests: two classes, execution table, Execution Failed + Retry Execution, decision notices ---------- */
+const B1_CLASS = { "Void And Refund": { codes: ["Void/Cancellation", "Data Entry Error", "Dispute Resolution", "Other"], items: { Transaction: ["Status"] } }, "Reported Value Correction": { codes: ["Data Entry Error", "Other"], codesPrize: ["Data Entry Error", "Dispute Resolution", "Other"], items: { Transaction: ["Transaction Count", "Unit Value", "Register Version"], "Prize Claim Record": ["Tier Breakdown", "Gross", "Tax", "Net", "Claimed At"] } } };
+A2_REASONS.splice(0, A2_REASONS.length, "Void/Cancellation", "Data Entry Error", "Dispute Resolution", "Other");
+if (A2_LOCAL.indexOf("Execution Failed") < 0) A2_LOCAL.splice(A2_LOCAL.indexOf("Applied"), 0, "Execution Failed");
+(function b1SeedArq() {
+  const set = (id, o) => { const r = S.v13a2.arq.find((x) => x.id === id); if (r) Object.assign(r, o); };
+  set("ADJ-ILT-20261008-0003", { cls: "Reported Value Correction", item: "Net", ov: "₱12,000.00", nv: "₱12,500.00", exec: "2026-10-08 16:41:02 · LDG-ILT-20261008-0118 · Sent" });
+  set("ADJ-ILT-20261009-0004", { cls: "Void And Refund", item: "Status", ov: "Active", nv: "Void" });
+  set("ADJ-ILT-20261010-0005", { cls: "Void And Refund", item: "Status", ov: "Active", nv: "Void", target: "ILT-TKT202610090231" });
+  set("ADJ-ILT-20261011-0006", { cls: "Void And Refund", code: "Void/Cancellation", item: "Status", ov: "Active", nv: "Void" });
+  set("ADJ-ILT-20261012-0007", { cls: "Reported Value Correction" });
+  if (!S.v13a2.arq.some((r) => r.id === "ADJ-ILT-20261012-0008")) S.v13a2.arq.push({ id: "ADJ-ILT-20261012-0008", tt: "Transaction", cls: "Void And Refund", target: "ILT-TKT20261009010915", code: "Dispute Resolution", item: "Status", ov: "Active", nv: "Void", note: "Player disputed a duplicate bet", st: "Execution Failed", core: "Approved", by: "carla.ong", rev: "henrik.tan", dec: "core.fin01", sub: "2026-10-12 10:05", decAt: "2026-10-12 15:40", rej: "", rejBy: "", fail: "Wallet service timeout while refunding" });
+})();
+const b1OpenAdj0 = a2OpenAdj;
+a2OpenAdj = function (ref) { return b1OpenAdj0(ref) || S.v13a2.arq.find((r) => r.target === ref && r.st === "Execution Failed"); };
+function b1ArqTag(s) { return s === "Execution Failed" ? tag("rose", s) : a2LocalTag(s); }
+a2ViewArq = function () {
+  const q = a2Q("arq", { st: "all", code: "all", from: A2_DAYS_AGO(30), to: A2_TODAY(), ref: "" }), me = a2Me();
+  const rows = a2ArqRows().map((r) => {
+    const acts = [];
+    if (r.st === "Pending Local Review" && r.by === me) acts.push(a2Btn("v13a2-arq-withdraw", z("Withdraw", "撤回"), { id: r.id }));
+    if (r.st === "Pending Local Review" && a2Is("finance") && r.by !== me) { acts.push(a2Btn("v13a2-arq-confirm", z("Confirm And Submit To Core", "确认并提交 Core"), { id: r.id, cls: "btn-primary" })); acts.push(a2Btn("v13a2-arq-reject", z("Reject", "驳回"), { id: r.id })); }
+    if (r.st === "Submitted To Core" && a2Is("ops", "finance")) { acts.push(b1Btn("v131-arq-core", z("Demo: Core approves", "演示：Core 批准"), { id: r.id, arg: "ok" })); acts.push(b1Btn("v131-arq-core", z("Demo: Core approves, local execution fails", "演示：Core 批准、本地执行失败"), { id: r.id, arg: "fail" })); acts.push(b1Btn("v131-arq-core", z("Demo: Core rejects", "演示：Core 驳回"), { id: r.id, arg: "no" })); }
+    if (r.st === "Execution Failed" && a2Is("ops")) acts.push(b1Btn("v131-arq-retry", z("Retry Execution", "重试执行"), { id: r.id, cls: "btn-primary" }));
+    return `<tr data-a2-arq="${r.id}"><td class="mono">${r.id}</td><td>${r.tt}</td><td class="mono">${esc(r.target)}${r.tref ? `<div class="tiny">${esc(r.tref)}</div>` : ""}</td><td>${esc(r.cls || (r.item === "Status" ? "Void And Refund" : "Reported Value Correction"))}</td><td>${esc(r.code)}</td><td class="mono">${esc(r.item)} / ${esc(r.ov)} / ${esc(r.nv)}</td><td>${b1ArqTag(r.st)}${r.st === "Submitted To Core" && r.queued ? " " + tag("cyan", "Queued") : ""}${r.fail ? `<div class="tiny">${esc(r.fail)}</div>` : ""}</td><td>${r.core ? (r.core === "Approved" ? tag("ok", r.core) : r.core === "Rejected" ? tag("rose", r.core) : tag("warn", r.core)) : "-"}</td><td class="mono">${esc(r.by)}</td><td class="mono">${esc(r.rev || "-")}</td><td class="mono">${esc(r.dec || "-")}</td><td class="mono">${esc(r.sub)} / ${esc(r.decAt || "-")}</td><td class="mono tiny" data-v131="exec-ack">${esc(r.exec || "-")}</td><td>${r.rej ? esc(r.rej) + ` <span class="tiny">(${r.rejBy === "Core" ? "Core" : "Local"})</span>` : "-"}</td><td class="row-actions">${acts.join("")}</td></tr>`;
+  });
+  const err = a2RangeErr(q, 92);
+  const ex = table(["Adjustment Class", "Target Type", "Adjusted Item", "Reason Codes", "After Core Approval iLotto Executes", "Wallet", "Ticket"], [
+    `<tr><td>Void And Refund</td><td>Transaction</td><td>Status (→ Void)</td><td>Void/Cancellation / Data Entry Error / Dispute Resolution / Other</td><td>Voids the ticket and refunds it in full the way it was paid (vouchers returned), reusing the void refund flow</td><td>Void refund entry; no separate entry type</td><td>Void, reason Corrected by PCSO</td></tr>`,
+    `<tr><td>Reported Value Correction</td><td>Transaction</td><td>Transaction Count / Unit Value / Register Version</td><td>Data Entry Error / Other</td><td>Corrects only the locally kept reported value</td><td>No change</td><td>No change</td></tr>`,
+    `<tr><td>Reported Value Correction</td><td>Prize Claim Record</td><td>Tier Breakdown, Gross, Tax, Net, Claimed At</td><td>Data Entry Error / Dispute Resolution / Other</td><td>Corrects only the locally kept claim record values; prize amounts change only through a result adjustment</td><td>No change</td><td>No change</td></tr>`]);
+  return `<div class="page-h" style="margin-top:4px"><div><h4 style="margin:0">${z("Transactions › Adjustment Requests", "交易流水 › 交易调整申请")}</h4><p class="tiny" style="margin:4px 0 0">${z("Reported transactions are never corrected locally. Operations requests an adjustment, Finance review checks it locally and submits it to Core. Core sends its decision as a Transaction Adjustment Decision notice; on approval Core creates the new record, iLotto executes the local correction and acknowledges the execution result (request ID, execution time, local ledger number), and the original stays unchanged. Only two classes are open: Void And Refund and Reported Value Correction; selections and sales amounts cannot be adjusted.", "已上报 Core 的交易不能在本地更正：运营专员发起，财务复核本地复核后提交 Core；Core 审批结果以「交易调整审批结果」通知下发，批准时由 Core 生成新记录，iLotto 执行本地更正并回执执行结果。只开放整笔作废退款与上报值更正两类。")}</p></div>
+    <div class="row-actions">${a2Is("ops") ? a2Btn("v13a2-arq-new", z("New Adjustment Request", "新建交易调整申请"), { cls: "btn-primary", arg: "Transaction" }) : ""}${a2Btn("v13a2-export", z("Export", "导出"), { arg: "arq" })}</div></div>
+    <div class="card" style="margin:10px 0"><div class="tools" data-a2="arq-filters"><label class="f">${z("Local Status", "本地状态")}${a2Sel("arq.st", [["all", "All"]].concat(A2_LOCAL), q.st)}</label><label class="f">${z("Reason Code", "原因代码")}${a2Sel("arq.code", [["all", "All"]].concat(A2_REASONS), q.code)}</label>${a2RangeInputs("arq", q)}<label class="f">${z("Transaction Reference", "交易编号")}<input data-a2q="arq.ref" value="${esc(q.ref)}" placeholder="Transaction Reference" /></label>${a2Btn("v13a2-search", z("Search", "搜索"), { cls: "btn-primary", arg: "arq" })}</div>${err ? `<div class="err" data-a2="arq-err">${err}</div>` : ""}</div>
+    <div class="b1w">${table([z("Adjustment Request ID", "申请编号"), z("Target Type", "对象类型"), z("Target", "对象"), z("Adjustment Class", "调整类别"), z("Reason Code", "原因代码"), z("Item / Original / Adjusted", "数据项 / 原值 / 调整值"), z("Local Status", "本地状态"), z("Core Status", "Core 状态"), z("Submitted By", "提交人"), z("Reviewed By", "本地复核人"), z("Decided By", "Core 处理人"), z("Submitted / Decided", "提交 / 处理时间"), z("Execution Acknowledgment", "执行回执"), z("Rejection Reason", "驳回原因"), ""], rows)}</div>
+    <div class="card" data-v131="arq-exec" style="margin-top:10px"><h4>${z("Execution table", "执行表")}</h4>${ex}<p class="tiny">${z("A void caused by a Core directive (draw cancellation, no-draw date, channel exclusion void, excluded transactions void) is reported by the directive as a Void transaction and does not use this form. Voiding a winning ticket after the closure record only voids and refunds the stake; the prize changes only through the Core result adjustment that follows.", "Core 指令引起的作废退款不走本申请；封盘后作废已中奖的票只作废退投注额，奖金按随后的结果调整处理。")}</p></div>
+    <p class="tiny">${v13Demo()} ${z("Times UTC+8; Decided is the Core decision time. Approved refunds and voids count on the Core approval date. Every action is written to the audit log (Audit, module Adjustment requests). Ops reviewer, Identity reviewer and System admin cannot see this tab.", "时间 UTC+8，处理时间取 Core 决定时间；退款 / 作废类按 Core 批准时间归日；全程写审计。")}</p>`;
+};
+function b1ArqForm() {
+  const f = S.v13a2.f, tt = f.tt || "Transaction", cls = tt === "Prize Claim Record" ? "Reported Value Correction" : f.cls || "", C = B1_CLASS[cls];
+  const codes = C ? (tt === "Prize Claim Record" ? C.codesPrize : C.codes) : [], items = C ? C.items[tt] || [] : [], x = a2TxFind(f.ref), e = f.err || "";
+  const ov = f.item === "Status" ? "Active" : f.item === "Transaction Count" && x ? (x.amt / S.v13a2.unit).toFixed(4) : f.item === "Unit Value" ? peso2(S.v13a2.unit) : f.item === "Register Version" && x && x.game ? v13RegVer(gameBy(x.game)) : f.item && x && ["Gross", "Net"].includes(f.item) ? peso2(x.amt) : f.item === "Tax" ? peso2(0) : f.item === "Claimed At" && x ? x.at : f.item === "Tier Breakdown" ? "Prize × 1" : "";
+  const fixed = cls === "Void And Refund";
+  return dialog(z("New Adjustment Request", "新建交易调整申请"), `<div data-a2="arq-form">${a2Fld("Target Type", `<div class="tabs">${["Transaction", "Prize Claim Record"].map((k) => `<button type="button" data-act="v131-arq-set" data-arg="tt=${k}" class="${tt === k ? "on" : ""}">${k}</button>`).join("")}</div>`)}${a2Fld(tt === "Prize Claim Record" ? "Prize Claim Record" : "Transaction Reference", a2In("ref", "Transaction Reference"))}
+    ${a2Fld("Adjustment Class", `<div class="tabs" data-v131="arq-cls">${(tt === "Prize Claim Record" ? ["Reported Value Correction"] : ["Void And Refund", "Reported Value Correction"]).map((k) => `<button type="button" data-act="v131-arq-set" data-arg="cls=${k}" class="${cls === k ? "on" : ""}">${k}</button>`).join("")}</div>`)}
+    ${a2Fld("Reason Code", a2Opt("code", codes, 'data-a2r="1"'))}${a2Fld("Adjusted Item", fixed ? `<input value="Status" disabled data-v131="item-fixed" />` : a2Opt("item", items, 'data-a2r="1"'))}${(fixed || f.item) ? `<p class="tiny">Original Value: <b class="mono" data-a2="orig">${esc(fixed ? "Active" : ov || "-")}</b></p>` : ""}${a2Fld("Adjusted Value", fixed ? `<input value="Void" disabled data-v131="nv-fixed" />` : a2In("nv", ""))}${a2Fld("Supplementary Note" + (f.code === "Other" ? " *" : ""), a2Ta("note", "Player charged twice due to wallet timeout"))}${a2Fld("Attachment", `<input type="file" data-a2file="att" accept=".pdf,.jpg,.jpeg,.png" />`)}<p class="tiny">PDF, JPG or PNG, up to 10 MB. ${z("One request adjusts one item. Void And Refund always sets Status to Void. Refund is not offered (partial refunds are not used in this release).", "一次申请只调整一个数据项；整笔作废退款固定为 Status → Void；本期不提供 Refund。")}</p>${e ? `<div class="err" data-a2="ferr">${esc(e)}</div>` : ""}</div>`, `<button type="button" class="btn" style="width:auto;flex:none" data-act="close">${z("Cancel", "取消")}</button><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="v13a2-arq-save">${z("Submit", "提交")}</button>`);
+}
+const b1Modal0 = x13Modal;
+x13Modal = function () { if (S.modal.type === "v13a2-arq") return b1ArqForm(); return b1Modal0(); };
+function b1ArqSave() {
+  const f = S.v13a2.f, me = a2Me(), fail = (m) => { f.err = m; render(); };
+  const x = a2TxFind(f.ref), tt = f.tt || "Transaction", cls = tt === "Prize Claim Record" ? "Reported Value Correction" : f.cls || "", fl = (S.v13a2.files || {}).att ? S.v13a2.files.att[0] : null;
+  if (!x) return fail("No transactions found.");
+  if (!a2CanReq(x.rep)) return fail("This transaction has not been reported to Core yet.");
+  if (a2OpenAdj(x.ref)) return fail("An adjustment request for this transaction is already in progress.");
+  if (!cls) return fail("Select the adjustment class.");
+  if (!f.code) return fail("Select a reason code.");
+  const item = cls === "Void And Refund" ? "Status" : f.item; if (!item) return fail("Select the item to adjust.");
+  const nv = cls === "Void And Refund" ? "Void" : String(f.nv || "").trim(); if (!nv) return fail("Enter the adjusted value.");
+  if (["Unit Value", "Gross", "Tax", "Net"].includes(item) && !/^₱?\d{1,3}(,\d{3})*(\.\d{1,2})?$|^₱?\d+(\.\d{1,2})?$/.test(nv)) return fail("Up to 2 decimal places.");
+  if (f.code === "Other" && !String(f.note || "").trim()) return fail("Enter the reason for Other.");
+  if (String(f.note || "").length > 500) return fail("Up to 500 characters.");
+  if (fl && !a2FileOk(fl, "pdf|jpe?g|png", 10485760)) return fail("File must be PDF, JPG or PNG and up to 10 MB.");
+  const n = S.v13a2.arq.filter((r) => r.id.indexOf("ADJ-ILT-" + a2Ymd()) === 0).length + 1, rid = "ADJ-ILT-" + a2Ymd() + "-" + String(100 + n).padStart(4, "0");
+  const money = ["Unit Value", "Gross", "Tax", "Net"].includes(item), nvs = money ? peso2(Number(nv.replace(/[₱,]/g, ""))) : nv;
+  const ov = item === "Status" ? "Active" : item === "Transaction Count" ? (x.amt / S.v13a2.unit).toFixed(4) : item === "Unit Value" ? peso2(S.v13a2.unit) : item === "Register Version" && x.game ? v13RegVer(gameBy(x.game)) : ["Gross", "Net"].includes(item) ? peso2(x.amt) : item === "Tax" ? peso2(0) : item === "Claimed At" ? x.at : "Prize × 1";
+  S.v13a2.arq.push({ id: rid, tt: x.kind === "Prize Claim Record" ? "Prize Claim Record" : "Transaction", cls, target: x.ref, tref: x.tref || "", code: f.code, item, ov, nv: nvs, note: f.note || "", st: "Pending Local Review", core: "", by: me, rev: "", dec: "", sub: sysNow(), decAt: "", rej: "", rejBy: "" });
+  x13Aud("Adjustment requests", "Submit adjustment request", rid, "—", x.ref + " · " + cls + " · " + item + " → " + nvs);
+  S.page = "txn"; S.tab.txn = "arq"; S.v13a2.q.arq = { st: "all", code: "all", from: "", to: "", ref: "" };
+  S.modal = null; S.v13a2.f = {}; S.v13a2.files = {}; toast("Adjustment request " + rid + " submitted for local review."); render();
+}
+function b1ArqExec(r, ok) {
+  if (!ok) { r.st = "Execution Failed"; r.fail = "Wallet service timeout while refunding"; a2SysLog("Adjustment requests", "Local correction failed; failure acknowledged to Core", r.id, "Execution Failed"); return; }
+  r.st = "Applied"; r.fail = ""; const led = "LDG-ILT-" + a2Ymd() + "-" + String(200 + (S.v131.n += 1)).padStart(4, "0");
+  r.exec = a2NowFull() + " · " + led + " · " + (a2Off() ? "Queued" : "Sent");
+  if (r.cls === "Void And Refund") S.v131.excluded = S.v131.excluded || [];
+  a2SysLog("Adjustment requests", "Local correction executed; execution result acknowledged to Core (request ID, execution time, local ledger number)", r.target, r.item + " → " + r.nv + " · " + led);
+}
+function b1ArqDecision(r, how) {
+  const id = "DIR-" + a2Ymd() + "-000" + (180 + (S.v131.n += 1));
+  if (how === "no") Object.assign(r, { st: "Rejected By Core", core: "Rejected", dec: "core.fin01", decAt: sysNow(), rej: "Not supported by the evidence provided.", rejBy: "Core" });
+  else { Object.assign(r, { core: "Approved", dec: "core.fin01", decAt: sysNow() }); b1ArqExec(r, how === "ok"); }
+  S.v13a2.dirs.push({ id, type: "Transaction Adjustment Decision", sub: "", mode: "auto", sum: r.id + " · " + r.core, reason: "Core decision on the adjustment request", by: "core.fin01", issued: a2NowFull(), recv: a2NowFull(), deadline: btFmt(a2NowMs() + 15 * 60000), exec: r.st === "Execution Failed" ? "Failed" : "Executed", execAt: r.st === "Execution Failed" ? "" : a2NowFull(), ack: "Received " + b1Hm(a2NowFull()) + (r.st === "Execution Failed" ? " · Result failed" : " · Result " + b1Hm(a2NowFull())), handler: "System", fail: r.st === "Execution Failed" ? r.fail : "", players: [], detail: "Request " + r.id + " · Core status " + r.core + " · decided by core.fin01 at " + r.decAt, ackHist: [[a2NowFull(), "Receipt confirmation sent"]], round: 0, adjId: r.id });
+  a2DirSync();
+}
+
+/* ---------- 6B.11 reports ---------- */
+/* transaction monitoring: drill-down gets Game (first), Transaction Reference, Reporting Status; export with Game */
+const b1TM0 = viewTM;
+viewTM = function () {
+  return v13Tpl(b1TM0(), (c) => {
+    const card = c.querySelector("#tm-drill-card"); if (card) {
+      const tb = card.querySelector("table"); if (tb) {
+        const tr0 = tb.querySelector("thead tr"); const W = tr0.children.length;
+        tr0.insertAdjacentHTML("afterbegin", `<th data-v131-col="Game">Game</th>`); [...tr0.children][1].insertAdjacentHTML("afterend", `<th data-v131-col="tref">Transaction Reference</th><th data-v131-col="rst">Reporting Status</th>`);
+        tb.querySelectorAll("tbody tr").forEach((tr) => {
+          const tds = [...tr.children];
+          if (tds.length < W) { tr.insertAdjacentHTML("afterbegin", "<td></td>"); if (tds[0]) tds[0].insertAdjacentHTML("afterend", "<td></td><td></td>"); return; }
+          const draw = tds[1].textContent.trim(), bo = tds[0].textContent.trim(), ref = "ILT-TKT" + bo.slice(2, 10) + bo.slice(-11);
+          tr.insertAdjacentHTML("afterbegin", `<td>${esc(b1Gname(draw))}</td>`); tds[0].insertAdjacentHTML("afterend", `<td class="mono">${esc(ref)}</td><td>${a2RepTag("Reported")}</td>`);
+        });
+      }
+      card.insertAdjacentHTML("beforeend", `<p class="tiny" data-v131="tm-note">${z("One row per ticket (= one transaction). Game is the first column on the page and in the export. Daily and monthly reports are not split by game.", "每张票一行；Game 在页面与导出中都放第一列；日报、月报不按游戏拆。")}</p>`);
+    }
+    const tc = c.querySelector("[data-a2=tm-core] p.tiny:last-of-type"); if (tc) tc.insertAdjacentHTML("beforeend", ` <span data-v131="tm-adj-date">${z("Approved adjustments count on the Core approval date (refunds and voids as refund amounts), the same basis as the remittance statement.", "已批准调整按 Core 批准时间归日（退款 / 作废类为退款金额），口径同汇缴计算书。")}</span>`);
+  });
+};
+/* prizes: Core pools, Core payment time, tier distribution export with Game */
+const b1PrizeHub0 = viewPrizeHub;
+viewPrizeHub = function (head) {
+  return v13Tpl(b1PrizeHub0(head), (c) => {
+    const card = c.querySelector("[data-a2=prize-core]"); if (!card) return;
+    const p = card.querySelector("p.tiny"); if (p) p.textContent = "Prize per bet, winning bet counts (summed by multiple) and the jackpot pool (the Pool Amount sent with the Core result; before the result, the jackpot published in the Core calendar) come from the Core result and winning wager list (latest version). Payable = Σ(Core prize per bet × multiple). Data covers draws whose winner reconciliation was submitted (queued locally counts) and refreshes when a Core result or result adjustment arrives. Counter Paid is the pre-tax big prize from CLAIMED, dated by the Core payment time sent with CLAIMED (the acknowledgement time is not used).";
+    card.querySelectorAll("tr[data-a2-pz]").forEach((tr) => { const i = S.issues.find((x) => x.no === tr.dataset.a2Pz); if (!i || !i.res) return; const pool = b1Pool(i, i.res.tiers[0], 0); if (gameBy(i.game).kind === "lotto" && pool != null && tr.children[3]) tr.children[3].textContent = peso(Math.round(pool || i.jackpot || 0)); });
+    card.insertAdjacentHTML("beforeend", `<div class="row-actions" style="margin-top:6px">${b1Btn("v131-tier-export", z("Export tier distribution", "导出奖级分布"))}<span class="tiny">${z("The tier distribution export has Game (English name) as the first column; the page stays grouped by game class. No logo.", "奖级分布导出第一列为 Game（游戏英文名）；页面仍按游戏类别分组；不放 Logo。")}</span></div>`);
+  });
+};
+function b1TierExport() {
+  const rows = []; S.issues.filter((i) => i.res && ["pub", "settled"].includes(i.st)).forEach((i) => i.res.tiers.forEach((x, k) => { const pool = b1Pool(i, x, k); rows.push([gameBy(i.game).en, i.no, x.name, x.all, x.ilt, pool == null ? "-" : pool.toFixed(2), x.prize.toFixed(2)]); }));
+  b1Export("prize-tier-distribution", ["Game", "Draw ID", "Prize Tier", "All Winners", "ILT Winners", "Pool Amount", "Prize Per Winning Bet"], rows, t("报表", "Reports"), "Tier distribution");
+}
+const b1FinalTax0 = viewFinalTax;
+viewFinalTax = function () { return b1FinalTax0() + `<p class="tiny" data-v131="ftax">${z("PCSO counter rows keep the big prizes paid at PCSO Main Office: gross, tax and net are the values sent with CLAIMED, the tax is marked Withheld by PCSO, and the row is dated by the Core payment time. Auto-credited rows still come from the local payout records.", "PCSO 柜台兑付行取 Core 随 CLAIMED 下发的税前、代扣税、实付，标 Withheld by PCSO，按 Core 兑付时间归日；自动入账行仍取本地派奖单。")}</p>`; };
+const b1Cas0 = viewCas;
+viewCas = function () { return b1Cas0().replace("A big prize above the Core claim policy threshold is counted in PAYOUT on the day Core writes back CLAIMED.", "A big prize above the claim policy threshold of its draw is counted in PAYOUT on the day of the Core payment time sent with CLAIMED. A Shared Pool tier with no winner uses the Pool Amount sent with the Core result."); };
+const b1DrawReg0 = viewDrawRegister;
+viewDrawRegister = function () { return v13Tpl(b1DrawReg0(), (c) => { const card = c.querySelector("[data-a2=reg-src]"); if (!card) return; card.querySelectorAll("tbody tr").forEach((tr) => { const td = tr.children[4]; if (td && td.textContent.trim() === "Local") td.textContent = "Core Calendar"; }); const p = card.querySelector("p.tiny"); if (p) p.textContent += " iLotto has no local stop-sale switch, so there is no local source."; }); };
+/* PCSO settlement: add-back per after-tax difference, tax difference rows, V1.3 columns of the remittance statement */
+a2AddBack = function () {
+  const L = [];
+  S.issues.forEach((i) => (i.adj || []).forEach((a) => { const rs = a.rows.filter((r) => r.done && (r.diffNet != null ? r.diffNet < 0 : /No Longer Won|Prize Reduced|Prize Decreased/.test(r.type))); const amt = rs.reduce((s, r) => s + (r.diffNet != null ? -r.diffNet : taxOf(r.oPrize).net - (r.nPrize ? taxOf(r.nPrize).net : 0)), 0); L.push({ draw: i.no, ver: a.from + " → " + a.ver, bets: rs.length, amt: b1R2(amt), rec: b1R2(rs.reduce((s, r) => s + (r.recovered || 0), 0)), borne: b1R2(rs.reduce((s, r) => s + (r.unrec || 0), 0)), tax: b1R2(a.rows.reduce((s, r) => s + (r.taxDiff || 0), 0)), at: a.at }); }));
+  return L;
+};
+function b1GuarTopup() { let s = 0; S.issues.filter((i) => i.res && ["pub", "settled"].includes(i.st)).forEach((i) => i.res.tiers.forEach((x) => { if (x.flag === "Guaranteed minimum applied" && x.calc != null && x.ilt && x.prize <= V13_CAP) s += (x.prize - x.calc) * x.ilt; })); return b1R2(s); }
+const b1AddBackCard0 = a2AddBackCard;
+a2AddBackCard = function () {
+  const L = a2AddBack(), adjRef = S.v13a2.arq.filter((r) => r.st === "Applied" && (r.cls === "Void And Refund" || r.item === "Status")), refAmt = adjRef.length * 25;
+  const notAcc = b1R2(b1Rejected().reduce((s, r) => s + r.net, 0)), ctr = S.v13.claims.filter((c) => c.st === "Claimed").reduce((a, c) => a + c.gross, 0);
+  const base = v13Tpl(b1AddBackCard0(), (c) => {
+    const p = c.querySelector("p.tiny"); if (p) p.textContent = "Generated by the system for auto-credited bets whose after-tax payable fell after a Core result adjustment (no longer won, or a negative after-tax difference): original after-tax paid minus new after-tax payable, taxed with the draw's register tax table, whether recovered from the prize balance or borne by the channel. The tax difference is not part of the add-back; it has its own row below. The row goes into the first statement generated after the adjustment became effective and counts in that statement's Net Due To PCSO.";
+    const last = c.querySelector("p.tiny:last-of-type"); if (last) last.innerHTML = last.innerHTML.replace(/Guaranteed Minimum Top-up is shown as Guaranteed Minimum Payout[^<]*/, "").replace(/保底补差列改为[^<]*/, "");
+  });
+  const taxRows = L.filter((r) => r.tax).map((r) => `<tr data-v131-taxrow="${r.draw}"><td class="mono">${r.draw}</td><td class="mono">${r.ver}</td><td class="mono amt">${b1P(r.tax)}</td><td class="mono">${r.at}</td></tr>`);
+  return base + `<div class="card" data-v131="rem131" style="margin-top:12px"><h4>${z("Remittance statement · adjustment columns and rows", "汇缴计算书 · 新增列与行")} ${v13Demo()}</h4>
+    ${v13KV([["Approved Adjustments (Refunds And Voids)", `<span class="mono" data-v131="rem-adj">${peso2(refAmt)}</span> <span class="tiny">Core-approved Void And Refund adjustments, dated by the Core approval time and counted in the day's refunds; reported value corrections are not included</span>`], ["Guaranteed Minimum Top-up", `<span class="mono" data-v131="rem-gmt">${peso2(b1GuarTopup())}</span> <span class="tiny">= Σ(guaranteed minimum − calculated prize before guarantee) × multiple, only tiers flagged Guaranteed minimum applied; the calculated value comes with the Core result; pre-tax, by credit date, PCSO counter payouts and manual uplifts above the guarantee excluded; shown only</span>`], ["PCSO Counter Payouts (Not Deducted)", `<span class="mono" data-v131="rem-ctr">${peso2(ctr)}</span> <span class="tiny">big prizes by Core payment time, from CLAIMED; shown only</span>`], ["Payouts Not Accepted By Core", `<span class="mono" data-v131="rem-na">${peso2(notAcc)}</span> <span class="tiny">auto-credited records verified Rejected by Core and not yet resolved; explains why Core's channel-paid prizes are lower; shown only</span>`]])}
+    <h4 style="margin-top:10px">${z("Adjustment Tax Difference rows", "调整代扣税差额行")}</h4>${table(["Draw ID", "Result Version", "Adjustment Tax Difference", "Adjustment Effective At"], taxRows.length ? taxRows : [`<tr><td colspan="4" class="muted">${z("No result adjustment changed the withholding tax.", "暂无改变代扣税的结果调整。")}</td></tr>`])}
+    <p class="tiny">${z("Formula unchanged per sales day: Net Due = Sales − Refunds − Net Payout; Refunds = void deductions + approved adjustments (refunds and voids). Total row = sum of the sales days + add-back rows + prior-period adjustment rows (the tax difference rows are not added; tax is remitted with the net). The total row maps to the Core formula: Sales − channel-paid prizes (net) − refunds and voids + adjustment overpayment add-back + prior-period adjustment.", "每日公式不变；退款 = 作废冲减 + 已批准交易调整（退款 / 作废类）；合计行 = 各销售日 + 加回行 + 上期调整行（代扣税差额行不计入），与 Core 应汇净额公式一一对应。")}</p></div>`;
+};
+S.v13a2.cnd.forEach((x) => { x.td = x.td || [0, 0]; x.nc = x.nc || 0; x.pv = x.pv || 0; x.due = x.due || (x.per === "2026-08" ? "2026-09-08" : x.per === "2026-09" ? "2026-10-08" : "2026-11-08"); });
+a2ViewCnd = function () {
+  const fin = a2Is("finance");
+  const pair = (v, red) => `<span class="mono" ${red ? 'style="color:var(--rose,#f43f5e)"' : ""}>${peso2(v[0])} / ${peso2(v[1])}</span>`;
+  const rows = S.v13a2.cnd.slice().reverse().map((x) => { x.td = x.td || [0, 0]; const d = a2CndNet(x, 0) - a2CndNet(x, 1); return `<tr data-a2-cnd="${x.per}"><td class="mono">${x.per}</td><td>${pair(x.s, x.s[0] !== x.s[1])}</td><td>${pair(x.r, x.r[0] !== x.r[1])}</td><td>${pair(x.p, x.p[0] !== x.p[1])}</td><td>${pair(x.tx, x.tx[0] !== x.tx[1])}</td><td>${pair(x.ab, x.ab[0] !== x.ab[1])}</td><td data-v131="cnd-td">${pair(x.td, x.td[0] !== x.td[1])}</td><td>${pair(x.pr, x.pr[0] !== x.pr[1])}</td><td><span class="mono">${peso2(a2CndNet(x, 0))} / ${peso2(a2CndNet(x, 1))}</span></td><td class="mono" data-a2="cnd-diff" ${d ? 'style="color:var(--rose,#f43f5e)"' : ""}>${a2P(d)}</td><td class="mono">${peso2(x.ctr || 0)}</td><td class="mono">${peso2(x.nc || 0)}</td><td class="mono">${peso2(x.pv || 0)}</td><td class="mono" data-v131="cnd-due">${x.due || "-"}</td><td class="mono">${x.at}</td><td>${x.st === "Matched" ? tag("ok", x.st) : x.st === "Variance" ? tag("rose", x.st) : tag("muted", x.st)}${x.note ? `<div class="tiny">${esc(x.note)}</div>` : ""}</td><td>${x.st === "Variance" && fin ? a2Btn("v13a2-cnd-close", z("Close With Reason", "填原因关闭"), { id: x.per }) : ""}</td></tr>`; });
+  const sm = b1StmtMissing();
+  return `<div class="banner" data-a2="cnd-note">${z("The Core settlement statement is sent to iLotto when Core finalises it, with its detail (late transactions, claims pending verification, prior-period adjustments, cross-period transaction adjustments, add-back detail by draw and version, tax difference, counter payouts of ILT tickets, non-conformant and pending-verification amounts), and is filled in and checked automatically; nothing is typed in. iLotto first groups its own data by the Core statement's rules, then compares each component; any difference raises a P2 to-do for Finance review, which can only be closed with an explanation. Settlement period type, grace period, remittance days and formula version arrive as the Settlement Parameters reference domain; each period is checked with its own formula version. A statement not received by the remittance deadline raises a P2 reminder.", "Core 结算单定稿后连同明细下发，收到即自动填入并按结算单明细规则归集后逐组成核对；任一不等生成 P2 待办；结算参数经「结算参数」数据域下发；汇款截止日前未收到生成 P2 提醒。")} ${a2Is("finance") ? "" : z("Read-only for your role.", "你的岗位只读。")}</div>
+    ${sm.length ? `<div class="banner rose" data-v131="cnd-missing">Settlement statement not received: ${sm.map((x) => x.per + " (remittance due " + x.due + ")").join(", ")}</div>` : ""}
+    <div class="row-actions" style="margin:8px 0">${a2Is("ops", "finance") && !S.v13a2.cnd.some((x) => x.per === "2026-10") ? a2Btn("v13a2-cnd-recv", z("Demo: Core statement 2026-10 received", "演示：收到 Core 2026-10 结算单")) : ""}</div>
+    <div class="b1w">${table(["Settlement Period", "Sales (Local / Core)", "Refunds (Local / Core)", "Total Payout (Local / Core)", "Tax On Winnings (Local / Core)", "Adjustment Overpayment Add-back (Local / Core)", "Adjustment Tax Difference (Local / Core)", "Prior Period Adjustment (Local / Core)", "Net Due (Local / Core)", "Difference", "PCSO Counter Payouts", "Non-Conformant Amount (Core)", "Pending Verification Amount (Core)", "Remittance Due", "Received At", "Status", ""], rows)}</div><p class="tiny">${v13Demo()} ${z("Tax on winnings and the adjustment tax difference are checked only and are not in the formula. PCSO counter payouts are excluded on both sides; local Total Payout excludes claim records pending verification or rejected by Core. Settlement-domain divergences are handled here.", "代扣税与调整代扣税差额只核对、不进公式；两边都不含 PCSO 柜台兑付；本地净派奖不含待核验与被拒收的兑奖记录。")}</p>`;
+};
+/* sales: By time From / To with per-grain defaults and limits; By game total row with Tickets and de-duplicated Players; region export Game */
+function b1PeriodStart(g, d) { const [y, m] = d.split("-").map(Number); if (g === "day") return d; if (g === "week") { const wd = new Date(d + "T00:00:00Z").getUTCDay(); return b1AddDays(d, -((wd + 6) % 7)); } if (g === "month") return d.slice(0, 8) + "01"; if (g === "quarter") return y + "-" + String(Math.floor((m - 1) / 3) * 3 + 1).padStart(2, "0") + "-01"; if (g === "half") return y + "-" + (m <= 6 ? "01" : "07") + "-01"; return y + "-01-01"; }
+function b1SalesDefault() { const d = A58.today(), g = S.salesGrain || "day"; S.rr.key = g === "week" ? "week" : g === "month" ? "month" : "custom"; S.rr.from = b1PeriodStart(g, d); S.rr.to = d; }
+const b1Sales0 = viewSales;
+viewSales = function () {
+  const h = b1Sales0();
+  if ((S.salesView || "time") !== "time") return h;
+  return v13Tpl(h, (c) => {
+    const card = [...c.querySelectorAll(".card")].find((cd) => { const h4 = cd.querySelector("h4"); return h4 && /^(By game|按游戏)$/.test(h4.textContent.trim()); });
+    if (!card) return;
+    const tb = card.querySelector("table"); if (!tb) return;
+    const ths = [...tb.querySelectorAll("thead th")].map((x) => x.textContent.trim()), iT = ths.indexOf(t("出票数", "Tickets")), iP = ths.indexOf(t("投注玩家", "Players")), iS = ths.indexOf(t("销售额", "Sales"));
+    const rows = [...tb.querySelectorAll("tbody tr")], num = (s) => Number(String(s).replace(/[^\d.-]/g, "")) || 0;
+    const tick = rows.reduce((s, r) => s + num(r.children[iT].textContent), 0), sales = rows.reduce((s, r) => s + num(r.children[iS].textContent), 0);
+    const kp = [...c.querySelectorAll(".kpi")].find((k) => /Betting players|投注玩家/.test(k.textContent)); const players = kp ? num(kp.querySelector(".num").textContent) : 0;
+    const cells = ths.map((_, k) => k === 0 ? `<td>${z("Total", "合计")}</td>` : k === iS ? `<td class="mono amt">${peso(sales)}</td>` : k === iT ? `<td class="mono amt" data-v131="tot-tickets">${tick.toLocaleString("en-US")}</td>` : k === iP ? `<td class="mono amt" data-v131="tot-players">${players.toLocaleString("en-US")}</td>` : `<td></td>`).join("");
+    tb.querySelector("tbody").insertAdjacentHTML("beforeend", `<tr data-v131="sales-total" style="font-weight:700;background:rgba(255,255,255,.05)">${cells}</tr>`);
+    card.insertAdjacentHTML("beforeend", `<p class="tiny" data-v131="players-note">Players in the total row are counted once per player across all games, so the total can be less than the sum of the game rows.</p><div class="row-actions">${b1Btn("v131-sales-game-export", z("Export by game", "导出按游戏"))}</div>`);
+  });
+};
+function b1SalesGameExport() {
+  const tb = [...document.querySelectorAll(".view .card")].find((cd) => { const h4 = cd.querySelector("h4"); return h4 && /^(By game|按游戏)$/.test(h4.textContent.trim()); }); if (!tb) return;
+  const t1 = tb.querySelector("table"), rows = [...t1.rows], heads = [...rows[0].cells].map((x) => x.innerText.trim()), body = rows.slice(1).map((r) => [...r.cells].map((x) => x.innerText.trim()));
+  body.push(["Players in the total row are counted once per player across all games, so the total can be less than the sum of the game rows."]);
+  b1Export("sales-by-game", heads, body, t("报表", "Reports"), S.rr.from + " to " + S.rr.to + " · " + (S.salesGrain || "day"));
+}
+const b1Adm58 = adm58Export;
+adm58Export = function (name, heads, rows, fmt, mod, filt) {
+  if (name === "sales-by-city" && heads[0] !== "Game") { const gn = S.rf.sales.game ? gameBy(S.rf.sales.game).en : "All games"; heads = ["Game"].concat(heads); rows = rows.map((r) => [gn].concat(r)); }
+  S.v131.exp = { name, heads, rows };
+  return b1Adm58(name, heads, rows, fmt, mod, filt);
+};
+/* performance: profit and loss (PC42 partial months) and unclaimed detail export with Game */
+function b1PnlRows(by) {
+  const from = S.rr.from, to = S.rr.to, days = b1Days(from, to) + 1, sales0 = 148260000 / 30;
+  const mk = (per, d, game, share) => { const sales = Math.round(sales0 * d * share), refunds = Math.round(sales * 0.0055), rev = sales - refunds, prizes = Math.round(sales * 0.44), wht = Math.round(prizes * 0.04), shares = Math.round((sales - sales * 0.2) * 0.45), exp = prizes + shares, gp = rev - exp; return { per, game, sales, refunds, rev, prizes, wht, shares, exp, gp, gm: rev ? (gp / rev * 100).toFixed(1) + "%" : "-" }; };
+  if (by === "game") return GAME_SALES.map((g) => mk(from + " ~ " + to, days, g.id, g.sales / 148260000));
+  const L = []; let d = from;
+  while (d <= to) { const ms = d.slice(0, 8) + "01", me = b1AddDays(b1AddDays(ms, 32).slice(0, 8) + "01", -1), end = me < to ? me : to, full = d === ms && end === me; L.push(mk(full ? d.slice(0, 7) : d + " ~ " + end, b1Days(d, end) + 1, "", 1)); d = b1AddDays(end, 1); }
+  return L;
+}
+const b1Share0 = viewShare;
+viewShare = function () {
+  const by = S.v131.pnlBy || "month", L = b1PnlRows(by), sum = (k) => L.reduce((s, r) => s + r[k], 0);
+  const tr = (r, tot) => `<tr ${tot ? 'data-v131="pnl-total" style="font-weight:700"' : `data-v131-pnl="${esc(r.per)}"`}><td class="mono">${esc(r.per)}</td><td>${r.game ? esc(gameBy(r.game).en) : tot ? z("Total", "合计") : z("All games", "全部游戏")}</td><td class="mono amt">${peso(r.sales)}</td><td class="mono amt">${peso(r.refunds)}</td><td class="mono amt">${peso(r.rev)}</td><td class="mono amt">${peso(r.prizes)}</td><td class="mono amt">${peso(r.wht)}</td><td class="mono amt">${peso(r.shares)}</td><td class="mono amt">${peso(r.exp)}</td><td class="mono amt">${peso(r.gp)}</td><td class="mono">${r.gm}</td></tr>`;
+  const tot = { per: by === "game" ? S.rr.from + " ~ " + S.rr.to : "", game: "", sales: sum("sales"), refunds: sum("refunds"), rev: sum("rev"), prizes: sum("prizes"), wht: sum("wht"), shares: sum("shares"), exp: sum("exp"), gp: sum("gp") }; tot.gm = tot.rev ? (tot.gp / tot.rev * 100).toFixed(1) + "%" : "-";
+  const card = `<div class="card" data-v131="pnl" style="margin-top:12px"><div class="page-h" style="margin-bottom:6px"><h4 style="margin:0">${z("Profit and loss", "损益报表")} ${v13Demo()}</h4><div class="tabs">${[["month", "By month", "按月"], ["game", "By game", "按游戏"]].map(([k, en, zh]) => `<button type="button" data-act="v131-pnl-by" data-arg="${k}" class="${by === k ? "on" : ""}">${z(en, zh)}</button>`).join("")}</div></div>
+    ${table(["Period", "Game", "Sales Amount", "Refunds", "Revenue", "Prizes Pre-Tax", "Of Which Withholding Tax", "PCSO Shares", "Expenses", "Gross Profit", "Gross Margin"], L.map((r) => tr(r)).concat([tr(tot, true)]))}
+    <p class="tiny">${z("By month: one row per calendar month the range covers, counting only the days inside the range; a partial month shows its real start and end (for example 2026-10-15 ~ 2026-10-31), a full month shows 2026-10. By game: the period is the whole range. Total = sum of the rows. Revenue, expenses and gross profit follow the existing basis (Revenue = Sales − Refunds; Expenses = Prizes Pre-Tax + PCSO Shares).", "按月：区间覆盖的每个自然月一行，只计区间内天数；不满整月显示实际起止，整月显示 2026-10；按游戏：期间取整个区间；合计 = 各行之和。")}</p></div>`;
+  return v13Tpl(b1Share0(), (c) => {
+    const uc = [...c.querySelectorAll(".card, h4")].find((x) => /^(Unclaimed prizes|未申领待兑付奖金)/.test((x.querySelector ? (x.querySelector("h4") || x) : x).textContent.trim()));
+    const host = uc && uc.closest ? uc.closest(".card") || uc : null;
+    if (host) host.insertAdjacentHTML("beforeend", `<div class="row-actions" style="margin-top:6px">${b1Btn("v131-unclaimed-export", z("Export unclaimed detail", "导出未申领明细"))}<span class="tiny">${z("Export columns follow the page detail with Game (English name) first; no logo.", "导出列沿用页面明细，第一列为 Game（游戏英文名）；不放 Logo。")}</span></div>`);
+    c.append(document.createRange().createContextualFragment(card));
+  });
+};
+function b1UnclaimedExport() {
+  const rows = S.v13.claims.filter((c) => c.st === "For claiming").map((c) => [gameBy(c.game).en, c.draw, c.ref, c.gross.toFixed(2), c.date, c.deadline, b1Days(b1Today(), c.deadline) + " days"]);
+  b1Export("unclaimed-prizes", ["Game", "Draw ID", "Transaction Reference", "Prize", "Draw Date", "Claim Deadline", "Days Left"], rows, t("报表", "Reports"), "Unclaimed detail");
+}
+
+/* ---------- 6B.13 system: integrity alerts (PC37 ⑥), points config read-only (PC37 ①), global parameters, emergency accounts with Approval Pending ---------- */
+const b1Alerts0 = viewAlerts;
+viewAlerts = function () { return v13Tpl(b1Alerts0().replace(/PCSO Authorization Ref/g, "Authorization Ref").replace(/PCSO written authorization/g, "written authorization"), (c) => { c.querySelectorAll("select option").forEach((o) => { if (o.value === "Terminal" || o.textContent.trim() === "Terminal") { const sel = o.closest("select"); if (sel && [...sel.options].some((x) => x.textContent.trim() === "Ticket")) o.remove(); } }); const b = c.querySelector(".banner"); if (b) b.insertAdjacentHTML("afterend", `<p class="tiny" data-v131="alert-note">${z("Object type Terminal is retired with Terminal Control; Terminal alerts raised before stay searchable under All object types. The draw status check now compares with the Core draw calendar. Closing an alert that lifts a freeze needs the Authorization Ref issued by the channel operator's authorized manager; P1 alerts and their outcome are also reported to Core.", "对象类型 Terminal 随渠道管控退役，已生成的 Terminal 告警在全部对象类型下可查；期次状态巡检比对 Core 开奖日历；处置授权填授权文号；P1 告警及处置结果上报 Core。")}</p>`); }); };
+const b1Render0 = renderModal;
+renderModal = function () { const h = b1Render0(); return typeof h === "string" ? h.replace(/PCSO Authorization Ref/g, "Authorization Ref").replace(/@pcso\.gov\.ph/g, "@ilotto.ph") : h; };
+viewOperPts = function () {
+  const rows = [["Points Rate", S.pts.rate], ["Redemption Tiers", S.pts.tiers], ["Points Validity", S.pts.valid], ["Voucher Validity", S.pts.vv]].map(([k, v]) => `<tr data-v131-pt="${esc(k)}"><td>${k}</td><td class="mono">${esc(v)}</td><td class="mono">v1</td><td class="mono">2026-01-05 00:00</td></tr>`);
+  return `<div class="banner amber" data-v131="pts-banner">${z("Read-only. Points rate, redemption tiers, points validity and voucher validity are set by the iLotto Core loyalty framework and arrive as reference changes (Core integration › Reference changes); there is no change request on this page. The points program switch follows the Core loyalty framework too. Manual point adjustments are still local change requests (Finance review approves) from the player profile.", "只读。积分率、兑换档位、积分有效期、投注券有效期由 Core 积分框架下发（Core 集成 › 参照变更），本页不发起变更申请；积分总开关同样跟随 Core 积分框架；积分人工调整仍从玩家档案走本地变更申请（财务复核批准）。")}</div>
+    ${table([z("Parameter", "参数"), z("Current value", "当前生效值"), z("Core Version", "Core 版本"), z("Effective At", "生效时间")], rows)}<p class="tiny">${v13Demo()} ${a2Link("v13a2-go", z("Reference changes", "参照变更"), { arg: "ref" })} · ${z("Points Program Switch", "积分总开关")}: <span class="mono">${esc(S.pts.sw)}</span> (${z("from the Core loyalty framework", "取 Core 积分框架")})</p>`;
+};
+if (!A2_CPARAMS.some((r) => r[0] === "Settlement Parameters")) A2_CPARAMS.push(["Settlement Parameters (period type, grace period, remittance days, formula version)", "Calendar month · 3 days · 5 days · NDF-2", "v1", "2026-01-05 00:00", "-", "Implemented"], ["Compliance Parameters (above-threshold transaction amount)", "₱500,000.00", "v1", "2026-01-05 00:00", "-", "Implemented"]);
+A2_CPARAMS.forEach((r) => { if (/^Auto-credit Cap/.test(r[0])) r[1] = "₱300,000.00 (the Auto credit by channel tier when the claim policy has several tiers)"; });
+const b1Params0 = viewParams;
+viewParams = function () { return b1Params0().replace("The master switch stays local and must match the Core framework.", "The master switch also follows the Core loyalty framework; there is no local switch."); };
+/* emergency accounts */
+a2ViewEmerg = function () {
+  const q = a2Q("ea", { st: "All", scope: "All" }), me = a2Me(), adm = a2Is("admin"), cmp = a2Is("compliance");
+  const rows = S.v13a2.ea.filter((a) => (q.st === "All" || a.st === q.st) && (q.scope === "All" || a.scope === q.scope)).map((a) => {
+    const r = a2EaReq(a), op = S.v13a2.open["ea" + a.id], acts = [];
+    if (a.st === "Sealed" && (adm || a.cus.includes(me))) acts.push(a2Btn("v13a2-ea-use", z("Request Use", "申请使用"), { id: a.id }));
+    if (a.st === "Approval Pending" && cmp) { acts.push(a2Btn("v13a2-ea-approve", z("Approve Use", "批准使用"), { id: a.id, cls: "btn-primary" })); acts.push(b1Btn("v131-ea-reject", z("Reject Use", "驳回使用"), { id: a.id })); }
+    if (a.st === "Approval Pending" && r && (r.by === me || demoAll())) acts.push(b1Btn("v131-ea-withdraw", z("Withdraw Request", "撤回申请"), { id: a.id }));
+    if (a.st === "Release Pending" && r.appr) a.cus.filter((u) => !r.rel.some((x) => x[0] === u)).forEach((u) => acts.push(a2Btn("v13a2-ea-release", z("Confirm Release", "确认放行") + " · " + u, { id: a.id, arg: u, dis: demoAll() || me === u ? "" : "Only " + u + " can confirm this part." })));
+    if (a.st === "In Use" && (demoAll() || r.by === me || a.cus.includes(me))) acts.push(a2Btn("v13a2-ea-end", z("End Use", "结束使用"), { id: a.id }));
+    if (a.st === "Rotation Pending") a.cus.filter((u) => !r.rot.includes(u)).forEach((u) => acts.push(a2Btn("v13a2-ea-rotate", z("Confirm Rotation", "确认轮换") + " · " + u, { id: a.id, arg: u, dis: demoAll() || me === u ? "" : "Only " + u + " can confirm this part." })));
+    if (r && (a.st === "Sealed" || a.st === "Rotation Pending") && r.from && !r.review && cmp) acts.push(a2Btn("v13a2-ea-review", z("Record Post-use Review", "登记事后复核"), { id: a.id }));
+    const det = op && r ? `<tr data-a2-ea-det="${a.id}"><td colspan="7"><div class="tiny">${a.id} · ${z("Use request", "使用申请")} <b class="mono">${r.id}</b></div><div class="tiny">Requested by ${esc(r.by)} · ${r.appr ? "Approved by " + esc(r.appr) + (r.apprAt ? " at " + r.apprAt.slice(11, 16) : "") : r.rejBy ? "Rejected by " + esc(r.rejBy) + ": " + esc(r.rej) : r.wd ? "Withdrawn by the requester" : "Awaiting approval"} (Written approval: ${esc(r.ref)} · ${esc(r.doc)}) · Window ${r.win} min</div><div class="tiny">Custodian release: ${a.cus.map((u) => { const x = r.rel.find((y) => y[0] === u); return esc(u) + (x ? " ✓ " + x[1].slice(11, 16) : " -"); }).join("   ")}</div><div class="tiny">${r.from ? "Window " + r.from.slice(11, 16) + " – " + r.to.slice(11, 16) + " · Alert sent " + r.alert.slice(11, 16) + " · " + r.core : r.appr ? "Not released yet. Release Pending is cancelled automatically 2 hours after approval." : "Not approved yet."}${r.rot.length ? " · Rotation confirmed by " + r.rot.join(", ") : ""}</div><div class="tiny">Post-use review: ${r.review ? esc(r.review) : "Due within 5 working days after use"}</div></td></tr>` : "";
+    return `<tr data-a2-ea="${a.id}"><td class="mono">${a.id}</td><td>${a.scope}${a.scope === "Admin Access Recovery" ? `<div class="tiny mono">BREAK_GLASS_ADMIN</div>` : ""}</td><td class="mono">${a.cus.join(", ")}</td><td>${a.st === "Sealed" ? tag("ok", "Sealed") : a.st === "In Use" ? tag("rose", "In Use") : tag("warn", a.st)}</td><td class="mono">${a.last}</td><td>${r ? a2Link("v13a2-ea-open", r.id, { id: a.id }) : "-"}</td><td class="row-actions">${acts.join("")}</td></tr>` + det;
+  });
+  return `<div class="page-h" style="margin-top:4px"><div><h4 style="margin:0">${z("System › Emergency Accounts", "系统管理 › 应急账号")}</h4></div><div class="row-actions">${adm ? a2Btn("v13a2-ea-reg", z("Register Account", "登记"), { cls: "btn-primary" }) : ""}</div></div>
+    <div class="card" style="margin:10px 0"><div class="tools"><label class="f">Status${a2Sel("ea.st", ["All", "Sealed", "Approval Pending", "Release Pending", "In Use", "Rotation Pending"], q.st)}</label><label class="f">Scope${a2Sel("ea.scope", ["All"].concat(A2_SCOPES), q.scope)}</label>${a2Btn("v13a2-search", z("Search", "搜索"), { arg: "ea" })}</div></div>
+    ${table(["Account ID", "Scope", "Custodians", "Status", "Last Used", "Use Request", ""], rows)}
+    <p class="tiny">${v13Demo()} ${z("Sealed → Approval Pending (request submitted) → Release Pending (Compliance audit approved; release must finish within 2 hours of approval) → In Use (both custodians confirmed) → Rotation Pending → Sealed. Compliance audit can reject a pending request with a reason, and the requester can withdraw it; both return the account to Sealed. The Admin Access Recovery account holds the built-in role BREAK_GLASS_ADMIN (user management only); its sign-in OTP goes to both custodians, never to the requester. Only accounts and custody are shown; nobody can see the credential. Every release, sign-in and action is written to the Security log with the Break-glass flag and reported to Core.", "已封存 → 待批准 → 待放行（批准后 2 小时内完成放行）→ 使用中 → 待轮换 → 已封存；合规审计可驳回、申请人可撤回，均回到已封存；Admin Access Recovery 挂内置角色 BREAK_GLASS_ADMIN，登录 OTP 发给两名保管人。")}</p>`;
+};
+
+/* ---------- 6B.14 Core integration ---------- */
+const B1_DTYPES = ["Full Suspension", "Partial Suspension", "Restore / Roll Back", "Player Status", "Deletion Pre-check", "Contact Reassigned", "Match Review Outcome", "Exclusion", "Draw Postponement", "Draw Resumption", "Draw Cancellation", "No-Draw Date Cancellation", "Channel Exclusion Void", "Excluded Transactions Void", "Closure Exclusion List", "Non-conformance Notice", "Reference Change", "Declaration Request", "Re-report Request", "Sealed Summary Request", "Claim Code Used", "Claim Code Validation Lapsed", "Claimed", "Forfeiture", "Settlement Statement", "Transaction Adjustment Decision", "Compliance Directive", "Settlement Variance Explanation"];
+A2_DTYPES.splice(0, A2_DTYPES.length, ...B1_DTYPES);
+(function b1SeedDirs() {
+  S.v13a2.dirs.forEach((d) => { if (d.type === "Restore / Rollback") d.type = "Restore / Roll Back"; d.round = d.round || (d.mode === "reply" ? 1 : 0); if (d.sub === "KYC Review") d.players = []; });
+  const mk = (o) => Object.assign({ reason: "", by: "core.sa01", players: [], detail: "", fail: "", handler: "System", mode: "auto", sub: "", round: 0 }, o);
+  const add = [
+    mk({ id: "DIR-20261008-000109", type: "Transaction Adjustment Decision", sum: "ADJ-ILT-20261008-0003 · Approved", reason: "Core decision on the adjustment request", by: "core.fin02", issued: "2026-10-08 16:40:30", deadline: "2026-10-08 16:55:30", exec: "Executed", execAt: "2026-10-08 16:41:02", detail: "Request ADJ-ILT-20261008-0003 approved by core.fin02; local correction executed (LDG-ILT-20261008-0118) and the execution result acknowledged." }),
+    mk({ id: "DIR-20261012-000125", type: "Closure Exclusion List", sum: "L655-20261012-1 closure record: 0 transactions excluded", reason: "Closure record built", by: "System", issued: "2026-10-12 20:33:10", deadline: "2026-10-12 20:38:10", exec: "Executed", execAt: "2026-10-12 20:33:12", detail: "Transactions of the draw not on the list marked Conformant (in the closure record)." }),
+    mk({ id: "DIR-20261013-000127", type: "Claim Code Used", sum: "ILT-TKT20261005008110 claim code checked at the PCSO counter", reason: "Claim code validated by the Core claim desk", by: "core.claims01", issued: "2026-10-13 01:10:00", deadline: "2026-10-13 01:15:00", exec: "Executed", execAt: "2026-10-13 01:10:01", detail: "Claim code set to Used; re-generation blocked until CLAIMED or Validation Lapsed." }),
+    mk({ id: "DIR-20261004-000101", type: "Settlement Statement", sum: "Settlement statement 2026-09 (version 1)", reason: "Statement finalised by Core", by: "core.fin01", issued: "2026-10-04 00:05:50", deadline: "2026-10-04 00:20:50", exec: "Executed", execAt: "2026-10-04 00:06:00", detail: "Filled in the Core net due check and compared automatically: Matched." })
+  ];
+  add.forEach((d) => { if (S.v13a2.dirs.some((x) => x.id === d.id)) return; d.recv = btFmt(btMs(d.issued) + 1000); d.ack = ""; d.ackHist = [[d.recv, "Receipt confirmation sent"], [d.execAt, "Execution result sent"]]; S.v13a2.dirs.push(d); });
+  S.v13a2.dirs.forEach((d) => { d.ack = b1Ack(d); });
+})();
+function b1Ack(d) { const r = "Received " + b1Hm(d.recv); if (d.ack === "Queued" || /Queued/.test(d.ack || "") && !d.execAt) return r + " · Queued"; if (["Executed", "Replied"].includes(d.exec) && d.execAt) return r + " · Result " + b1Hm(btFmt(btMs(d.execAt) + 1000)); if (d.exec === "Failed") return r + " · Result failed " + (d.ackHist.length > 1 ? b1Hm(d.ackHist[1][0]) : ""); return r; }
+const b1DirExec0 = a2DirExec;
+a2DirExec = function (d, how) { b1DirExec0(d, how); d.ack = a2Off() ? "Received " + b1Hm(d.recv) + " · Queued" : b1Ack(d); };
+a2DirOwner = function (d) { if (d.type === "Settlement Variance Explanation") return ["finance"]; if (d.sub === "KYC Review") return ["__system"]; return ["ops"]; };
+const b1ViewDir0 = a2ViewDir;
+a2ViewDir = function () {
+  return v13Tpl(b1ViewDir0(), (c) => {
+    const tb = [...c.querySelectorAll("table")].find((x) => [...x.querySelectorAll("thead th")].some((h) => h.textContent.trim() === "Acknowledgment")); if (!tb) return;
+    const ths = [...tb.querySelectorAll("thead th")], k = ths.findIndex((h) => h.textContent.trim() === "Acknowledgment");
+    const th = document.createElement("th"); th.textContent = "Reply Round"; ths[k].after(th);
+    tb.querySelectorAll("tbody tr[data-a2-dir]").forEach((tr) => {
+      const d = S.v13a2.dirs.find((x) => x.id === tr.dataset.a2Dir); if (!d) return;
+      const td = document.createElement("td"); td.className = "mono"; td.textContent = d.mode === "reply" ? String(d.round || 1) : "-"; tr.children[k].after(td);
+      if (d.sub === "KYC Review") { const sumTd = tr.children[2]; const L = S.kyc.filter((x) => x.dir === d.id), n = (v) => L.filter((x) => x.status !== "pending" && x.concl === v).length; sumTd.insertAdjacentHTML("beforeend", `<div class="tiny" data-v131="kyc-sum">Confirmed ${n("Confirmed")} · Re-KYC Required ${n("Re-KYC Required")} · Pending ${L.filter((x) => x.status === "pending").length}</div>`); }
+      if (d.mode === "reply" && d.exec === "Replied" && d.sub !== "KYC Review" && b1Is("ops", "finance")) tr.lastElementChild.insertAdjacentHTML("beforeend", b1Btn("v131-dir-further", z("Demo: Core requests further action", "演示：Core 要求进一步处理"), { id: d.id }));
+    });
+    const p = c.querySelector("[data-a2=dir-filters] + p, [data-a2=dir-filters] ~ p"); const note = c.querySelector(".card p.tiny");
+    if (note) note.insertAdjacentHTML("beforeend", ` <span data-v131="dir-note">${z("Two-layer acknowledgment: Received is sent at once (Core retries after 60 s, up to 5 times); Result is sent when execution or the reply is done, and again after a successful retry. A deadline set while iLotto is in store and forward or Offline runs from the Received time. The KYC review directive is replied to by the system from the per-player conclusions in Identity review; Core can ask for further action, which reopens a reply with a new round.", "回执分两层：收到即回 Received（Core 60 秒超时、最多重试 5 次），执行或回复完成另报 Result；存储转发或 Offline 期间下发的期限从 Received 起算；KYC 复查由系统按身份审核的逐人结论汇总回复；Core 可要求进一步处理，开新一轮。")}</span>`);
+  });
+};
+const b1ModalX0 = x13Modal;
+x13Modal = function () {
+  const m = S.modal;
+  if (m.type === "v13a2-reply") { const d = S.v13a2.dirs.find((x) => x.id === m.id); return b1ModalX0().replace("Attachments must not contain KYC images. A directive can be replied to once.", "Attachments must not contain KYC images. Core can ask for further action; each round gets its own reply and acknowledgment.").replace("3 players re-verified; 1 KYC reopened", "Remediation plan attached; limits reminder added to deposit page") + ""; }
+  if (m.type === "v13a2-retry") return dialog(z("Retry Now", "立即重试"), `<p data-v131="retry-confirm">${z("Report every Pending and Queued transaction now, in the original confirmation order? Rows cannot be picked or reordered.", "现在按原确认顺序立即上报全部待上报、排队中的交易？不能选行或改变顺序。")}</p>`, `<button type="button" class="btn" style="width:auto;flex:none" data-act="close">${z("Cancel", "取消")}</button><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="v13a2-q-retry-go">${z("Retry Now", "立即重试")}</button>`);
+  if (m.type === "v13a2-v131reason") { const f = S.v131.f; return dialog(m.title, `<label class="f">${esc(m.label || "Reason")}</label><textarea data-v131f="reason" rows="3">${esc(f.reason || "")}</textarea>${m.otp ? `<label class="f">Verification code (demo code 1234)</label><input data-v131f="otp" value="${esc(f.otp || "")}" />` : ""}${m.opts ? `<div style="margin-top:6px">${m.opts.map((o) => `<label style="display:block;margin:3px 0"><input type="radio" name="b1opt" data-v131f="opt" value="${esc(o)}" ${f.opt === o ? "checked" : ""} /> ${esc(o)}</label>`).join("")}</div>` : ""}${f.err ? `<div class="err" data-a2="ferr">${esc(f.err)}</div>` : ""}`, `<button type="button" class="btn" style="width:auto;flex:none" data-act="close">${z("Cancel", "取消")}</button><button type="button" class="btn btn-primary" style="width:auto;flex:none" data-act="${m.next}" data-id="${esc(m.id || "")}">${esc(m.ok || "Submit")}</button>`); }
+  return b1ModalX0();
+};
+/* reference changes: two new domains, declared versions, auto-applicable corrections only */
+(function b1SeedRef() {
+  if (!S.v13a2.notices.some((n) => n.dom === "Settlement Parameters")) S.v13a2.notices.push({ id: "RCN-20251229-0012", type: "Full Snapshot", dom: "Settlement Parameters", obj: "Settlement parameters", ver: "v1", eff: "2026-01-05 00:00", iss: "2025-12-29 10:11", recv: "2025-12-29 10:11", ack: "Sent", impl: "Implemented", what: "Calendar month; grace 3 days; remittance 5 days; formula NDF-2" }, { id: "RCN-20251229-0013", type: "Full Snapshot", dom: "Compliance Parameters", obj: "Compliance parameters", ver: "v1", eff: "2026-01-05 00:00", iss: "2025-12-29 10:11", recv: "2025-12-29 10:11", ack: "Sent", impl: "Implemented", what: "Above-threshold transaction amount ₱500,000.00" });
+  S.v13a2.decls.forEach((d) => { d.declv = d.declv || (d.trig === "Pre-effective" ? "L655 v3, L655 v4 (pending), Calendar #113" : d.trig === "Daily" ? "S3D v2, Calendar #112" : "All register versions, Calendar #104"); });
+})();
+const b1ViewRef0 = a2ViewRef;
+a2ViewRef = function () {
+  return v13Tpl(b1ViewRef0(), (c) => {
+    const sel = c.querySelector("select[data-a2q='ref.dom']"); const q = a2Q("ref", {});
+    if (sel && ![...sel.options].some((o) => o.value === "Settlement Parameters")) ["Settlement Parameters", "Compliance Parameters"].forEach((v) => sel.insertAdjacentHTML("beforeend", `<option value="${v}" ${q.dom === v ? "selected" : ""}>${v}</option>`));
+    const tb = [...c.querySelectorAll("table")].find((x) => [...x.querySelectorAll("thead th")].some((h) => h.textContent.trim() === "Declaration ID" || h.textContent.trim() === "声明编号"));
+    if (tb) { const ths = [...tb.querySelectorAll("thead th")]; const th = document.createElement("th"); th.textContent = "Declared Versions"; ths[1].after(th); tb.querySelectorAll("tbody > tr").forEach((tr) => { if (tr.dataset.a2Decl) { const d = S.v13a2.decls.find((x) => x.id === tr.dataset.a2Decl); const td = document.createElement("td"); td.className = "mono tiny"; td.textContent = d ? d.declv || "All register versions" : "-"; tr.children[1].after(td); } else { const td = tr.querySelector("td[colspan]"); if (td) td.setAttribute("colspan", String(Number(td.getAttribute("colspan")) + 1)); } }); }
+    const ps = c.querySelectorAll("p.tiny"); const last = ps[ps.length - 1]; if (last) last.insertAdjacentHTML("beforeend", ` <span data-v131="ref-note">${z("Implemented = written to the local pending configuration or in effect; Failed = not written, or still not written at the effective time. Triggers: Pre-effective (right after implementation), Local Change (cache reloaded), Daily (before 02:00), On Demand, Onboarding, Re-sync. Each declaration carries the in-effect and implemented-pending versions of every domain. A Core correction is applied automatically only when its payload is marked auto-applicable (reference data and status fields); anything else goes to Reconciliation as Needs Action.", "Implemented = 已写入本地待生效配置或已生效；声明触发六种；每份声明带各数据域生效版本与已落地待生效版本；只有标明可自动应用的纠正才自动改正。")}</span>`);
+  });
+};
+/* reporting queue: no row selection, Retry Now confirmation, Sale / Void, sealed summary Core values */
+a2Sealed = function () { return S.issues.filter((i) => i.sealed && ["closed", "recon", "pub", "settled"].includes(i.st)).map((i) => { const n = Math.round((i.sales || 460500) / 25); return { draw: i.no, cut: i.cut, sub: v13Add(i.cut, 1).slice(0, 16), n, gr: n * 25, hash: (x13Hash(i.no).toString(16) + "0000").slice(0, 4) + "…" + (x13Hash(i.no + "x").toString(16) + "0000").slice(0, 4), chk: i.sealed, why: i.sealed }; }); };
+const b1ViewQueue0 = a2ViewQueue;
+a2ViewQueue = function () {
+  const sub = S.v13a2.qSub || "queue";
+  let h = b1ViewQueue0().replace(/Auto-refresh 10s/g, "Auto-refresh 30s").replace(/每 10 秒自动刷新/g, "每 30 秒自动刷新");
+  return v13Tpl(h, (c) => {
+    if (sub === "queue") {
+      const tb = [...c.querySelectorAll("table")].find((x) => [...x.querySelectorAll("thead th")].some((th) => th.textContent.trim() === "Transaction Type")); if (tb) { const h0 = tb.querySelector("thead th"); if (h0 && !h0.textContent.trim()) h0.remove(); tb.querySelectorAll("tbody tr").forEach((tr) => { const td = tr.children[0]; if (td && td.querySelector("[data-a2sel]")) td.remove(); }); }
+      const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v131="q-note">${z("Store and forward follows the heartbeat: it starts when the connection turns Offline (three heartbeats not acknowledged); while Online a single receipt timeout is only retried and the row stays Pending. Queued rows are reported strictly in the original confirmation order. A format-rejected row does not block later rows; only the message mapping is fixed and the same Transaction Reference is re-reported. Transaction Type is Sale or Void (one Void per voided ticket, reference + -V, negative amount).", "存储转发以心跳为准；Online 期间单笔超时只重试；严格按原确认顺序补报；格式退回不阻塞后续交易，只修报文映射后同号重报；交易类型 Sale / Void。")}</span>`);
+    }
+    if (sub === "sealed") {
+      c.querySelectorAll("tr[data-a2-sealed]").forEach((tr) => { const s = a2Sealed().find((x) => x.draw === tr.dataset.a2Sealed); const td = tr.lastElementChild; if (!s || !td) return; const v = s.chk; td.innerHTML = v === "Match" ? tag("ok", "Match") : v === "Submitted" || v === "Awaiting" ? tag("warn", v) : v === "Excluded" ? tag("muted", "Excluded") : `${tag("rose", v)}<div class="tiny">${a2Link("v13a2-go", "Reconciliation", { arg: "recon" })}</div>`; });
+      const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.textContent = "Submitted within the Core deadline after cut-off, also when the queue is not empty (Core then asks for the missing transactions); re-submitted after late reports or on Core request, adding a row. Count and Gross Receipts cover every Sale transaction of the draw, non-conformant ones included; voids, refunds and adjustments are not included and voids are not deducted. Core Check shows Submitted until the Core receipt arrives, then the Core value: Awaiting / Match / Missing Transactions / Mismatch / Overdue / Excluded. Only the first and last 4 characters of the SHA-256 hash are shown.";
+    }
+    if (sub === "snf") { const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.insertAdjacentHTML("beforeend", " Sealed Summary Check: Matched when every affected draw is Match; Mismatch when any is Missing Transactions, Mismatch or Overdue; otherwise Pending (Excluded draws are left out)."); }
+  });
+};
+/* reconciliation: winner reconciliation confirmation enum, Superseded rows, auto-applicable note */
+const b1ViewRecon0 = a2ViewRecon;
+a2ViewRecon = function () {
+  const sub = S.v13a2.rSub || "div";
+  return v13Tpl(b1ViewRecon0(), (c) => {
+    if (sub === "win") {
+      c.querySelectorAll("tr[data-a2-win]").forEach((tr) => { const i = S.issues.find((x) => x.no === tr.dataset.a2Win); if (!i) return; const v = v13Recon(i); const td = tr.children[4]; if (td) td.innerHTML = v === "Agreed" ? tag("ok", v) : v === "Differences Reported" ? tag("warn", v) : v === "Overdue" ? tag("rose", v) : tag("muted", v); });
+      const tb = c.querySelector("table tbody"); if (tb) S.issues.filter((i) => i.res && (i.res.prev || []).some((p) => p.sup)).forEach((i) => (i.res.prev || []).filter((p) => p.sup).forEach((p) => tb.insertAdjacentHTML("beforeend", `<tr data-v131-sup="${i.no}"><td class="mono">${i.no}</td><td class="mono">${p.ver}</td><td class="mono">-</td><td class="mono">-</td><td>${tag("muted", "Superseded")}</td><td class="mono">-</td><td>0</td></tr>`)));
+      const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.textContent = "One row per draw and result version. Winner counts and payable are summed by multiple (Σ Core prize per bet × multiple). Confirmation: Pending / Agreed / Differences Reported / Overdue; a version replaced by a higher one before its confirmation was submitted is Superseded. Differences always follow the Core list; iLotto never pays a bet outside the Core list.";
+    }
+    if (sub === "div") { const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v131="recon-note">${z("Auto-corrected only when Core marks the correction auto-applicable: reference data and status fields (register status; exclusion status, extend only; re-sent results). Amount and wallet fields of transactions and prize claims always need action, through an adjustment request or a result adjustment. Finance review handles the Transactions domain; the Settlement domain is handled in Reports › PCSO settlement.", "只有 Core 标明可自动应用的纠正（参照数据与状态类字段）才自动改正；交易、兑奖的金额与钱包类字段一律待人工处理；财务复核处理交易领域，结算领域在报表处理。")}</span>`); }
+  });
+};
+/* connection: 30 s refresh, heartbeat wording, metrics revision + Resubmit Metrics, domain state reports */
+S.v13a2.metrics.forEach((m) => { m.rev = m.rev || 1; });
+S.v131.dsr = [["Player Registry", "2026-10-12", 412806, "Federated 398,214 · Not Federated 14,592", "a3f1…09c2", "2026-10-13 00:20", "Acknowledged", "Consistent"], ["Draw Results", "2026-10-12", 31, "31 draws · latest versions", "77d0…e41b", "2026-10-13 00:20", "Acknowledged", "Consistent"], ["Reference Data", "2026-10-12", 14, "14 domain versions", "c905…11aa", "2026-10-13 00:20", "Acknowledged", "Consistent"], ["Transactions", "2026-10-12", 18240, "₱4,820,000.00", "5be2…7f30", "2026-10-13 00:21", "Acknowledged", "Divergent"], ["Prize Claims", "2026-10-12", 412, "₱1,032,512.40", "0e8c…d2b7", "2026-10-13 00:21", "Acknowledged", "Pending"]];
+const b1ViewConn0 = a2ViewConn;
+a2ViewConn = function () {
+  const ops = a2Is("ops"), adminOnly = myRole() === "admin" && !demoAll();
+  return v13Tpl(b1ViewConn0().replace(/Auto-refresh 10s/g, "Auto-refresh 30s").replace(/每 10 秒自动刷新/g, "每 30 秒自动刷新"), (c) => {
+    const st = c.querySelector("[data-a2=conn-st]"); if (st) st.insertAdjacentHTML("beforeend", `<div class="tiny" data-v131="hb-rule">${z("By heartbeat: three heartbeats not acknowledged (or a failed heartbeat exchange) turn it Offline and start store and forward; the next acknowledged heartbeat turns it Online. A single transaction receipt timeout never changes it. The dashboard card uses this value.", "以心跳为准：连续 3 次心跳未获确认或交换失败转 Offline 并开始存储转发，下一次心跳获确认回 Online；单笔交易回执超时不影响；仪表盘连接卡取本值。")}</div>`);
+    const mc = c.querySelector("[data-a2=metrics]");
+    if (mc) { const tb = mc.querySelector("table"); if (tb) tb.outerHTML = table(["Metric Category", "Period", "Submitted At", "Trigger", "Revision", "Acknowledgment", ""], S.v13a2.metrics.map((m, k) => `<tr data-v131-metric="${k}"><td>${m.cat}</td><td class="mono">${m.per}</td><td class="mono">${m.at}</td><td>${m.trig}</td><td class="mono">${m.rev}</td><td>${tag("ok", m.ack)}</td><td>${ops && m.trig !== "Core on demand" ? b1Btn("v131-metric-resubmit", z("Resubmit Metrics", "更正重报"), { id: String(k) }) : ""}</td></tr>`)); const p = mc.querySelector("p.tiny"); if (p) p.textContent = "Wallet summary (deposits and withdrawals, net position, above-threshold transactions using the amount from the Compliance Parameters domain, complaints and disputes), PlaySafe summary (risk players, share of active players with limits set, cool-offs, reality checks; an active player is one who placed at least one bet in the reporting period) and AML summary. The reporting period is the previous calendar day by default. KYC has no periodic metrics: local KYC decisions are reported as network-relevant events. A correction re-report raises the revision by 1; Core keeps every revision and uses the latest. Definitions follow Core."; }
+    if (!adminOnly) c.append(document.createRange().createContextualFragment(`<div class="card" data-v131="dsr" style="margin-top:12px"><div class="page-h" style="margin-bottom:6px"><h4 style="margin:0">Domain state reports</h4>${a2Btn("v13a2-export", z("Export", "导出"), { arg: "conn.dsr" })}</div>${table(["Data Domain", "Period", "Record Count", "Summary Value", "Hash", "Submitted At", "Acknowledgment", "Core Comparison"], S.v131.dsr.map((r) => `<tr data-v131-dsr="${r[0]}"><td>${r[0]}</td><td class="mono">${r[1]}</td><td class="mono">${r[2].toLocaleString("en-US")}</td><td class="mono">${esc(r[3])}</td><td class="mono">${r[4]}</td><td class="mono">${r[5]}</td><td>${tag("ok", r[6])}</td><td>${r[7] === "Consistent" ? tag("ok", r[7]) : r[7] === "Divergent" ? tag("rose", r[7]) : tag("warn", r[7])}</td></tr>`))}<p class="tiny">${v13Demo()} ${z("Reported at the frequency Core sets for the daily full reconciliation: record count, summary value (amount totals for transactions and claims, version or state counts otherwise) and the whole-set hash (first and last 4 characters shown). Queued while Core is unreachable and re-reported in order; Divergent results come back as Reconciliation divergences.", "按 Core 规定频率上报五个领域的记录数、汇总值与全集哈希；Core 不可达时排队补报；比对不一致回到对账差异。")}</p></div>`));
+  });
+};
+
+/* ---------- inputs and clicks of this block ---------- */
+document.addEventListener("input", (e) => { const el = e.target; if (!el || !el.dataset) return; if (el.dataset.v131f && el.type !== "radio") S.v131.f[el.dataset.v131f] = el.value; if (el.dataset.v131q && el.type !== "date") { const [g, k] = el.dataset.v131q.split("."); if (g === "clq") S.v13.clq[k] = el.value; else b1Q(g, {})[k] = el.value; } }, true);
+document.addEventListener("change", (e) => {
+  const el = e.target; if (!el || !el.dataset) return;
+  if (el.dataset.v131f) { S.v131.f[el.dataset.v131f] = el.value; if (el.type === "radio") render(); }
+  if (el.dataset.v131q && (el.type === "date" || el.tagName === "SELECT")) { const [g, k] = el.dataset.v131q.split("."); if (g === "clq") S.v13.clq[k] = el.value; else b1Q(g, {})[k] = el.value; render(); }
+  if (el.dataset.v131ms) { const vals = [...el.selectedOptions].map((o) => o.value); S.v13.clq.sts = vals; S.v13.clq.st = "all"; render(); }
+  if (el.dataset.v13q === "clq.draw" || el.dataset.v13q === "clq.game") { /* A1 handled the value; keep the multi-select */ }
+}, true);
+function b1Reason(o) { S.v131.f = {}; S.modal = Object.assign({ type: "v13a2-v131reason" }, o); render(); }
+function b1RetryAll() {
+    const L = S.v13a2.queue.slice(); S.modal = null;
+    if (!L.length) { toast("Nothing to report."); render(); return; }
+    if (a2Off()) { toast("Core is not reachable. Transactions stay queued and will be reported automatically."); render(); return; }
+    let ok = 0; L.forEach((x) => { x.att += 1; x.last = a2NowFull(); if (!x.fmt) { ok++; S.v13a2.txst[x.ref] = { st: "Reported", at: a2NowFull() }; } });
+    S.v13a2.queue = S.v13a2.queue.filter((x) => x.fmt); a2QueueSync();
+    x13Aud(A2_MOD, "Retry reporting now", "All Pending And Queued", "—", ok + " reported, " + (L.length - ok) + " still pending");
+    toast(ok + " reported. " + (L.length - ok ? (L.length - ok) + " still pending: format rejected by Core." : "")); render(); return;
+  }
+function b1Click(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, arg = el.dataset.arg, id = el.dataset.id, f = S.v131.f, me = v13Me();
+  const stop = () => { e.stopPropagation(); e.preventDefault(); };
+  const fail = (m) => { S.v131.f.err = m; render(); };
+  const done = (msg) => { S.modal = null; S.v131.f = {}; if (msg) toast(msg); render(); };
+  /* 6B.11.7: By time defaults to the current period of the grain (on entering the view and on every grain change) */
+  if (act === "grain" && S.page === "reports" && S.tab.report === "sales" && (S.salesView || "time") === "time") { S.salesGrain = arg; b1SalesDefault(); return; }
+  if ((act === "sales-view" && arg === "time" && S.salesView !== "time") || (act === "tab" && arg === "sales" && S.page === "reports" && S.tab.report !== "sales" && (S.salesView || "time") === "time")) { if (act === "sales-view") S.salesView = "time"; b1SalesDefault(); return; }
+  /* take over A2 acts changed by 1.3.1 */
+  if (act === "v13a2-q-retry") { stop(); S.v13a2.f = {}; S.modal = { type: "v13a2-retry" }; render(); return; }
+  if (act === "v13a2-arq-new") { stop(); if (!a2Is("ops")) { toast(RO_OPS_MSG); return; } S.v13a2.f = { tt: arg || "Transaction", ref: id || "", cls: arg === "Prize Claim Record" ? "Reported Value Correction" : "" }; S.v13a2.files = {}; S.modal = { type: "v13a2-arq" }; render(); return; }
+  if (act === "v13a2-ea-use-save") {
+    stop(); const a = S.v13a2.ea.find((x) => x.id === id), g = S.v13a2.f, ref = String(g.ref || "").trim(), doc = (S.v13a2.files || {}).doc ? S.v13a2.files.doc[0] : null, ff = (m) => { g.err = m; render(); };
+    if (!String(g.reason || "").trim()) return ff("Describe the emergency."); if (!ref) return ff("Enter the written approval reference."); if (S.v13a2.usedRefs.includes(ref)) return ff("This approval has already been used."); if (!doc || !a2FileOk(doc, "pdf", 10485760)) return ff("Upload a PDF of up to 10 MB.");
+    const n = S.v13a2.ea.reduce((s, x) => s + x.reqs.length, 0) + 1; a.reqs.push({ id: "ER-" + a2Ymd() + "-" + String(n).padStart(3, "0"), by: me, reason: g.reason.trim(), ref, doc: doc.name, win: Number(g.win || 120), appr: "", rel: [], from: "", to: "", alert: "", core: "", rot: [], review: "" }); S.v13a2.usedRefs.push(ref); a.st = "Approval Pending";
+    x13Aud("Emergency accounts", "Request emergency account use", a.id, "Sealed", "Approval Pending"); S.modal = null; S.v13a2.f = {}; S.v13a2.files = {}; toast("Use request submitted. Compliance audit approves or rejects after checking the written approval."); render(); return;
+  }
+  if (act === "v13a2-ea-approve-go") {
+    stop(); const a = S.v13a2.ea.find((x) => x.id === id), r = a2EaReq(a), g = S.v13a2.f, ff = (m) => { g.err = m; render(); };
+    if (String(g.otp || "") !== "1234") return ff("Incorrect verification code."); if (r.by === me || a.cus.includes(me)) return ff("The approver must be different from the requester and the custodians."); if (a.st !== "Approval Pending") return ff("This request is not waiting for approval.");
+    r.appr = me; r.apprAt = sysNow(); a.st = "Release Pending"; x13Aud("Emergency accounts", "Approve emergency account use", r.id, "Approval Pending", "Release Pending"); S.modal = null; S.v13a2.f = {}; toast("Use approved. Both custodians must confirm release within 2 hours; the sign-in OTP goes to both custodians."); render(); return;
+  }
+  if (act === "v13a2-dir-reply") { const d = S.v13a2.dirs.find((x) => x.id === id); if (d && d.sub === "KYC Review") { stop(); toast("The KYC review reply is sent by the system from the conclusions recorded in Identity review."); return; } }
+  if (act === "v13a2-dir-reply-save") { const d = S.v13a2.dirs.find((x) => x.id === id); if (d && d.sub === "KYC Review") { stop(); S.modal = null; render(); return; } setTimeout(() => { const d2 = S.v13a2.dirs.find((x) => x.id === id); if (d2 && d2.exec === "Replied") { d2.ack = b1Ack(d2); d2.ackHist.push([a2NowFull(), "Reply result sent (round " + (d2.round || 1) + ")"]); render(); } }, 0); return; }
+  if (act === "v13a2-dir-retry-go") { setTimeout(() => { const d2 = S.v13a2.dirs.find((x) => x.id === id); if (d2) { d2.ack = b1Ack(d2); render(); } }, 0); return; }
+  if (act === "v13a2-q-retry-go" && S.modal && S.modal.type === "v13a2-retry") { stop(); b1RetryAll(); return; }
+  if (act === "v13a2-arq-save" && S.modal && S.modal.type === "v13a2-arq") { stop(); b1ArqSave(); return; }
+  if (!act || act.indexOf("v131-") !== 0) return;
+  stop(); if (el.disabled) return;
+  if (act === "v131-search") { render(); return; }
+  if (act === "v131-go-prize-rej") { S.page = "txn"; S.tab.txn = "prize"; S.pp = Object.assign(S.pp || {}, { from: "", to: "" }); b1Q("pp", {}).cv = "Rejected"; S.sub = null; S.modal = null; render(); return; }
+  if (act === "v131-go-claims") { S.page = "claims"; S.sub = null; S.modal = null; render(); return; }
+  if (act === "v131-go-arq-failed") { S.page = "txn"; S.tab.txn = "arq"; S.v13a2.q.arq = { st: "Execution Failed", code: "all", from: "", to: "", ref: "" }; S.sub = null; render(); return; }
+  if (act === "v131-draw-sim") {
+    const i = S.issues.find((x) => x.no === id); if (!i) return;
+    if (arg === "resume-late" || arg === "chex") { v13Directive(i, arg); toast("Core directive " + i.dir + " executed and acknowledged. The draw is " + V13_ST[i.st][1] + "."); }
+    if (arg === "hiver") { b1HigherVersion(i); toast("Result " + i.res.ver + " received; the lower version is superseded and was not confirmed."); }
+    if (arg === "ldvoid") { b1LocalVoided(i); toast("Local Voided difference recorded; not paid; Critical divergence opened."); }
+    render(); return;
+  }
+  if (act === "v131-claimed-sim") { b1ClaimedSim(); toast("CLAIMED acknowledged: the ticket is Claimed per Core; a P1 to-do and a local inconsistency report were raised."); render(); return; }
+  if (act === "v131-kyc-av" || act === "v131-kyc-ar") {
+    const k = S.kyc.find((x) => x.id === id); if (!k || k.status !== "pending" || !b1Is("kyc")) return; const fl = (m) => { S.v131.err = m; render(); };
+    if (!f.concl) return fl(act === "v131-kyc-av" ? "Select a verification result." : "Select a decision.");
+    const note = String(f.cnote || "").trim(); if (act === "v131-kyc-ar" && (!note || note.length > 500)) return fl("Enter a reason of 1–500 characters.");
+    Object.assign(k, { status: "done", concl: f.concl, conclNote: note, conclBy: me, conclAt: sysNow(), fix: f.fix || "" });
+    const p = S.players.find((x) => x.id === k.player);
+    if (act === "v131-kyc-av") { if (p) p.fed = "pend"; k.fed = "pend"; v13Sys(t("身份审核", "Identity review"), "Additional verification completion reported to Core", k.cse + " · " + k.id, f.concl + (f.fix ? " · corrected Date Of Birth " + f.fix + " with salted ID number hash · Core re-matches" : "")); toast("Reported to Core: " + f.concl + (f.fix ? ". Core re-matches with the corrected fields." : ".")); }
+    else { if (f.concl === "Correct And Resubmit") { if (p) p.fed = "ing"; k.fed = "ing"; v13Sys(t("身份审核", "Identity review"), "Federation resubmitted after correction", k.id, "Querying"); } v13Aud(t("身份审核", "Identity review"), "Record decision on Core age or KYC rejection", k.id, "Pending", f.concl + " · " + note); toast("Decision recorded: " + f.concl + "."); }
+    S.v131.f = {}; S.v131.err = ""; render(); return;
+  }
+  if (act === "v131-arq-set") { const [k, v] = arg.split("="); S.v13a2.f[k] = v; if (k === "tt") { S.v13a2.f.cls = v === "Prize Claim Record" ? "Reported Value Correction" : ""; S.v13a2.f.code = ""; S.v13a2.f.item = ""; } if (k === "cls") { S.v13a2.f.code = ""; S.v13a2.f.item = ""; } S.v13a2.f.err = ""; render(); return; }
+  if (act === "v131-arq-core") { const r = S.v13a2.arq.find((x) => x.id === id); if (!r || r.st !== "Submitted To Core") return; b1ArqDecision(r, arg); a2SysLog("Adjustment requests", "Transaction Adjustment Decision received", id, r.core + " · " + r.st); toast("Core decision received: " + r.core + "; local status " + r.st + "."); render(); return; }
+  if (act === "v131-arq-retry") { const r = S.v13a2.arq.find((x) => x.id === id); if (!r || r.st !== "Execution Failed" || !a2Is("ops")) return; x13Aud("Adjustment requests", "Retry execution", id, "Execution Failed", "Applied"); b1ArqExec(r, true); const d = S.v13a2.dirs.find((x) => x.adjId === r.id); if (d) { d.exec = "Executed"; d.execAt = a2NowFull(); d.fail = ""; d.ack = b1Ack(d); d.ackHist.push([a2NowFull(), "Execution result sent after retry"]); a2DirSync(); } toast("Executed. The execution result was acknowledged to Core (idempotent by request ID; no second refund)."); render(); return; }
+  if (act === "v131-pp-resolve") { b1Reason({ id, title: z("Decide", "判定") + " · " + id, label: "Note", opts: ["Core judged in error: raise a claim record adjustment request", "iLotto paid in error: reverse from the prize balance"], next: "v131-pp-resolve-go", ok: "Record decision" }); return; }
+  if (act === "v131-pp-resolve-go") { if (!f.opt) return fail("Select a decision."); const why = String(f.reason || "").trim(); if (!why || why.length > 500) return fail("Enter a note of 1–500 characters."); S.v131.pp.res = S.v131.pp.res || {}; S.v131.pp.res[id] = f.opt + " · " + why; x13Aud("Prize payments", "Decide claim record rejected by Core", id, "Rejected", f.opt); done("Decision recorded."); return; }
+  if (act === "v131-tier-export") { b1TierExport(); render(); return; }
+  if (act === "v131-sales-game-export") { b1SalesGameExport(); render(); return; }
+  if (act === "v131-unclaimed-export") { b1UnclaimedExport(); render(); return; }
+  if (act === "v131-pnl-by") { S.v131.pnlBy = arg; render(); return; }
+  if (act === "v131-ea-reject") { b1Reason({ id, title: z("Reject Use", "驳回使用") + " · " + id, label: "Reason", next: "v131-ea-reject-go", ok: "Reject Use" }); return; }
+  if (act === "v131-ea-reject-go") { const a = S.v13a2.ea.find((x) => x.id === id), r = a2EaReq(a), why = String(f.reason || "").trim(); if (!why || why.length > 500) return fail("Enter a reason of 1–500 characters."); if (!a2Is("compliance") || a.st !== "Approval Pending") return; r.rej = why; r.rejBy = me; a.st = "Sealed"; x13Aud("Emergency accounts", "Reject emergency account use", r.id, "Approval Pending", "Sealed · " + why); done("Use rejected. The account stays sealed."); return; }
+  if (act === "v131-ea-withdraw") { const a = S.v13a2.ea.find((x) => x.id === id), r = a2EaReq(a); if (!r || a.st !== "Approval Pending") return; r.wd = true; a.st = "Sealed"; x13Aud("Emergency accounts", "Withdraw emergency account use request", r.id, "Approval Pending", "Sealed"); toast("Request withdrawn. The account stays sealed."); render(); return; }
+  if (act === "v131-dir-further") { const d = S.v13a2.dirs.find((x) => x.id === id); if (!d) return; d.round = (d.round || 1) + 1; d.exec = "Awaiting Reply"; d.execAt = ""; d.deadline = btFmt(a2NowMs() + 2 * 86400000); d.ackHist.push([a2NowFull(), "Core requested further action (round " + d.round + ")"]); d.ack = b1Ack(d); a2DirSync(); a2SysLog(A2_MOD, "Core requested further action", d.id, "Round " + d.round); toast("Core requested further action: reply round " + d.round + " is open."); render(); return; }
+  if (act === "v131-metric-resubmit") { b1Reason({ id, title: z("Resubmit Metrics", "更正重报"), label: "Reason", next: "v131-metric-go", ok: "Resubmit Metrics" }); return; }
+  if (act === "v131-metric-go") { const m = S.v13a2.metrics[Number(id)], why = String(f.reason || "").trim(); if (!why) return fail("Enter a reason."); if (why.length > 500) return fail("Up to 500 characters."); const nm = Object.assign({}, m, { at: a2NowFull().slice(0, 16), trig: "Correction", rev: m.rev + 1, ack: a2Off() ? "Queued" : "Acknowledged" }); S.v13a2.metrics.unshift(nm); x13Aud(A2_MOD, "Resubmit metrics", m.cat + " · " + m.per, "Revision " + m.rev, "Revision " + nm.rev + " · " + why); done("Metrics resubmitted as revision " + nm.rev + "; Core uses the latest revision."); return; }
+}
+window.addEventListener("click", b1Click, true);
+a2DirSync();
+if (S.authed) render();
+/* ===== V13-131 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">
