@@ -13897,6 +13897,195 @@ window.addEventListener("click", b1Click, true);
 a2DirSync();
 if (S.authed) render();
 /* ===== V13-131 END ===== */
+/* ===== V13-132 block (PRD 1.3.2 admin: 6B.7.2 bet limits apply at once to draws not yet closed; 6A.4.2 / 6B.7.3 Draw Sequence No is the PCSO draw number, read only; 6B.11.7 sales By region total row with Tickets and de-duplicated Players) =====
+   Injected by patch47_v132.py right after the V13-131 block. Overrides are runtime reassignments (X = function …) of the function bindings used by
+   the earlier blocks. Acts start with "v132-" and are handled by b2Click, a window capture listener. Demo values are marked Demo data. */
+S.v132 = { exp: null };
+const B132_HINT = "Applies to all draws that are not yet closed.";
+const B132_OPEN = ["gen", "sale"]; /* not yet closed = Scheduled (Generated) and On sale (6B.7.2 rule 3) */
+const B132_PL_NOTE = "Players in the total row are counted once per player across all regions, so the total can be less than the sum of the region rows.";
+
+/* ---------- 6A.4.2 / 6B.7.3 Draw Sequence No = PCSO draw number: consecutive per game (+1 per draw), leading zeros, cancelled draws keep theirs ---------- */
+const B132_SEQ = { "L655-20261012-1": "02057", "EZ2-20261012-2": "11873", "L649-20261013-1": "03312", "L658-20261016-1": "01488", "L645-20261013-2": "02941", "L642-20261010-1": "02766", "EZ2-20261010-2": "11868", "6D-20261010-2": "00932", "L649-20261008-2": "03309" };
+const B132_BASE = { sw3: 7420, d4: 4410, d6: 930 }; /* Demo data: start values for games with no known sequence in the seed */
+function b2Pad(n) { return String(Math.max(0, n)).padStart(5, "0"); }
+function b2Seq() {
+  const games = [...new Set(S.issues.map((i) => i.game))];
+  games.forEach((gid) => {
+    const L = S.issues.filter((i) => i.game === gid).sort((a, b) => btMs(a.draw) - btMs(b.draw) || (a.no < b.no ? -1 : a.no > b.no ? 1 : 0));
+    const nos = []; L.forEach((i) => { if (nos.indexOf(i.no) < 0) nos.push(i.no); });
+    const val = {}, k = nos.findIndex((n) => B132_SEQ[n]);
+    if (k < 0) { const base = B132_BASE[gid] || 1000; nos.forEach((n, j) => { val[n] = base + j; }); }
+    else {
+      val[nos[k]] = Number(B132_SEQ[nos[k]]);
+      for (let j = k - 1; j >= 0; j--) val[nos[j]] = B132_SEQ[nos[j]] ? Number(B132_SEQ[nos[j]]) : val[nos[j + 1]] - 1;
+      for (let j = k + 1; j < nos.length; j++) val[nos[j]] = B132_SEQ[nos[j]] ? Number(B132_SEQ[nos[j]]) : val[nos[j - 1]] + 1;
+    }
+    L.forEach((i) => { i.seq = b2Pad(val[i.no]); });
+  });
+}
+b2Seq();
+function b2SeqNew(x) { /* a draw synchronized later takes the next number of its game */
+  if (!x || x.seq) return;
+  const mx = S.issues.filter((i) => i.game === x.game && i !== x && i.seq).reduce((m, i) => Math.max(m, Number(i.seq)), 0);
+  x.seq = b2Pad(mx ? mx + 1 : (B132_BASE[x.game] || 1000));
+}
+const b2EnsureSale0 = blEnsureSale;
+blEnsureSale = function (g) {
+  b2EnsureSale0(g);
+  if ((g.id === "ez2" || g.id === "sw3") && !S.issues.some((i) => i.game === g.id && i.st === "gen")) { /* Demo data: one Scheduled draw after the one on sale, so a limit change shows on more than one draw not yet closed */
+    const s = S.issues.filter((i) => i.game === g.id && i.st === "sale").sort((a, b) => btMs(b.draw) - btMs(a.draw))[0];
+    if (s) { const draw = minusMin(s.draw, -1440), x = Object.assign({ no: drawNo(g.id, draw, 9), game: g.id, open: minusMin(draw, 720), cut: minusMin(draw, 30), draw, st: "gen", sales: 0 }, stampOf(g.id)); if (!S.issues.some((i) => i.no === x.no)) S.issues.push(x); }
+  }
+  S.issues.filter((i) => i.game === g.id && !i.seq).forEach(b2SeqNew);
+};
+const B132_SEQ_NOTE = "Draw Sequence No is the PCSO draw number. iLotto Core assigns it when the draw is generated, one more than the previous draw of the game, and sends it with the calendar and the results. It is read only: nobody enters or edits it in iLotto.";
+const b2DrawList0 = viewDrawList;
+viewDrawList = function (tb) {
+  S.issues.filter((i) => !i.seq).forEach(b2SeqNew);
+  return v13Tpl(b2DrawList0(tb), (c) => {
+    const tbl = [...c.querySelectorAll("table")].find((x) => [...x.querySelectorAll("thead th")].some((h) => h.textContent.trim() === "Draw Sequence No"));
+    const at = tbl ? (tbl.closest(".table-wrap") || tbl) : null;
+    const note = `<p class="tiny" data-v132="seq-note">${esc(B132_SEQ_NOTE)}</p>`;
+    if (at) at.insertAdjacentHTML("afterend", note); else c.append(document.createRange().createContextualFragment(note));
+  });
+};
+const b2DrawDetail0 = viewDrawDetail;
+viewDrawDetail = function () {
+  return v13Tpl(b2DrawDetail0(), (c) => {
+    const facts = c.querySelector("[data-v13=facts]"); if (!facts) return;
+    const cell = [...facts.querySelectorAll("tr")].find((r) => r.children.length >= 2 && r.children[0].textContent.trim() === "Draw Sequence No");
+    if (cell) cell.children[1].insertAdjacentHTML("beforeend", ` <span class="tiny" data-v132="seq-ro">PCSO draw number · Read only</span>`);
+    facts.insertAdjacentHTML("beforeend", `<p class="tiny" data-v132="seq-note">${esc(B132_SEQ_NOTE)}</p>`);
+  });
+};
+
+/* ---------- 6B.7.2 rule 3: Default Number Limit and single-combination limits apply at once to every draw of the game not yet closed ---------- */
+function b2OpenDraws(g) { return S.issues.filter((i) => i.game === g.id && B132_OPEN.indexOf(i.st) >= 0); }
+function b2Reached(g, iss) { const d = blData(g, iss); return blCombos(g, iss).filter((c) => { const lim = blLimOf(d, c.key); return !d.locks[c.key] && lim != null && c.amt >= lim; }); }
+const b2Bl0 = viewBetLimits;
+viewBetLimits = function () {
+  return v13Tpl(b2Bl0(), (c) => {
+    const def = c.querySelector("[data-bl-sec=def]");
+    if (def) { const p = def.querySelector("p.tiny"); const txt = `Empty means no limit. ${B132_HINT} A combination whose current bet amount has already reached the new limit stops accepting bets in that draw; tickets already sold are not affected. No approval needed; the change is written to the Change audit log with before and after.`; if (p) { p.textContent = txt; p.setAttribute("data-v132", "def-hint"); } else def.insertAdjacentHTML("beforeend", `<p class="tiny" data-v132="def-hint">${esc(txt)}</p>`); }
+    const nums = c.querySelector("[data-bl-sec=nums]");
+    if (nums) {
+      const basis = nums.querySelector("[data-bl-basis]");
+      const h = `<p class="tiny" data-v132="lim-hint" style="margin-top:0">${esc("Limit: " + B132_HINT + " Saving a limit here sets it for this combination in every draw of the game that is Scheduled or On sale. Lock applies to this draw. A combination at or above its limit stops accepting bets; tickets already sold are not affected.")}</p>`;
+      if (basis) basis.insertAdjacentHTML("afterend", h); else nums.insertAdjacentHTML("afterbegin", h);
+      nums.querySelectorAll("tr[data-bl-row]").forEach((r) => { const tg = r.lastElementChild; if (tg && /Limit reached/.test(tg.textContent)) { tg.setAttribute("data-v132", "stopped"); tg.insertAdjacentHTML("beforeend", ` <span class="tiny">Not accepting bets</span>`); } });
+    }
+  });
+};
+const b2BlAct0 = blNdAct;
+blNdAct = function (act, arg, id) {
+  if (act === "bl-def-save") {
+    if (blRo()) { toast("Only Operations can change the Default Number Limit."); return true; }
+    const g = gameBy(S.bl.game), el = document.querySelector("[data-bl-def]"), v = el ? el.value.trim().replace(/,/g, "") : "";
+    S.bl.def = v; S.bl.defFor = g.id;
+    if (v !== "" && !/^\d+(\.\d{1,2})?$/.test(v)) { S.bl.defErr = "Enter an amount of 0 or more with up to 2 decimals, or leave empty for no limit."; render(); return true; }
+    const odl = g.defLimit == null ? null : g.defLimit, ndl = v === "" ? null : Number(v);
+    S.bl.defErr = ""; S.bl.def = undefined;
+    if (odl === ndl) { S.bl.defErr = "Nothing has changed."; render(); return true; }
+    g.defLimit = ndl;
+    const open = b2OpenDraws(g); let hit = 0;
+    open.forEach((i) => { i.defLim = ndl; const d = blData(g, i); d.def = ndl; hit += b2Reached(g, i).length; });
+    logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), cat: "Change", evt: t("修改默认号码限额", "Edit default number limit"), obj: g.en + " · " + open.length + (open.length === 1 ? " draw not yet closed" : " draws not yet closed"), before: odl == null ? "none" : String(odl), after: ndl == null ? "none" : String(ndl) });
+    S.v132.last = { kind: "def", game: g.id, draws: open.map((i) => i.no), reached: hit };
+    render(); toast("Default Number Limit saved. " + B132_HINT.replace(/\.$/, "") + " (" + open.length + (open.length === 1 ? " draw" : " draws") + ")." + (hit ? " " + hit + (hit === 1 ? " combination has" : " combinations have") + " reached the limit and stopped accepting bets; tickets already sold are not affected." : "")); return true;
+  }
+  if (act === "bl-save") {
+    const g = gameBy(S.bl.game), iss = blIssues(g).find((i) => i.no === S.bl.draw); if (!iss) return true;
+    if (blRo() || blClosed(iss) || B132_OPEN.indexOf(iss.st) < 0) { toast(blRo() ? "Only Operations can change number limits." : "This draw is closed."); return true; }
+    const c = blCollect(), er = () => { const e = document.getElementById("bl-err"); if (e) e.textContent = S.bl.err; };
+    if (c.bad) { S.bl.err = "Enter an amount with up to 2 decimals, or leave empty for no limit."; er(); return true; }
+    const d = blData(g, iss), ch = [];
+    Object.keys(c.limits).forEach((k) => {
+      const lo = blLimOf(d, k), ol = lo == null ? "" : String(lo), nl = c.limits[k] || "", olk = !!d.locks[k], nlk = !!c.locks[k];
+      if (Number(ol || -1) !== Number(nl || -1) || olk !== nlk) ch.push([k, olk ? "locked" : "open", ol || "no limit", nlk ? "locked" : "open", nl || "no limit", Number(ol || -1) !== Number(nl || -1)]);
+    });
+    if (!ch.length) { S.bl.err = "Nothing has changed."; er(); return true; }
+    const open = b2OpenDraws(g);
+    ch.forEach(([k, , , , , limCh]) => {
+      if (c.locks[k]) d.locks[k] = true; else delete d.locks[k];
+      if (limCh) open.forEach((i) => { const di = blData(g, i); di.limits[k] = c.limits[k]; }); else d.limits[k] = c.limits[k];
+    });
+    S.bl.err = "";
+    const nLim = ch.filter((x) => x[5]).length, hit = nLim ? open.reduce((s, i) => s + b2Reached(g, i).filter((cb) => ch.some((x) => x[5] && x[0] === cb.key)).length, 0) : 0;
+    ch.forEach((x) => logAudit({ who: actor().who, role: actor().role, mod: t("游戏管理", "Games"), cat: "Change", evt: t("修改号码限额", "Edit number limits"), obj: gname(g) + " · " + (x[5] ? open.length + (open.length === 1 ? " draw not yet closed" : " draws not yet closed") : iss.no) + " · " + x[0], before: x[1] + ", " + x[2], after: x[3] + ", " + x[4] }));
+    S.v132.last = { kind: "lim", game: g.id, draws: open.map((i) => i.no), keys: ch.filter((x) => x[5]).map((x) => x[0]), reached: hit };
+    render(); toast(nLim ? "Number limits saved. " + B132_HINT.replace(/\.$/, "") + " (" + open.length + (open.length === 1 ? " draw" : " draws") + ")." + (hit ? " " + hit + (hit === 1 ? " draw-combination has" : " draw-combinations have") + " reached the limit and stopped accepting bets; tickets already sold are not affected." : "") : "Lock saved for this draw."); return true;
+  }
+  return b2BlAct0(act, arg, id);
+};
+(function b2Spec() { /* page spec drawer: the Default Number Limit row */
+  try {
+    const b = SPEC_D.a_games_limits.blocks[3].fn[0];
+    b[0] = "选游戏后设置默认号码限额：空 = 不限，2 位小数；保存后立即对该游戏全部未封盘期次（已排期、开放投注）生效；已售金额达到或超过新限额的组合在该期停止受理新投注，已售票不受影响；不走审批，写 Change 类审计（改前改后）。";
+    b[1] = "Set after choosing a game: empty = no limit, 2 decimals. " + B132_HINT + " Saved, it applies at once to every draw of the game that is Scheduled or On sale; a combination whose sold amount has reached the new limit stops accepting bets in that draw, and tickets already sold are not affected. No approval, written to the Change audit with before and after.";
+  } catch (e) {}
+})();
+
+/* ---------- 6B.11.7 sales By time: By region table with Tickets and Players; total row Tickets = sum, Players de-duplicated ---------- */
+function b2RegionNums() {
+  const f = periodFactor(), tm = tfv("sales");
+  const total = Math.round(tVal(148260000 * f, "sales", tm)), T = Math.round(tVal(7223467 * f, "tickets", tm)), P = Math.round(tVal(389610 * f, "players", tm));
+  const vals = rgSplit(total, REGIONS.map((r) => r[1])), tk = rgSplit(T, vals.length ? vals : [1]), pl = rgSplit(Math.round(P * 1.06), vals.length ? vals : [1]); /* Demo data: a player who bet in several regions counts in each region row */
+  const m = {};
+  REGIONS.forEach((r, i) => {
+    m[r[0]] = { tk: tk[i], pl: pl[i] };
+    const prov = PSGC[r[0]]; if (!prov) return;
+    const pv = rgSplit(vals[i], prov.map((p) => p[2])), ptk = rgSplit(tk[i], pv), ppl = rgSplit(Math.round(pl[i] * (prov.length > 1 ? 1.03 : 1)), pv);
+    prov.forEach((p, pi) => {
+      m[r[0] + "|" + p[0]] = { tk: ptk[pi], pl: ppl[pi] };
+      const cv = rgSplit(pv[pi], p[1].map((c) => c[1])), ctk = rgSplit(ptk[pi], cv), cpl = rgSplit(Math.round(ppl[pi] * (p[1].length > 1 ? 1.02 : 1)), cv);
+      p[1].forEach((cc, ci) => { m[r[0] + "|" + p[0] + "|" + cc[0]] = { tk: ctk[ci], pl: cpl[ci] }; });
+    });
+  });
+  return { m, T, P };
+}
+const b2RegionCard0 = regionCard;
+regionCard = function (kind, bare, slim) {
+  const h = b2RegionCard0(kind, bare, slim);
+  if (kind !== "sales" || bare) return h;
+  return v13Tpl(h, (c) => {
+    const card = c.querySelector(".card"), tb = card && card.querySelector("table"); if (!tb) return;
+    card.setAttribute("data-v132", "region-card");
+    const n = b2RegionNums(), fmt = (v) => Math.round(v).toLocaleString("en-US");
+    const hr = tb.querySelector("thead tr"); if (hr) hr.insertAdjacentHTML("beforeend", `<th>Tickets</th><th>Players</th>`);
+    let reg = "";
+    tb.querySelectorAll("tbody tr").forEach((r) => {
+      const name = r.children[0].textContent.replace(/^[\s\u00a0▸▾]+/, "").trim();
+      let key = "";
+      if (r.classList.contains("rg-r")) { reg = name; key = name; }
+      else if (r.classList.contains("rg-p")) key = (r.dataset.parent || reg) + "|" + name;
+      else if (r.classList.contains("rg-c")) key = reg + "|" + (r.dataset.parent || "") + "|" + name;
+      if (r.classList.contains("rg-t")) { r.setAttribute("data-v132", "region-total"); r.insertAdjacentHTML("beforeend", `<td class="mono amt" data-v132="tot-tickets">${fmt(n.T)}</td><td class="mono amt" data-v132="tot-players">${fmt(n.P)}</td>`); return; }
+      const x = n.m[key] || { tk: 0, pl: 0 };
+      r.insertAdjacentHTML("beforeend", `<td class="mono amt" data-v132="tickets">${fmt(x.tk)}</td><td class="mono amt" data-v132="players">${fmt(x.pl)}</td>`);
+    });
+    card.querySelectorAll("span.tiny").forEach((s) => { if (/Children add up to their parent/.test(s.textContent)) s.textContent = "Click a region to see provinces, then a province to see cities. Children add up to their parent, except Players (a player who bet in several places counts in each); Unknown has no breakdown."; });
+    card.insertAdjacentHTML("beforeend", `<p class="tiny" data-v132="region-players-note">${esc(B132_PL_NOTE)} Tickets in the total row are the sum of the region rows. ${v13Demo()}</p><div class="row-actions">${b1Btn("v132-sales-region-export", "Export by region")}</div>`);
+  });
+};
+function b2RegionExport() {
+  const card = document.querySelector(".view [data-v132=region-card]"); if (!card) return;
+  const rows = [...card.querySelector("table").rows], heads = [...rows[0].cells].map((x) => x.innerText.trim()), body = rows.slice(1).map((r) => [...r.cells].map((x) => x.innerText.replace(/^[\s\u00a0▸▾]+/, "").trim()));
+  body.push([B132_PL_NOTE]);
+  S.v132.exp = { name: "sales-by-region", heads, rows: body };
+  b1Export("sales-by-region", heads, body, t("报表", "Reports"), S.rr.from + " to " + S.rr.to + " · Region " + (S.rgSel || "all"));
+}
+
+/* ---------- events ---------- */
+function b2Click(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act;
+  if (act === "pcso-save") { e.stopPropagation(); e.preventDefault(); toast("Draw Sequence No is the PCSO draw number assigned by iLotto Core. It cannot be entered or edited."); return; }
+  if (act === "v132-sales-region-export") { e.stopPropagation(); e.preventDefault(); if (rrNoExport()) { toast("View only: your role cannot export this report."); return; } b2RegionExport(); render(); return; }
+}
+window.addEventListener("click", b2Click, true);
+if (S.authed) render();
+/* ===== V13-132 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">

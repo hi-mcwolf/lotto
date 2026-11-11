@@ -3590,6 +3590,30 @@ function panel131(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id=
  [...el.querySelectorAll('h4')].forEach(h=>{if(/^Claim deadline hold|^Draw message with both a capped/.test(h.textContent))h.remove()});
  B(/A\.suspTk\(\)/).forEach(b=>b.textContent='Ticket not in the Core winners list (result being finalized)')}}
 render();
+/* ===== PROTO-132 player · PRD 1.3.2: PCSO draw number on the ticket detail and the results (6B.3.4 / 6B.4.2, appendix A item 176) =====
+   The Core Draw Sequence No is the PCSO draw number. iLotto Core assigns it per game, +1 per draw (cancelled draws keep theirs),
+   and sends it with the calendar and the results; the player side shows it next to the Draw ID as `PCSO Draw No. 02057`.
+   Demo data: the numbers are derived per game from an anchor on the latest published draw (Grand Lotto 6/55 = 02057, PRD example)
+   and count one per draw slot of the game's schedule (draw days × sessions), down for older draws and up for later ones.
+   Wrapper layer: SC.result.html and SC.tkDetail.html are re-wrapped; every text node that is exactly a Draw ID gets the number after it. */
+(function(){const st=document.createElement('style');st.textContent='.pcso132{font-weight:600;opacity:.75;white-space:nowrap}';document.head.appendChild(st)})();
+const PCSO132_ANCHOR={grand:2057,ultra:1486,super:3308,mega:2940,lotto:2765,ez2:11866,swer:7419,d4:4409,d6:929,dchr:215};/* Demo data */
+const PCSO132_RX=new RegExp('^('+Object.values(GCODE).map(x=>x.replace(/[-]/g,'\\-')).join('|')+')-(\\d{8})-(\\d+)$');
+const pcso132Day=(d,n)=>new Date(Date.parse(d+'T00:00:00Z')+n*864e5).toISOString().slice(0,10);
+function pcso132Anchor(g){S.p132=S.p132||{};if(!S.p132[g.id])S.p132[g.id]=pastDrawDates(g,1)[0]||'2026-10-09';return S.p132[g.id]}
+function pcsoDrawNo(g,date,si){g=typeof g==='string'?gm(g):g;if(!g||!date)return '';const a=pcso132Anchor(g),n=(g.sess||[]).length||1;let off=0,d,k=0;
+ if(date>=a){for(d=a;d<date&&k++<1500;d=pcso132Day(d,1))if(onDow(g,d))off+=n}else{for(d=date;d<a&&k++<1500;d=pcso132Day(d,1))if(onDow(g,d))off-=n}
+ off+=Math.max(0,Math.min(n-1,si||0));return String(Math.max(1,(PCSO132_ANCHOR[g.id]||1000)+off)).padStart(5,'0')}
+function pcsoOfId(id){const m=PCSO132_RX.exec(String(id||'').trim());if(!m)return '';const gid=Object.keys(GCODE).find(k=>GCODE[k]===m[1]);const g=gid&&gm(gid);if(!g)return '';
+ return pcsoDrawNo(g,m[2].slice(0,4)+'-'+m[2].slice(4,6)+'-'+m[2].slice(6,8),Number(m[3])-1)}
+const pcso132Tag=no=>`<span class="pcso132" data-pcso="${no}"> · PCSO Draw No. ${no}</span>`;
+function pcso132Mark(html){if(typeof html!=='string'||html.indexOf('-2026')<0&&html.indexOf('-2025')<0)return html;
+ const tp=document.createElement('template');tp.innerHTML=html;const w=document.createTreeWalker(tp.content,NodeFilter.SHOW_TEXT);const hits=[];let n;
+ while((n=w.nextNode())){const v=n.nodeValue.trim();if(v&&PCSO132_RX.test(v)&&!(n.parentElement&&n.parentElement.closest('[data-pcso]')))hits.push(n)}
+ hits.forEach(t=>{const no=pcsoOfId(t.nodeValue);if(!no)return;const f=document.createRange().createContextualFragment(pcso132Tag(no));t.parentNode.insertBefore(f,t.nextSibling)});
+ return hits.length?tp.innerHTML:html}
+{const _r=SC.result.html;SC.result.html=function(){return pcso132Mark(_r.apply(this,arguments))}}
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){return pcso132Mark(_d.apply(this,arguments))}}
 </script>
 </body>
 </html>
