@@ -3614,6 +3614,161 @@ function pcso132Mark(html){if(typeof html!=='string'||html.indexOf('-2026')<0&&h
  return hits.length?tp.innerHTML:html}
 {const _r=SC.result.html;SC.result.html=function(){return pcso132Mark(_r.apply(this,arguments))}}
 {const _d=SC.tkDetail.html;SC.tkDetail.html=function(){return pcso132Mark(_d.apply(this,arguments))}}
+/* ===== PROTO-133 player · PRD 6B.1–6B.5 follow-up =====
+   Wrapper layer (one <script>; function bindings re-wrapped, const arrows untouched):
+   6B.1.3   contact transfer notice signs out every session (sign-out card); only one contact removed: message sent through the other one
+   6B.2.3   PlaySafe entry on the identity status page for Checking Details / Check Unsuccessful / Rejected (only PlaySafe is let through);
+            KYC re-check: Re-KYC Required banner + Verify again -> eKYC five steps -> manual review banner -> Re-verified / Re-KYC Failed
+   6B.2.4   one shared order for the banner and the bet / deposit blocks:
+            PCSO exclusion -> Core restriction -> self-exclusion -> cool-off -> KYC re-check -> local restricted betting -> terms pending -> wallet frozen (deposit only)
+            self-exclusion confirm dialog shows the end date (confirm time + period); a queued submission keeps that end date
+   6B.3.4   results: Jackpot Amount = Core Pool Amount; Carried forward shows the Pool Amount; correction note only when numbers / per-line prize change
+   6B.4.2   Winning Wager Removal and prize claim review corrections (MSG_PRIZE_BALANCE_ADJUSTED, no correction note);
+            Credited By iLotto / Paid By PCSO on a ticket moved above the threshold (+ MSG_PRIZE_TO_CLAIM);
+            Verified – awaiting payment stays until Core invalidates the verification
+   6B.4.5   Prize Reversal / Prize Top-up without a reason; the note names the source (three sentences) */
+(function(){const st=document.createElement('style');st.textContent='.c133{margin-top:10px;padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.55;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.07)}.rstbar .kbtn{display:inline-block;margin-top:6px;height:28px;padding:0 12px;border-radius:999px;border:0;background:var(--bl,#004bc9);color:#fff;font-weight:700;font-size:12px;cursor:pointer}';document.head.appendChild(st)})();
+const MSG_KYCR='Please verify your identity again to continue placing bets and deposits.';
+const MSG_KYCR_REV='We are reviewing your documents. You can place bets once the review is complete.';
+const MSG_KYCR_NOTE='Please verify your identity again. Until then you cannot place bets or deposit, but you can still view your balances and withdraw prize funds.';
+const MSG_TERMS_133='Please accept the updated terms to place bets or deposit.';
+const MSG_PBA='Your prize balance was adjusted. See the ticket for details.';
+const NOTE_RESULT='Adjusted after PCSO corrected the draw results.',NOTE_VOID='Adjusted because this ticket was voided.',NOTE_REVIEW='Adjusted after a prize claim review.';
+RMSG.terms=MSG_TERMS_133;
+{const _f=fresh;fresh=function(){_f.apply(this,arguments);Object.assign(S,{kycRe:null,trNote:'',jpNA:null})}}
+
+/* ---------- 6B.2.4 one order for the banner and the bet / deposit blocks ---------- */
+const _ebIn=exBanner;
+const txtOf=h=>{const d=document.createElement('div');d.innerHTML=h||'';return d.textContent.replace(/\s+/g,' ').trim()};
+const selfMsg=()=>txtOf(_ebIn());
+const coolMsg=()=>`You are in a cool-off period until ${fts(S.cool.until)}. You cannot place bets or make deposits.`;
+/* ctx 'bet' | 'dep' | 'bar'; returns the first restriction in the order, or null */
+function rstTop(ctx){if(!S.logged)return null;const e=S.excl,P=S.pre||{};
+ if(e&&e.pcso)return {key:'pcsoX',msg:MSG_PCSO_X};
+ if(S.coreRst)return {key:'coreR',msg:MSG_CORE_RST};
+ if(e&&!e.expired)return {key:'selfX',msg:selfMsg()};
+ if(S.cool&&S.cool.until>S.clock)return {key:'cool',msg:coolMsg()};
+ if(S.kycRe)return {key:'kycR',msg:S.kycRe==='review'?MSG_KYCR_REV:MSG_KYCR};
+ if(ctx!=='dep'&&P.restrict)return {key:'restrict',msg:RMSG.restrict};
+ if(S.termsPend)return {key:'terms',msg:MSG_TERMS_133};
+ return null}
+const RG_KEYS=['pcsoX','selfX','cool'];
+preKey=function(g){const P=S.pre||{},r=RST();
+ if(P.kyc||(S.logged&&S.kyc!=='approved'))return 'kyc';
+ if(devKey())return devKey();
+ if(r.stop)return 'stop';if(r.app&&S.term==='app')return 'app';
+ if(g&&r.game&&g.id===r.game)return 'bet';
+ if(P.rate)return 'rate';
+ const tp=rstTop('bet');if(tp)return RG_KEYS.includes(tp.key)?'rg':tp.key;
+ if(S.wFrozen)return 'frozen';
+ if(P.acct)return 'acct';
+ return null};
+{const _rk=rstKey;rstKey=function(k,g){if(k==='dep'&&S.logged){const r=RST();if(devKey())return devKey();if(r.app&&S.term==='app')return 'app';if(r.dep)return 'dep';const tp=rstTop('dep');if(tp)return tp.key}return _rk.apply(this,arguments)}}
+{const _rs=rstShow;rstShow=function(key){if(key==='selfX')return toast(selfMsg());if(key==='cool')return toast(coolMsg());if(key==='kycR')return toast(S.kycRe==='review'?MSG_KYCR_REV:MSG_KYCR);return _rs.apply(this,arguments)}}
+/* self-exclusion block: same sentence as the banner */
+{const _rg=rgBlock;rgBlock=function(){const r=_rg.apply(this,arguments);const e=S.excl;if(e&&!e.pcso&&S.modal){const f=S.modal.fn,m=selfMsg();S.modal.fn=()=>f().replace('You have self-excluded. You cannot place bets or make deposits.',m);drawModal()}return r}}
+{const _dg=A.depGo;A.depGo=function(){const tp=rstTop('dep');if(tp){if(tp.key==='terms')return A.termsModal();return toast(tp.msg)}return _dg.apply(this,arguments)}}
+/* banner: only the first one; PCSO exclusion and self-exclusion keep their header banner, the rest use the bar */
+exBanner=function(){const tp=rstTop('bar');if(!tp||(tp.key!=='pcsoX'&&tp.key!=='selfX'))return '';return _ebIn.apply(this,arguments)};
+const BAR_SC=['home','wallet','deposit','withdraw','play','betConfirm','tickets','account','tx'];
+{const _rb=rstBars;rstBars=function(){let out=_rb.apply(this,arguments).filter(b=>!['coreR','terms','pcsoX'].includes(b[0]));if(!S.logged||!BAR_SC.includes(S.screen))return out;
+ const tp=rstTop('bar');if(!tp||tp.key==='pcsoX'||tp.key==='selfX')return out;if(tp.key==='terms'&&!S.termsNotNow)return out;
+ let m=tp.msg;if(tp.key==='kycR'&&S.kycRe!=='review')m+=`<br><button class="kbtn" id="kycre_go" onclick="A.v133Reverify()">Verify again</button>`;
+ out.unshift([tp.key,m]);return out}}
+
+/* ---------- 6B.2.3 KYC re-check: Re-KYC Required -> Verify again -> manual review -> Re-verified / Re-KYC Failed ---------- */
+A.v133Rekyc=kind=>{if(kind==='req'){if(!S.logged)seedDemo();if(S.kyc!=='approved')return toast('Only a verified player can be asked to verify again.');S.kycRe='req';
+  nfV13('shield','Verify your identity again',MSG_KYCR_NOTE,'MSG_KYC_RECHECK_REQUIRED','kycStatus');v13Audit('kyc-recheck-re-kyc-required');toast('Identity reviewer registered Re-KYC Required: restricted mode, MSG_KYC_RECHECK_REQUIRED sent');return render()}
+ if(S.kycRe!=='review')return toast('No re-submitted documents are under review.');tick(10);
+ if(kind==='ok'){S.kycRe=null;addNotif('shield','Identity verified','Identity verified','Your identity is verified. All features unlocked.','Your identity is verified. All features unlocked.');S.notifs[0].tpl='MSG_KYC_RESULT';v13Audit('kyc-recheck-re-verified');toast('Re-verified: restriction lifted');return render()}
+ S.kycRe='fail';addNotif('shield','Identity verification rejected','Identity verification rejected','The ID photo is blurry — please resubmit.','The ID photo is blurry — please resubmit.');S.notifs[0].tpl='MSG_KYC_RESULT';v13Audit('kyc-recheck-failed');toast('Re-KYC Failed: still restricted, the player can submit again');render()};
+A.v133Reverify=()=>{if(!S.kycRe||S.kycRe==='review')return;S.ek={step:1,doc:'',front:false,back:false,live:0,face:0};A.go('ekyc')};
+{const _ek=A.ekSubmit;A.ekSubmit=function(){if(S.logged&&S.kyc==='approved'&&(S.kycRe==='req'||S.kycRe==='fail')){tick(5);S.kycRe='review';v13Audit('kyc-recheck-resubmitted-manual-review');A.reset('home');return toast('Documents submitted. We are reviewing them.')}return _ek.apply(this,arguments)}}
+{const _ks=SC.kycStatus.html;SC.kycStatus.html=function(){let h=_ks.apply(this,arguments);const k=S.kyc;
+ if(S.logged&&k==='approved'&&S.kycRe){const rev=S.kycRe==='review';h=h.replace(/(<div class="card mt"><div class="b" style="margin-bottom:6px">)/,`<div class="card c2 mt" id="kycre_card" style="border:1px solid rgba(245,158,11,.4);font-size:13px;line-height:1.6">${rev?MSG_KYCR_REV:MSG_KYCR}${rev?'':`<button class="btn c mt3" id="kycre_status_go" onclick="A.v133Reverify()">Verify again</button>`}</div>$1`)}
+ /* PlaySafe entry for the three states without a Unique Player ID */
+ if(S.logged&&['checking','checkfail','rejected'].includes(k)){const i=h.lastIndexOf('</div>');h=h.slice(0,i)+`<button class="btn d mt" id="kyc_playsafe" onclick="A.go('playsafe')">PlaySafe</button>`+h.slice(i)}
+ return h}}
+/* only PlaySafe is let through for these three states; every other page still returns to the identity status page */
+{const _r=render;render=function(){const three=S.logged&&['checking','checkfail','rejected'].includes(S.kyc)&&S.screen==='playsafe';if(!three)return _r.apply(this,arguments);
+ const a=SC.playsafe.auth;SC.playsafe.auth=true;try{return _r.apply(this,arguments)}finally{SC.playsafe.auth=a}}}
+{const _ps=SC.playsafe.html;SC.playsafe.html=function(){let h=_ps.apply(this,arguments);if(S.logged&&!S.upid&&h.indexOf('id="sx_local"')<0)h=h.replace(/(<h3 id="ps_lim")/,`<div class="c131" id="sx_local_pre">${MSG_SX_LOCAL}</div>$1`);return h}}
+
+/* ---------- 6B.2.4 self-exclusion end date in the confirm dialog; queued submission keeps it ---------- */
+{const _ex=A.excl;A.excl=function(l,perm){const r=_ex.apply(this,arguments);if(!S.modal)return r;const f=S.modal.fn;const end=perm?0:S.clock+(EXD[l]||90)*864e5;
+ S.modal.fn=()=>{let h=f().replace(`Period: ${l}.`,`Period: ${l}. <span id="ex_end">${perm?'No end date.':'Ends on '+fts(end)+'.'}</span>`);
+  if(!S.upid)h=h.replace('It applies to all PCSO e-channels and cannot be lifted before it ends.','It cannot be lifted before it ends. '+MSG_SX_LOCAL);return h};drawModal();return r}}
+A.v133SxQueued=()=>{const e=S.excl;if(!e||e.pcso||!e.coreQ)return toast('Submit a self-exclusion first.');const end=e.endTs;tick(120);e.coreQ=0;v13Audit('queued-self-exclusion-submitted-with-end-date');
+ toast('Core reachable again: queued self-exclusion registered with its end date '+(e.perm?'(permanent)':fts(end))+' · end date unchanged');render()};
+
+/* ---------- 6B.1.3 contact transferred: every session signed out; one contact removed -> message through the other ---------- */
+{const _t=A.v13Transfer;A.v13Transfer=function(w){S.sOut=1;S.trusted=[];S.trNote=(w==='email'||w==='phone')?w:'';v13Audit('sessions-signed-out-contact-transferred');return _t.apply(this,arguments)}}
+const trMsg=w=>w==='phone'?'Your mobile number can no longer be used to sign in to iLotto. Please sign in with your email address.':'Your email address can no longer be used to sign in to iLotto. Please sign in with your mobile number.';
+{const _l=SC.login.html;SC.login.html=function(){const h=_l.apply(this,arguments);if(S.logged||!S.trNote)return h;const w=S.trNote;
+ const to=w==='phone'?'Email to '+maskEm(S.reg&&S.reg.email):'SMS to '+((S.reg&&S.reg.phone)||'+639****2347').replace(/^(\+?\d{5})\d+(\d{4})$/,'$1****$2');
+ const card=`<div class="card c2 mt" id="tr_msg" style="font-size:13px;line-height:1.6"><div class="xs mu">${to}</div>${trMsg(w)}</div>`;
+ return h.indexOf('id="so_card"')>=0?h.replace(/(<div class="card c2 mt" id="so_card"[^>]*>[^<]*<\/div>)/,'$1'+card):card+h}}
+{const _ld=A.loginDone;A.loginDone=function(){const r=_ld.apply(this,arguments);if(S.logged)S.trNote='';return r}}
+
+/* ---------- 6B.3.4 results: Jackpot Amount = Core Pool Amount; Carried forward shows the Pool Amount ---------- */
+/* Demo data: the Pool Amount of each lotto draw is the d.jp value already seeded per draw */
+{const _r=SC.result.html;SC.result.html=function(){let h=_r.apply(this,arguments);const g=gm(S.res.game);if(!g||g.t!=='lotto')return h;const d0=(S.draws[g.id]||[])[0];if(!d0)return h;
+ const cf=!(d0.winners>0),pool=d0.jp;
+ h=h.replace(/(<div class="b glowtxt" id="jpprize"[^>]*>)[^<]*(<\/div>)/,'$1'+(cf?fmPool(pool):fmPool(Math.round(pool/d0.winners)))+'$2');
+ h=h.replace('<div class="row sp mt2"><div><div class="xs mu">Jackpot Prize</div>',`<div class="row sp mt2" id="jpamt_row"><span class="xs mu">Jackpot Amount</span><b class="sm" id="jpamt">${fmPool(pool)}</b></div><div class="row sp mt3"><div><div class="xs mu">Jackpot Prize</div>`);
+ return h.split(' · Rolled over').join('').split('No online winner').join('Carried forward')}}
+
+/* ---------- 6B.4.5 Prize Reversal / Prize Top-up: no reason in the name; the note names the source ---------- */
+{const _tr=txRow;txRow=function(x){const h=_tr.apply(this,arguments);if(!x.adj)return h;return h.replace('>Prize Top-up (Result Adjustment)<','>Prize Top-up<').replace('>Prize Reversal (Result Adjustment)<','>Prize Reversal<')}}
+function adjTx133(k,amt,note){addTx('prize',r2(amt),'ok',note);const x=S.tx[0];x.adj=1;x.tk=k.id}
+const pba=()=>nfV13('trophy','Prize balance adjusted',MSG_PBA,'MSG_PRIZE_BALANCE_ADJUSTED','tickets');
+const autoWon=()=>S.tickets.filter(k=>k.st==='claimed'&&k.paid==='auto'&&k.prize>0&&k.prize<=300000&&!k.adj);
+/* ① ticket voided after the draw (transaction adjustment) -> Core Winning Wager Removal: the credited prize is reversed */
+A.v133WagerRemoval=()=>{if(!S.logged)seedDemo();const k=autoWon()[0];if(!k)return toast('No auto-credited winning ticket left to void.');
+ const net=r2(k.res?k.res.net:k.prize-taxOf(k.prize));k.st='await';voidAs(k,'corr');tick(5);
+ const take=Math.min(S.bal.prize,net),lost=r2(net-take);S.bal.prize=r2(S.bal.prize-take);if(take>0)adjTx133(k,-take,NOTE_VOID);
+ k.prize=0;k.tier='';k.res=null;k.adj='Winning Wager Removal';k.adjLoss=lost;pba();v13Audit('core-winning-wager-removal');
+ toast('Core: Winning Wager Removal · ticket voided and refunded, '+fm2(take)+' reversed from the prize balance');render()};
+/* ② prize claim review correction (Core rejected the claim record, Finance review found an iLotto error) */
+A.v133Review=dir=>{if(!S.logged)seedDemo();const k=autoWon().find(x=>x.res&&x.res.tiers&&x.res.tiers.length)||autoWon()[0];if(!k)return toast('No auto-credited winning ticket to correct.');
+ const f=dir==='up'?1.5:0.5,oldNet=r2(k.res?k.res.net:k.prize-taxOf(k.prize));
+ if(k.res){const R=k.res;R.tiers.forEach(y=>{y.per=r2(y.per*f);y.amt=r2(y.amt*f)});R.gross=r2(R.tiers.reduce((a,y)=>a+y.amt,0));R.tax=taxOf(R.gross);R.net=r2(R.gross-R.tax);k.prize=R.gross}else k.prize=r2(k.prize*f);
+ const newNet=r2(k.res?k.res.net:k.prize-taxOf(k.prize)),d=r2(newNet-oldNet);tick(5);let take=d;
+ if(d>0)S.bal.prize=r2(S.bal.prize+d);else{take=-Math.min(S.bal.prize,-d);S.bal.prize=r2(S.bal.prize+take);k.adjLoss=r2(-d+take)}
+ if(take)adjTx133(k,take,NOTE_REVIEW);k.adj='Prize claim review';pba();v13Audit('prize-claim-review-correction');
+ toast('Prize claim review: '+(d>0?fm2(d)+' topped up':fm2(-take)+' reversed')+' · ticket amount corrected');render()};
+
+/* ---------- 6B.4.2 ticket moved above the threshold: Credited By iLotto / Paid By PCSO; MSG_PRIZE_TO_CLAIM ---------- */
+{const _c=A.v131AdjCross;A.v131AdjCross=function(){const n0=S.notifs.length;const r=_c.apply(this,arguments);if(S.notifs.length>n0){const k=S.tickets.find(x=>x.crossNote&&x.st==='winPending');
+ if(k){const g=gm(k.g);nfV13('trophy','Prize to claim',`You have a prize to claim for ${gname(g)} draw ${dno(g,k.draw,k.dtime)}. Tap Start claim in My Tickets, then bring your valid ID to the PCSO Main Office.`,'MSG_PRIZE_TO_CLAIM','tickets');render()}}return r}}
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){let h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!k||archived(k))return h;
+ if(k.chPaid!=null&&k.cheque!=null){const paid=k.st==='claimed'&&k.paid==='counter';
+  const card=`<div class="card mt" id="cross_paid" style="padding:6px 16px">${rowKV('Paid By','Auto-credited to wallet (prize balance)<br>PCSO cheque, offline')}${rowKV('Credited By iLotto',fm2(k.chPaid))}${rowKV('Paid By PCSO',fm2(k.cheque))}</div>`;
+  const tp=document.createElement('template');tp.innerHTML=h;if(paid){[...tp.content.querySelectorAll('span')].filter(s=>s.textContent.trim()==='Paid by').forEach(s=>{const c=s.closest('.card');if(c)c.remove()})}h=tp.innerHTML;
+  h=h.replace('<h3 style="margin-top:20px">Bet details</h3>',card+'<h3 style="margin-top:20px">Bet details</h3>')}
+ if(k.invPend&&k.cv)h=h.replace('<h3 style="margin-top:20px">Bet details</h3>',`<div class="c133" id="inv_pend">PCSO corrected the draw results. Your claim stays verified until PCSO confirms the new amount.</div><h3 style="margin-top:20px">Bet details</h3>`);
+ return h}}
+
+/* ---------- 6B.4.2 Verified – awaiting payment: no change until Core invalidates the verification ---------- */
+{const _s=A.v131AdjStatesRun;A.v131AdjStatesRun=function(){const v=S.tickets.find(x=>x.st131&&x.s131==='verified'&&!x.done131);const p0=v&&v.prize;const r=_s.apply(this,arguments);
+ if(v&&v.done131){v.invPend=v.prize;v.prize=p0;v.adj='';v13Audit('verified-ticket-awaiting-invalidation');toast('Result adjustment applied: held prize recalculated, not-in-list ticket newly won, verified ticket unchanged until Core invalidates the verification, expired ticket note only, unpaid ticket paid by the new version');render()}return r}}
+A.v133Invalidate=()=>{const k=S.tickets.find(x=>x.invPend);if(!k)return toast('No verified ticket is waiting for an invalidation. Run the five-state adjustment first.');
+ k.prize=k.invPend;delete k.invPend;k.cv=0;k.cvAt=0;k.adj='Prize Increased';v13Audit('core-claim-verification-invalidated');
+ toast('Core: claim verification invalidated · ticket handled as a big prize to claim: amount updated, claim code kept');render()};
+
+/* ---------- demo panel ---------- */
+function panel133(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
+ return `<h4>Identity re-check and prize corrections</h4><div class="xs" id="v133_kycre" style="color:#666;margin:2px 0 4px">KYC re-check: ${S.kycRe==='req'?'Re-KYC Required':S.kycRe==='review'?'Re-submitted, under review':S.kycRe==='fail'?'Re-KYC Failed':'none'}</div>
+ <div class="row" style="gap:4px;flex-wrap:wrap">${pb('Core KYC review: Re-KYC Required',"A.v133Rekyc('req')",S.kycRe==='req'?'on':'','v133_rekyc')}${pb('Review: Re-verified',"A.v133Rekyc('ok')",'','v133_rekyc_ok')}${pb('Review: Re-KYC Failed',"A.v133Rekyc('fail')",'','v133_rekyc_fail')}</div>
+ ${pb('Core: queued self-exclusion registered',"A.v133SxQueued()",'','v133_sx_q')}
+ <div class="xs" style="color:#666;margin:6px 0 4px">Prize balance adjustments</div>
+ ${pb('Core: Winning Wager Removal (winning ticket voided)',"A.v133WagerRemoval()",'','v133_wwr')}${pb('Prize claim review correction · reversal',"A.v133Review('down')",'','v133_rev_down')}${pb('Prize claim review correction · top-up',"A.v133Review('up')",'','v133_rev_up')}
+ ${pb('Core: claim verification invalidated',"A.v133Invalidate()",'','v133_inv')}`}
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-v133]');if(old)old.remove();const v=el.querySelector('[data-v131]')||el.querySelector('[data-v13]');const html=`<div data-v133="1">${panel133()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html);
+ /* retired: the results page no longer uses the published calendar amount */
+ const j=el.querySelector('#v131_jpna');if(j)j.remove()}}
+render();
 </script>
 </body>
 </html>

@@ -7390,6 +7390,572 @@ TODO_PROVIDERS.push(u => [{ n: hasRole('fin', u) ? SEED.txAdjustments.filter(a =
 
 </script>
 <script>
+/* ===== p8d_133.js ===== */
+/* =====================================================================
+ * p8d_133.js — PRD 1.3.3 updates (PROTO-133, Core portal)
+ * Loaded after p8c_131.js and before boot(). Overrides global functions,
+ * wraps module views / acts and adds 1.3.3 demo rows (marked Demo data).
+ * ===================================================================== */
+'use strict';
+const R133 = { ver: '1.3.3' };
+
+/* ---------------------------------------------------------------------
+ * 6A.20.3 default matrix (1.3.3) — cells changed by this batch + new module Prize Claims
+ * column order = ROLE_IDS: ops ra sa enc auth reg claims fin comp aud sysadm
+ * ------------------------------------------------------------------- */
+(function perm133() {
+  const rows = {
+    'Channel Control': 'VC|-|VA|-|-|-|-|VC|VC|VX|-',
+    'Game Registry': 'VC|VA|VEA|V|V|-|V|V|V|VX|-',
+    'Draw Calendar': 'VC|VA|VEA|V|V|-|-|-|V|VX|-',
+    'Draw Closure': 'VCEX|-|VA|V|V|-|-|V|V|VX|-',
+    'Draw Results': 'V|-|VE|VC|VA|-|V|V|V|VX|-',
+    'Claim Policy': 'VC|VA|VEA|-|-|-|V|V|V|VX|-',
+    'Prize Claims': 'V|-|-|-|-|-|V|V|VEX|VX|-',
+    'Terms Of Service': 'VC|VA|VEA|-|-|-|-|-|V|VX|-',
+    'Reconciliation': 'VCE|-|VA|-|-|-|-|V|V|VX|-',
+    'Health Monitoring': 'VCE|-|VA|-|-|-|-|V|V|VX|-',
+    'Compliance': 'V|-|V|-|-|V|-|V|VCEX|VX|-',
+    'Audit Trail': '-|-|-|-|-|-|-|-|VCEX|VX|V',
+    'Reports': 'VX|V|V|-|-|VX|V|VX|VX|VX|-',
+  };
+  for (const k in rows) { PERM[k] = {}; rows[k].split('|').forEach((v, i) => PERM[k][ROLE_IDS[i]] = v === '-' ? '' : v); }
+  // menus / sub tabs that read the matrix at push time
+  const ch = modById('channels'); if (ch) { ch.roles = [...new Set(rolesOf('E-Channels').concat(rolesOf('Channel Control')))]; (ch.subs || []).forEach(s => { if (['auth', 'control'].includes(s.id)) s.roles = rolesOf('Channel Control'); }); }
+  const cl = modById('claims');
+  if (cl) {
+    cl.roles = [...new Set(rolesOf('Claim Policy').concat(rolesOf('Big Prize Claims')).concat(rolesOf('Prize Claims')))];
+    cl.subs = [{ id: 'policy', zh: '兑奖政策', en: 'Claim Policy', roles: rolesOf('Claim Policy') }, { id: 'records', zh: '兑奖记录', en: 'Prize Claims', roles: rolesOf('Prize Claims') },
+      { id: 'desk', zh: '大奖兑奖台', en: 'Big Prize Claims Desk', roles: rolesOf('Big Prize Claims') }, { id: 'unclaimed', zh: '未领奖', en: 'Unclaimed Prizes', roles: rolesOf('Prize Claims') }];
+    // Senior Authorizer keeps Claim Policy only: land on the first visible sub
+    const v0 = cl.view; cl.view = () => { const vs = visibleSubs(cl).map(s => s.id); if (vs.length && !vs.includes(S.sub)) S.sub = vs[0]; return v0(); };
+    // 6A.11.3 Mark reviewed = Prize Claims · E
+    if (cl.acts && cl.acts['cl.reviewed']) { const r0 = cl.acts['cl.reviewed']; cl.acts['cl.reviewed'] = id => { if (!can('Prize Claims', 'E')) { toast('You do not have permission for this action.', 'err'); return; } r0(id); }; }
+  }
+  // 6A.19.2: PCSO Finance no longer holds the wallet monitoring report
+  if (typeof REPORTS !== 'undefined') { const w = REPORTS.find(r => r.id === 'wallet'); if (w && w.roles) w.roles.fin = ''; }
+})();
+
+/* ---------------------------------------------------------------------
+ * render wrapper: 6A.16 wallet value masking + post-render DOM touches
+ * ------------------------------------------------------------------- */
+const R133_HOOKS = [];
+function walletVisible(u = S.user) { return !!u && (hasRole('comp', u) || hasRole('aud', u)); }
+(function wrapRender() {
+  const r0 = render;
+  render = function () {
+    const masked = [];
+    if (S.user && !walletVisible()) (SEED.findings || []).filter(f => f.area === 'Wallet').forEach(f => { masked.push([f, f.value, f.std]); f.value = 'Restricted'; f.std = 'Restricted'; });
+    try { r0(); } finally { masked.forEach(([f, v, s]) => { f.value = v; f.std = s; }); }
+    R133_HOOKS.forEach(fn => { try { fn(); } catch (e) { console.error(e); } });
+  };
+})();
+
+/* ---------------------------------------------------------------------
+ * 6A.1.2 sign-in: one lockout rule (6A.20.6) — consecutive failures suspend the account
+ * ------------------------------------------------------------------- */
+const MSG_FAILED_LOGINS = 'This account has been suspended after too many failed attempts. Contact your system administrator.';
+(function wrapLogin() {
+  const conv = id => { const L0 = S.login; if (!L0.locked[id]) return; delete L0.locked[id]; const u = userById(id); if (u && u.status === 'Active') { u.status = 'Suspended'; u.suspendReason = 'Failed Logins'; u.suspendedAt = nowS(); } L0.fails[id] = 0; L0.err = MSG_FAILED_LOGINS; audit('Portal', 'Account suspended', id, 'Failed Logins · consecutive failure threshold reached', 'Rejected'); render(); };
+  const l0 = ACT.login; ACT.login = () => { const id = ((vals().l_user) || '').trim(); l0(); conv(id); };
+  const v0 = ACT.verifyOtp; ACT.verifyOtp = () => { const id = S.login.user; v0(); conv(id); };
+})();
+
+/* ---------------------------------------------------------------------
+ * 6A.2.6 directive tracking: Receipt / Execution Result / Deadline Status, Resend, Revoke, new types
+ * ------------------------------------------------------------------- */
+[['Decommission Notice', '6A.2.2', 'Receipt only'], ['Divergence Status Notice', '6A.3.5, 6A.14', 'Receipt only'], ['Compliance Metrics Request', '6A.16.6', 'Auto-executed'],
+  ['Domain State Report Request', '6A.14.1', 'Auto-executed'], ['Re-sync Start', '6A.14.6', 'Auto-executed'], ['Re-sync Result', '6A.14.6', 'Receipt only']].forEach(x => { if (!DIR_TYPES.some(y => y[0] === x[0])) { DIR_TYPES.push(x); DIR_MODE[x[0]] = x[2]; } });
+const RECEIPTS = ['Awaiting', 'Received', 'Received Late', 'Timed Out', 'Escalated', 'Revoked'];
+const EXEC_RESULTS = ['Awaiting', 'Executed', 'Failed', 'Replied', 'Not Required'];
+const DL_STATUS = ['Pending', 'Due Soon', 'Met', 'Overdue', 'Not Required'];
+/** normalise one directive to the three 1.3.3 fields; period (minutes) kept in d.dlMin */
+function dir133(d) {
+  dirLayers(d);
+  if (d.exec === 'Overdue') d.exec = 'Awaiting'; // 1.3.3: Overdue is a Deadline Status, not an execution result
+  if (d.dlMin == null) d.dlMin = d.deadline && d.issuedAt ? Math.max(1, Math.round((dt(d.deadline) - dt(d.issuedAt)) / 60e3)) : 5;
+  const mode = DIR_MODE[d.type] || 'Auto-executed';
+  d.dl133 = mode === 'Receipt only' ? '-' : (d.receivedAt ? fmtDT(dt(d.receivedAt) + d.dlMin * 60e3, true) : '-');
+  let st;
+  if (mode === 'Receipt only' || d.receipt === 'Revoked') st = mode === 'Receipt only' ? 'Not Required' : (d.dlStatus || 'Pending');
+  else if (['Executed', 'Replied'].includes(d.exec)) st = d.wasOverdue || (d.dl133 !== '-' && d.reportedAt && dt(d.reportedAt) > dt(d.dl133)) ? 'Overdue' : 'Met';
+  else if (d.dl133 !== '-' && S.now > dt(d.dl133)) { st = 'Overdue'; d.wasOverdue = true; }
+  else if (d.dl133 !== '-' && dt(d.dl133) - S.now < d.dlMin * 60e3 / 2) st = 'Due Soon';
+  else st = 'Pending';
+  d.dlStatus = st;
+  return { receipt: d.receipt, exec: d.exec, dl: st, mode };
+}
+function dirObjVer(d) { return d.objv || '-'; }
+function directiveTable(id, rows, withFilters) {
+  let h = '';
+  rows.forEach(dir133);
+  if (withFilters) {
+    const chF = fv(id, 'channel', 'All'), tyF = fv(id, 'type', 'All'), rcF = fv(id, 'receipt', 'All'), exF = fv(id, 'exec', 'All'), dsF = fv(id, 'dls', 'All');
+    h += filterBar(id, [
+      { k: 'channel', zh: '渠道', en: 'Channel', type: 'select', def: 'All', opts: ['All'].concat(SEED.channels.map(c => c.code)) },
+      { k: 'type', zh: '类型', en: 'Type', type: 'select', def: 'All', opts: ['All'].concat(DIR_TYPES.map(x => x[0])) },
+      { k: 'receipt', zh: '收到确认', en: 'Receipt', type: 'select', def: 'All', opts: ['All'].concat(RECEIPTS) },
+      { k: 'exec', zh: '执行结果', en: 'Execution Result', type: 'select', def: 'All', opts: ['All'].concat(EXEC_RESULTS) },
+      { k: 'dls', zh: '期限状态', en: 'Deadline Status', type: 'select', def: 'All', opts: ['All'].concat(DL_STATUS) },
+    ]);
+    rows = rows.filter(d => (chF === 'All' || d.channel === chF) && (tyF === 'All' || d.type === tyF || (tyF === 'No-Draw Date Cancellation' && d.type === 'No-draw Cancellation')) && (rcF === 'All' || d.receipt === rcF) && (exF === 'All' || d.exec === exF) && (dsF === 'All' || d.dlStatus === dsF));
+  }
+  const canC = can('Channel Control', 'C'), canA = can('Channel Control', 'A');
+  return h + table(id, [
+    { h: 'Directive ID', r: d => `<span class="mono">${d.id}</span>` },
+    { h: 'Channel', k: 'channel' }, { h: 'Type', r: d => esc(d.type) + `<div class="tiny">${esc(DIR_MODE[d.type] || 'Auto-executed')}</div>` },
+    { h: 'Object / Version', r: d => `<span class="nowrap">${esc(dirObjVer(d))}</span>` },
+    { h: 'Summary', k: 'summary' }, { h: 'Reason', k: 'reason' },
+    { h: 'Initiated By / Authorized By', r: d => `${esc(d.by)} / ${esc(d.authBy)}` },
+    { h: 'Issued At', r: d => `<span class="nowrap">${esc(d.queuedBehind ? '-' : d.issuedAt)}</span>` },
+    { h: 'Receipt', r: d => badge(d.receipt, d.receipt === 'Received Late' ? 'warn' : d.receipt === 'Revoked' ? '' : undefined) + (d.queuedBehind ? `<div class="tiny">Queued behind ${esc(d.queuedBehind)}</div>` : '') + (d.receipt === 'Awaiting' && !d.queuedBehind ? ' ' + btn({ zh: '模拟收到', en: 'Simulate receipt' }, 'dirRcv', d.id, { cls: 'sm dev', dev: true }) : '') },
+    { h: 'Received At', r: d => `<span class="nowrap">${esc(d.receivedAt || '-')}</span>` },
+    { h: 'Deadline', r: d => `<span class="nowrap">${esc(d.dl133)}</span>` },
+    { h: 'Execution Result', r: d => badge(d.exec) + (['Awaiting', 'Failed'].includes(d.exec) && d.receipt !== 'Revoked' && !d.queuedBehind ? ' ' + btn({ zh: '模拟回执', en: 'Simulate ack' }, 'dirAck', d.id, { cls: 'sm dev', dev: true }) + (d.exec !== 'Failed' && DIR_MODE[d.type] !== 'Manual reply' ? ' ' + btn({ zh: '模拟失败', en: 'Simulate failure' }, 'dirFail', d.id, { cls: 'sm dev', dev: true }) : '') : '') + (d.execHist && d.execHist.length ? `<div class="tiny">${d.execHist.map(x => esc(x.exec + ' ' + x.at.slice(11))).join(' → ')}</div>` : '') },
+    { h: 'Deadline Status', r: d => badge(d.dlStatus, d.dlStatus === 'Due Soon' ? 'warn' : d.dlStatus === 'Pending' ? '' : undefined) },
+    { h: 'Reported At', r: d => `<span class="nowrap">${esc(d.reportedAt || '-')}</span>` },
+    { h: 'Round', cls: 'num', r: d => DIR_MODE[d.type] === 'Manual reply' ? String(d.round || 1) : '-' },
+    { h: 'Retries', cls: 'num', r: d => String(d.retries) },
+    { h: 'Actions', r: d => `<span class="nowrap">${[
+      canC && (['Timed Out', 'Escalated'].includes(d.receipt) || d.exec === 'Failed') ? btn({ zh: '重发', en: 'Resend' }, 'dirResend', d.id, { cls: 'sm' }) : '',
+      canA && d.receipt !== 'Revoked' && d.exec !== 'Executed' && d.exec !== 'Not Required' && d.exec !== 'Replied' ? btn({ zh: '撤销', en: 'Revoke' }, 'dirRevoke', d.id, { cls: 'sm danger' }) : ''].join(' ')}</span>` },
+  ], rows, { size: 15 });
+}
+function dirById(id) { return SEED.directives.find(x => x.id === id); }
+/** release directives held behind `id` in the per-object queue (6A.2.6 rule 6) */
+function dirRelease(id) { SEED.directives.filter(x => x.queuedBehind === id).forEach(x => { x.queuedBehind = ''; x.issuedAt = nowS(true); x.deadline = fmtDT(S.now + (x.dlMin || 5) * 60e3, true); audit('Channel Control', 'Directive released from queue', x.id, `after ${id}`); }); }
+ACT.dirResend = id => {
+  const d = dirById(id); if (!can('Channel Control', 'C')) return; dir133(d);
+  d.receipt = 'Awaiting'; d.ack = 'Awaiting'; if (d.exec === 'Failed') d.exec = 'Awaiting'; d.resent = (d.resent || 0) + 1;
+  audit('Channel Control', 'Directive resent', id, `${d.channel} · same Directive ID · retry limit not reset`); toast(t('已用原指令编号重发', 'Resent with the same Directive ID.')); render();
+};
+ACT.dirRevoke = id => {
+  const d = dirById(id); if (!can('Channel Control', 'A')) return;
+  ask({ title: `${t('撤销指令', 'Revoke')} · ${id}`, danger: true, ok: { zh: '撤销', en: 'Revoke' }, msg: t('撤销后收到确认转 Revoked，串行队列放行后续指令；业务效果如仍需送达，另发新指令。', 'The receipt becomes Revoked and queued directives for the same object are released. If the business effect is still needed, issue a new directive.'),
+    reason: { zh: '原因', en: 'Reason', max: 500 }, check: { zh: '确认撤销该指令', en: 'I confirm this directive is revoked' },
+    onOk: v => { d.receipt = 'Revoked'; d.revokedBy = me(); d.revokedAt = nowS(true); d.revokeReason = v.m_reason.trim(); dirRelease(id); audit('Channel Control', 'Directive revoked', id, v.m_reason.trim()); toast(t('已撤销', 'Directive revoked.')); } });
+};
+(function wrapDirRcv() {
+  const r0 = ACT.dirRcv; ACT.dirRcv = id => { const d = dirById(id); r0(id); if (d) { if (d.lateReceipt) d.receipt = 'Received Late'; dirRelease(id); render(); } };
+  const a0 = ACT.dirAck; ACT.dirAck = id => { a0(id); dirRelease(id); render(); };
+})();
+/* demo rows: escalated → queued directive, late receipt, divergence status notice, queue-blocked alert (Demo data) */
+(function seedDir133() {
+  const D = SEED.directives;
+  const esc12 = D.find(x => x.id === 'DIR-20261011-000112'); if (esc12) { esc12.objv = 'EXC-20261011-0031 · v1'; }
+  const d110 = D.find(x => x.id === 'DIR-20261011-000110'); if (d110) d110.objv = 'UP-000231907 · Status v4';
+  const d123 = D.find(x => x.id === 'DIR-20261012-000123'); if (d123) d123.objv = 'EC2 · Control v7';
+  D.push({ id: 'DIR-20261011-000113', channel: 'EC2', type: 'Exclusion', summary: 'UP-000187220 PCSO exclusion extended to 12 months', reason: 'PCSO order (correction)', by: 'draw.b', authBy: '-', issuedAt: '2026-10-11 14:20:00', deadline: '2026-10-11 14:25:00', ack: 'Awaiting', ackAt: '', retries: 0, objv: 'EXC-20261011-0031 · v2', queuedBehind: 'DIR-20261011-000112', demo: true });
+  D.push({ id: 'DIR-20261012-000118', channel: 'EC2', type: 'Player Status', summary: 'UP-000231908 restriction lifted', reason: 'Review completed', by: 'draw.a', authBy: '-', issuedAt: '2026-10-12 02:05:00', deadline: '2026-10-12 02:10:00', ack: 'Executed', ackAt: '2026-10-12 02:31:40', retries: 0, objv: 'UP-000231908 · Status v3', receipt: 'Received Late', receivedAt: '2026-10-12 02:31:12', exec: 'Executed', reportedAt: '2026-10-12 02:31:40', execHist: [{ exec: 'Executed', at: '2026-10-12 02:31:40' }], round: 0, note: 'Sent while EC2 was Offline (02:10–02:24); re-pushed on reconnection before re-sync', demo: true });
+  D.push({ id: 'DIR-20261012-000119', channel: 'EC2', type: 'Divergence Status Notice', summary: 'DV-20261011-0007 → Resolved (configuration divergence)', reason: 'Divergence status changed', by: 'System', authBy: '-', issuedAt: '2026-10-12 08:40:00', deadline: '2026-10-12 08:45:00', ack: 'Executed', ackAt: '2026-10-12 08:40:02', retries: 0, objv: 'DV-20261011-0007 · Status v3', demo: true });
+  D.push({ id: 'DIR-20261012-000120', channel: 'ILT', type: 'Compliance Metrics Request', summary: 'PlaySafe, AMLA and wallet indicators · 2026-10-11', reason: 'On-demand request', by: 'comp.a', authBy: '-', issuedAt: '2026-10-12 10:00:00', deadline: '2026-10-13 10:00:00', ack: 'Executed', ackAt: '2026-10-12 13:12:40', retries: 0, dlMin: 1440, demo: true });
+  SEED.alerts.unshift({ id: 'ALT-20261012-000038', sev: 'P2', cat: 'Channel', type: 'Directive Queue Blocked', event: 'EC2: DIR-20261011-000113 (EXC-20261011-0031) queued behind DIR-20261011-000112 (Escalated) for more than 10 minutes', channel: 'EC2', raisedAt: '2026-10-11 14:30:00', status: 'Open', ackBy: '', ackAt: '', caseId: '', notify: 'Core Operations', demo: true });
+})();
+
+/* ---------------------------------------------------------------------
+ * 6A.2.5 control version, Re-syncing / Re-sync Failed, Retry Re-sync, endpoint allow list
+ * ------------------------------------------------------------------- */
+(function seedCtl() { const v = { ILT: 3, EC2: 7 }; SEED.channels.forEach(c => { c.ctlVer = v[c.code] || (c.ctlVer || 0); c.chCtlVer = c.ctlVer; }); })();
+const AR_STATES = ['Pending Authorization', 'Re-syncing', 'Re-sync Failed', 'Authorized', 'Rejected', 'Withdrawn'];
+const CTL_TYPES = ['Partial Suspension', 'Full Suspension', 'Restore', 'Roll Back'];
+// every authorized control action raises the control version; the directive carries it
+CTL_TYPES.forEach(k => { const f0 = AUTH_APPLY[k]; if (k === 'Restore') return; AUTH_APPLY[k] = r => { const ch = chByCode(r.target); ch.ctlVer = (ch.ctlVer || 0) + 1; r.ctlVer = ch.ctlVer; const top = SEED.directives[0]; f0(r); if (SEED.directives[0] !== top) SEED.directives[0].objv = `${ch.code} · Control v${ch.ctlVer}`; }; });
+const _applyRestore = AUTH_APPLY['Restore'];
+/** Restore: authorized → Re-syncing; directive only after the re-sync passes (6A.2.5 / 6A.14.6) */
+AUTH_APPLY['Restore'] = r => { r.status = 'Re-syncing'; startResync(r); };
+function startResync(r) {
+  const job = { id: nid('RUN'), channel: r.target, trigger: `Restore authorized (${r.id})`, from: nowS(true), to: '-', replayed: 0, decl: '-', result: 'Running', restore: '-', ar: r.id };
+  (SEED.resyncs = SEED.resyncs || []).unshift(job); r.resync = job.id;
+  const d = issueDirective({ channel: r.target, type: 'Re-sync Start', summary: `Re-sync window from ${job.from}`, reason: `Restore request ${r.id}`, by: 'System', ref: r.id }); d.objv = job.id;
+  audit('Channel Control', 'Re-sync started', r.id, job.id);
+}
+function resyncDone(r, pass) {
+  const job = (SEED.resyncs || []).find(x => x.id === r.resync); const ch = chByCode(r.target);
+  if (job) { job.result = pass ? 'Passed' : 'Failed'; job.to = nowS(true); job.decl = 'Received ' + nowS().slice(11); }
+  const rd = issueDirective({ channel: r.target, type: 'Re-sync Result', summary: `${pass ? 'Passed' : 'Failed'} · ${pass ? 0 : 2} divergences in this window`, reason: `Re-sync ${job ? job.id : ''}`, by: 'System', ref: r.id }); rd.objv = job ? job.id : '-';
+  if (pass) {
+    ch.ctlVer = (ch.ctlVer || 0) + 1; r.ctlVer = ch.ctlVer; const top = SEED.directives[0];
+    _applyRestore(r); r.status = 'Authorized';
+    if (SEED.directives[0] !== top) { SEED.directives[0].objv = `${ch.code} · Control v${ch.ctlVer}`; r.dirId = SEED.directives[0].id; if (job) job.restore = r.dirId; }
+    audit('Channel Control', 'Re-sync passed · restore directive issued', r.id, r.dirId || '');
+  } else { r.status = 'Re-sync Failed'; audit('Channel Control', 'Re-sync failed · restore on hold', r.id, job ? job.id : ''); }
+}
+ACT.arResyncSim = a => { const [id, k] = a.split('|'); const r = SEED.authReqs.find(x => x.id === id); if (!r || r.status !== 'Re-syncing') return; resyncDone(r, k === 'pass'); toast(k === 'pass' ? t('再同步通过，已下发恢复指令', 'Re-sync passed. Restore directive issued.') : t('再同步未通过，恢复暂挂', 'Re-sync failed. Restore on hold.'), k === 'pass' ? 'ok' : 'warn'); render(); };
+ACT.arRetry = id => { const r = SEED.authReqs.find(x => x.id === id); if (!r || r.status !== 'Re-sync Failed' || !can('Channel Control', 'C')) return; r.status = 'Re-syncing'; startResync(r); audit('Channel Control', 'Retry Re-sync', id); toast(t('已重新发起再同步', 'Re-sync started again.')); render(); };
+ACT.arWdFailed = id => { const r = SEED.authReqs.find(x => x.id === id); if (!r || r.by !== me()) return; r.status = 'Withdrawn'; r.wdAt = nowS(); audit('Channel Control', 'Withdrawn', id, 'Restore on hold after failed re-sync'); toast(t('已撤回', 'Request withdrawn.')); render(); };
+/* demo: an EC2 restore whose re-sync failed (Demo data) */
+(function seedAr133() {
+  if (!SEED.authReqs.some(x => x.id === 'AR-20261012-0002')) SEED.authReqs.push({ id: 'AR-20261012-0002', kind: 'channel', type: 'Restore', target: 'EC2', summary: 'Candidate key queries', reason: 'Candidate key abuse investigation closed', payload: { scope: ['Candidate key queries'], case: 'CASE-20261012-0012' }, by: 'ops.b', at: '2026-10-12 16:40', status: 'Re-sync Failed', authBy: 'sa.a', authAt: '2026-10-12 16:52', resync: 'RUN-20261012-0231', demo: true });
+  (SEED.resyncs = SEED.resyncs || []).unshift({ id: 'RUN-20261012-0231', channel: 'EC2', trigger: 'Restore authorized (AR-20261012-0002)', from: '2026-10-12 16:52:10', to: '2026-10-12 17:22:10', replayed: 12, decl: 'Received 17:05:40', result: 'Failed', restore: '-', ar: 'AR-20261012-0002', demo: true });
+})();
+function arStatusOf(x) { return x.status === 'Awaiting Authorization' ? 'Pending Authorization' : x.status; }
+function chAuthListView(m) {
+  let h = pageH({ zh: '授权申请', en: 'Authorization Requests' }, '6A.2.5', t('停用 / 恢复 / 回滚申请（含合规监督、PCSO 财务的限制申请）；恢复申请授权后先再同步，通过后才下发恢复指令。', 'Suspension, restore and roll-back requests, including restrictions requested by Compliance or PCSO Finance. An authorized restore re-syncs first; the restore directive is issued only after the re-sync passes.')) + subTabs(m);
+  const r = rangeVal('chAr', dayOff(-30), dayOff(0), 92);
+  h += filterBar('chAr', [{ k: 'channel', zh: '渠道', en: 'Channel', type: 'select', def: 'All', opts: ['All'].concat(SEED.channels.filter(c => c.status !== 'Decommissioned').map(c => c.code)) }].concat(rangeFields(dayOff(-30), dayOff(0), '提交时间', 'Submitted')),
+    msel('chAr', 'action', { zh: '动作', en: 'Action' }, AR_ACTIONS, AR_ACTIONS) + msel('chAr', 'status', { zh: '状态', en: 'Status' }, AR_STATES, ['Pending Authorization']));
+  if (r.err) h += banner(r.err, 'amber');
+  const chF = fv('chAr', 'channel', 'All'), acts = mselVal('chAr', 'action', AR_ACTIONS), sts = mselVal('chAr', 'status', ['Pending Authorization']);
+  const open = x => ['Awaiting Authorization', 'Re-syncing', 'Re-sync Failed'].includes(x.status);
+  const rows = SEED.authReqs.filter(x => x.kind === 'channel').filter(x => (chF === 'All' || x.target === chF) && acts.includes(x.type) && sts.includes(arStatusOf(x)) && (open(x) || r.err || inRange(x.at, r)));
+  const canA = can('Channel Control', 'A'), canC = can('Channel Control', 'C');
+  h += table('chArList', [
+    { h: 'Request ID', r: x => `<span class="mono">${esc(x.id)}</span>` }, { h: 'Channel', k: 'target' }, { h: 'Action', k: 'type' },
+    { h: 'Scope', r: x => esc(x.type === 'Full Suspension' ? 'All' : ((x.payload || {}).scope || []).join(', ') || '-') }, { h: 'Reason', k: 'reason' }, { h: 'Related Case', r: x => esc((x.payload || {}).case || x.case || '-') },
+    { h: 'Initiated By', k: 'by' }, { h: 'Submitted At', r: x => `<span class="nowrap">${esc(x.at)}</span>` },
+    { h: 'Status', r: x => badge(arStatusOf(x), ['Awaiting Authorization', 'Re-syncing'].includes(x.status) ? 'warn' : x.status === 'Re-sync Failed' ? 'bad' : '') + (x.resync && ['Re-syncing', 'Re-sync Failed'].includes(x.status) ? `<div class="tiny mono">${esc(x.resync)}</div>` : '') },
+    { h: 'Decided By', r: x => esc(x.status === 'Withdrawn' ? x.by : (x.authBy || '-')) }, { h: 'Decided At', r: x => `<span class="nowrap">${esc(x.authAt || x.wdAt || '-')}</span>` }, { h: 'Rejection Reason', r: x => esc(x.status === 'Rejected' ? (x.rejectReason || '-') : '-') },
+    { h: 'Control Version', cls: 'num', r: x => x.ctlVer ? String(x.ctlVer) : '-' },
+    { h: 'Directive ID', r: x => arDirective(x) && !['Re-syncing', 'Re-sync Failed'].includes(x.status) ? `<button class="btn link mono" data-act="go" data-a="channels/directives">${esc(arDirective(x))}</button>` : '-' },
+    { h: 'Actions', r: x => {
+      if (x.status === 'Awaiting Authorization') return `<span class="nowrap">${[canA ? btn({ zh: '授权', en: 'Authorize' }, 'authOk', x.id, { cls: 'sm ok', dis: x.by === me(), tip: 'You cannot authorize a request you initiated.' }) : '', canA && x.by !== me() ? btn({ zh: '驳回', en: 'Reject' }, 'authRej', x.id, { cls: 'sm' }) : '', x.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'authWd', x.id, { cls: 'sm' }) : ''].join(' ')}</span>`;
+      if (x.status === 'Re-syncing') return `<span class="nowrap">${btn({ zh: '模拟再同步通过', en: 'Simulate re-sync passed' }, 'arResyncSim', x.id + '|pass', { cls: 'sm dev', dev: true })} ${btn({ zh: '模拟再同步未通过', en: 'Simulate re-sync failed' }, 'arResyncSim', x.id + '|fail', { cls: 'sm dev', dev: true })}</span>`;
+      if (x.status === 'Re-sync Failed') return `<span class="nowrap">${[canC ? btn({ zh: '重新再同步', en: 'Retry Re-sync' }, 'arRetry', x.id, { cls: 'sm primary' }) : '', x.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'arWdFailed', x.id, { cls: 'sm' }) : ''].join(' ')}</span>`;
+      return ''; } },
+  ], rows, { empty: { zh: '没有符合条件的申请', en: 'No requests match the filters.' } });
+  return h;
+}
+const ENDPOINT_MATRIX = [
+  ['Transaction reports (incl. voids and re-reports)', 'Allowed', 'Allowed'], ['Claim records and claim code hashes', 'Allowed', 'Allowed'], ['Result receipts and winner reconciliation confirmations', 'Allowed', 'Allowed'],
+  ['Sealed summaries, configuration declarations, store-and-forward declarations', 'Allowed', 'Allowed'], ['Exclusion submissions', 'Allowed', 'Allowed'], ['Profile sync for existing players', 'Allowed', 'Allowed'],
+  ['Directive receipts, execution results, replies', 'Allowed', 'Allowed'], ['Heartbeats, audit events, domain state and compliance metrics reports, pull by version', 'Allowed', 'Allowed'],
+  ['Candidate key queries', 'Rejected when the scope includes Candidate key queries or New player registration', 'Rejected'], ['New profile federation', 'Rejected when the scope includes New player registration', 'Rejected']];
+function chControlsView(m) {
+  let h = pageH({ zh: '渠道管控', en: 'Channel Controls' }, '6A.2.5', t('每个非退役渠道一行：当前停用情况、管控版本与最近一次指令的执行情况。', 'One row per channel that is not decommissioned: the suspension in effect, the control version and the execution of the last directive.')) + subTabs(m);
+  h += filterBar('chCt', [{ k: 'channel', zh: '渠道', en: 'Channel', type: 'select', def: 'All', opts: ['All'].concat(SEED.channels.filter(c => c.status !== 'Decommissioned').map(c => c.code)) },
+    { k: 'cs', zh: '管控状态', en: 'Control Status', type: 'select', def: 'All', opts: ['All', 'Suspended only', 'Pending authorization'] }]);
+  const chF = fv('chCt', 'channel', 'All'), cs = fv('chCt', 'cs', 'All');
+  const rows = SEED.channels.filter(c => c.status !== 'Decommissioned').filter(c => (chF === 'All' || c.code === chF) && (cs === 'All' || (cs === 'Suspended only' ? !!c.suspended : !!pendingAuth('channel', c.code))));
+  const lastDir = c => SEED.directives.find(d => d.channel === c.code && CH_ACTIONS.includes(d.type));
+  const mayAct = can('Channel Control', 'C') && (hasRole('ops') || hasRole('comp'));
+  h += table('chCtList', [
+    { h: 'Channel Code', r: c => `<button class="btn link mono" data-act="chOpen" data-a="${c.code}">${c.code}</button>` }, { h: 'Registry Status', r: c => badge(c.status) },
+    { h: 'Suspended Functions', r: c => esc(c.suspended ? (c.suspended.type === 'Full Suspension' ? 'All' : c.suspended.scope.join(', ')) : '-') },
+    { h: 'Effective Since', r: c => `<span class="nowrap">${esc(c.suspended ? c.suspended.since : '-')}</span>` },
+    { h: 'Control Version', cls: 'num', r: c => (c.ctlVer ? String(c.ctlVer) : '-') + (c.ctlVer && c.chCtlVer < c.ctlVer ? `<div class="tiny">Channel at v${c.chCtlVer}</div>` : '') },
+    { h: 'Last Directive', r: c => { const d = lastDir(c); return d ? `<button class="btn link mono" data-act="go" data-a="channels/directives">${d.id}</button>` : '-'; } },
+    { h: 'Execution Result', r: c => { const d = lastDir(c); if (!d) return '-'; const x = dir133(d).exec; return c.suspended && c.suspended.pending && x !== 'Executed' ? badge('Suspension pending', 'warn') : badge(x); } },
+    { h: 'Gateway Restriction', r: c => badge(c.suspended ? 'Restricted' : 'None', c.suspended ? 'warn' : '') },
+    { h: 'Pending Request', r: c => { const p = pendingAuth('channel', c.code) || SEED.authReqs.find(x => x.kind === 'channel' && x.target === c.code && ['Re-syncing', 'Re-sync Failed'].includes(x.status)); return p ? `<button class="btn link mono" data-act="go" data-a="channels/auth">${p.id}</button>${p.status !== 'Awaiting Authorization' ? ' ' + badge(p.status) : ''}` : '-'; } },
+    { h: 'Actions', r: c => mayAct ? btn({ zh: '停用或恢复', en: 'Suspend or Restore' }, 'openSuspForm131', c.code, { cls: 'sm' }) : '' },
+  ], rows, { rowKey: 'code', nopage: true });
+  h += card(t('停用期间端点放行矩阵', 'Endpoints allowed during suspension'), table('epMatrix', [{ h: 'Endpoint / Upstream Category', k: 'e' }, { h: 'Partial Suspension', k: 'p' }, { h: 'Full Suspension', k: 'f' }], ENDPOINT_MATRIX.map((x, i) => ({ id: i, e: x[0], p: x[1], f: x[2] })), { nopage: true })
+    + `<p class="tiny">${t('被拒请求返回「渠道被停用」专用错误码，渠道按停用排队，不进入存储转发。充值在渠道本地拦截；新投注不在网关拦截，由 Core 按执行核验判定。', 'Rejected requests get the channel-suspended error; the channel queues them as suspended and does not enter store-and-forward. Top-ups are blocked locally by the channel; new bets are not blocked at the gateway and are checked by Core against the execution deadline.')}</p>`);
+  return h;
+}
+TODO_PROVIDERS.push(u => [
+  { n: hasRole('ops', u) ? SEED.authReqs.filter(x => x.kind === 'channel' && x.status === 'Re-sync Failed').length : 0, zh: '条恢复申请再同步未通过、暂挂', en: 'restore requests on hold after a failed re-sync', go: 'channels/auth' },
+  { n: hasRole('ops', u) ? SEED.games.filter(g => { const d = latestVersion(g).def; return d.expiry && dt(d.expiry + (String(d.expiry).length <= 10 ? ' 00:00' : '')) <= S.now && d.status !== 'Retired'; }).length : 0, zh: '个游戏已到失效日期，待取消未开奖期次后转 Retired', en: 'expired games to retire after cancelling undrawn draws', go: 'registry/games' },
+]);
+
+/* ---------------------------------------------------------------------
+ * 6A.2.2 Awaiting first declaration marker; decommission only from the allowed states; Decommission Notice
+ * ------------------------------------------------------------------- */
+const DECOM_FROM = ['Pending', 'In Certification', 'Certified', 'Suspended'];
+const MSG_DECOM_SUSPEND = 'Fully suspend this E-Channel before requesting decommission.';
+(function wrapDecom() {
+  const f0 = chDrawerFoot;
+  chDrawerFoot = function (ch) {
+    let h = f0(ch);
+    if (['Active', 'Partially Suspended'].includes(ch.status)) { const on = btn({ zh: '申请退役', en: 'Request Decommission' }, 'chDecom', ch.code, { cls: 'danger' }); h = h.replace(on, btn({ zh: '申请退役', en: 'Request Decommission' }, 'chDecom', ch.code, { cls: 'danger', dis: true, tip: MSG_DECOM_SUSPEND })); }
+    return h;
+  };
+  const d0 = ACT.chDecom; ACT.chDecom = code => { const ch = chByCode(code); if (ch && !DECOM_FROM.includes(ch.status)) { toast(MSG_DECOM_SUSPEND, 'err'); return; } d0(code); };
+  const a0 = AUTH_APPLY['Decommission']; AUTH_APPLY['Decommission'] = r => { const d = issueDirective({ channel: r.target, type: 'Decommission Notice', summary: 'Stop all production connections; credentials are revoked next', reason: r.reason, by: r.by, authBy: me(), ref: r.id }); d.objv = '-'; a0(r); };
+})();
+R133_HOOKS.push(() => {
+  ['chList', 'chBoardT'].forEach(tid => document.querySelectorAll(`[data-table=${tid}] tbody tr[data-row]`).forEach(tr => {
+    const ch = chByCode(tr.dataset.row); if (!ch || !ch.awaitingDecl || tr.querySelector('.awdecl')) return;
+    const cells = tr.querySelectorAll('td'); const cell = tid === 'chList' ? cells[3] : cells[cells.length - 1];
+    if (cell) cell.insertAdjacentHTML('beforeend', ' <span class="tag warn awdecl">Awaiting first declaration</span>');
+  }));
+  // 6A.3.3: settlement parameters are not approved on the change request page
+  const sel = document.querySelector('select[data-filter="crF|domain"]'); if (sel) [...sel.options].filter(o => o.value === 'Settlement Parameters').forEach(o => o.remove());
+});
+
+/* ---------------------------------------------------------------------
+ * 6A.3.2 game status transitions + 6A.3 settlement parameter wording
+ * ------------------------------------------------------------------- */
+const GAME_MOVES = { Inactive: ['Active', 'Retired'], Active: ['Suspended'], Suspended: ['Active', 'Retired'], Retired: [] };
+const MSG_RETIRE_UNDRAWN = 'Cancel or complete all undrawn draws of this game before retiring it.';
+const MSG_SUSPEND_FIRST = 'Suspend this game before retiring it.';
+const MSG_MOVE = 'This game status change is not allowed.';
+function undrawnDraws(code) { return SEED.draws.filter(d => d.game === code && !['Published', 'Cancelled'].includes(d.status)); }
+function gameMoveErr(code, from, to) {
+  if (from === to) return '';
+  if (from === 'Active' && to === 'Retired') return MSG_SUSPEND_FIRST;
+  if (!(GAME_MOVES[from] || []).includes(to)) return MSG_MOVE;
+  if (to === 'Retired' && from === 'Suspended' && undrawnDraws(code).length) return MSG_RETIRE_UNDRAWN;
+  return '';
+}
+(function wrapGameSubmit() {
+  const s0 = ACT.gameSubmit;
+  ACT.gameSubmit = code => { const g = gameByCode(code); const v = vals(); const from = latestVersion(g).def.status; const e = gameMoveErr(code, from, v.g_status);
+    if (e) { setErr({ g_status: e }); return; }
+    // 6A.3.2: Urgent move to Suspended takes effect on Senior Authorizer approval
+    if (v.g_urgent && v.g_status === 'Suspended' && from !== 'Suspended') setFv({ g_eff: fmtDT(S.now + 60e3).replace(' ', 'T') });
+    s0(code); };
+})();
+function paramsView(m) {
+  const sf = (SEED.sfVersions || []).find(v => v.status === 'Active') || { v: '-', p: {} }; const cp = SEED.compParams;
+  const seeSf = hasRole('fin') || hasRole('sa') || hasRole('aud');
+  let h = pageH({ zh: '结算与合规参数', en: 'Settlement and Compliance Parameters' }, '6A.3.3', t('两个参照数据域，获批版本经参照变更通知下发全部活跃渠道并进配置声明比对。结算参数只在 6A.13.5 维护（PCSO 财务提交、高级授权人批准），本页只下发与比对；合规参数按一般参数审批（参照审批人）。', 'Two reference data domains. Approved versions go to every active channel as reference change notices and are part of configuration declarations. Settlement parameters are maintained only in 6A.13.5 (PCSO Finance submits, a Senior Authorizer approves); this page only distributes and compares them. Compliance parameters are approved as ordinary parameters (Reference Approver).')) + subTabs(m);
+  h += card(`${t('结算参数', 'Settlement Parameters')} <span class="tag">${esc(sf.v)}</span>`, seeSf ? dl([['Settlement Period Type', esc(sf.p.periodType || '-')], ['Grace Period (days)', String(sf.p.graceDays != null ? sf.p.graceDays : '-')], ['Remittance Due (days after finalization)', String(sf.p.dueDays || '-')], ['Net Remittable Formula Version', esc(sf.v)]])
+    + (can('Settlement', 'V') ? btn({ zh: '去结算公式', en: 'Open Settlement Formula' }, 'go', 'settlement/formula', { cls: 'link' }) : '')
+    : `<p class="muted" id="sfHidden">${t('结算参数内容只对 PCSO 财务、高级授权人、审计显示。', 'Settlement parameter content is shown only to PCSO Finance, Senior Authorizers and Auditors.')}</p>`);
+  const pend = SEED.changes.find(c => c.kind === 'compParams' && ['Pending Approval', 'Pending Senior Authorization'].includes(c.status));
+  h += card(`${t('合规参数', 'Compliance Parameters')} <span class="tag">${esc(cp.version)}</span>`, dl([['Over-Threshold Transaction Amount', `${fmtP(cp.overThreshold)} ${demoTag()}`], ['Reporting Period', esc(cp.period)], ['Missing After (hours)', String(cp.lateAfterH)], ['Resubmission', esc(cp.resubmission)], ['Effective From', esc(cp.eff)], ['Last Notice', `<span class="mono">${esc(cp.notice || '-')}</span>`]])
+    + (pend ? banner(`${t('待审批', 'Pending')}: <button class="btn link mono" data-act="crOpen" data-a="${pend.id}">${pend.id}</button> · ${esc(pend.version)}`, 'amber') : (can('Game Registry', 'C') ? btn({ zh: '提交变更', en: 'Request Change' }, 'cp.change', '', { cls: 'primary', id: 'btnCpChange' }) : '')));
+  return h;
+}
+
+/* ---------------------------------------------------------------------
+ * 6A.3.4 notice channel detail: Receipt + Execution Result (PC101 erratum) + declaration result
+ * ------------------------------------------------------------------- */
+(function seedNoticeExec() {
+  SEED.notices.forEach(n => n.per.forEach(p => { if (p.exec) return; if (p.ack === 'Acknowledged') { p.exec = 'Executed'; p.execAt = p.ackAt ? fmtDT(dt(p.ackAt) + 40e3, true) : ''; } else p.exec = 'Awaiting'; }));
+  const n = SEED.notices.find(x => x.id === 'RCN-20261008-0019'); const p = n && n.per.find(x => x.channel === 'EC2');
+  if (p) { p.exec = 'Failed'; p.execAt = '2026-10-08 10:01:12'; p.execReason = 'Calendar #117 failed local validation: draw L655-20261014-1 overlaps a local maintenance window'; p.demoExec = true; }
+})();
+function recLabel(a) { return a === 'Acknowledged' ? 'Received' : a; }
+ACT.noticeOpen = id => { const n = SEED.notices.find(x => x.id === id); openDrawer({ title: `${n.id} · ${n.type}`, sub: `${esc(n.domain)} · ${esc(n.object)} · ${esc(n.version)} · effective ${esc(n.effectiveAt)}`, size: 'lg',
+  body: () => table('ntPer', [{ h: 'Channel', k: 'channel' }, { h: 'Receipt', r: p => badge(recLabel(p.ack), p.ack === 'Acknowledged' ? 'ok' : undefined) }, { h: 'Received At', r: p => esc(p.ackAt || '-') }, { h: 'Retries', cls: 'num', r: p => String(p.retries) },
+    { h: 'Execution Result', r: p => badge(p.exec || 'Awaiting') + (p.execAt ? `<div class="tiny">${esc(p.execAt)}</div>` : '') + (p.execReason ? `<div class="tiny red" style="max-width:220px">${esc(p.execReason)}</div>` : '') + ((p.exec || 'Awaiting') === 'Awaiting' && p.ack === 'Acknowledged' ? ' ' + btn({ zh: '模拟执行成功', en: 'Simulate executed' }, 'ntExecSim', n.id + '|' + p.channel + '|ok', { cls: 'sm dev', dev: true }) + ' ' + btn({ zh: '模拟执行失败', en: 'Simulate failed' }, 'ntExecSim', n.id + '|' + p.channel + '|fail', { cls: 'sm dev', dev: true }) : '') },
+    { h: 'Configuration Declaration', r: p => p.decl ? badge(p.decl) : '-' }, { h: '', r: p => can('Configuration Declarations', 'E') ? btn({ zh: '要求声明', en: 'Request Declaration' }, 'declRequest', p.channel, { cls: 'sm' }) : '' }], n.per.map(p => Object.assign({ id: p.channel }, p)), { nopage: true })
+    + `<p class="tiny">${t('执行结果按 6A.2.6 通则回报（Executed / Failed，带回报时间与失败原因）；配置声明结果保留作对照。', 'Execution results are reported under the 6A.2.6 rules (Executed or Failed, with the reported time and the failure reason). The configuration declaration result is kept for comparison.')}</p>`,
+  foot: () => can('Game Registry', 'C') ? btn({ zh: '重发', en: 'Resend' }, 'noticeResend', n.id, { dis: !n.per.some(p => p.ack !== 'Acknowledged'), tip: t('全部渠道已回执', 'All channels have acknowledged.') }) : '' }); };
+ACT.ntExecSim = a => { const [id, ch, k] = a.split('|'); const n = SEED.notices.find(x => x.id === id); const p = n.per.find(x => x.channel === ch); p.exec = k === 'ok' ? 'Executed' : 'Failed'; p.execAt = nowS(true); p.execReason = k === 'ok' ? '' : 'Local validation failed for this version'; audit('Game Registry', 'Notice execution result', id, `${ch} · ${p.exec}`); render(); };
+
+/* ---------------------------------------------------------------------
+ * 6A.4.4 Resume needs a new draw time
+ * ------------------------------------------------------------------- */
+ACT.drawResume = id => { const d = drawById(id);
+  ask({ title: `${t('恢复', 'Resume')} ${id}`, ok: { zh: '提交授权', en: 'Submit for Authorization' },
+    fields: [{ k: 'm_at', zh: '新开奖时间', en: 'New Draw Time', ctl: 'datetime', req: true, def: (d.newDrawAt || d.drawAt).replace(' ', 'T'), hint: { zh: '随恢复指令下发；封盘记录已建立的期次恢复后回开奖中', en: 'Sent with the resumption directive. A draw whose closure record is established goes back to Drawing in Progress.' } }],
+    reason: { zh: '原因', en: 'Reason', ph: 'Draw machine repaired' },
+    validate: v => { const at = normDT(v.m_at); if (!at) return { m_at: t('请选择时间', 'Select the new draw time.') }; if (dt(at) <= S.now) return { m_at: 'The new draw time must be later than now.' }; if (hasDrawAt(d.game, at, d.id)) return { m_at: 'Another draw of this game already has this draw time.' }; return {}; },
+    onOk: v => { const r = submitAuth({ kind: 'draw', type: 'Draw Resumption', target: id, summary: 'Resume · new draw time ' + normDT(v.m_at), reason: v.m_reason, payload: { newDrawAt: normDT(v.m_at) } }); if (!r) return false; toast(t('已提交，等待高级授权人授权', 'Submitted for authorization.')); } }); };
+(function wrapResume() {
+  const a0 = AUTH_APPLY['Draw Resumption'];
+  AUTH_APPLY['Draw Resumption'] = r => { const d = drawById(r.target); if (r.payload && r.payload.newDrawAt) d.newDrawAt = r.payload.newDrawAt; const from = d.postponedFrom; a0(r);
+    if (d.closure && d.closure.status === 'Established' && ['Betting Closed', 'Drawing in Progress'].includes(from) && d.status === 'Betting Closed') pushHist(d, 'Drawing in Progress', 'System', 'Resumed · closure record already established'); };
+})();
+
+/* ---------------------------------------------------------------------
+ * 6A.5 Exception Window, re-report deadline, Lapsed only on cancellation
+ * ------------------------------------------------------------------- */
+const EX_WIN_MIN = 10, REREPORT_MIN = 30;
+_toneMap['Exception Window'] = 'warn'; _toneMap['Exception Pending'] = 'warn';
+function checkEstablish(d) {
+  const c = d.closure; if (c.status === 'Established') return;
+  const allOk = c.per.every(p => ['Match', 'Excluded'].includes(p.result));
+  if (allOk && cexOpenFor(d.id).length) { c.status = 'Exception Pending'; return; }
+  if (allOk) {
+    if (!c.exWinStart) c.exWinStart = nowS(true);
+    const end = Math.min(dt(c.exWinStart) + EX_WIN_MIN * 60e3, dt(d.drawAt)); c.exWinEnd = fmtDT(end, true);
+    if (S.now < end && !c.exWinClosed) { c.status = 'Exception Window'; return; }
+    c.status = 'Established'; c.establishedAt = nowS(true); c.recordHash = hexOf(d.id.length * 991 + S.now % 1000, 64);
+    audit('Draw Closure', 'Closure record established', d.id, closureVerified(d) + ' verified');
+    issueExclusionLists(d);
+    if (d.status === 'Betting Closed') pushHist(d, 'Drawing in Progress', 'System', 'Closure record established');
+  } else { c.exWinStart = ''; c.status = c.per.some(p => ['Mismatch', 'Overdue'].includes(p.result)) ? 'Blocked' : c.per.some(p => p.result === 'Missing Transactions') ? 'Verifying' : 'Waiting'; }
+}
+function cexSweep() {
+  SEED.closureExceptions.forEach(e => { const d = drawById(e.drawId); if (!CEX_OPEN.includes(e.status) || !d) return;
+    if (d.status === 'Cancelled') { e.status = 'Lapsed'; e.history.push({ at: nowS(), by: 'System', act: 'Lapsed (draw cancelled)' }); const x = c2tx(e.txid); if (x && x.nonconf && x.nonconf.status === 'Referred To Closure Exception') x.nonconf.status = 'Open'; }
+    else if (dt(d.drawAt) <= S.now && !e.alerted) { e.alerted = true; SEED.alerts.unshift({ id: nid('ALT', { w: 6 }), sev: 'P1', cat: 'Draw Anomaly', type: 'Closure exception pending', event: `${d.id} draw time reached with a pending closure exception (${e.id})`, channel: e.channel, raisedAt: nowS(true), status: 'Open', ackBy: '', ackAt: '', caseId: '', src: e.id, notify: 'Core Operations, Senior Authorizer' }); }
+  });
+}
+ACT.cloEndWindow = id => { const d = drawById(id); d.closure.exWinClosed = true; checkEstablish(d); audit('Draw Closure', 'Exception window ended', id); toast(d.closure.status === 'Established' ? t('例外窗口结束，封盘记录已建立', 'Exception window ended. Draw Closure Record established.') : t('例外窗口结束', 'Exception window ended.')); render(); };
+(function seedReReport() { const d = drawById('4D-20261012-1'); const p = d && d.closure && d.closure.per.find(x => x.result === 'Missing Transactions'); if (p) { p.reReqAt = p.reReqAt || '2026-10-12 20:46:10'; p.reDemo = true; } })();
+function reDue(p) { return p.reReqAt ? fmtDT(dt(p.reReqAt) + REREPORT_MIN * 60e3, true) : ''; }
+(function wrapClosureDrawer() {
+  const c0 = window.closureOpen;
+  window.closureOpen = id => { c0(id); const d = drawById(id); const b = S.drawer.body; const f = S.drawer.foot;
+    S.drawer.body = () => { const c = d.closure; let x = '';
+      if (c.status === 'Exception Window') x += banner(`${t('全部汇总已核验，封盘例外窗口进行中，至', 'All summaries verified. Closure exception window open until')} ${esc(c.exWinEnd)} ${t('（默认 10 分钟，到开奖时间提前结束）', '(default 10 minutes, ends early at draw time)')}`, 'amber');
+      const miss = c.per.filter(p => p.result === 'Missing Transactions' || p.reReqAt);
+      if (miss.length) x += card(t('补报', 'Missing transactions re-report'), table('reRep', [{ h: 'Channel', k: 'channel' }, { h: 'Requested At', r: p => esc(p.reReqAt || '-') }, { h: 'Re-report Due', r: p => `${esc(reDue(p) || '-')}${p.reDemo ? ' ' + demoTag() : ''}` }, { h: 'Status', r: p => p.result === 'Missing Transactions' ? badge(reDue(p) && S.now > dt(reDue(p)) ? 'Overdue' : 'Waiting') : badge(p.result) }], miss.map(p => Object.assign({ id: p.channel }, p)), { nopage: true }) + `<p class="tiny">${t('补报时限默认 30 分钟，从渠道收到要求补报起算；补报交易豁免 Late Report；手工催办不重置时限。', 'Re-report window: 30 minutes by default from the channel’s receipt of the request. Re-reported transactions are exempt from Late Report. A manual reminder does not reset the deadline.')}</p>`);
+      return x + b(); };
+    S.drawer.foot = () => (d.closure.status === 'Exception Window' ? btn({ zh: '结束例外窗口', en: 'End exception window' }, 'cloEndWindow', d.id, { cls: 'dev', dev: true }) : '') + f();
+    render(); };
+  const m0 = ACT.cloMissing; ACT.cloMissing = a => { const [id, ch] = a.split('|'); const p = drawById(id).closure.per.find(x => x.channel === ch); if (!p.reReqAt) p.reReqAt = nowS(true); m0(a); toast(t(`已再次要求 ${ch} 补报，补报时限不重置（${reDue(p)}）`, `Missing transactions requested again from ${ch}. The re-report deadline is not reset (${reDue(p)}).`)); };
+})();
+
+/* ---------------------------------------------------------------------
+ * 6A.6.6 winner reconciliation: Confirmation Submitted At, Late, bet sequence
+ * ------------------------------------------------------------------- */
+(function wrapRecon() {
+  const r0 = drReconSim;
+  drReconSim = function (d, v, ch, kind) { const rv = drRv(d, v); const x = rv && rv.deliv.find(y => y.channel === ch); const late = x && x.due && dt(x.due) < S.now; r0(d, v, ch, kind); if (x) { x.submittedAt = nowS(true); x.late = !!late; (x.diffList || []).forEach((z, i) => { if (z.seq == null) { const l = rv.list.find(q => q.tx === z.tx); z.seq = l ? (l.line || 1) : 1; } }); } };
+})();
+function drCascadeTable(id, d, rv) {
+  const rows = rv.deliv.map(x => Object.assign({}, x, { id: x.channel }));
+  const tbl = table(id, [
+    { h: 'Channel', r: x => `<b title="${esc((chByCode(x.channel) || {}).name || '')}">${x.channel}</b>` },
+    { h: 'Result Version', r: () => 'v' + rv.v + (rv.adjId ? ' <span class="tag warn">Adjusted</span>' : '') },
+    { h: 'Delivery', r: x => badge(x.delivery, x.delivery === 'Retries exhausted' ? 'bad' : x.delivery.startsWith('Acknowledged') ? 'ok' : x.delivery.startsWith('Flagged') ? 'info' : 'warn') + (x.flagReason ? `<div class="tiny">${esc(x.flagReason)}</div>` : '') },
+    { h: 'Attempts', cls: 'num', r: x => String(x.attempts) },
+    { h: 'Acknowledged At', cls: 'nowrap', r: x => drDT2(x.ackAt) },
+    { h: 'Channel Winners', cls: 'num', r: x => fmtN(rv.list.filter(l => l.ch === x.channel).reduce((a, l) => a + l.m, 0)) },
+    { h: 'Confirmation Submitted At', cls: 'nowrap', r: x => drDT2(x.submittedAt || '') },
+    { h: 'Reconciliation', r: x => { const s2 = drReconSt(x); return badge(s2, s2 === 'Agreed' ? 'ok' : s2 === 'Pending' ? 'warn' : s2 === 'Superseded' ? '' : 'bad') + (x.late ? ' <span class="tag warn">Late</span>' : ''); } },
+    { h: 'Differences', cls: 'num', r: x => x.diffs ? `<details class="dr-dd"><summary class="red">${x.diffs}</summary>${(x.diffList || []).map(z => `<div class="tiny mono">${esc(z.tx)} · Bet ${esc(String(z.seq || 1))}: <b>${esc(z.type || 'Core Only')}</b> · ${esc(z.chTier)} / ${esc(z.coreTier)} ${fmtP(z.corePrize)}${z.type === 'Local Voided' ? ' · ' + t('不派奖', 'not paid') : ''}</div>`).join('')}${x.caseId ? `<button class="btn link" data-act="viewCase" data-a="${x.caseId}">${x.caseId}</button>` : ''}</details>` : (x.recon === 'Agreed' ? '0' : '-') },
+    { h: 'Confirmation Due', cls: 'nowrap', r: x => drDT2(x.due) },
+  ], rows, { nopage: true, empty: { zh: '尚未下发', en: 'Not cascaded yet.' } });
+  const acts = rows.map(x => { const b = drCascadeActs(d, rv, x); return b.length ? `<div class="dr-rowacts" data-ch="${x.channel}"><b>${x.channel}</b> ${b.join(' ')}</div>` : ''; }).join('');
+  return tbl + (acts ? `<div class="dr-rowacts-wrap">${acts}</div>` : '');
+}
+
+/* ---------------------------------------------------------------------
+ * 6A.7 Winning Wager Removal (system generated), Superseded rows, Bet Sequence
+ * ------------------------------------------------------------------- */
+(function wrapAdj() {
+  const b0 = adjBuild;
+  adjBuild = function (a) {
+    if (a.type !== 'Winning Wager Removal') return b0(a);
+    a.type = 'Prize Correction'; let P; try { P = b0(a); } finally { a.type = 'Winning Wager Removal'; }
+    const rm = new Set(a.removeTx || []); const def = drDef(P.d);
+    const gone = P.rv.list.filter(l => rm.has(l.tx)); P.rv.list = P.rv.list.filter(l => !rm.has(l.tx));
+    gone.forEach(l => { const op = drLinePrize(P.cur, l); P.diffs.push({ id: l.k, adj: a.id, channel: l.ch, tx: l.tx, line: l.line, type: 'No Longer Won', origTier: def.tiers[l.ti].name, newTier: '-', orig: op, adjusted: 0, diff: -op, claim: 'Unclaimed', res: 'Pending', reportedAt: '' }); });
+    P.removed = gone.reduce((s, l) => s + l.m, 0); P.origCount = P.cur.list.reduce((s, l) => s + l.m, 0); P.newCount = P.rv.list.reduce((s, l) => s + l.m, 0);
+    P.impact = P.chans.map(ch => { const ds = P.diffs.filter(x => x.channel === ch); return { id: ch, ch, newly: 0, lost: ds.filter(x => x.type === 'No Longer Won').length, changed: 0, total: Math.round(ds.reduce((s, x) => s + x.diff, 0) * 100) / 100 }; });
+    return P;
+  };
+  const p0 = adjApply;
+  adjApply = function (a) {
+    // 6A.7.4: rows of the superseded version still Pending are closed as Superseded
+    SEED.resultAdj.filter(o => o.drawId === a.drawId && o.status === 'Effective' && o.id !== a.id).forEach(o => o.diffs.forEach(x => { if (x.res === 'Pending') { x.res = 'Superseded'; x.supBy = a.id; } }));
+    p0(a);
+  };
+  const d0 = adjDiffTable;
+  adjDiffTable = function (id, rows, dev) {
+    let h = d0(id, rows, dev);
+    return h; // Bet Sequence is added by the render hook below (keeps the 1.3.1 column order)
+  };
+})();
+_toneMap['Superseded'] = '';
+R133_HOOKS.push(() => {
+  ['adjDiffT', 'adjDiffD'].forEach(tid => { const w = document.querySelector(`[data-table=${tid}]`); if (!w || w.dataset.seq) return; w.dataset.seq = '1';
+    const th = w.querySelector('thead tr th:nth-child(2)'); if (th) th.insertAdjacentHTML('afterend', '<th class="num">Bet Sequence</th>');
+    w.querySelectorAll('tbody tr[data-row]').forEach(tr => { const [aid, k] = tr.dataset.row.split('|'); const a = SEED.resultAdj.find(x => x.id === aid); const x = a && a.diffs.find(z => z.id === k); const td = tr.querySelector('td:nth-child(2)'); if (td) td.insertAdjacentHTML('afterend', `<td class="num">${x ? (x.line || 1) : '-'}</td>`); }); });
+  const sel = document.querySelector('select[data-filter="adjD|res"]'); if (sel && ![...sel.options].some(o => o.value === 'Superseded')) { sel.insertAdjacentHTML('beforeend', '<option value="Superseded">Superseded</option>'); if (fv('adjD', 'res', 'All') === 'Superseded') sel.value = 'Superseded'; }
+});
+(function seedRemoval() {
+  const m = modById('adjust'); if (!m) return; const i0 = m.init;
+  m.init = () => { if (i0) i0();
+    try {
+      const d = drawById('L649-20261011-1'); if (!d) return; drEnsure(d); const cur = drRvCur(d); if (!cur || !cur.list.length) return;
+      const l = cur.list.find(x => x.ch === 'ILT') || cur.list[0];
+      SEED.resultAdj.unshift({ id: 'ADJ-20261012-0003', drawId: d.id, type: 'Winning Wager Removal', reason: `Transaction adjustment TXA-20261012-0009 approved: ticket ${l.tx} voided after closure`, evidence: ['TXA-20261012-0009'], fromV: cur.v, toV: null, by: 'System', at: '2026-10-12 18:30:00', status: 'Awaiting Authorization',
+        num: { round: 1, first: null, second: null }, prz: { round: 1, first: null, second: null }, matched: { nums: cur.numbers.slice(), at: '', by: [] }, det: null, prizes: { rows: cur.tiers.map(x => Object.assign({}, x)), by: ['System'] }, auths: [], cascading: false, diffs: [], removeTx: [l.tx], system: true, demo: true });
+    } catch (e) { console.error(e); }
+  };
+  // form: the type is generated by the system only
+  const v0 = m.view; m.view = () => v0();
+  const b0 = adjBody; adjBody = a => { let h = b0(a); if (a.type === 'Winning Wager Removal' && S.dtab === 'req') { const P = adjPreview(a) || {}; h = banner(`${t('系统生成的中奖投注移除：从中奖清单移出', 'System-generated Winning Wager Removal: removes')} <span class="mono">${esc((a.removeTx || []).join(', '))}</span> ${t('的全部中奖注；号码不变，已下发的中奖注数与单注奖金不重算。', 'from the winner list. Numbers are unchanged; announced winner counts and prizes per bet are not recalculated.')}${P.origCount != null ? `<div class="tiny" id="wwrCheck">Winner count check: ${P.origCount} − ${P.removed} = ${P.newCount}</div>` : ''}`, 'amber') + h; } return h; };
+})();
+R133_HOOKS.push(() => { const f = document.querySelector('[data-field="a_type"]'); if (f && !document.getElementById('wwrHint')) { const fc = f.nextElementSibling; if (fc) fc.insertAdjacentHTML('beforeend', `<div class="hint" id="wwrHint">${esc(t('中奖投注移除只由系统生成，表单不可选。', 'Winning Wager Removal is generated by the system and cannot be selected here.'))}</div>`); } });
+
+/* ---------------------------------------------------------------------
+ * 6A.13.4 Accept Explanation / Request Further Action (PCSO Finance, Settlement · C)
+ * ------------------------------------------------------------------- */
+(function wrapSettlement() {
+  const m = modById('settlement'); if (!m || !m.acts) return;
+  const stById = id => SEED.settlements.find(s => s.id === id);
+  const tl = (s, act, note) => { s.vh.tl = s.vh.tl || []; s.vh.tl.push({ at: nowS(), by: me(), act, note: note || '' }); };
+  const o0 = m.acts.stOpen;
+  m.acts.stOpen = a => { o0(a); const id = String(a).split('|')[0]; const s = stById(id); if (!S.drawer || !s) return; const f = S.drawer.foot;
+    S.drawer.foot = () => { let h = f(); const vh = s.vh; const cd = vh && vh.cdr && SEED.compDirectives.find(x => x.id === vh.cdr);
+      if (vh && vh.state === 'Under Review' && cd && cd.status === 'Responded' && can('Settlement', 'C') && hasRole('fin')) h = btn({ zh: '接受说明', en: 'Accept Explanation' }, 'stAcceptExpl', s.id, { cls: 'ok', id: 'btnAcceptExpl' }) + ' ' + btn({ zh: '要求补充', en: 'Request Further Action' }, 'stMoreExpl', s.id, { id: 'btnMoreExpl' }) + ' ' + h;
+      return h; };
+    render(); };
+  m.acts.stAcceptExpl = id => { const s = stById(id); const cd = SEED.compDirectives.find(x => x.id === s.vh.cdr); if (!can('Settlement', 'C')) return;
+    ask({ title: { zh: '接受说明', en: 'Accept Explanation' }, msg: t('只关闭该结算差异说明指令，不改变差异处理状态与金额；结清仍走 Resolve Variance。', 'This closes the explanation directive only. The variance status and amounts do not change; use Resolve Variance to settle it.'), ok: { zh: '接受说明', en: 'Accept Explanation' },
+      onOk: () => { cd.status = 'Closed'; cd.closedAt = nowS(); s.vh.explAccepted = nowS(); tl(s, 'Explanation accepted', cd.id); audit('Settlement', 'Explanation accepted', s.id, cd.id); toast(t('已接受说明，指令已关闭', 'Explanation accepted. The directive is closed.')); } }); };
+  m.acts.stMoreExpl = id => { const s = stById(id); const cd = SEED.compDirectives.find(x => x.id === s.vh.cdr); if (!can('Settlement', 'C')) return;
+    ask({ title: { zh: '要求补充', en: 'Request Further Action' }, ok: { zh: '退回渠道', en: 'Request Further Action' }, fields: [{ k: 'm_due', zh: '新回复期限', en: 'New Response Due', ctl: 'datetime', req: true, def: addMin(nowS(), 3 * 1440) }], reason: { zh: '需补充的内容', en: 'What is still needed' },
+      validate: v => (!v.m_due || dt(normDT(v.m_due)) <= S.now) ? { m_due: 'The response due time must be later than now.' } : {},
+      onOk: v => { cd.status = 'Awaiting Response'; cd.round = (cd.round || 1) + 1; cd.due = normDT(v.m_due); s.vh.state = 'Explanation Requested'; s.vh.due = cd.due; tl(s, 'Further action requested', `Round ${cd.round} · due ${cd.due} · ${v.m_reason}`); audit('Settlement', 'Further action requested', s.id, `${cd.id} · round ${cd.round}`); toast(t(`已退回渠道补充（第 ${cd.round} 轮）`, `Sent back to the channel (round ${cd.round}).`)); } }); };
+})();
+
+/* ---------------------------------------------------------------------
+ * 6A.14 manual divergences: channel Mark Handled → re-compare; Request Further Action
+ * ------------------------------------------------------------------- */
+(function wrapRecon14() {
+  const m = modById('recon'); if (!m || !m.acts) return;
+  const auto = d => !['Transactions', 'Prize Claims', 'Claims', 'Settlement', 'Wallet'].includes(d.dom);
+  const o0 = m.acts.rcOpen;
+  m.acts.rcOpen = id => { o0(id); const d = SEED.divergences.find(x => x.id === id); if (!S.drawer || !d || d.dom === 'Settlement') return; const f = S.drawer.foot;
+    S.drawer.foot = () => { const b = [];
+      if (!auto(d) && d.pst === 'Escalated') {
+        b.push(btn({ zh: '模拟渠道 Mark Handled（仍不一致）', en: 'Simulate Mark Handled (still different)' }, 'rcMarkSim', d.id + '|bad', { cls: 'dev', dev: true }), btn({ zh: '模拟渠道 Mark Handled（一致）', en: 'Simulate Mark Handled (consistent)' }, 'rcMarkSim', d.id + '|ok', { cls: 'dev', dev: true }));
+        if (can('Reconciliation', 'E')) b.push(btn({ zh: '退回渠道', en: 'Request Further Action' }, 'rcMore', d.id, { id: 'btnRcMore', dis: !d.handled, tip: 'Available after the channel marks it handled and the re-compare still shows a difference.' }));
+      }
+      return b.join(' ') + ' ' + f(); };
+    render(); };
+  m.acts.rcMarkSim = a => { const [id, k] = a.split('|'); const d = SEED.divergences.find(x => x.id === id); d.round = d.round || 1;
+    if (k === 'ok') { d.chFixed = true; (d.fields || []).forEach(x => x.ch = x.core); d.pst = 'Resolved'; d.status = 'Resolved'; d.closedAt = nowS(true); d.tl.push({ at: nowS(true), by: d.channel, act: 'Mark Handled', note: `Round ${d.round} · re-compare consistent → Resolved` }); toast(t('渠道已处理，重新比较一致，已关闭', 'Channel marked it handled. Re-compare consistent: Resolved.')); }
+    else { d.handled = true; d.tl.push({ at: nowS(true), by: d.channel, act: 'Mark Handled', note: `Round ${d.round} · re-compare still different · stays Escalated` }); toast(t('渠道已处理，重新比较仍不一致', 'Channel marked it handled. Re-compare still shows a difference.'), 'warn'); }
+    audit('Reconciliation', 'Channel marked handled', id, k); render(); };
+  m.acts.rcMore = id => { const d = SEED.divergences.find(x => x.id === id); if (!can('Reconciliation', 'E') || !d.handled) return;
+    ask({ title: { zh: '退回渠道', en: 'Request Further Action' }, ok: { zh: '退回渠道', en: 'Request Further Action' }, fields: [{ k: 'm_due', zh: '新回复期限', en: 'New Response Due', ctl: 'datetime', req: true, def: addMin(nowS(), 1440) }], reason: { zh: '需补充的内容', en: 'What is still needed' },
+      validate: v => (!v.m_due || dt(normDT(v.m_due)) <= S.now) ? { m_due: 'The response due time must be later than now.' } : {},
+      onOk: v => { d.round = (d.round || 1) + 1; d.handled = false; d.tl.push({ at: nowS(true), by: me(), act: 'Request Further Action', note: `Round ${d.round} · due ${normDT(v.m_due)} · ${v.m_reason}` }); audit('Reconciliation', 'Further action requested', d.id, `round ${d.round}`); toast(t(`已退回渠道（第 ${d.round} 轮）`, `Sent back to the channel (round ${d.round}).`)); } }); };
+})();
+
+/* ---------------------------------------------------------------------
+ * 6A.18 channel-reported events: Channel Event ID + Core receive time
+ * ------------------------------------------------------------------- */
+(function auditEvt() {
+  const r = SEED.audit.find(x => x.id === 'AUD-000112'); if (r) { r.chEvtId = 'ILT-EVT-20261012-000045'; r.recvAt = '2026-10-12 20:50:31.884'; r.demo133 = true; }
+  if (typeof audDetail === 'function') { const d0 = audDetail; audDetail = function (x) { let h = d0(x); if (x.chEvtId || x.reported) h += dl([['Received At', `<span class="mono">${esc(x.recvAt || '-')}</span> (UTC+8)`], ['Channel Event ID', `<span class="mono">${esc(x.chEvtId || '-')}</span>`]]) + `<p class="tiny">${t('渠道上报事件按渠道事件 ID 去重；时间为渠道发生时间，另记 Core 接收时间。', 'Channel-reported events are de-duplicated by Channel Event ID. Time is when the event happened at the channel; Core’s receive time is kept separately.')}</p>`; return h; }; }
+})();
+
+/* ---------------------------------------------------------------------
+ * 6A.20.8 custodians need Emergency Accounts V; out-of-band activation of the portal account
+ * ------------------------------------------------------------------- */
+function emEligible(u) { return u && u.status === 'Active' && (u.roles || []).some(r => (PERM['Emergency Accounts'][r] || '').includes('V')); }
+const MSG_CUST = id => `${id} cannot be a custodian without access to Emergency Accounts.`;
+(function wrapEm() {
+  const m = modById('users'); if (!m || !m.acts) return;
+  m.acts.emCust = id => { const a = SEED.emergencyAccounts.find(x => x.id === id); if (SEED.accessChanges.some(c => c.status === 'Pending' && c.target === id)) { toast(t('已有待批准的变更', 'This account already has a change awaiting approval.'), 'warn'); return; }
+    const opts = SEED.users.filter(emEligible).map(u => [u.id, `${u.id} · ${u.roles.map(roleName).join(' + ')}`]);
+    ask({ title: `${t('更换保管人', 'Change Custodians')} · ${id}`, ok: { zh: '提交', en: 'Submit' }, fields: [{ k: 'm_cust', zh: '保管人', en: 'Custodians', ctl: 'checks', req: true, def: a.custodians.slice(), opts, hint: { zh: '只列持有 Emergency Accounts 查看权限的账号', en: 'Only accounts with access to Emergency Accounts are listed' } }], reason: { zh: '变更说明', en: 'Change Note', max: 200 },
+      validate: v => { const bad = (v.m_cust || []).find(x => !emEligible(userById(x))); if (bad) return { m_cust: MSG_CUST(bad) }; return (v.m_cust || []).length !== 2 ? { m_cust: 'Assign exactly two custodians.' } : {}; },
+      onOk: v => { const ac = acNew('Change Custodians', id, a.custodians.join(', '), v.m_cust.join(', '), { account: id, custodians: v.m_cust }, v.m_reason); toast(t(`已提交 ${ac.id}`, `Submitted ${ac.id}. Another System Administrator must approve it.`)); } }); };
+  const r0 = m.acts.emRegister;
+  m.acts.emRegister = () => { r0(); const mo = S.modal; if (!mo) return; const body0 = mo.body; mo.body = () => body0().replace(/<label><input type="checkbox" data-multi="1" data-k="m_cust" value="([^"]+)"[^>]*>[^<]*<\/label>/g, (s, id) => emEligible(userById(id)) ? s : ''); render(); };
+  m.acts.emOob = id => { const a = SEED.emergencyAccounts.find(x => x.id === id); if (!a || a.status !== 'Sealed') return;
+    openModal({ title: `${t('带外启用补登', 'Out-of-band activation · back-fill')} · ${a.id}`, size: 'lg', ok: { zh: '提交补登', en: 'Complete Back-fill' },
+      body: () => banner(t('该门户应急账号已凭书面批准、由两名保管人线下放行登录。补登完成前不能做任何其他操作。', 'This portal emergency account signed in after an out-of-band release (written approval and both custodians offline). Nothing else can be done until this back-fill is complete.'), 'rose') + formHtml([
+        { k: 'm_reason', zh: '原因', en: 'Reason', ctl: 'textarea', req: true, ph: 'Describe the emergency' }, { k: 'm_case', zh: '关联案件', en: 'Case Number', ctl: 'text', req: true, ph: 'CASE-20261012-0013' },
+        { k: 'm_memo', zh: '书面批准文号', en: 'Written Approval Reference', ctl: 'text', req: true, ph: 'PCSO-MEMO-2026-131' }, { k: 'm_doc', zh: '书面批准文件', en: 'Written Approval Document', ctl: 'text', req: true, ph: 'memo-131.pdf' },
+        { k: 'm_appr', zh: '批准人', en: 'Approver', ctl: 'select', req: true, opts: [['', '-']].concat(SEED.users.filter(u => u.status === 'Active' && u.roles.includes('sa')).map(u => [u.id, u.id])) },
+        { k: 'm_rel', zh: '保管人放行确认', en: 'Custodian Release Confirmations', ctl: 'checks', req: true, opts: a.custodians }]),
+      onOk: v => { const e = {}; ['m_reason', 'm_case', 'm_memo'].forEach(k => { if (!(v[k] || '').trim()) e[k] = 'This field is required.'; }); if (v.m_case && !SEED.cases.some(c => c.id === v.m_case.trim())) e.m_case = 'This case was not found.'; if (!/\.pdf$/i.test((v.m_doc || '').trim())) e.m_doc = 'Upload a PDF of up to 10 MB.';
+        if (!v.m_appr) e.m_appr = 'This field is required.'; else if (a.custodians.includes(v.m_appr)) e.m_appr = 'The approver must be different from the requester and the custodians.';
+        if ((v.m_rel || []).length !== a.custodians.length) e.m_rel = 'Both custodians must confirm the release.';
+        if (Object.keys(e).length) { setErr(e); return false; }
+        const r = { id: nid('ER', { w: 3 }), account: a.id, by: a.id, at: nowS(), reason: v.m_reason.trim(), caseNo: v.m_case.trim(), memo: v.m_memo.trim(), doc: v.m_doc.trim(), window: 120, status: 'In Use', approvedBy: v.m_appr, approvedAt: nowS(), releases: a.custodians.map(c => ({ by: c, at: nowS() })), rotations: [], review: null, oob: true, from: nowS(), to: fmtDT(S.now + 120 * 60e3) };
+        SEED.emReqs.unshift(r); a.status = 'In Use'; a.lastUsed = nowS();
+        audit('Emergency Accounts', 'Out-of-band activation back-filled', a.id, `${r.id} · Out-of-band · ${r.memo} · approver ${r.approvedBy}`);
+        SEED.alerts.unshift({ id: nid('ALT', { w: 6 }), sev: 'P1', type: 'Break-glass', event: `${a.id} out-of-band activation back-filled (${r.id})`, channel: 'Network', raisedAt: nowS(true), status: 'Open', ackBy: '', ackAt: '', caseId: r.caseNo });
+        toast(t(`补登完成：${r.id}，标 Out-of-band，账号使用中`, `Back-fill complete: ${r.id} marked Out-of-band. The account is in use.`), 'warn'); } }); };
+  const v0 = m.view; m.view = () => v0();
+})();
+(function wrapEmOpen() {
+  const m = modById('users'); if (!m || !m.acts || !m.acts.emOpen) return; const o0 = m.acts.emOpen;
+  m.acts.emOpen = id => { o0(id); const a = SEED.emergencyAccounts.find(x => x.id === id); if (!S.drawer || !a) return; const f = S.drawer.foot; const b = S.drawer.body;
+    S.drawer.foot = () => (a.scope === 'Portal Access Recovery' && a.status === 'Sealed' ? btn({ zh: '模拟带外启用登录', en: 'Simulate out-of-band sign-in' }, 'emOob', a.id, { cls: 'dev', dev: true }) + ' ' : '') + f();
+    S.drawer.body = () => { const r = SEED.emReqs.find(x => x.account === a.id && x.oob && x.status === 'In Use'); return (r ? banner(`${badge('Out-of-band', 'bad')} ${esc(r.id)} · ${esc(r.memo)} · ${t('批准人', 'Approver')} ${esc(r.approvedBy)}`, 'rose') : '') + b(); };
+    render(); };
+})();
+// 6A.20.4 recommended account note 7: comp.b lifts legal holds placed by comp.a
+(function compB() { const u = userById('comp.b'); if (u) { u.demo = true; if (!u.extraNote) u.extraNote = 'second Compliance Officer, lifts legal holds placed by comp.a (6A.20.4 note 7)'; } })();
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
