@@ -7956,6 +7956,410 @@ const MSG_CUST = id => `${id} cannot be a custodian without access to Emergency 
 
 </script>
 <script>
+/* ===== p8e_133b.js ===== */
+/* =====================================================================
+ * p8e_133b.js — PRD 1.3.3 follow-up (PROTO-133 batch b, Core portal)
+ * Loaded after p8d_133.js and before boot(). Wraps globals / module acts.
+ *  1. 6A.8   KYC review conclusions (5 values), Identity Elements match key,
+ *            Counterpart Profile + Not reassigned effect, Different person → Core creates the profile
+ *  2. 6A.10  Selection by bet sequence + Multiplier (one transaction = one ticket);
+ *            6A.10.5 category × reason code table incl. claim record correction; status-type examples
+ *  3. 6A.16.7 KYC review directive reply rounds (per-player conclusions, Request Further Action,
+ *            channel supplement); Settlement Variance Explanation is not a compliance directive
+ *  4. 6A.14.4 Draw Results Local Only divergence may be closed as exception (Core record unchanged)
+ *  5. 6A.7.3 verify before effect: failed count check → no new version, Re-run Determination
+ * Demo rows added here are marked demo:true and listed in README §12.
+ * ===================================================================== */
+'use strict';
+
+/* ---------------------------------------------------------------------
+ * shared: table() column hooks (by table id)
+ * ------------------------------------------------------------------- */
+const R133B_COLS = {};
+(function wrapTable() {
+  const t0 = table;
+  table = function (id, cols, rows, o) { const f = R133B_COLS[id]; if (f) { try { cols = f(cols.slice()) || cols; } catch (e) { console.error(e); } } return t0(id, cols, rows, o); };
+})();
+function colIdx(cols, h) { return cols.findIndex(c => c && c.h === h); }
+
+/* =====================================================================
+ * 1. 6A.8 Central Player Registry
+ * ===================================================================== */
+const KYC_RESULTS = ['Pending', 'Confirmed', 'Re-KYC Required', 'Re-verified', 'Re-KYC Failed'];
+const KYC_TONE = { Pending: '', Confirmed: 'ok', 'Re-verified': 'ok', 'Re-KYC Required': 'warn', 'Re-KYC Failed': 'bad' };
+['Re-verified', 'Confirmed'].forEach(s => { _toneMap[s] = 'ok'; }); _toneMap['Re-KYC Required'] = 'warn'; _toneMap['Re-KYC Failed'] = 'bad';
+/** every per-player conclusion reported in KYC review directive rounds (6A.16.7) */
+function kycRoundsOf(upid) {
+  const out = [];
+  (SEED.compDirectives || []).filter(d => d.type === 'KYC Review').forEach(d => (d.rounds || []).forEach(r => (r.results || []).forEach(x => { if (x.upid === upid) out.push({ result: x.result, channel: d.channel, at: r.at, dir: d.id, round: r.round, kind: r.kind }); })));
+  return out.sort((a, b) => a.at.localeCompare(b.at));
+}
+/** Latest KYC Review: the newest non-Pending conclusion; Pending only when there is no conclusion yet (6A.8.2) */
+function kycLatest(upid) {
+  const all = kycRoundsOf(upid); if (!all.length) return null;
+  const real = all.filter(x => x.result !== 'Pending');
+  return Object.assign({ hist: all }, real.length ? real[real.length - 1] : all[all.length - 1]);
+}
+function kycSync() { (SEED.players || []).forEach(p => { const k = kycLatest(p.upid); if (k) p.kycReview = k; else delete p.kycReview; }); }
+
+/* filter: Latest KYC Review now has six values (+ All) */
+(function wrapFilterBar() {
+  const f0 = filterBar;
+  filterBar = function (id, fields, right) {
+    if (id === 'plf') fields = fields.map(f => f && f.k === 'kycr' ? Object.assign({}, f, { opts: ['All', 'None'].concat(KYC_RESULTS) }) : f);
+    return f0(id, fields, right);
+  };
+})();
+/* detail: Latest KYC Review cell with tone, round and history */
+(function wrapPlBody() {
+  const b0 = c2plBody;
+  c2plBody = function (p) {
+    let h = b0(p); if (S.dtab !== 'basic') return h;
+    const k = p.kycReview;
+    const cell = k ? `${badge(k.result, KYC_TONE[k.result])} · ${esc(k.channel)} · ${esc(k.at)} <span class="tiny">Round ${esc(String(k.round || 1))} · ${esc(k.dir)} · ${t('经 KYC 复查责令回复上报，不改 KYC 状态', 'Reported through the KYC review directive; KYC status unchanged')}</span>`
+      + (k.hist && k.hist.length > 1 ? `<div class="tiny" id="kycHist">${t('历次结论', 'History')}: ${k.hist.map(x => `${esc(x.result)} (${esc(x.at)})`).join(' → ')}</div>` : '') : '-';
+    return h.replace(/(<div>Latest KYC Review<\/div><div>)([\s\S]*?)(<\/div><div>Credential Channels<\/div>)/, (s, a, _b, c) => a + cell + c);
+  };
+})();
+
+/* ---- 6A.8.4 Identity Elements + Different person: Core creates the profile ---- */
+function nextUpid() { const n = Math.max(...SEED.players.map(p => +String(p.upid).replace(/\D/g, '') || 0)) + 1; return 'UP-' + String(n).padStart(9, '0'); }
+function regToProfile(x) {
+  const nm = String(x.reg.name || '').split(','); const last = (nm[0] || '').trim(); const rest = (nm[1] || '').trim().split(/\s+/);
+  const tpl = SEED.players.find(p => p.upid === x.cand) || SEED.players[0]; const upid = nextUpid(); const at = nowS();
+  const p = JSON.parse(JSON.stringify(tpl));
+  Object.assign(p, { upid, last, first: rest[0] || '', middle: rest.slice(1).join(' '), name: `${last}, ${rest.join(' ')}`, dob: x.reg.dob, mobile: x.reg.mobile || '', email: x.reg.email || '', origin: x.channel,
+    channels: [{ code: x.channel, localId: `${x.channel}-PMR-${x.id.slice(-4)}`, at }], registeredAt: at, status: 'Active', prevStatus: '', statusLog: [], actions: [], keyRemoved: {}, delReq: null, chBlock: {}, exclusion: null,
+    addr: x.reg.addr || ['NCR', 'Metro Manila', 'Pasig City', 'Barangay Kapitolyo'], gender: '', tin: '', idHash: true, kyc: 'Approved', kycDate: at.slice(0, 10), pay: [], devices: [], tosAt: at, createdFrom: x.id,
+    versions: [{ v: 1, field: 'Profile created by Core (Pending Match Review: Different person)', before: '-', after: x.id, channel: x.channel, at }] });
+  delete p.kycReview; SEED.players.push(p);
+  SEED.federation.unshift({ id: nid('FED'), at: nowS(true), channel: x.channel, event: 'Profile Federation', kar: '', comp: null, result: 'Accepted', reason: `Created by Core from ${x.id} (Different person)`, upid, pmr: x.id });
+  return p;
+}
+const MSG_DIFF = 'Core creates a new profile from the registrant data kept in this case (Registration Origin = the submitting channel) and sends it to the channel with the conclusion. The channel does not report a new profile.';
+(function wrapPmr() {
+  const m = modById('players'); if (!m || !m.acts) return;
+  const d0 = m.acts['pl.pmrDo'];
+  m.acts['pl.pmrDo'] = a => {
+    const [id, k] = a.split('|'); const x = SEED.pmr.find(r => r.id === id);
+    if (k !== 'diff' || !x || x.status !== 'Open') return d0(a);
+    ask({ title: `Different person · ${id}`, ok: 'Different person', msg: esc(MSG_DIFF), reason: { zh: '原因', en: 'Reason' },
+      onOk: v => { const why = v.m_reason.trim(); x.log.push({ at: nowS(), by: me(), act: 'Different person', note: why });
+        const np = regToProfile(x);
+        x.status = 'Resolved'; x.decision = 'Different person'; x.decidedBy = me(); x.decidedAt = nowS(); x.note = why; x.newUpid = np.upid;
+        x.dir = issueDirective({ channel: x.channel, type: 'Match Review Outcome', summary: `${id} · Different person · new profile ${np.upid} created by Core`, reason: why, ref: id }).id;
+        const c = c2pl(x.cand); const keys = ({ Mobile: ['mobile'], Email: ['email'], Both: ['mobile', 'email'] })[x.key] || [];
+        keys.forEach(f => SEED.keyReviews.unshift({ id: nid('CKR'), key: c[f], kind: f === 'mobile' ? 'Mobile' : 'Email', upid: x.cand, cp: np.upid, source: 'Pending Match Review', status: 'Open', at: nowS() }));
+        audit('Player Registry', 'Pending match: Different person', id, `${why} · new profile ${np.upid}`);
+        toast(`Different person: ${id} resolved. New profile ${np.upid} created by Core.${keys.length ? ' Candidate keys sent to Candidate Key Review.' : ''}`); } });
+  };
+  /* 6A.8.5 Not reassigned: the original profile keeps the key; the counterpart loses it and must re-verify */
+  m.acts['pl.keyNo'] = id => { const k = SEED.keyReviews.find(x => x.id === id); const f = k.kind === 'Mobile' ? 'mobile' : 'email';
+    ask({ title: `Not reassigned · ${k.key}`, ok: { zh: '确认', en: 'Not reassigned' }, reason: { zh: '原因', en: 'Reason' },
+      msg: esc(`${k.upid} keeps ${k.key}.${k.cp ? ` The key is removed from ${k.cp}; its credential channels are told to make the player re-verify.` : ''} One key stays on one profile only.`),
+      onOk: v => { k.status = 'Not Reassigned'; k.decidedBy = me(); k.note = v.m_reason.trim(); const a = c2pl(k.upid); if (a) a.keyRemoved[f] = false;
+        const cp = k.cp && c2pl(k.cp); if (cp) { cp.keyRemoved[f] = true; k.dirs = issueDirectives(c2creds(cp), { type: 'Contact Reassigned', summary: `${cp.upid} · ${k.kind} removed · re-verify at next login`, reason: v.m_reason.trim(), ref: k.id }).map(d => d.id); }
+        audit('Player Registry', 'Candidate key not reassigned', k.upid, `${k.kind} ${k.key} kept · removed from ${k.cp || '-'} · ${v.m_reason.trim()}`);
+        toast(cp ? `Review closed. ${k.upid} keeps the key; ${cp.upid} must re-verify.` : t('已关闭复核', 'Review closed.')); } }); };
+})();
+R133B_COLS.ckT = cols => { const i = colIdx(cols, 'Affected Profile'); cols.splice(i + 1, 0, { h: 'Counterpart Profile', r: k => k.cp ? c2link('pl.open', k.cp, k.cp) : '-' }); return cols; };
+R133B_COLS.pmrT = cols => { const i = colIdx(cols, 'Matched Candidate Keys'); if (i >= 0) cols[i] = { h: 'Matched Candidate Keys', r: x => x.key === 'Identity Elements' ? `${badge('Identity Elements', 'info')}<div class="tiny">Name + Birthdate + ID Hash</div>` : esc(x.key) }; return cols; };
+(function wrapPmrOpen() {
+  const o0 = c2pmrOpen;
+  c2pmrOpen = function (id) {
+    o0(id); const x = SEED.pmr.find(r => r.id === id); if (!S.drawer || !x) return; const b = S.drawer.body;
+    S.drawer.body = () => (x.key === 'Identity Elements' ? banner(`<b>Identity Elements</b> · ${t('候选键都未命中；建档前按姓名 + 出生日期 + 证件哈希在登记册中命中候选档案，不建档、转待匹配审核。', 'No candidate key matched. Before creating a profile, Core found the candidate profile by name + birthdate + ID hash, so no profile was created and the registration was routed here.')}`, 'amber') : '')
+      + b() + (x.newUpid ? banner(`${t('Core 已以注册人数据建档', 'Core created the profile from the registrant data')}: ${c2link('pl.open', x.newUpid, x.newUpid)}`, 'green') : '')
+      + `<p class="tiny" id="pmrDiffNote">${esc(t('结论为「不同人」时 Core 以本案保存的注册人数据直接建档并随结论下发渠道。', 'Different person: Core creates the profile from the registrant data kept in this case and sends it with the conclusion.'))}</p>`;
+    render();
+  };
+})();
+/* demo rows (Demo data): Identity Elements case, counterparts, contact collision */
+(function seedPl133b() {
+  const P = id => SEED.players.find(p => p.upid === id);
+  const g = P('UP-000104491');
+  if (g && !SEED.pmr.some(x => x.id === 'PMR-20261012-0006')) {
+    SEED.pmr.unshift({ id: 'PMR-20261012-0006', channel: 'ILT', key: 'Identity Elements', comp: [1, 1, 1], cand: g.upid, status: 'Open', createdAt: '2026-10-12 19:40', due: '2026-10-14 19:40', reg: { name: `${g.last}, ${g.first}`, dob: g.dob, mobile: '+63 917 880 2210', email: 'gsilang.new@example.com' }, log: [], demo: true });
+    SEED.federation.unshift({ id: 'FED-20261012-0096', at: '2026-10-12 19:40:02', channel: 'ILT', event: 'Profile Federation', kar: 'KAR-ILT-20261012-001004', comp: [1, 1, 1], result: 'Routed To Conflict', reason: 'Identity Elements matched before profile creation', upid: '', pmr: 'PMR-20261012-0006', demo: true },
+      { id: 'FED-20261012-0095', at: '2026-10-12 19:39:50', channel: 'ILT', event: 'Candidate Key Query', kar: 'KAR-ILT-20261012-001004', comp: null, result: 'No Match', reason: '', upid: '', pmr: '', demo: true });
+  }
+  // CKR-20261012-0001: UP-000104490 updated its mobile to the number UP-000104483 holds (Profile Update collision)
+  const a = P('UP-000104483'), c = P('UP-000104490'); const k1 = SEED.keyReviews.find(k => k.id === 'CKR-20261012-0001');
+  if (a && c && k1) { k1.key = a.mobile; k1.cp = c.upid; k1.demo = true; const old = c.mobile; c.mobile = a.mobile; (c.versions = c.versions || []).push({ v: (c.versions.length || 0) + 1, field: 'Mobile Number', before: old, after: a.mobile, channel: 'ILT', at: '2026-10-12 10:15' });
+    const f = SEED.federation.find(x => x.id === 'FED-20261012-0088'); if (f) f.upid = c.upid; }
+  // CKR-20261009-0001: Different person created UP-000104495 with the same email; Not reassigned → the counterpart lost the key
+  const k2 = SEED.keyReviews.find(k => k.id === 'CKR-20261009-0001'); const e = P('UP-000104495');
+  if (k2 && e) { k2.cp = e.upid; k2.at = '2026-10-09 10:08'; k2.demo = true; e.email = k2.key; e.keyRemoved.email = true; }
+  SEED.keyReviews.forEach(k => { if (k.source === 'Profile Update' && !k.cp) k.cp = '-'; });
+})();
+
+/* =====================================================================
+ * 2. 6A.10.2 transactions: Selection by bet sequence, Multiplier; 6A.10.5 categories
+ * ===================================================================== */
+const L6MAX = { L658: 58, L655: 55, L649: 49, L645: 45, L642: 42 };
+function nCr(n, r) { let x = 1; for (let i = 0; i < r; i++) x = x * (n - i) / (i + 1); return Math.round(x); }
+function txCombos(x) { const m = /System (\d+)/.exec(x.betType || ''); if (m && L6MAX[x.game]) return nCr(+m[1], 6); if (x.betType === '5-Roll' && L6MAX[x.game]) return L6MAX[x.game] - 5; if (x.betType === 'Roll 1') return 10; return 1; }
+function txPrice(x) { const g = gameByCode(x.game); return g ? g.versions[0].def.price : 25; }
+/** one transaction = one ticket: bets listed by bet sequence; multiplier = amount ÷ (price × combinations × bets) */
+function txBets(x) {
+  if (x.bets) return x.bets;
+  const base = Math.abs(x.amount) || txPrice(x); const lines = x.betType === 'Lucky Pick' ? Math.max(1, Math.round(base / txPrice(x) / txCombos(x))) : 1;
+  const r = rng(+String(x.id).replace(/\D/g, '').slice(-6) || 7); const pick = max => { const s = new Set(); while (s.size < 6) s.add(1 + Math.floor(r() * max)); return [...s].sort((a, b) => a - b).map(n => pad(n)).join(','); };
+  x.bets = [{ seq: 1, nums: x.selection || '-' }]; for (let i = 2; i <= lines; i++) x.bets.push({ seq: i, nums: pick(L6MAX[x.game] || 55) });
+  return x.bets;
+}
+function txMult(x) { if (x.multiplier) return x.multiplier; const v = Math.round(Math.abs(x.amount) / (txPrice(x) * txCombos(x) * txBets(x).length)); return Math.max(1, v || 1); }
+function txBetsHtml(x) { return txBets(x).map(b => `<div class="mono tiny nowrap">${b.seq}: ${esc(b.nums)}</div>`).join(''); }
+R133B_COLS.txT = cols => { const i = colIdx(cols, 'Game And Bet Type / Draw ID'); cols.splice(i + 1, 0, { h: 'Selection', r: x => txBetsHtml(x) }, { h: 'Multiplier', cls: 'num', r: x => String(txMult(x)) }); return cols; };
+(function wrapTxOpen() {
+  const o0 = c2txOpen;
+  c2txOpen = function (id) {
+    o0(id); const x = c2tx(id); if (!S.drawer || !x) return; const b = S.drawer.body;
+    S.drawer.body = () => b().replace(/(<div>Selection<\/div><div>)([\s\S]*?)(<\/div><div>Gross Receipts<\/div>)/, (s, a, _v, c) => `${a}${txBetsHtml(x)}<div class="tiny">${t('按注序号逐注列出；一笔交易 = 一张票', 'Listed by bet sequence; one transaction is one ticket')}</div></div><div>Multiplier</div><div>${txMult(x)} <span class="tiny">${t('判奖与中奖清单按倍数计注数', 'Winner lists count bets by multiplier')}</span>${c.slice(6)}`);
+    render();
+  };
+})();
+
+/* ---- 6A.10.5 adjustment categories × reason codes ---- */
+const ADJ_CATS = [
+  { cat: 'Full Void And Refund', codes: ['Void/Cancellation', 'Refund', 'Dispute Resolution', 'Other'], items: 'Transaction status (void)', exec: 'Reuses void-and-refund: ticket voided, full stake refunded to the original source (vouchers returned), void refund entry in the wallet; no separate Void report' },
+  { cat: 'Reported Value Correction (Transaction)', codes: ['Data Entry Error', 'Other'], items: 'Transaction count, unit value, register version and other reported fields that do not affect the player', exec: 'Local reported record changed only; ticket and wallet untouched' },
+  { cat: 'Reported Value Correction (Claim Record)', codes: ['Data Entry Error', 'Dispute Resolution', 'Other'], items: 'Claim record reported values (tier breakdown, gross, withholding tax, net paid, claimed at); object type Claim Record', exec: 'Local claim record reported values changed only; ticket and wallet untouched. Prize amounts change only through a result adjustment (6A.7)' },
+];
+const MSG_ADJ_COMBO = 'This reason code is not allowed for this adjustment category.';
+c2adjCat = function (a) { return a.cat || (a.targetType === 'Claim Record' ? 'Reported Value Correction (Claim Record)' : a.field === 'Transaction Status' || a.reasonCode !== 'Data Entry Error' ? 'Full Void And Refund' : 'Reported Value Correction (Transaction)'); };
+function adjComboOk(a) { const c = ADJ_CATS.find(x => x.cat === c2adjCat(a)); return !!c && c.codes.includes(a.reasonCode); }
+R133B_COLS.adjT = cols => {
+  if (S.page !== 'tx') return cols;
+  const it = colIdx(cols, 'Target'); if (it >= 0) cols[it] = { h: 'Target', r: a => (a.targetType === 'Claim Record' ? `<span class="mono">${esc(a.target)}</span>` : c2link('tx.open', a.target, a.target)) + `<div class="tiny">${esc(a.targetType)}</div>` };
+  const io = colIdx(cols, 'Original / Adjusted'); if (io >= 0) cols[io] = { h: 'Original / Adjusted', r: a => `<div class="tiny">${esc(a.field)}</div><span class="nowrap">${esc(a.origTxt != null ? a.origTxt : fmtP(a.orig))} /</span> <span class="nowrap">${esc(a.adjTxt != null ? a.adjTxt : fmtP(a.adj))}</span>` };
+  const ic = colIdx(cols, 'Adjustment Category'); if (ic >= 0) cols[ic] = { h: 'Adjustment Category', r: a => esc(c2adjCat(a)) + (adjComboOk(a) ? '' : `<div class="tiny red">${MSG_ADJ_COMBO}</div>`) };
+  return cols;
+};
+(function wrapTxMod() {
+  const m = modById('tx'); if (!m) return; const v0 = m.view;
+  m.view = () => { let h = v0();
+    if (S.sub === 'list' && (S.q.view || 'tx') === 'tx') h += `<p class="tiny" id="txOneTicket">${t('一笔交易 = 一张票：选号按注序号逐注列出（注序号 + 号码）；复式、轮转每个组合一笔，多期投注按期一笔；倍数由渠道上报，判奖与中奖清单按倍数计注数。', 'One transaction is one ticket. Selections are listed by bet sequence (sequence + numbers). System and roll plays report one transaction per combination, and multi-draw bets one per draw. The multiplier is reported by the channel; winner lists count bets by multiplier.')}</p>`;
+    if (S.sub === 'adjust') h += card(t('调整类别与原因代码（按执行表）', 'Adjustment categories and reason codes'), table('adjCatT', [{ h: 'Adjustment Category', k: 'cat' }, { h: 'Allowed Reason Codes', r: c => esc(c.codes.join(', ')) }, { h: 'Adjustable Items', k: 'items' }, { h: 'Channel Execution (after approval)', k: 'exec' }], ADJ_CATS.map(c => Object.assign({ id: c.cat }, c)), { nopage: true })
+      + `<p class="tiny">${t('选号与部分销售额不可调：改选号等于换一张票，只改销售额会与注数 × 单价 × 倍数对不上。', 'Selections and partial gross receipts cannot be adjusted: changing a selection is a different ticket, and changing only the amount breaks bets × price × multiplier.')}</p>`);
+    return h; };
+  /* approve: show the adjusted item, block a category × reason code combination outside the table */
+  m.acts['tx.adjOk'] = id => { const a = SEED.txAdjustments.find(x => x.id === id); if (!adjComboOk(a)) { toast(MSG_ADJ_COMBO, 'err'); return; } const fin = c2adjFinal(a);
+    ask({ title: `Approve · ${id}`, ok: 'Approve', msg: (fin ? t('所属期次封盘记录已定稿：批准后转「待高级授权」，需两名不同的高级授权人。', 'The draw closure record is final: approval moves the request to Pending Senior Authorization (two different Senior Authorizers).') + '<br>' : '') + `${esc(c2adjCat(a))} · ${esc(a.field)}: ${esc(a.origTxt != null ? a.origTxt : fmtP(a.orig))} → ${esc(a.adjTxt != null ? a.adjTxt : fmtP(a.adj))}`,
+      onOk: () => { a.decidedBy = me(); a.decidedAt = nowS(); if (fin) { a.status = 'Pending Senior Authorization'; c2adjDecision(a); audit('Transactions', 'Adjustment approved by PCSO Finance (exception)', id); toast(t('已确认，待高级授权', 'Approved by PCSO Finance. Awaiting two Senior Authorizers.')); } else { c2adjApply(a); toast(t('已批准，调整记录已入库', 'Approved. The adjustment record has been added.')); } } }); };
+})();
+(function wrapAdjApply() {
+  const ap0 = c2adjApply;
+  c2adjApply = function (a) {
+    const cat = c2adjCat(a); if (cat === 'Full Void And Refund') return ap0(a);
+    a.status = 'Approved'; a.decidedAt = a.decidedAt || nowS(); c2adjDecision(a);
+    if (cat === 'Reported Value Correction (Claim Record)') {
+      const rec = (SEED.claimRecords || []).find(c => c.id === a.target); const nid2 = `${a.target}-A1`; a.newTx = nid2;
+      if (rec) { rec.correctedBy = nid2; SEED.claimRecords.push(Object.assign({}, rec, a.newVals || {}, { id: nid2, refRec: rec.id, adjReq: a.id, at: nowS(), validation: 'Accepted', reason: `Corrected by ${a.id}` })); }
+      audit('Transactions', 'Adjustment applied', a.id, `${a.target} → ${nid2} · ${a.field} ${a.origTxt} → ${a.adjTxt}`); return;
+    }
+    const o = c2tx(a.txid); if (!o) return; const isCount = /Transaction Count/.test(a.field); const du = isCount ? +(+a.adjTxt - +a.origTxt).toFixed(4) : 0;
+    const nx = Object.assign({}, o, { id: `${o.id}-A${o.adjustedBy.length + 1}`, type: 'Adjustment', refTx: o.id, amount: 0, reportedUnits: du, coreUnits: 0, confirmedAt: nowS(true), receivedAt: nowS(true), latency: 0, nonconf: null, ccr: nid('CCR', { w: 6 }), adjustedBy: [], adjReq: a.id, ticketHash: hexOf(S.now % 99991, 64), corr: { field: a.field, from: a.origTxt, to: a.adjTxt }, bets: null });
+    o.adjustedBy.push(nx.id); a.newTx = nx.id; SEED.transactions.push(nx); audit('Transactions', 'Adjustment applied', a.id, `${o.id} → ${nx.id} · ${a.field} ${a.origTxt} → ${a.adjTxt}`);
+  };
+})();
+/* demo rows: status-type void, reported value corrections, claim record correction (Demo data) */
+(function seedAdj133b() {
+  const A = id => SEED.txAdjustments.find(a => a.id === id);
+  const a4 = A('ADJ-20261012-0004'); if (a4) Object.assign(a4, { cat: 'Full Void And Refund', field: 'Transaction Status', origTxt: 'Sale', adjTxt: 'Void' });
+  const a5 = A('ADJ-20261012-0005'); const t5 = a5 && c2tx(a5.txid);
+  if (a5 && t5) { Object.assign(a5, { cat: 'Reported Value Correction (Transaction)', reasonCode: 'Data Entry Error', field: 'Transaction Count (Reported)', origTxt: '1.0000', adjTxt: '2.0000', amount: 0, detail: 'Transaction count keyed as 1 instead of 2 (multiplier 2)', demo: true });
+    t5.reportedUnits = 1; if (t5.confirmedAt > '2026-10-12 21:05') { t5.confirmedAt = '2026-10-12 19:25:35'; t5.receivedAt = '2026-10-12 19:25:38'; t5.latency = 3; } // finalized before the request (Demo data)
+    t5.nonconf = { code: 'Transaction Count Mismatch', codes: ['Transaction Count Mismatch'], sev: 'Low', note: 'Reported 1.0000, Core 2.0000', status: 'Closed', closeNote: 'Correction requested through ADJ-20261012-0005', treatment: 'Included', byPCSO: false }; }
+  const a3 = A('ADJ-20261011-0003'); const t3 = a3 && c2tx(a3.txid);
+  if (a3 && t3) { Object.assign(a3, { cat: 'Reported Value Correction (Transaction)', reasonCode: 'Data Entry Error', field: 'Transaction Count (Reported)', origTxt: '27.0000', adjTxt: '28.0000', amount: 0, detail: 'Transaction count keyed as 27 instead of 28 (System 8 = 28 combinations)', demo: true });
+    t3.reportedUnits = 27; if (!t3.adjustedBy.length) { const nx = Object.assign({}, t3, { id: `${t3.id}-A1`, type: 'Adjustment', refTx: t3.id, amount: 0, reportedUnits: 1, coreUnits: 0, confirmedAt: '2026-10-11 15:00:20', receivedAt: '2026-10-11 15:00:20', latency: 0, nonconf: null, ccr: 'CCR-20261011-000655', adjustedBy: [], adjReq: a3.id, ticketHash: hexOf(65531, 64), corr: { field: a3.field, from: '27.0000', to: '28.0000' }, demo: true }); t3.adjustedBy.push(nx.id); a3.newTx = nx.id; SEED.transactions.push(nx); } }
+  const cr = (SEED.claimRecords || []).find(c => c.id === 'CLM-20261012-0046');
+  if (cr && !A('ADJ-20261012-0006')) SEED.txAdjustments.push({ id: 'ADJ-20261012-0006', channel: cr.source, txid: cr.txid, target: cr.id, targetType: 'Claim Record', cat: 'Reported Value Correction (Claim Record)', reason: 'DATA_ENTRY', reasonCode: 'Data Entry Error',
+    detail: 'Claim record reported ₱1,000.00; the player was credited ₱1,200.00 (Core per-winner prize)', field: 'Gross Prize / Net Paid', origTxt: '₱1,000.00 / ₱1,000.00', adjTxt: '₱1,200.00 / ₱1,200.00', newVals: { gross: 1200, net: 1200, tax: 0 }, amount: 0, orig: 1000, adj: 1200,
+    submittedAt: '2026-10-12 20:40', status: 'Pending Approval', sa: [], decidedBy: '', decidedAt: '', demo: true });
+})();
+
+/* =====================================================================
+ * 3. 6A.16.7 compliance directive reply rounds; settlement explanations kept apart
+ * ===================================================================== */
+const SVE = 'Settlement Variance Explanation';
+/* Settlement Variance Explanation is its own directive type (6A.13.4), not a Compliance Directive */
+(function wrapIssue() {
+  const i0 = issueDirective;
+  issueDirective = function (o) { if (o && o.type === 'Compliance Directive' && String(o.summary || '').includes(SVE)) o = Object.assign({}, o, { type: SVE }); return i0(o); };
+})();
+function cdRound(d) { const n = (d.rounds || []).length; return d.status === 'Awaiting Response' ? n + 1 : Math.max(1, n); }
+function cdLatestPer(d) { const o = {}; (d.upids || []).forEach(u => { o[u] = null; }); (d.rounds || []).forEach(r => (r.results || []).forEach(x => { if (x.result !== 'Pending' || !o[x.upid]) o[x.upid] = { result: x.result, round: r.round, at: r.at }; })); return o; }
+function cdSummary(d) { if (d.type !== 'KYC Review') return '-'; const o = cdLatestPer(d); const c = {}; Object.values(o).forEach(v => { const k = v ? v.result : 'No reply yet'; c[k] = (c[k] || 0) + 1; }); return Object.entries(c).map(([k, n]) => `${esc(k)} ${n}`).join(' · '); }
+/** simulated per-player conclusions for the next round (DEV): first reply registers part, later rounds fill the gaps */
+function kycSimResults(d) {
+  const last = cdLatestPer(d);
+  if (!(d.rounds || []).length) return d.upids.map((u, i) => ({ upid: u, result: ['Re-KYC Required', 'Confirmed', 'Pending'][i % 3] }));
+  return d.upids.map(u => { const l = last[u]; if (!l || l.result === 'Pending') return { upid: u, result: 'Confirmed' }; if (l.result === 'Re-KYC Required') { const p = c2pl(u); return { upid: u, result: p && p.status === 'Suspended' ? 'Re-KYC Failed' : 'Re-verified' }; } return null; }).filter(Boolean);
+}
+function cdAddRound(d, kind) {
+  d.rounds = d.rounds || []; const r = { round: d.rounds.length + 1, at: nowS(), kind, text: d.response, receipt: 'Received', receiptAt: nowS(true), results: d.type === 'KYC Review' ? kycSimResults(d) : [] };
+  if (r.results.length) { const c = {}; r.results.forEach(x => { c[x.result] = (c[x.result] || 0) + 1; }); r.text = d.response = `Round ${r.round}: ` + Object.entries(c).map(([k, n]) => `${n} ${k}`).join(', ') + '.'; }
+  else if (d.type === 'KYC Review') r.text = d.response = `Round ${r.round}: no new conclusions; explanation and evidence attached.`;
+  d.rounds.push(r); kycSync();
+  audit('Compliance', `Channel reply round ${r.round}${kind === 'Supplement' ? ' (channel supplement)' : ''}`, d.id, r.text || ''); return r;
+}
+function cdDirView(m) {
+  let h = pageH(H('合规责令', 'Compliance Directive'), '6A.16.7', t('合规责令是 Core 指令的一种；渠道按轮回复（每轮一条回执），KYC 复查逐人上报结论，尚未登记的标 Pending、后续轮次补报；渠道也可主动补报一轮。结算差异说明是独立的指令类型，在 6A.13.4 处理，不在此列。', 'A compliance directive is a type of Core directive. The channel replies in rounds (one receipt per round). KYC reviews report a conclusion per player; players not yet registered are Pending and reported in a later round. The channel may also send a supplement round on its own. Settlement variance explanations are a separate directive type handled in 6A.13.4 and are not listed here.')) + subTabs(m);
+  const canC = can('Compliance', 'C');
+  h += table('cdrList', [{ h: 'Directive ID', r: d => `<span class="mono">${d.id}</span>` }, { h: 'Channel Code', k: 'channel' }, { h: 'Directive Type', k: 'type' }, { h: 'Related Finding', k: 'finding' }, { h: 'Instructions', r: d => `<span class="tiny">${esc(d.instructions)}</span>` },
+    { h: 'Issued At', r: d => `<span class="nowrap">${esc(d.issuedAt)}</span>` }, { h: 'Response Due', r: d => `<span class="nowrap">${esc(d.due)}</span>` + (d.status === 'Awaiting Response' && S.now > dt(d.due) ? '<div class="tiny red">Overdue</div>' : '') },
+    { h: 'Round', cls: 'num', r: d => String(cdRound(d)) }, { h: 'Player Conclusions', r: d => `<span class="tiny">${cdSummary(d)}</span>` }, { h: 'Status', r: d => badge(d.status) },
+    { h: '', r: d => `<span class="nowrap">${btn(H('查看', 'View'), 'cdrOpen', d.id, { cls: 'sm' })} ${d.status === 'Awaiting Response' ? btn(H('模拟渠道回复', 'Simulate channel response'), 'cdrSim', d.id, { cls: 'sm dev', dev: true }) : ''}</span>` }], SEED.compDirectives, { nopage: true });
+  return h + (canC ? '' : '');
+}
+function H(zh, en) { return { zh, en }; }
+(function wrapCompliance() {
+  const m = modById('compliance'); if (!m || !m.acts) return;
+  const v0 = m.view, b0 = m.badge;
+  const only = fn => () => { const all = SEED.compDirectives; SEED.compDirectives = (all || []).filter(d => d.type !== SVE); try { return fn(); } finally { SEED.compDirectives = all; } };
+  m.view = only(() => S.sub === 'directives' ? cdDirView(m) : v0());
+  if (b0) m.badge = only(b0);
+  const s0 = m.acts.cdrSim;
+  m.acts.cdrSim = id => { const d = SEED.compDirectives.find(x => x.id === id); if (!d) return; s0(id); cdAddRound(d, 'Response'); const f = SEED.findings.find(x => x.id === d.finding); if (f && d.type === 'KYC Review' && f.tl.length) f.tl[f.tl.length - 1].note = d.response; render(); };
+  m.acts.cdrSupp = id => { const d = SEED.compDirectives.find(x => x.id === id); if (!d || d.status === 'Closed') return; d.status = 'Responded'; const r = cdAddRound(d, 'Supplement'); d.respondedAt = nowS(); toast(t(`渠道主动补报第 ${r.round} 轮`, `The channel sent supplement round ${r.round}.`)); render(); };
+  const mo0 = m.acts.cdrMore;
+  m.acts.cdrMore = id => { const d = SEED.compDirectives.find(x => x.id === id); mo0(id); const mo = S.modal; if (!mo || !d) return; const ok0 = mo.onOk;
+    mo.onOk = v => { const r = ok0(v); if (r !== false) { (d.rfa = d.rfa || []).push({ at: nowS(), by: me(), note: (v.m_reason || '').trim(), due: d.due, round: (d.rounds || []).length + 1 }); toast(t(`已退回渠道，等待第 ${(d.rounds || []).length + 1} 轮回复`, `Sent back to the channel. Awaiting round ${(d.rounds || []).length + 1}.`)); } return r; }; };
+  m.acts.cdrOpen = id => { const d = SEED.compDirectives.find(x => x.id === id); if (!d) return;
+    openDrawer({ title: () => `${d.id} · ${d.type}`, sub: () => `${badge(d.status)} · Round ${cdRound(d)}`, size: 'lg',
+      body: () => { let h = dl([['Channel', esc(d.channel)], ['Directive Type', esc(d.type)], ['Related Finding', esc(d.finding)], ['Instructions', esc(d.instructions)], ['Unique Player IDs', esc((d.upids || []).join(', ') || '-')], ['Issued At / By', `${esc(d.issuedAt)} · ${esc(d.by)}`], ['Response Due', esc(d.due)],
+          ['Delivery', d.dirId ? `<span class="mono">${esc(d.dirId)}</span> ${badge((SEED.directives.find(x => x.id === d.dirId) || {}).ack || '-')}` : '-'], ['Status', badge(d.status)], ['Channel Response', esc(d.response || '-') + (d.respondedAt ? `<div class="tiny">${esc(d.respondedAt)}</div>` : '')]]);
+        const rows = (d.rounds || []).map(r => Object.assign({}, r, { id: 'r' + r.round, ev: r.kind === 'Supplement' ? 'Channel Supplement' : 'Channel Reply' })).concat((d.rfa || []).map((x, i) => ({ id: 'f' + i, ev: 'Request Further Action', round: x.round, at: x.at, text: `${x.note} · due ${x.due} · ${x.by}` }))).sort((a, b) => a.at.localeCompare(b.at));
+        h += `<h4>${t('回复轮次', 'Reply rounds')}</h4>` + table('cdRounds', [{ h: 'Round', cls: 'num', r: r => String(r.round) }, { h: 'Event', r: r => badge(r.ev, r.ev === 'Request Further Action' ? 'warn' : 'info') },
+          { h: 'Time', r: r => `<span class="nowrap">${esc(r.at)}</span>` }, { h: 'Content', r: r => `<span class="tiny">${esc(r.text || '-')}</span>` }, { h: 'Receipt', r: r => r.ev !== 'Request Further Action' ? `${badge('Received', 'ok')}<div class="tiny nowrap">${esc(r.receiptAt || r.at)}</div>` : '-' }], rows, { nopage: true, empty: { zh: '尚未回复', en: 'No reply yet.' } });
+        if (d.type === 'KYC Review') { const last = cdLatestPer(d);
+          h += `<h4>${t('逐人结论', 'Per-player conclusions')}</h4>` + table('cdPlayers', [{ h: 'Unique Player ID', r: r => c2link('pl.open', r.id, r.id) }, ...(d.rounds || []).map(rd => ({ h: `Round ${rd.round}`, r: r => { const x = (rd.results || []).find(y => y.upid === r.id); return x ? badge(x.result, KYC_TONE[x.result]) : '-'; } })),
+            { h: 'Latest KYC Review', r: r => r.l ? badge(r.l.result, KYC_TONE[r.l.result]) : '-' }], (d.upids || []).map(u => ({ id: u, l: last[u] })), { nopage: true })
+            + `<p class="tiny">${t('某轮标 Pending 的不覆盖已有结论；Re-KYC Required 之后的重新审核结论（Re-verified / Re-KYC Failed）在后续轮次补报并覆盖；只记录，不改 KYC 状态与档案。', 'A Pending entry in a round does not overwrite an earlier conclusion. Re-review outcomes after Re-KYC Required (Re-verified / Re-KYC Failed) arrive in later rounds and replace it. Recorded only: KYC status and the profile do not change.')}</p>`; }
+        return h; },
+      foot: () => { const canC = can('Compliance', 'C') || (hasRole('fin') && d.type === SVE); const b = [];
+        if (d.status === 'Awaiting Response') b.push(btn(H('模拟渠道回复', 'Simulate channel response'), 'cdrSim', d.id, { cls: 'dev', dev: true }));
+        if (d.type === 'KYC Review' && d.status !== 'Closed' && (d.rounds || []).length && Object.values(cdLatestPer(d)).some(v => !v || ['Pending', 'Re-KYC Required'].includes(v.result))) b.push(btn(H('模拟渠道主动补报', 'Simulate channel supplement'), 'cdrSupp', d.id, { cls: 'dev', dev: true, id: 'btnCdSupp' }));
+        if (d.status === 'Responded' && canC) b.push(btn(H('接受回复', 'Accept Response'), 'cdrAccept', d.id, { cls: 'ok' }), btn(H('要求进一步整改', 'Request Further Action'), 'cdrMore', d.id));
+        return b.join(' '); } });
+  };
+})();
+
+/* =====================================================================
+ * 4. 6A.14.4 Close as Exception: Draw Results Local Only only (Core record unchanged)
+ * ===================================================================== */
+function dvLocalOnly(d) { return !!d && d.dom === 'Draw Results' && /Local Only/.test(String(d.dtype || '') + ' ' + String(d.type || '')); }
+const MSG_LO_EXC = 'Close as exception keeps the Core winner list unchanged: the channel’s local win is not recognised. A Senior Authorizer must confirm that the Core winner list is correct.';
+const CHK_LO = { zh: '我已核对 Core 中奖清单无误', en: 'I have checked that the Core winner list for this result version is correct.', err: 'Confirm that the Core winner list is correct.' };
+(function wrapRecon133b() {
+  const m = modById('recon'); if (!m || !m.acts) return;
+  const o0 = m.acts.rcOpen, e0 = m.acts.rcExc, k0 = m.acts.rcExcOk;
+  m.acts.rcOpen = id => { o0(id); const d = SEED.divergences.find(x => x.id === id); if (!S.drawer || !dvLocalOnly(d)) return; const f = S.drawer.foot, b = S.drawer.body;
+    S.drawer.foot = () => { let h = f(); if (!d.excReq && d.status !== 'Resolved') h = h.replace(/<button class="btn dis" data-act="rcExc"[^>]*>[\s\S]*?<\/button>/, btn(H('例外关闭', 'Close as Exception'), 'rcExc', d.id, { id: 'btnRcExcLo' }));
+      if (d.status !== 'Resolved') h = btn(H('模拟渠道重新提交确认（一致）', 'Simulate re-submitted confirmation (agreed)'), 'rcLoSim', d.id + '|ok', { cls: 'dev', dev: true }) + ' ' + btn(H('模拟渠道重新提交确认（维持差异）', 'Simulate re-submitted confirmation (difference kept)'), 'rcLoSim', d.id + '|keep', { cls: 'dev', dev: true }) + ' ' + h;
+      return h; };
+    S.drawer.body = () => banner(`<b>Local Only</b> · ${t('Core 中奖清单本身无误的差异：渠道可对同一结果版本重新提交中奖对账确认后 Verify and Close；渠道维持差异的，由高级授权人确认 Core 中奖清单无误后例外关闭，只限 Core 记录不变的方向。Core 结果仍只能经 6A.7 更改。', 'The Core winner list itself is correct. The channel can re-submit its winner reconciliation confirmation for the same result version and the divergence closes with Verify and Close. If the channel keeps the difference, a Senior Authorizer may close it as an exception after confirming the Core winner list, in the Core-record-unchanged direction only. The Core result still changes only through 6A.7.')}`, 'amber') + b();
+    render(); };
+  m.acts.rcExc = id => { const d = SEED.divergences.find(x => x.id === id); if (!dvLocalOnly(d)) return e0(id); if (d.excReq) { toast('A request is already awaiting approval.', 'warn'); return; }
+    ask({ title: H('例外关闭', 'Close as Exception'), msg: esc(MSG_LO_EXC), reason: H('原因', 'Reason'), ok: H('提交', 'Submit'),
+      onOk: v => { d.excReq = { by: me(), at: nowS(), reason: v.m_reason.trim(), lo: true }; d.tl.push({ at: nowS(true), by: me(), act: 'Close as Exception submitted', note: `Local Only · Core record unchanged · ${v.m_reason.trim()}` }); audit('Reconciliation', 'Close as exception submitted', d.id, `Local Only · ${v.m_reason.trim()}`); toast(t('已提交，待高级授权人批准', 'Submitted. A Senior Authorizer must approve.')); } }); };
+  m.acts.rcExcOk = id => { const d = SEED.divergences.find(x => x.id === id); if (!dvLocalOnly(d) || !d.excReq) return k0(id); if (d.excReq.by === me()) { toast('You cannot approve a request you submitted.', 'err'); return; }
+    ask({ title: H('批准例外关闭', 'Approve'), msg: esc(MSG_LO_EXC), check: CHK_LO, ok: H('批准', 'Approve'), onOk: () => { d.loConfirmedBy = me(); k0(id); } }); };
+  m.acts.rcLoSim = a => { const [id, k] = a.split('|'); const d = SEED.divergences.find(x => x.id === id); if (!d) return;
+    if (k === 'ok') { d.chFixed = true; (d.fields || []).forEach(x => { x.ch = x.core; }); d.tl.push({ at: nowS(true), by: d.channel, act: 'Winner reconciliation re-submitted', note: 'Same result version · now agrees with the Core winner list' }); toast(t('渠道重新提交确认，一致；可 Verify and Close', 'Channel re-submitted its confirmation and it agrees. Use Verify and Close.')); }
+    else { d.tl.push({ at: nowS(true), by: d.channel, act: 'Winner reconciliation re-submitted', note: 'Same result version · difference kept' }); toast(t('渠道维持差异', 'Channel kept the difference.'), 'warn'); }
+    audit('Reconciliation', 'Winner reconciliation re-submitted (simulated)', id, k); render(); };
+})();
+
+/* =====================================================================
+ * 5. 6A.7.3 verify first, then take effect
+ * ===================================================================== */
+const ADJ_HELD = 'Authorized Pending Effect';
+_toneMap[ADJ_HELD] = 'bad';
+const MSG_ADJ_HELD = 'Winner count mismatch. The adjustment was not applied and the current result version stays in effect.';
+/** count check on the new list before any version is created (rule as 6A.6.5) */
+function adjVerify(a) {
+  const P = adjBuild(a); const d = P.d; const def = drDef(d); const fail = !!a.simFail;
+  if (a.type === 'Winning Numbers Correction') {
+    const counts = P.rv.tiers.map(() => 0); P.rv.list.forEach(l => { counts[l.ti] += l.m; });
+    let i = counts.findIndex((n, k) => n !== P.rv.tiers[k].ec); if (fail && i < 0) { i = Math.max(0, P.rv.tiers.findIndex(x => x.ec > 0)); counts[i] = Math.max(0, counts[i] - 1); }
+    return i < 0 ? { ok: true, P } : { ok: false, P, why: `${drTierLbl(d, def.tiers[i])}: list ${counts[i]} ≠ authorized ${P.rv.tiers[i].ec}` };
+  }
+  if (a.type === 'Winning Wager Removal') {
+    const got = P.newCount - (fail ? 1 : 0), exp = P.origCount - P.removed;
+    return got === exp ? { ok: true, P } : { ok: false, P, why: `New list ${got} ≠ original ${P.origCount} − removed ${P.removed} (${exp})` };
+  }
+  const n0 = P.cur.list.reduce((s, l) => s + l.m, 0), n1 = P.rv.list.reduce((s, l) => s + l.m, 0) - (fail ? 1 : 0);
+  return n0 === n1 ? { ok: true, P } : { ok: false, P, why: `Winner list ${n1} ≠ original ${n0} (prize correction keeps the winning bets)` };
+}
+function adjHold(a, r) {
+  const d = r.P.d; a.held = true; a.status = ADJ_HELD; a.checkFail = { at: nowS(true), why: r.why };
+  drLog(d, { stage: 'Determination', by: 'System', outcome: 'Count Check Failed', reason: `${a.id} · ${r.why}` }); drAuditAdj('Count check failed', a.id, `${r.why} · no new version; v${r.P.cur.v} stays in effect`, 'Failed');
+  SEED.divergences.unshift({ id: nid('DV'), channel: 'Network', domain: 'Draw Results', dom: 'Draw Results', dtype: 'Value Mismatch', object: d.id, type: 'Winner count mismatch (result adjustment)', sev: 'Critical', defSev: 'Critical', status: 'Open', pst: 'Escalated', src: 'Per-Draw', attempts: 0, raisedAt: nowS(true), core: r.why, ch: '-', fields: [{ f: 'Winner count check', core: r.why, ch: '-' }], tl: [{ at: nowS(true), by: 'System', act: 'Detected', note: `${a.id} count check failed` }], adj: a.id });
+  const al = { id: nid('ALT', { w: 6 }), sev: 'P1', cat: 'Draw Anomaly', type: 'Winner count mismatch', event: `Result adjustment ${a.id} for ${d.id}: winner count mismatch. Not applied.`, channel: 'Network', raisedAt: nowS(true), status: 'Open', ackBy: '', ackAt: '', caseId: '' }; SEED.alerts.unshift(al);
+  const cs = createCase({ source: a.id, channel: 'Network', event: `Winner count mismatch · result adjustment ${a.id} · ${d.id}`, severity: 'Critical', auto: true, type: 'Draw Result Adjustment', desc: r.why }); cs.ref = d.id; al.caseId = cs.id; a.checkCase = cs.id;
+  toast(MSG_ADJ_HELD, 'err');
+}
+(function wrapAdj133b() {
+  const st0 = adjStatus; adjStatus = a => a.held ? ADJ_HELD : st0(a);
+  const sc0 = adjStepCur; adjStepCur = a => a.held ? 'Authorization 2' : sc0(a); // held before cascade: no new version yet
+  const ap = adjApply;
+  adjApply = function (a) { if (typeof DR !== 'undefined' && DR.seeding) return ap(a); const r = adjVerify(a); if (!r.ok) { adjHold(a, r); return; } a.held = false; drLog(r.P.d, { stage: 'Determination', by: 'System', outcome: 'Count Check Passed', reason: `${a.id} · verified before effect` }); return ap(a); };
+  const f0 = adjFoot;
+  adjFoot = function (a) { let h = f0(a);
+    if (a.held && hasRole('sa')) h = btn({ zh: '重新判奖', en: 'Re-run Determination' }, 'adjRerun', a.id, { cls: 'primary', id: 'adjRerunBtn' }) + h;
+    if (a.held) h = btn({ zh: '模拟排查修复', en: 'Simulate fix after investigation' }, 'adjFixSim', a.id, { cls: 'dev', dev: true, dis: !a.simFail, tip: 'Already fixed.' }) + h;
+    if (!a.held && adjSync(a) === 'Awaiting Authorization') h = btn({ zh: '模拟条数校验失败', en: 'Simulate count check failure' }, 'adjSimFail', a.id, { cls: 'dev', dev: true, id: 'adjSimFailBtn', dis: !!a.simFail, tip: 'The next authorization will fail the count check.' }) + h;
+    return h; };
+  const b0 = adjBody;
+  adjBody = function (a) { const h = b0(a); if (!a.held || S.dtab !== 'req') return h; const d = drawById(a.drawId); const cur = drRvCur(d);
+    return banner(`<b>${esc(MSG_ADJ_HELD)}</b> <span id="adjHeld">${esc(a.checkFail.why)}</span><br>${t('未生成新版本', 'No new version was created')}; v${cur ? cur.v : a.fromV} ${t('继续生效（兑奖核验照旧）；已记 Critical 偏离并建案', 'stays in effect (claim verification unchanged). A Critical divergence was recorded and case')} ${esc(a.checkCase || '')}${t('。排查修复后由高级授权人点 Re-run Determination。', ' created. After investigation a Senior Authorizer selects Re-run Determination.')}`, 'rose') + h; };
+  const m = modById('adjust'); if (!m || !m.acts) return;
+  m.acts.adjSimFail = id => { const a = SEED.resultAdj.find(x => x.id === id); if (!a) return; a.simFail = true; toast(t('下一次授权完成时条数校验将失败', 'The count check will fail when authorization completes.'), 'warn'); render(); };
+  m.acts.adjFixSim = id => { const a = SEED.resultAdj.find(x => x.id === id); if (!a) return; a.simFail = false; drAuditAdj('Investigation fixed (simulated)', a.id, ''); toast(t('已模拟排查修复', 'Fix simulated. Re-run Determination now.')); render(); };
+  m.acts.adjRerun = id => { const a = SEED.resultAdj.find(x => x.id === id); if (!a || !a.held) return; if (!hasRole('sa')) { toast(t('仅高级授权人可重新判奖', 'Only a Senior Authorizer can re-run determination.'), 'err'); return; }
+    const d = drawById(a.drawId); drLog(d, { stage: 'Determination', outcome: 'Submitted', reason: `${a.id} · Re-run Determination` }); drAuditAdj('Re-run Determination', a.id, d.id);
+    const r = adjVerify(a); if (!r.ok) { a.checkFail = { at: nowS(true), why: r.why }; drLog(d, { stage: 'Determination', by: 'System', outcome: 'Count Check Failed', reason: `${a.id} · ${r.why}` }); toast(MSG_ADJ_HELD, 'err'); render(); return; }
+    a.held = false; a.status = 'Awaiting Authorization'; drLog(d, { stage: 'Determination', by: 'System', outcome: 'Count Check Passed', reason: `${a.id} · re-run` }); ap(a); render(); };
+})();
+R133_HOOKS.push(() => { const sel = document.querySelector('select[data-filter="adjF|status"]'); if (sel && ![...sel.options].some(o => o.value === ADJ_HELD)) { sel.insertAdjacentHTML('beforeend', `<option value="${ADJ_HELD}">${ADJ_HELD}</option>`); if (fv('adjF', 'status', 'All') === ADJ_HELD) sel.value = ADJ_HELD; } });
+TODO_PROVIDERS.push(u => [{ n: hasRole('sa', u) ? SEED.resultAdj.filter(a => a.held).length : 0, zh: '笔结果调整条数校验未通过、待重新判奖', en: 'result adjustments held after a failed count check', go: 'adjust/list' }]);
+
+/* =====================================================================
+ * seeds that need the 6A.13–6A.16 module data (run after its init)
+ * ===================================================================== */
+(function seedAfterM4() {
+  const m = modById('settlement'); if (!m) return; const i0 = m.init;
+  m.init = () => { if (i0) i0();
+    try {
+      /* 6A.16.7 KYC review rounds (Demo data) */
+      const D = SEED.compDirectives || []; const c1 = D.find(d => d.id === 'CDR-20261012-0001');
+      if (c1) { c1.upids = ['UP-000231907', 'UP-000231908', 'UP-000231920']; c1.status = 'Responded'; c1.respondedAt = '2026-10-12 18:20';
+        c1.rounds = [{ round: 1, at: '2026-10-12 18:20', kind: 'Response', receipt: 'Received', receiptAt: '2026-10-12 18:20:04', text: 'Round 1: 1 Re-KYC Required, 1 Confirmed, 1 Pending (review not yet registered).', results: [{ upid: 'UP-000231907', result: 'Re-KYC Required' }, { upid: 'UP-000231908', result: 'Confirmed' }, { upid: 'UP-000231920', result: 'Pending' }] }];
+        c1.response = c1.rounds[0].text; c1.demo = true;
+        const f = SEED.findings.find(x => x.id === c1.finding); if (f) { f.status = 'Responded'; f.tl.push({ at: '2026-10-12 18:20', by: 'EC2', act: 'Responded', note: c1.response }); } }
+      if (!SEED.findings.some(f => f.id === 'CF-20261008-0003')) SEED.findings.push({ id: 'CF-20261008-0003', channel: 'ILT', area: 'KYC', metric: 'Federation Rejection Rate', value: '2.4%', std: '> 2%', status: 'Closed', flaggedAt: '2026-10-08 07:00', due: '', caseId: '', closedAt: '2026-10-09 16:00', demo: true,
+        tl: [{ at: '2026-10-08 07:00', by: 'System', act: 'Flagged' }, { at: '2026-10-08 09:30', by: 'comp.a', act: 'Directed', note: 'CDR-20261008-0001' }, { at: '2026-10-09 16:00', by: 'comp.a', act: 'Closed', note: 'Re-review completed.' }] });
+      if (!D.some(d => d.id === 'CDR-20261008-0001')) D.push({ id: 'CDR-20261008-0001', channel: 'ILT', type: 'KYC Review', finding: 'CF-20261008-0003', instructions: 'Re-open the KYC decision of the listed player and report the outcome.', upids: ['UP-000104491'], issuedAt: '2026-10-08 09:30', due: '2026-10-13 18:00', by: 'comp.a', status: 'Closed', closedAt: '2026-10-09 16:00', dirId: '', demo: true,
+        response: 'Round 2: 1 Re-verified.', respondedAt: '2026-10-09 11:00',
+        rounds: [{ round: 1, at: '2026-10-08 15:00', kind: 'Response', receipt: 'Received', receiptAt: '2026-10-08 15:00:03', text: 'Round 1: 1 Re-KYC Required.', results: [{ upid: 'UP-000104491', result: 'Re-KYC Required' }] },
+          { round: 2, at: '2026-10-09 11:00', kind: 'Supplement', receipt: 'Received', receiptAt: '2026-10-09 11:00:02', text: 'Round 2: 1 Re-verified.', results: [{ upid: 'UP-000104491', result: 'Re-verified' }] }] });
+      kycSync();
+      /* 6A.10.5: DIV-20261011-000010 is a reported transaction count difference (closed through ADJ-20261011-0003) */
+      const dv = SEED.divergences.find(x => x.id === 'DIV-20261011-000010'); if (dv) Object.assign(dv, { type: 'Transaction Count', core: '27.0000', ch: '28.0000', fields: [{ f: 'Transaction Count (Reported)', core: '27.0000', ch: '28.0000' }], demo133b: true });
+      /* 6A.14.4 Local Only winner reconciliation divergence (Demo data) */
+      if (!SEED.divergences.some(x => x.id === 'DIV-20261012-000015')) SEED.divergences.unshift({ id: 'DIV-20261012-000015', channel: 'EC2', domain: 'Draw Results', dom: 'Draw Results', dtype: 'Local Only', object: 'EC2-0080021602 · Bet 1', type: 'Local Only', sev: 'High', defSev: 'High', status: 'Open', pst: 'Escalated', src: 'Winner Reconciliation', attempts: 0, raisedAt: '2026-10-12 10:40:00', demo: true,
+        core: 'Not on winner list', ch: '4th Prize', fields: [{ f: 'Draw ID / Result Version', core: 'L655-20261010-1 · v1', ch: 'L655-20261010-1 · v1' }, { f: 'Prize Tier', core: 'Not on winner list', ch: '4th Prize' }, { f: 'Prize Per Bet', core: '₱0.00', ch: '₱20.00' }],
+        tl: [{ at: '2026-10-12 10:40:00', by: 'System', act: 'Detected', note: 'Winner reconciliation confirmation: Local Only' }, { at: '2026-10-12 14:05:00', by: 'EC2', act: 'Winner reconciliation re-submitted', note: 'Same result version · difference kept' }, { at: '2026-10-12 14:05:01', by: 'System', act: 'Escalated', note: 'Core winner list unchanged; channel keeps the difference' }] });
+    } catch (e) { console.error(e); }
+  };
+})();
+kycSync();
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
