@@ -15634,6 +15634,144 @@ function b5Click(e) {
 }
 window.addEventListener("click", b5Click, true);
 /* ===== V13-135 END ===== */
+/* ===== V13-136 block (PRD 1.3.6 admin: 6B.11.4, 6B.14.2) =====
+   Injected by patch_v136.py right after the V13-135 block. Runtime reassignments of global bindings, DOM post-processing
+   through v13Tpl. Acts start with "v136-" and are handled by b6Click (window capture). State S.v136. Demo values are marked Demo data. */
+S.v136 = { sp: false };
+
+/* =====================================================================================================
+   6B.11.4 add-back rows: dated by the time Core received the handling result (or the late recovery);
+   one row per Draw ID + version + Core received date. A store-and-forward report is dated by its Core receipt.
+   ===================================================================================================== */
+/** Core received time of a handling result row; null while it is still queued for Core */
+function b6CoreAt(r, fb) {
+  if (r.coreAt) return r.coreAt;
+  if (r.repAt === "Queued") return null;
+  return r.repAt && r.repAt !== "-" ? r.repAt : (r.doneAt || fb || "");
+}
+a2AddBack = function () {
+  const L = [];
+  S.issues.forEach((i) => (i.adj || []).forEach((a) => {
+    const rs = a.rows.filter((r) => r.done && !r.pastDl && r.result !== "Not Applicable" && (r.diffNet != null ? r.diffNet < 0 : /No Longer Won|Prize Reduced|Prize Decreased/.test(r.type)));
+    const off = a.rows.filter((r) => r.done && (r.offset135 || 0) > 0);
+    const by = {};
+    rs.concat(off.filter((r) => !rs.includes(r))).forEach((r) => { const at = b6CoreAt(r, a.at); if (at === null) return; const d = String(at).slice(0, 10); (by[d] = by[d] || []).push(r); });
+    if (!rs.length && !off.length) by[String(a.at || "").slice(0, 10)] = [];
+    Object.keys(by).sort().forEach((day) => {
+      const g = by[day], og = g.filter((r) => rs.includes(r));
+      const over = b4R2(og.reduce((s, r) => s + (r.diffNet != null ? -r.diffNet : taxOf(r.oPrize).net - (r.nPrize ? taxOf(r.nPrize).net : 0)), 0)), amt = b4R2(og.reduce((s, r) => s + (r.recovered || 0), 0));
+      const offset = b4R2(g.reduce((s, r) => s + (r.offset135 || 0), 0));
+      const snf = g.find((r) => r.coreAt && r.repAt && r.repAt !== "Queued" && String(r.repAt).slice(0, 10) !== String(r.coreAt).slice(0, 10));
+      L.push({ draw: i.no, ver: a.from + " → " + a.ver, day, bets: g.length, over, amt, pcso: b4R2(over - amt), rec: amt, borne: b4R2(over - amt), offset, tax: b4R2(a.rows.reduce((s, r) => s + (r.taxDiff || 0), 0)), at: a.at, snf: snf ? { rep: snf.repAt, core: snf.coreAt } : null });
+    });
+  }));
+  S.v134.late.forEach((x) => { const at = x.coreAt || x.at; L.push({ draw: x.draw, ver: "Recovered after withdrawal rejection", day: String(at).slice(0, 10), bets: 1, over: 0, amt: x.amt, pcso: b4R2(-x.amt), rec: x.amt, borne: b4R2(-x.amt), offset: 0, tax: 0, at: x.eff, late: true }); });
+  return L;
+};
+/** handling results still queued for Core (store-and-forward): not on any statement until Core receives them */
+function b6Queued() { let n = 0; S.issues.forEach((i) => (i.adj || []).forEach((a) => a.rows.forEach((r) => { if (r.done && r.repAt === "Queued" && !r.coreAt && ((r.recovered || 0) > 0 || (r.offset135 || 0) > 0 || (r.diffNet != null && r.diffNet < 0))) n++; }))); return n; }
+const B6_AB_RULE = "One row per Draw ID + version + Core received date (a version whose handling results reach Core on different days gets one row per day), dated by the time Core received the handling result (or the late recovery), the same rule as the Core statement; with store-and-forward this can be a later day or settlement period than the iLotto report (for example reported 2027-01-31 23:50, received by Core 2027-02-01 00:20 → the first statement of February). Adjustment Effective At is shown only.";
+const B6_OFFSET = "Offset: when a ticket with an unrecovered amount is adjusted again (top-up or another overpayment), the row of that adjustment shows Σ Borne By PCSO of the ticket's earlier rows (late recovery rows count negative) − Σ Offset of its earlier rows; a version with only Offset still gets a row (Add-back ₱0.00).";
+const b6AbCard0 = a2AddBackCard;
+a2AddBackCard = function () {
+  const L = a2AddBack();
+  return v13Tpl(b6AbCard0(), (c) => {
+    const card = c.querySelector("[data-a2=addback]"); if (!card) return;
+    const tb = card.querySelector("table[data-v134=addback]") || card.querySelector("table"); if (!tb) return;
+    const ths = b4Ths(tb);
+    ths.forEach((th) => {
+      const h = th.textContent.trim();
+      if (h === "Reported On") { th.textContent = "Core Received On"; th.title = "The date Core received the handling result or the late recovery"; th.setAttribute("data-v136", "ab-recv"); }
+      if (h === "Draw ID") { th.title = "One row per Draw ID + version + Core received date"; th.setAttribute("data-v136", "ab-draw"); }
+      if (h === "Adjustment Effective At") { th.title = "Shown only. This row is dated by the time Core received the handling result."; th.setAttribute("data-v136", "ab-eff"); }
+    });
+    tb.querySelectorAll(":scope > tbody > tr").forEach((tr, n) => {
+      const r = L[n]; if (!r || !r.snf || !tr.dataset.a2Ab) return; const k = b4Idx(tb, "Core Received On"); const td = tr.children[k]; if (!td) return;
+      td.insertAdjacentHTML("beforeend", `<div class="tiny" data-v136="ab-snf">${z(`Reported ${esc(r.snf.rep)} · received by Core ${esc(r.snf.core)} (store-and-forward)`, `iLotto 上报 ${esc(r.snf.rep)} · Core 收到 ${esc(r.snf.core)}（存储转发）`)}</div>`);
+    });
+    const p = card.querySelector("p.tiny");
+    if (p) {
+      p.innerHTML = p.innerHTML.replace(/One row per draw, version and report date, dated by the time the handling result \(or the late recovery\) was reported to Core, the same rule Core uses; Adjustment Effective At is shown only\./, `<span data-v136="ab-rule">${esc(B6_AB_RULE)}</span>`);
+      if (!p.querySelector("[data-v136=ab-rule]")) p.insertAdjacentHTML("beforeend", ` <span data-v136="ab-rule">${esc(B6_AB_RULE)}</span>`);
+    }
+    const an = card.querySelector("[data-v135=ab-note]");
+    if (an) an.innerHTML = an.innerHTML.replace(/Offset: when a ticket with an unrecovered amount is adjusted again \(top-up or another overpayment\), the row of that adjustment shows the amount still unrecovered before it \(earlier Borne By PCSO − later late recoveries\); a version with only Offset still gets a row \(Add-back ₱0\.00\)\./, `<span data-v136="ab-offset">${esc(B6_OFFSET)}</span>`);
+    const q = b6Queued();
+    if (q) { const tot = card.querySelector("[data-a2=ab-total]"); const host = tot ? (tot.closest("p,div") || tot) : tb; host.insertAdjacentHTML("afterend", `<p class="tiny" data-v136="ab-queued">${z(`${q} handling result(s) are queued for Core (store-and-forward); they go into the first statement generated after the day Core receives them.`, `${q} 条处理结果在存储转发队列中，Core 收到后按收到日计入之后第一张计算书。`)}</p>`); }
+  });
+};
+
+/* =====================================================================================================
+   6B.11.4 Core net due check: settlement periods derived locally from Settlement Parameters; a period type change
+   gives a transition settlement period (start – end), its finalization and remittance due dates by the new type
+   ===================================================================================================== */
+const B6_PT = { Month: "Calendar Month", "Half-month": "Half-month", Week: "Week" };
+const b6D = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+const b6F = (ms) => new Date(ms).toISOString().slice(0, 10);
+const b6Add = (s, n) => b6F(b6D(s) + n * 864e5);
+function b6IsStart(type, s) { const d = new Date(b6D(s)), dd = d.getUTCDate(); return type === "Week" ? d.getUTCDay() === 1 : type === "Half-month" ? dd === 1 || dd === 16 : dd === 1; }
+function b6Next(type, s) { let x = b6Add(s, 1); for (let i = 0; i < 40 && !b6IsStart(type, x); i++) x = b6Add(x, 1); return x; }
+/** periods from `from` (start of the first period of the new version) with the transition period if needed */
+function b6Periods(oldType, newType, effStart, grace, due, nAfter) {
+  const out = []; const row = (st, en, kind) => { const fin = b6Add(en, grace); out.push({ per: kind === "month" ? st.slice(0, 7) : `${st} – ${en}`, st, en, kind, fin, due: b6Add(fin, due) }); };
+  /* the last period of the old type before the change */
+  const prevSt = oldType === "Month" ? b6F(Date.UTC(+effStart.slice(0, 4), +effStart.slice(5, 7) - 2, 1)) : b6Add(effStart, -7);
+  row(prevSt, b6Add(effStart, -1), oldType === "Month" ? "month" : "range");
+  let st = effStart;
+  if (!b6IsStart(newType, st)) { const nx = b6Next(newType, st); row(st, b6Add(nx, -1), "transition"); st = nx; }
+  for (let i = 0; i < nAfter; i++) { const nx = b6Next(newType, st); row(st, b6Add(nx, -1), newType === "Month" ? "month" : "range"); st = nx; }
+  return out;
+}
+const b6Cnd0 = a2ViewCnd;
+a2ViewCnd = function () {
+  return v13Tpl(b6Cnd0(), (c) => {
+    const ra = c.querySelector(".row-actions");
+    if (ra && a2Is("ops", "finance") && !S.v136.sp) ra.insertAdjacentHTML("beforeend", a2Btn("v136-sp", z("Demo: Settlement Parameters v2 (Week from 2027-04)", "演示：结算参数 v2（2027-04 起按周）")));
+    if (!S.v136.sp) return;
+    const P = b6Periods("Month", "Week", "2027-04-01", 3, 5, 2);
+    const rows = P.map((x) => `<tr data-v136-sp="${x.st}"><td class="mono">${x.per}</td><td>${x.kind === "transition" ? tag("warn", "Transition settlement period") : x.kind === "month" ? "Calendar Month" : "Week"}</td><td class="mono">${x.fin}</td><td class="mono" data-v136="sp-due">${x.due}</td></tr>`);
+    const card = `<div class="card" data-v136="sp" style="margin-top:12px"><h4>${z("Settlement periods after the period type change", "结算期类型变更后的结算期")}</h4>
+      <p class="tiny">${v13Demo()} ${z("Settlement Parameters v2 (Demo data): Calendar Month → Week from 2027-04, grace 3 days, remittance due 5 days. The notice has no extra field: iLotto derives the transition settlement period from the effective time and the new type (from the period start to the day before the next Monday), shows it by start and end date, and derives its finalization and remittance due dates by the same rule; weekly periods (Monday – Sunday) follow.", "结算参数 v2（演示数据）：2027-04 起自然月改周，宽限 3 天、汇款截止 5 天；通知不另加字段，iLotto 按生效时间与新类型推算过渡结算期（所选期起点至下一个周一前一天），按起止日期显示，定稿日、汇款截止日同一规则推算，之后按周（周一至周日）。")}</p>
+      ${table(["Settlement Period", "Type", "Finalization Date", "Remittance Due"], rows)}</div>`;
+    const host = c.querySelector(".b1w") || c.querySelector("table"); if (host) host.insertAdjacentHTML("afterend", card); else c.insertAdjacentHTML("beforeend", card);
+  });
+};
+
+/* =====================================================================================================
+   6B.14.2 directives: Directive Revocation scope (no revocation for Draw Result / Result Adjustment; a receipt-only notice
+   already received is reported Already Executed)
+   ===================================================================================================== */
+(function b6SeedDirs() {
+  const L = S.v13a2.dirs; if (L.some((x) => x.id === "DIR-20261011-000137")) return;
+  const mk = (o) => Object.assign({ reason: "", by: "core.sa01", players: [], detail: "", fail: "", handler: "System", mode: "auto", sub: "", round: 0, ackHist: [] }, o);
+  const add = [
+    mk({ id: "DIR-20261011-000136", type: "Non-conformance Notice", sum: "ILT-TKT202610110017 · After Cut-off · Medium", reason: "Late transaction", by: "System", issued: "2026-10-11 16:00:00", deadline: "", exec: "Executed", execAt: "2026-10-11 16:00:01", revAlready: "DIR-20261011-000137", detail: "Receipt-only notice, already received; Core later revoked it and iLotto reported Already Executed. Demo data" }),
+    mk({ id: "DIR-20261011-000137", type: "Directive Revocation", sum: "Revoke DIR-20261011-000136 (Non-conformance Notice)", reason: "Judged on the wrong transaction", by: "core.sa01", issued: "2026-10-11 16:30:00", deadline: "2026-10-11 16:35:00", exec: "Executed", execAt: "2026-10-11 16:30:01", target: "DIR-20261011-000136", pres: "Already Executed", detail: "DIR-20261011-000136 is a receipt-only notice that iLotto had already received at 16:00:01: it is not rolled back and Already Executed is reported; Core marks the revocation Not Effective and sends a new directive if needed. Demo data" }),
+  ];
+  add.forEach((d) => { d.recv = btFmt(btMs(d.issued) + 1000); d.ackHist = [[d.recv, "Receipt confirmation sent"]].concat(d.execAt ? [[d.execAt, "Execution result sent"]] : []); d.ack = b1Ack(d); d.demo = true; L.push(d); });
+})();
+const B6_DIR_NOTE = "Draw Result and Result Adjustment have no revocation, so iLotto never receives a revocation for them. A receipt-only notice that iLotto has already received is not rolled back either: its revocation is reported Already Executed (Core marks it Not Effective); one not received yet is recorded Revoked and, if it arrives later, is only acknowledged and not applied.";
+const b6ViewDir0 = a2ViewDir;
+a2ViewDir = function () {
+  return v13Tpl(b6ViewDir0(), (c) => {
+    c.querySelectorAll("tbody tr[data-a2-dir]").forEach((tr) => {
+      const d = S.v13a2.dirs.find((x) => x.id === tr.dataset.a2Dir); if (!d || !d.revAlready) return; const sum = tr.children[2]; if (!sum) return;
+      sum.insertAdjacentHTML("beforeend", `<div class="tiny" data-v136="dir-already">${z("Revocation", "撤销通知")} ${a2Link("v134-go-dir", esc(d.revAlready), { id: d.revAlready })} · ${tag("warn", "Already Executed")} · ${z("received earlier, not rolled back", "此前已收到，不回退")}</div>`);
+    });
+    const n = c.querySelector("[data-v134=dir-note]");
+    if (n) { n.innerHTML = n.innerHTML.replace("Directive Revocation: Core can revoke any directive whose result is not Executed yet.", "Directive Revocation: Core can revoke any directive whose result is not Executed yet, except Draw Result and Result Adjustment."); n.insertAdjacentHTML("beforeend", ` <span data-v136="dir-note">${z(B6_DIR_NOTE, "开奖结果 / 结果调整不设撤销，不会收到其撤销通知；已收到的只回执类通知被撤同样不回退，报 Already Executed；尚未收到的记 Revoked，之后收到原通知只回执、不落地。")}</span>`); }
+  });
+};
+
+/* ===================================================================================================== clicks */
+function b6Click(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act; if (!act || act.indexOf("v136-") !== 0) return;
+  e.stopPropagation(); e.preventDefault(); if (el.disabled) return;
+  if (act === "v136-sp") { S.v136.sp = true; x13Aud(t("Core 集成", "Core integration"), "Reference change implemented", "Settlement Parameters v2", "Calendar Month", "Week from 2027-04 · transition settlement period 2027-04-01 – 2027-04-04 (Demo data)"); toast("Settlement Parameters v2 implemented: transition settlement period 2027-04-01 – 2027-04-04, then weekly."); render(); return; }
+}
+window.addEventListener("click", b6Click, true);
+/* ===== V13-136 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">

@@ -3919,14 +3919,15 @@ const openN=g=>drawList(g,12).filter(d=>{const tm=g.sess[0];const cut=Date.parse
  if(curOff(g))r.dates=drawList(g,P.draws+4).filter(d=>!dSusp(g,d)).slice(0,P.draws);return r}}
 {const _c=SC.betConfirm.html;SC.betConfirm.html=function(){let h=_c.apply(this,arguments);const {g,dates}=betPlan();const cd=curD(g);
  if(!(g.t==='lotto'&&curOff(g)&&!dates.includes(cd)))return h;
- return h.replace('<h3 style="margin-top:18px">',`<div class="c134" id="cf_dsusp">${dno(g,cd,'')} · ${MSG_DRAW_OFF} ${MSG_NEXT_OPEN}</div><h3 style="margin-top:18px">`)}}
+ return h.replace('<h3 style="margin-top:18px">',`<div class="c134" id="cf_dsusp">${MSG_NEXT_OPEN}</div><h3 style="margin-top:18px">`)}}
 const underMin=()=>{if(!S.minBet||!S.play)return 0;const {g,tot,tickets}=betPlan();const mn=S.minBet[g.id];return mn!=null&&tickets>0&&tot/tickets<mn?mn:0};
 /* ③ draw-level suspension after ① login / identity and ② device; ⑧ registry minimum after the account checks */
 const pre134=()=>{if(!S.play)return false;const g=gm(S.play.game);
  if(planHitsSusp()){const pk=preKey(g);if(pk&&(pk==='kyc'||pk===devKey())){rstShow(pk);return true}
   const one=betPlan().dates.length===1;toast(one?MSG_DRAW_OFF:MSG_DNOS);v13Audit('bet-blocked-draw-not-on-sale');return true}
  const mn=underMin();if(mn&&!preKey(g)){toast(MIN_MSG(mn));return true}return false};
-const MSG_NEXT_OPEN='Your draws start from the next open draw.';
+/* PRD 1.3.6 6B.3.3 final wording; the actual draw IDs are listed draw by draw below */
+const MSG_NEXT_OPEN='The current draw is not on sale. Your bet starts from the next draw.';
 {const _b=A.bet;A.bet=function(){if(S.play)delete S.play.dlock;if(pre134())return;const r=_b.apply(this,arguments);
  if(S.play&&S.screen==='betConfirm'){const bp=betPlan();if(bp.g.t==='lotto'&&!bp.times)S.play.dlock=bp.dates.slice()}return r}}
 {const _bg=A.betGo;A.betGo=function(){if(pre134())return;return _bg.apply(this,arguments)}}

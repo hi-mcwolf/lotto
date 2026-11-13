@@ -9914,6 +9914,260 @@ R133_HOOKS.push(() => {
 
 </script>
 <script>
+/* ===== p8h_136.js ===== */
+/* =====================================================================
+ * p8h_136.js — PRD 1.3.6 updates (Core portal)
+ * Loaded after p8g_135.js and before boot().
+ *  A. 6A.2.6 Revoke: no Revoke for Draw Result / Result Adjustment (6A.6.6); other receipt-only types can be
+ *     revoked — not yet received → Revoked / Effective, already received → Already Executed / Not Effective
+ *  B. 6A.6.6 Resend note: result delivery cannot be revoked
+ *  C. 6A.13.5 new version: Effective From Period listed by the current period type; fixed boundaries per type;
+ *     transition settlement period when the period type changes (6A.13.1)
+ *  D. 6A.8.2 Deletion pending only while the deletion request is Pending Approval (detail + list)
+ *  E. 6A.15.5 / 6A.15.6 escalation recipients see and acknowledge the alerts escalated to them; custom roles selectable
+ *  F. 6A.13.1 Offset = Σ earlier Borne By PCSO (Late Recovery rows negative) − Σ earlier Offset; four-version demo
+ * Demo rows are marked demo:true.
+ * ===================================================================== */
+'use strict';
+const R136 = { ver: '1.3.6' };
+
+/* =====================================================================
+ * A. 6A.2.6 Revoke scope
+ * ===================================================================== */
+const NO_REVOKE_TYPES = ['Draw Result', 'Result Adjustment'];
+function dirCanRevoke(d) {
+  return d.type !== 'Directive Revocation' && !NO_REVOKE_TYPES.includes(d.type) && d.receipt !== 'Revoked' && d.exec !== 'Executed';
+}
+/** outcome the E-Channel reports for a Directive Revocation n (6A.2.6 / 6B.14.2) */
+function revExpected(n) {
+  const d = dirById(n.revokes); if (!d) return 'Revoked';
+  if (d.exec === 'Executed' || d.exec === 'Replied') return 'Already Executed';
+  if (DIR_MODE[d.type] === 'Receipt only' && ['Received', 'Received Late'].includes(d.preRevReceipt)) return 'Already Executed';
+  return 'Revoked';
+}
+['dirAll', 'chDirs', 'diagDir', 'drDirs'].forEach(tid => {
+  R134_COLS[tid] = cols => {
+    const j = colIdx(cols, 'Actions'); if (j < 0) return cols;
+    const canC = chGenericC(), canA = can('Channel Control', 'A');
+    cols[j] = { h: 'Actions', r: d => `<span class="nowrap">${[
+      canC && d.type !== 'Directive Revocation' && (['Timed Out', 'Escalated'].includes(d.receipt) || d.exec === 'Failed') ? btn({ zh: '重发', en: 'Resend' }, 'dirResend', d.id, { cls: 'sm' }) : '',
+      canA && dirCanRevoke(d) ? btn({ zh: '撤销', en: 'Revoke' }, 'dirRevoke', d.id, { cls: 'sm danger' }) : ''].join(' ')}</span>` };
+    return cols;
+  };
+});
+const MSG_REVOKE_RCVD = 'The E-Channel has already received this notice. The revocation will be reported as Already Executed and the Revocation Result will be Not Effective. To correct the business effect, issue a new directive.';
+(function wrapRevoke136() {
+  const r0 = ACT.dirRevoke;
+  ACT.dirRevoke = id => {
+    const d = dirById(id); if (!d || !dirCanRevoke(d)) return;
+    const pre = d.receipt; r0(id);
+    const m = S.modal; if (!m || !m.onOk) return;
+    if (DIR_MODE[d.type] === 'Receipt only' && ['Received', 'Received Late'].includes(pre)) { const b0 = m.body; m.body = () => `<div class="banner amber" id="revRcvdNote">${esc(MSG_REVOKE_RCVD)}</div>` + (typeof b0 === 'function' ? b0() : (b0 || '')); }
+    const o0 = m.onOk; m.onOk = v => { const res = o0(v); if (res !== false && d.receipt === 'Revoked') d.preRevReceipt = pre; return res; };
+    render();
+  };
+  const a0 = ACT.dirAck;
+  ACT.dirAck = id => { const n = dirById(id); if (n && n.type === 'Directive Revocation' && !n.revOutcome) { revApply(n, revExpected(n)); render(); return; } a0(id); };
+  const c0 = revCell;
+  revCell = function (d) {
+    let h = c0(d);
+    if (d.type === 'Directive Revocation' && !d.revOutcome) { const x = revExpected(d); h = h.replace(new RegExp(`<button[^>]*data-a="${d.id}\\|${x === 'Revoked' ? 'Already Executed' : 'Revoked'}"[\\s\\S]*?</button>`), ''); }
+    return h;
+  };
+})();
+/* demo rows (Demo data): result directives without Revoke; a received receipt-only notice revoked → Not Effective;
+   an escalated receipt-only notice revoked → Effective */
+(function seedRev136() {
+  const D = SEED.directives; if (D.some(x => x.id === 'DIR-20261012-000103')) return;
+  const base = { authBy: '-', retries: 0, demo: true, demo136: true };
+  D.push(Object.assign({ id: 'DIR-20261012-000103', channel: 'ILT', type: 'Draw Result', summary: 'L655-20261012-1 · Result v1', reason: 'Result authorized', by: 'System', issuedAt: '2026-10-12 21:10:00', deadline: '2026-10-12 21:15:00', ack: 'Executed', ackAt: '2026-10-12 21:10:03', objv: 'L655-20261012-1 · Result v1', receipt: 'Received', receivedAt: '2026-10-12 21:10:03', exec: 'Not Required' }, base, { issuedAt: '2026-10-12 21:00:00', ackAt: '2026-10-12 21:00:03', receivedAt: '2026-10-12 21:00:03', deadline: '2026-10-12 21:05:00' }));
+  D.push(Object.assign({ id: 'DIR-20261012-000104', channel: 'EC2', type: 'Result Adjustment', summary: 'L658-20261009-1 · Result v3', reason: 'Result adjustment authorized', by: 'System', issuedAt: '2026-10-12 16:00:00', deadline: '2026-10-12 16:05:00', ack: 'Awaiting', ackAt: '', objv: 'L658-20261009-1 · Result v3', receipt: 'Awaiting', receivedAt: '', exec: 'Not Required' }, base));
+  /* received Divergence Status Notice, revoked afterwards → Already Executed / Not Effective */
+  D.push(Object.assign({ id: 'DIR-20261012-000105', channel: 'EC2', type: 'Divergence Status Notice', summary: 'DV-20261012-0003 → Closed (transaction divergence)', reason: 'Divergence status changed', by: 'System', issuedAt: '2026-10-12 11:20:00', deadline: '2026-10-12 11:25:00', ack: 'Executed', ackAt: '2026-10-12 11:20:02', objv: 'DV-20261012-0003 · Status v2', receipt: 'Revoked', preRevReceipt: 'Received', receivedAt: '2026-10-12 11:20:02', exec: 'Not Required', revokedBy: 'sa.a', revokedAt: '2026-10-12 11:40:00', revokeReason: 'Closed on the wrong divergence', revDir: 'DIR-20261012-000106', revRes: 'Not Effective' }, base));
+  D.push(Object.assign({ id: 'DIR-20261012-000106', channel: 'EC2', type: 'Directive Revocation', summary: 'Revoke DIR-20261012-000105 (Divergence Status Notice)', reason: 'Closed on the wrong divergence', by: 'sa.a', issuedAt: '2026-10-12 11:40:00', deadline: '2026-10-12 11:45:00', ack: 'Executed', ackAt: '2026-10-12 11:40:21', objv: 'DIR-20261012-000105 · Revocation', receipt: 'Received', receivedAt: '2026-10-12 11:40:02', exec: 'Executed', reportedAt: '2026-10-12 11:40:21', revokes: 'DIR-20261012-000105', revOutcome: 'Already Executed' }, base));
+  /* escalated Re-sync Result (never received), revoked → Revoked / Effective */
+  D.push(Object.assign({ id: 'DIR-20261012-000107', channel: 'EC2', type: 'Re-sync Result', summary: 'RS-20261012-0002 · Completed', reason: 'Re-sync finished', by: 'System', issuedAt: '2026-10-12 09:00:00', deadline: '2026-10-12 09:05:00', ack: 'Escalated', ackAt: '', objv: 'RS-20261012-0002', receipt: 'Revoked', preRevReceipt: 'Escalated', receivedAt: '', exec: 'Not Required', revokedBy: 'sa.b', revokedAt: '2026-10-12 09:40:00', revokeReason: 'Superseded by a new re-sync', revDir: 'DIR-20261012-000108', revRes: 'Effective' }, base));
+  D.push(Object.assign({ id: 'DIR-20261012-000108', channel: 'EC2', type: 'Directive Revocation', summary: 'Revoke DIR-20261012-000107 (Re-sync Result)', reason: 'Superseded by a new re-sync', by: 'sa.b', issuedAt: '2026-10-12 09:40:00', deadline: '2026-10-12 09:45:00', ack: 'Executed', ackAt: '2026-10-12 09:52:10', objv: 'DIR-20261012-000107 · Revocation', receipt: 'Received', receivedAt: '2026-10-12 09:52:05', exec: 'Executed', reportedAt: '2026-10-12 09:52:10', revokes: 'DIR-20261012-000107', revOutcome: 'Revoked' }, base));
+})();
+
+/* =====================================================================
+ * B. 6A.6.6 Resend: result delivery cannot be revoked
+ * ===================================================================== */
+const MSG_RESULT_NO_REVOKE = 'Resend sends the same result version again. Result delivery cannot be revoked: the directive list shows no Revoke for Draw Result and Result Adjustment. Undelivered channels are handled with Flag for Manual Reconciliation.';
+(function wrapCascade136() {
+  const t0 = drCascadeTable;
+  drCascadeTable = function (id, d, rv) { return t0(id, d, rv) + `<p class="tiny muted" data-r136="noRevoke">${esc(MSG_RESULT_NO_REVOKE)}</p>`; };
+})();
+
+/* =====================================================================
+ * C. 6A.13.5 settlement period type change + transition settlement period (6A.13.1)
+ * ===================================================================== */
+const PT_FORM = { Month: 'Calendar Month', 'Half-month': 'Half-month', Week: 'Week' };
+const PT_BOUNDS = 'Fixed boundaries · Week: Monday – Sunday · Half-month: 1st – 15th and 16th – month end · Calendar Month: 1st – month end';
+const ymd136 = ms => new Date(ms).toISOString().slice(0, 10);
+const day136 = s => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+const addD136 = (s, n) => ymd136(day136(s) + n * 864e5);
+function ptIsStart(type, s) { const ms = day136(s); const d = new Date(ms); const dd = d.getUTCDate();
+  return type === 'Week' ? d.getUTCDay() === 1 : type === 'Half-month' ? (dd === 1 || dd === 16) : dd === 1; }
+function ptNextStart(type, s) { let x = addD136(s, 1); for (let i = 0; i < 40 && !ptIsStart(type, x); i++) x = addD136(x, 1); return x; }
+function ptLabel(type, st) { const en = addD136(ptNextStart(type, st), -1); return type === 'Month' ? st.slice(0, 7) : `${st} – ${en}`; }
+function ptStartOf(label) { const m = String(label).match(/^(\d{4}-\d{2})(?:-(\d{2}))?/); return m ? `${m[1]}-${m[2] || '01'}` : ''; }
+/** next 12 periods of the current type that have not started (6A.13.5 Effective From Period) */
+function sfPeriods136(type) { const out = []; let st = ptNextStart(type, ymd136(S.now + 8 * 36e5)); for (let i = 0; i < 12; i++) { out.push(ptLabel(type, st)); st = ptNextStart(type, st); } return out; }
+const ptCode = f => f === 'Calendar Month' ? 'Month' : f;
+/** transition period when the new type does not start on the selected period start (null = none) */
+function sfTransition(effLabel, newType, grace, due) {
+  const st = ptStartOf(effLabel); if (!st || ptIsStart(newType, st)) return null;
+  const next = ptNextStart(newType, st); const end = addD136(next, -1); const fin = addD136(end, +grace || 0); const dueD = addD136(fin, +due || 0);
+  return { from: st, to: end, fin, due: dueD, next };
+}
+function sfTransText(x, newType) {
+  return `Transition settlement period ${x.from} – ${x.to} · Finalization Date ${x.fin} · Remittance Due Date ${x.due}. From ${x.next} the periods follow ${PT_FORM[newType]}.`;
+}
+function sfTransHtml() {
+  const cur = SEED.sfVersions.find(v => v.status === 'Active') || SEED.sfVersions[0]; const curT = cur.p.periodType;
+  const nt = ptCode(fval('m_pt', PT_FORM[curT])); if (!nt || nt === curT) return '';
+  const x = sfTransition(fval('m_eff', ''), nt, fval('m_gr', cur.p.graceDays), fval('m_du', cur.p.dueDays));
+  return `<div class="banner amber" id="sfTrans">${x ? esc(sfTransText(x, nt)) : esc(`The selected period starts on a ${PT_FORM[nt]} boundary. ${PT_FORM[nt]} periods start directly from ${ptStartOf(fval('m_eff', ''))}.`)}</div>`;
+}
+(function wrapSfForm136() {
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'm_eff') && fields.some(f => f && f.k === 'm_pt' && (f.opts || []).includes('Calendar Month'))) {
+      const cur = SEED.sfVersions.find(v => v.status === 'Active') || SEED.sfVersions[0];
+      fields = fields.map(f => {
+        if (!f) return f;
+        if (f.k === 'm_eff') return Object.assign({}, f, { opts: sfPeriods136(cur.p.periodType), chg: true, hint: `The next settlement period that has not started, or later. Listed by the current period type (${PT_FORM[cur.p.periodType]}).` });
+        if (f.k === 'm_pt') return Object.assign({}, f, { chg: true, hint: PT_BOUNDS });
+        return f;
+      });
+      const i = fields.findIndex(f => f && f.k === 'm_du');
+      fields.splice(i + 1, 0, { k: 'm_trans', zh: '过渡结算期', en: 'Transition Settlement Period', ctl: 'html', show: () => !!sfTransHtml(), html: () => sfTransHtml() });
+    }
+    return f0(fields, o);
+  };
+  const s0 = sfForm134;
+  sfForm134 = function () {
+    s0(); const m = S.modal; if (!m || !S.fv || !('m_eff' in S.fv)) return;
+    const cur = SEED.sfVersions.find(v => v.status === 'Active') || SEED.sfVersions[0]; const ps = sfPeriods136(cur.p.periodType);
+    if (!ps.includes(S.fv.m_eff)) S.fv.m_eff = ps[0];
+    if (S.fv.m_pt === 'Month') S.fv.m_pt = 'Calendar Month';
+    const o0 = m.onOk; m.onOk = v => {
+      const n0 = SEED.sfVersions.length; const res = o0(v);
+      if (res !== false && SEED.sfVersions.length > n0) { const nv = SEED.sfVersions[SEED.sfVersions.length - 1]; const nt = ptCode(v.m_pt);
+        if (nt !== cur.p.periodType) { const x = sfTransition(v.m_eff, nt, v.m_gr, v.m_du); if (x) nv.trans = x; nv.ptChange = `${PT_FORM[cur.p.periodType]} → ${PT_FORM[nt]}`; } }
+      return res;
+    };
+    render();
+  };
+  const st = modById('settlement'); if (!st || !st.acts) return; const A = st.acts;
+  const ok0 = A.stSfOk;
+  A.stSfOk = v => { const x = SEED.sfVersions.find(o => o.v === v); if (!x || !/^\d{4}-\d{2}$/.test(String(x.effFrom))) return ok0(v);
+    const keep = x.effFrom; x.effFrom = `${keep}-01 – ${keep}`; try { return ok0(v); } finally { x.effFrom = keep; } };
+  A.stSfCR = () => sfForm134();
+})();
+R134_COLS.sfList = cols => {
+  const i = colIdx(cols, 'Effective From Period'); if (i < 0) return cols; const r0 = cols[i].r;
+  cols[i] = Object.assign({}, cols[i], { r: v => (r0 ? r0(v) : esc(v.effFrom)) + (v.ptChange ? `<div class="tiny">${esc(v.ptChange)}</div>` : '') + (v.trans ? `<div class="tiny" data-r136="trans">Transition ${esc(v.trans.from)} – ${esc(v.trans.to)}</div>` : '') });
+  return cols;
+};
+
+/* =====================================================================
+ * D. 6A.8.2 Deletion pending only for a Pending Approval deletion request
+ * ===================================================================== */
+const delPendingApproval = p => !!(p && p.delReq && p.delReq.status === 'Pending Approval');
+(function wrapPlDetail136() {
+  const b0 = c2plBody;
+  c2plBody = function (p) {
+    let h = b0(p);
+    if (S.dtab === 'basic' && delPendingApproval(p)) {
+      h = h.replace(/(<div>Account Status<\/div><div>)([\s\S]*?)(<\/div><div>Exclusion Status<\/div>)/, (s, a, b, c) => a + b
+        + `<div style="margin-top:3px" id="plDelPendTag"><button class="btn link" data-act="pl.delTab" data-a="${p.upid}">${badge('Deletion pending', 'warn')}</button> <span class="tiny">${esc(p.delReq.id)} · Pending Approval</span></div>` + c);
+    }
+    return h;
+  };
+  const m = modById('players'); if (!m || !m.acts) return;
+  m.acts['pl.delTab'] = () => { S.dtab = 'acts'; render(); };
+})();
+/* demo: a deletion request still in Pre-check Running — no Deletion pending tag, Mark as Deleted stays disabled (Demo data) */
+(function seedDel136() {
+  const p = SEED.players.find(x => x.upid === 'UP-000231908'); if (!p || p.delReq) return;
+  const r = { id: 'DEL-20261012-0002', by: 'draw.b', at: '2026-10-12 19:30', reason: 'Player asked EC2 to delete the account (EC2 ticket CS-88214).', case: '', status: 'Pre-check Running', pre: { Core: 'No Blocking Items', EC2: 'Awaiting' }, dirs: [], demo: true };
+  p.delReq = r; p.delReqs = [r];
+})();
+
+/* =====================================================================
+ * E. 6A.15.5 / 6A.15.6 escalation recipients
+ * ===================================================================== */
+const SEV_136 = { P1: 'Critical', P2: 'High', P3: 'Medium', P4: 'Low' };
+/** Critical/High alert not acknowledged within 5 minutes → pushed to the escalation recipients */
+function alEscalated136(a) {
+  const lv = a.level || SEV_136[a.sev] || a.sev; if (!['Critical', 'High'].includes(lv)) return false;
+  const t1 = a.ackAt ? dt(a.ackAt) : S.now; return t1 - dt(a.raisedAt) >= 5 * 60e3;
+}
+alertPushed = function (a, u = S.user) {
+  if (!u) return false; const r = (SEED.routing || []).find(x => x.type === alType134(a));
+  if (!r) return can('Health Monitoring', 'E', u);
+  if ((u.roles || []).some(x => (r.roles || []).includes(x)) || (r.users || []).includes(u.id)) return true;
+  return (u.roles || []).some(x => (r.escalate || []).includes(x)) && alEscalated136(a);
+};
+ALERT_VISIBLE = (a, u) => alertPushed(a, u);
+const MSG_ESC_HINT = 'Critical and High alerts not acknowledged within 5 minutes are sent to these roles. They can view and acknowledge those alerts in Alerts, without other monitoring pages.';
+function roleLabel136(id) { const r = (SEED.roles || []).find(x => x.id === id); return r && r.type === 'Custom' ? r.name : roleName(id); }
+(function wrapRouting136() {
+  const m = modById('health'); if (!m || !m.acts) return;
+  const e0 = m.acts.rtEdit;
+  m.acts.rtEdit = type => {
+    const add = (SEED.roles || []).filter(r => r.type === 'Custom' && r.status === 'Active' && !ROLES.some(x => x.id === r.id)).map(r => ({ id: r.id, en: r.name, zh: r.name, cat: r.category, custom136: true }));
+    ROLES.push(...add);
+    try { e0(type); } finally { add.forEach(x => { const i = ROLES.indexOf(x); if (i >= 0) ROLES.splice(i, 1); }); }
+  };
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'm_esc')) fields = fields.map(f => f && f.k === 'm_esc' ? Object.assign({}, f, { hint: MSG_ESC_HINT }) : f);
+    return f0(fields, o);
+  };
+})();
+R134_COLS.rtList = cols => {
+  const i = colIdx(cols, 'Escalate To'); if (i >= 0) cols[i] = { h: 'Escalate To', r: r => esc((r.escalate || []).map(roleLabel136).join(', ') || '-') };
+  const j = colIdx(cols, 'Recipient Roles'); if (j >= 0) cols[j] = { h: 'Recipient Roles', r: r => esc((r.roles || []).map(roleLabel136).join(', ')) };
+  return cols;
+};
+R133_HOOKS.push(() => {
+  if (S.page !== 'health') return;
+  if (S.sub === 'routing' && !document.getElementById('rtEscNote')) { const tb = document.querySelector('[data-table=rtList]'); if (tb) tb.insertAdjacentHTML('afterend', `<p class="tiny" id="rtEscNote">Escalate To: ${esc(MSG_ESC_HINT)}</p>`); }
+  if (!can('Health Monitoring')) { const p = [...document.querySelectorAll('.view .page-h p, .view p')].find(e => /^Only the alerts routed to you by Alert Routing are shown/.test(e.textContent)); if (p && !p.dataset.r136) { p.dataset.r136 = '1'; p.textContent = 'Only the alerts routed to you by Alert Routing are shown, as a recipient or as an escalation recipient. You can acknowledge them; export is not available.'; } }
+});
+
+/* =====================================================================
+ * F. 6A.13.1 Offset rule + four-version demo (6A.13.1 例 2 extension)
+ * ===================================================================== */
+R133_HOOKS.push(() => {
+  const n = document.getElementById('stAddNote'); if (!n || n.dataset.r136) return; n.dataset.r136 = '1';
+  n.textContent = n.textContent.replace(/Offset is the amount of the same ticket still unrecovered before a later adjustment, shown on that adjustment's row\./,
+    'Offset is shown on the row of a later adjustment of the same ticket = Σ Borne By PCSO of the earlier rows (Late Recovery rows count negative) − Σ Offset of the earlier rows.');
+});
+(function seedAddBack136() {
+  const m = modById('settlement'); if (!m) return; const i0 = m.init;
+  m.init = () => {
+    if (i0) i0();
+    try {
+      const s = SEED.settlements.find(x => x.id === 'SET-EC2-20261012'); if (!s || (s.addRows || []).some(r => r.demo136)) return;
+      const d = { demo136: true, demo: true };
+      /* ₱1,000.00 → v2 ₱600.00 (only ₱100.00 recovered) → v3 ₱800.00 → v4 ₱1,000.00; Σ Borne ₱400.00 − Σ Offset ₱400.00 = ₱0.00 */
+      s.addRows = (s.addRows || []).concat([
+        Object.assign({ draw: 'L642-20261007-1', ver: 2, txid: 'EC2-0080021466', over: 400, diff: 100, borne: 300, offset: 0, recvAt: '2026-10-12 10:20' }, d),
+        Object.assign({ draw: 'L642-20261007-1', ver: 3, txid: 'EC2-0080021466', over: 100, diff: 0, borne: 100, offset: 300, recvAt: '2026-10-12 15:10' }, d),
+        Object.assign({ draw: 'L642-20261007-1', ver: 4, txid: 'EC2-0080021466', over: 0, diff: 0, borne: 0, offset: 100, recvAt: '2026-10-12 18:30' }, d),
+      ]);
+      s.adjAddBack = stAddTotals(s).add;
+      s.net = r2_135(r2_135(s.sales) - r2_135(s.prizesPaid) - r2_135(s.refunds) + r2_135(s.adjAddBack) + r2_135(s.priorAdj));
+    } catch (e) { console.error(e); }
+  };
+})();
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
