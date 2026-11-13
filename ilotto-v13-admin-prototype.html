@@ -15449,6 +15449,191 @@ function b4FillRegVer() { (S.issues || []).forEach((i) => { if (!i.regVer || /un
 b4FillRegVer();
 document.addEventListener("input", (e) => { const el = e.target; if (el && el.dataset && el.dataset.v134f) { S.v13a2.f[el.dataset.v134f] = el.value; } }, true);
 /* ===== V13-134 END ===== */
+/* ===== V13-135 block (PRD 1.3.5 admin: 6B.7.4, 6B.7.5, 6B.10.3, 6B.11.4, 6B.14.3) =====
+   Injected by patch_v135.py right after the V13-134 block. Runtime reassignments of global bindings, DOM post-processing
+   through v13Tpl. Acts start with "v135-" and are handled by b5Click (window capture). State S.v135. Demo values are marked Demo data. */
+S.v135 = { re: {} };
+const B5_STOP_DOMS = ["Game Register", "Draw Calendar", "Unit Value", "Claim Policy"];
+const B5_MED_DOMS = ["Loyalty Framework", "Settlement Parameters", "Compliance Parameters", "Channel Operating Parameters", "Terms of Service", "Terms Of Service", "No Draw Dates"];
+function b5Note(c, html, key) { const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v135="${key}">${html}</span>`); }
+const b5Neg = (v) => (v < 0 ? "−" + peso2(-v) : peso2(v));
+
+/* =====================================================================================================
+   6B.11.4 add-back rows: Borne By PCSO at the time of the adjustment, Late Recovery rows carry −recovered, Offset column
+   ===================================================================================================== */
+a2AddBack = function () {
+  const L = [];
+  S.issues.forEach((i) => (i.adj || []).forEach((a) => {
+    const rs = a.rows.filter((r) => r.done && !r.pastDl && r.result !== "Not Applicable" && (r.diffNet != null ? r.diffNet < 0 : /No Longer Won|Prize Reduced|Prize Decreased/.test(r.type)));
+    const off = a.rows.filter((r) => r.done && (r.offset135 || 0) > 0);
+    const by = {}; rs.concat(off.filter((r) => !rs.includes(r))).forEach((r) => { const d = String(r.repAt && r.repAt !== "-" && r.repAt !== "Queued" ? r.repAt : r.doneAt || a.at || "").slice(0, 10); (by[d] = by[d] || []).push(r); });
+    if (!rs.length && !off.length) by[String(a.at || "").slice(0, 10)] = [];
+    Object.keys(by).sort().forEach((day) => {
+      const g = by[day], og = g.filter((r) => rs.includes(r));
+      const over = b4R2(og.reduce((s, r) => s + (r.diffNet != null ? -r.diffNet : taxOf(r.oPrize).net - (r.nPrize ? taxOf(r.nPrize).net : 0)), 0)), amt = b4R2(og.reduce((s, r) => s + (r.recovered || 0), 0));
+      const offset = b4R2(g.reduce((s, r) => s + (r.offset135 || 0), 0));
+      /* Borne By PCSO = overpayment − amount actually recovered, as at the adjustment; a later late recovery gets its own row with −amount */
+      L.push({ draw: i.no, ver: a.from + " → " + a.ver, day, bets: g.length, over, amt, pcso: b4R2(over - amt), rec: amt, borne: b4R2(over - amt), offset, tax: b4R2(a.rows.reduce((s, r) => s + (r.taxDiff || 0), 0)), at: a.at });
+    });
+  }));
+  S.v134.late.forEach((x) => L.push({ draw: x.draw, ver: "Recovered after withdrawal rejection", day: x.at.slice(0, 10), bets: 1, over: 0, amt: x.amt, pcso: b4R2(-x.amt), rec: x.amt, borne: b4R2(-x.amt), offset: 0, tax: 0, at: x.eff, late: true }));
+  return L;
+};
+function b5AbTotals() { const L = a2AddBack(); const s = (k) => b4R2(L.reduce((a, r) => a + (r[k] || 0), 0)); const borne = s("pcso"), offset = s("offset"); return { add: s("amt"), borne, offset, net: b4R2(borne - offset) }; }
+const b5AbCard0 = a2AddBackCard;
+a2AddBackCard = function () {
+  const L = a2AddBack();
+  return v13Tpl(b5AbCard0(), (c) => {
+    const card = c.querySelector("[data-a2=addback]"); if (!card) return;
+    const tb = card.querySelector("table[data-v134=addback]") || card.querySelector("table"); if (!tb) return;
+    const k = b4Idx(tb, "Borne By PCSO"); if (k < 0) return;
+    b4Ths(tb)[k].insertAdjacentHTML("afterend", "<th>Offset</th>");
+    tb.querySelectorAll(":scope > tbody > tr").forEach((tr, n) => {
+      if (!tr.dataset.a2Ab) { const td = tr.children[0]; if (td && td.colSpan > 1) td.colSpan += 1; return; }
+      const r = L[n] || {}; if (tr.children[k]) tr.children[k].innerHTML = b5Neg(r.pcso || 0);
+      tr.children[k].insertAdjacentHTML("afterend", `<td class="mono amt" data-v135="ab-offset">${peso2(r.offset || 0)}</td>`);
+    });
+    const x = b5AbTotals();
+    const tot = card.querySelector("[data-a2=ab-total]"); const host = tot ? (tot.closest("p,div") || tot) : tb;
+    host.insertAdjacentHTML("afterend", `<p class="tiny" data-v135="ab-pcso">${z(`PCSO actually bears = Σ Borne By PCSO − Σ Offset = ${b5Neg(x.borne)} − ${peso2(x.offset)} = ${b5Neg(x.net)} (shown only; not part of Net Due To PCSO)`, `PCSO 实际承担 = Σ 其中 PCSO 承担 − Σ 其中抵回 = ${b5Neg(x.borne)} − ${peso2(x.offset)} = ${b5Neg(x.net)}（仅展示，不进应汇净额）`)}</p>`);
+    const p = card.querySelector("p.tiny");
+    if (p) p.insertAdjacentHTML("beforeend", ` <span data-v135="ab-note">${z("Borne By PCSO = overpayment − Add-back Amount, recorded as at the adjustment; a Late Recovery row shows the recovered amount as a negative Borne By PCSO. Offset: when a ticket with an unrecovered amount is adjusted again (top-up or another overpayment), the row of that adjustment shows the amount still unrecovered before it (earlier Borne By PCSO − later late recoveries); a version with only Offset still gets a row (Add-back ₱0.00). Offset is shown only and not part of the total; it is checked against the Offset column of the Core statement. Per ticket, the add-back of one adjustment (later Late Recovery included) is at most the cumulative net paid before this adjustment − the new after-tax payable of this adjustment.", "其中 PCSO 承担按调整当时记；补扣加回行记负的补扣额；其中抵回 = 同票此前仍未追回的额，记在再次调整的行；仅展示，不进合计。")}</span>`);
+  });
+};
+
+/* demo: Core result adjustment v3 restores the bets of the last overpaid adjustment (6B.7.4 / 附录 B T106 step 6) */
+function b5V3(i) {
+  const a = (i.adj || []).slice().reverse().find((x) => x.rows.some((r) => r.done && r.diffNet != null && r.diffNet < 0)); if (!a || (i.adj || []).some((x) => x.v135)) return null;
+  const nv = "v" + (parseInt(String(a.ver).replace(/\D/g, ""), 10) + 1), at = a2NowFull();
+  const rows = a.rows.filter((r) => r.done && r.diffNet != null && r.diffNet < 0).map((r) => {
+    const late = r.late || 0, back = b4R2((r.recovered || 0) + late); /* top-up = new after tax − cumulative net paid (original − reversed − late recovered) */
+    return { ref: r.ref, line: r.line, type: "Prize Increased", oTier: r.nTier, oPrize: r.nPrize, nTier: r.oTier, nPrize: r.oPrize, diffNet: back, recovered: 0, unrec: 0, topup: back, offset135: b4R2(Math.max(0, (r.unrec || 0) - late)), done: true, doneAt: at, repAt: at, result: "Topped Up", hs: "Done", handling: "Prize Top-up of the new after-tax payable − the ticket's cumulative net paid" + ((r.unrec || 0) - late > 0 ? "; the unrecovered " + peso2(b4R2((r.unrec || 0) - late)) + " stays with the player (Offset)" : "") };
+  });
+  const v3 = { ver: nv, from: a.ver, at, why: "Prize correction (bets restored) · Demo data", rows, v135: true };
+  i.adj.push(v3); if (i.res) i.res.ver = nv;
+  rows.forEach((r) => { if (r.topup > 0) x13Aud(t("交易流水", "Transactions"), "Prize Top-up · Adjusted after PCSO corrected the draw results.", r.ref, "—", peso2(r.topup)); });
+  x13Aud(t("期次与开奖", "Draws and results"), "Result adjustment received", i.no, a.ver, nv + " · " + rows.length + " bets topped up (Demo data)");
+  return v3;
+}
+
+/* =====================================================================================================
+   6B.7.4 Adjustments: rejected ticket ruled iLotto Error is handled as unclaimed (Standard); Paid By Channel = cumulative net paid
+   ===================================================================================================== */
+if (!B3_ADJ_EXTRA.some((x) => x.kind === "rejstd")) B3_ADJ_EXTRA.push({ ref: "ILT-TKT202610090302", line: 1, type: "Newly Won", oTier: "Rejected by Core · iLotto Error", oPrize: 1000, nTier: "Match 4 · 3rd", nPrize: 1000, bal: 300, kind: "rejstd", note: "Rejected by Core and ruled iLotto Error (₱300.00 reversed, ₱700.00 borne by iLotto): handled as unclaimed, Standard reported with the new values (net ₱1,000.00); wallet + ₱300.00 = ₱1,000.00 − local cumulative net paid ₱700.00", result: "Standard reported", hs: "Done" });
+B3_ADJ_EXTRA.forEach((x) => { if (x.kind === "chpaid" && !/cumulative net paid/.test(x.note)) x.note = x.note.replace("Paid By Channel ₱240,000.00", "Paid By Channel ₱240,000.00 (cumulative net paid)"); });
+const b5Adj0 = v13AdjCard;
+v13AdjCard = function (i) {
+  return v13Tpl(b5Adj0(i), (c) => {
+    const card = c.querySelector("[data-v13=adj]"); if (!card) return;
+    card.querySelectorAll("tr[data-v13-adjrow]").forEach((tr) => {
+      let r = null; (i.adj || []).forEach((a) => a.rows.forEach((x) => { if (x.ref === tr.dataset.v13Adjrow) r = x; }));
+      if (r && r.offset135 && tr.children[6]) tr.children[6].insertAdjacentHTML("beforeend", `<div class="tiny" data-v135="adj-offset">Offset ${peso2(r.offset135)}</div>`);
+      if (r && r.kind === "rejstd") tr.setAttribute("data-v135", "rejstd");
+    });
+    const p = card.querySelector("p.tiny");
+    if (p) p.insertAdjacentHTML("beforeend", ` <span data-v135="adj-note">${z("A ticket whose Standard record Core rejected and Finance review ruled iLotto Error (not changed to accepted by an adjustment request) is handled as unclaimed when the adjustment makes it win: a Standard record is reported with the whole-ticket new values and the wallet gets only the new after-tax payable − the ticket's local cumulative net paid (credited − reversed); nothing is paid or reversed when that is ₱0.00 or less. A ticket moved above the threshold keeps its cumulative net paid as Paid By Channel; cheque = new net − Paid By Channel. Per ticket, the reversal and add-back of one adjustment (later Late Recovery included) is at most the cumulative net paid before this adjustment − the new after-tax payable of this adjustment.", "判定 iLotto Error 的票再遇调整按未兑处理：报 Standard（整票新值），钱包只补新税后 − 本地累计净实付，≤ ₱0.00 的不补、不再冲回；越过门槛的渠道已付取累计净实付。")}</span>`);
+  });
+};
+const b5Detail0 = viewDrawDetail;
+viewDrawDetail = function () {
+  const i = S.issues.find((x) => x.no === (S.sub && S.sub.no)); const h = b5Detail0();
+  if (!i || !(i.adj || []).some((a) => a.rows.some((r) => r.done && r.diffNet != null && r.diffNet < 0)) || (i.adj || []).some((a) => a.v135)) return h;
+  return v13Tpl(h, (c) => { const ra = c.querySelector("[data-v13=draw-demo] .row-actions"); if (ra) ra.insertAdjacentHTML("beforeend", `<button type="button" class="btn btn-sm" style="width:auto" data-act="v135-v3" data-id="${i.no}">${z("Demo: Core result adjustment restores the bets", "演示：Core 结果调整恢复原奖金")}</button>`); });
+};
+
+/* =====================================================================================================
+   6B.7.5 big prize claim records: Paid By Channel = cumulative net paid of the ticket
+   ===================================================================================================== */
+S.v13.claims.forEach((c) => { if (c.paidByCh && !c.chBrk) c.chBrk = { cred: taxOf(c.paidByCh).net, rev: 0, top: 0 }; });
+const b5Claims0 = viewClaimsMenu;
+viewClaimsMenu = function () {
+  const h = b5Claims0(); if (S.sub) return h;
+  return v13Tpl(h, (c) => {
+    c.querySelectorAll("tr[data-v13-claim]").forEach((tr) => {
+      const x = S.v13.claims.find((y) => y.ref === tr.dataset.v13Claim); const td = tr.querySelector("[data-v131=paid-by-ch]"); if (!x || !x.chBrk || !td) return;
+      const b = x.chBrk, paid = b4R2(b.cred - b.rev + b.top), net = x.st === "Claimed" ? x.coreNet : taxOf(x.gross).net;
+      td.innerHTML = `${peso2(paid)}<div class="tiny" data-v135="pbc-brk">${peso2(b.cred)} credited − ${peso2(b.rev)} reversed + ${peso2(b.top)} topped up</div><div class="tiny">Cheque = ${peso2(net)} − ${peso2(paid)} = ${peso2(b4R2(net - paid))}</div>`;
+    });
+    c.querySelectorAll("p.tiny").forEach((p) => { if (/Paid By Channel: only for tickets that crossed the threshold after a result adjustment, the after-tax amount credited before the adjustment;/.test(p.textContent)) p.innerHTML = p.innerHTML.replace("Paid By Channel: only for tickets that crossed the threshold after a result adjustment, the after-tax amount credited before the adjustment;", "Paid By Channel: only for tickets that crossed the threshold after a result adjustment, the ticket's cumulative net paid (accepted original record − reversals reported to Core, late recoveries included, + earlier top-ups);"); });
+  });
+};
+
+/* =====================================================================================================
+   6B.10.3 prize payments: a ticket ruled iLotto Error and later won by a result adjustment gets a new Standard row (附录 B T138)
+   ===================================================================================================== */
+const b5Rows0 = b1PrizeRows;
+b1PrizeRows = function () {
+  const L = b5Rows0();
+  Object.keys(S.v135.re).forEach((k) => { const x = S.v135.re[k]; if (!L.some((r) => r.clm === x.clm)) L.push(Object.assign({}, x)); });
+  return L;
+};
+const b5Pay0 = viewPrizePay;
+viewPrizePay = function () {
+  return v13Tpl(b5Pay0(), (c) => {
+    c.querySelectorAll("tr[data-a2-prize]").forEach((tr) => {
+      const id = tr.dataset.a2Prize, rec = S.v133.rej[id];
+      if (rec && rec.dec === "iLotto Error" && !S.v135.re[id]) { const td = tr.lastElementChild; if (td) td.insertAdjacentHTML("beforeend", a2Btn("v135-restd", z("Demo: result adjustment makes it win", "演示：结果调整后该票中奖"), { id })); }
+      const re = Object.values(S.v135.re).find((x) => x.clm === id);
+      if (re) { tr.setAttribute("data-v135", "restd"); const kk = b4Idx(tr.closest("table"), "Core Verification"); const td = tr.children[kk >= 0 ? kk : 11]; if (td) td.insertAdjacentHTML("beforeend", `<div class="tiny" data-v135="restd-note">${esc(re.note)}</div>`); }
+    });
+    b5Note(c, z("A ticket ruled iLotto Error that a later result adjustment makes win is handled as unclaimed: a new Standard record with the whole-ticket new values is reported and counted by Core in full, while the wallet gets only the new after-tax payable − the local cumulative net paid.", "判定 iLotto Error 的票再遇调整中奖：新报一条 Standard（整票新值），Core 全额计入；钱包只补新税后 − 本地累计净实付。"), "pp-note");
+  });
+};
+function b5ReStd(id) {
+  const r = b1PrizeRows().find((x) => x.clm === id), rec = S.v133.rej[id]; if (!r || !rec || rec.dec !== "iLotto Error" || S.v135.re[id]) return;
+  const local = b4R2(r.net - (rec.rev || 0)), add = b4R2(r.net - local), at = a2NowFull();
+  const clm = "PRC-ILT-" + at.slice(0, 10).replace(/-/g, "") + "-R" + String(Object.keys(S.v135.re).length + 1).padStart(3, "0");
+  S.v135.re[id] = Object.assign({}, r, { clm, type: "Standard", ver: "v2", cv: "Accepted", why: "", resolved: "", flag: "", rep: "Reported", claimedAt: at.slice(0, 16), at: at.slice(0, 16), ackAt: "-",
+    note: `Re-reported as Standard after result adjustment v2 (earlier record ${id} rejected, iLotto Error). Wallet + ${peso2(Math.max(0, add))} = ${peso2(r.net)} − local cumulative net paid ${peso2(local)}; Core counts ${peso2(r.net)}.` });
+  if (add > 0) x13Aud(t("交易流水", "Transactions"), "Prize Top-up · Adjusted after PCSO corrected the draw results.", r.ref, "—", peso2(add));
+  x13Aud("Prize payments", "Standard claim record reported after a result adjustment", clm, id + " · Rejected (iLotto Error)", peso2(r.net) + " · Accepted (Demo data)");
+  return S.v135.re[id];
+}
+
+/* =====================================================================================================
+   6B.14.3 reference changes: only Game Register / Draw Calendar / Unit Value / Claim Policy (and no-draw dates that leave
+   non-existent draws on sale) stop sales; the six other domains raise a Medium divergence and an alert, sales continue
+   ===================================================================================================== */
+function b5StopNotice(n) { return n.impl === "Failed" && (B5_STOP_DOMS.includes(n.dom) || (n.dom === "No Draw Dates" && !!n.stop)); }
+function b5MedNotice(n) { return n.impl === "Failed" && !b5StopNotice(n) && B5_MED_DOMS.includes(n.dom); }
+const b5Ref0 = a2ViewRef;
+a2ViewRef = function () {
+  return v13Tpl(b5Ref0(), (c) => {
+    const ban = c.querySelector("[data-a2=ref-banner]");
+    const stop = S.v13a2.notices.filter(b5StopNotice), crit = S.v13a2.decls.filter((d) => d.divs.some((x) => x.level === "Critical" && x.st === "Open")), med = S.v13a2.notices.filter(b5MedNotice);
+    if (ban) {
+      if (!stop.length && !crit.length) ban.remove();
+      else ban.innerHTML = `${z("Betting stopped until implemented or the divergence is resolved", "停止收注，直至落地成功或偏离消除")}: ${stop.map((n) => esc(n.stop || n.obj) + " (" + esc(n.dom) + " " + n.ver + (n.dom === "No Draw Dates" ? ", draws that do not exist still on sale: Critical" : "") + ")").concat(crit.map((d) => d.id)).join(" · ")}`;
+    }
+    if (med.length) {
+      const html = `<div class="banner" data-v135="ref-medium">${z("Not implemented after the effective time — Medium divergence; Operations alerted and implementation retried; draws stay on sale", "生效后仍未落地 — Medium 偏离；已告警运营专员并重试落地；不停售")}: ${med.map((n) => esc(n.obj) + " (" + esc(n.dom) + " " + esc(n.ver) + ")").join(" · ")}</div>`;
+      const anchor = c.querySelector("[data-a2=ref-banner]"); if (anchor) anchor.insertAdjacentHTML("afterend", html); else c.insertAdjacentHTML("afterbegin", html);
+    }
+    const ra = c.querySelector(".page-h .row-actions");
+    if (ra && a2Is("ops") && !S.v13a2.notices.some((n) => n.v135)) ra.insertAdjacentHTML("afterbegin", a2Btn("v135-ref-med", z("Demo: Channel Operating Parameters not implemented", "演示：渠道运行参数未落地")));
+    c.querySelectorAll("tr[data-a2-notice]").forEach((tr) => { const n = S.v13a2.notices.find((x) => x.id === tr.dataset.a2Notice); if (n && b5MedNotice(n)) { tr.classList.remove("alert"); tr.setAttribute("data-v135", "notice-medium"); } });
+    b5Note(c, z("Only Game Register, Draw Calendar, Unit Value and Claim Policy versions not implemented by their effective time (or a Critical divergence) stop the affected draws. Loyalty Framework, Settlement Parameters, Compliance Parameters, Channel Operating Parameters, Terms of Service and No Draw Dates not implemented, or still declared at the old version, after the effective time do not stop sales: Core records a Medium divergence, alerts and opens a case, and iLotto alerts Operations and retries the implementation. If a No Draw Dates version not implemented leaves draws on sale that do not exist, Core treats it as Critical and those draws stop.", "仅登记册、开奖日历、交易单元价值、兑奖政策生效时未落地（或 Critical 偏离）停售受影响期次；其余六个域生效后未落地或仍声明旧版本记 Medium、告警建案、不停售；因无开奖日未落地仍售不存在期次的按 Critical 停售。"), "ref-note");
+  });
+};
+function b5RefMed() {
+  if (S.v13a2.notices.some((n) => n.v135)) return;
+  const at = a2NowFull().slice(0, 16), eff = at.slice(0, 10) + " 00:00";
+  S.v13a2.notices.unshift({ id: "RCN-" + at.slice(0, 10).replace(/-/g, "") + "-0031", type: "Change", dom: "Channel Operating Parameters", obj: "Channel Operating Parameters", ver: "v2", eff, iss: at.slice(0, 10) + " 09:00", recv: at.slice(0, 10) + " 09:00", ack: "Sent", impl: "Failed", what: "Heartbeat grace period 3 → 4 heartbeats (Demo data)", v135: true });
+  S.v13a2.decls.push({ id: "CD-ILT-" + at.slice(0, 10).replace(/-/g, "") + "-07", trig: "Local change", at, cmp: "Channel Operating Parameters v2", res: "Divergent", sev: "Medium", divs: [{ dom: "Channel Operating Parameters", obj: "Channel Operating Parameters", field: "Declared version after the effective time", core: "v2", local: "v1", level: "Medium", st: "Open" }] });
+  x13Aud(t("Core 集成", "Core integration"), "Reference change implementation failed", "Channel Operating Parameters v2", "Pending", "Failed · Medium divergence · alert to Operations · sales continue (Demo data)");
+}
+
+/* ===================================================================================================== clicks */
+function b5Click(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id; if (!act || act.indexOf("v135-") !== 0) return;
+  e.stopPropagation(); e.preventDefault(); if (el.disabled) return;
+  if (act === "v135-v3") { const i = S.issues.find((x) => x.no === id); const v = i && b5V3(i); if (v) toast("Result " + v.ver + " received: " + v.rows.length + " bets restored and topped up; the add-back statement shows the Offset."); render(); return; }
+  if (act === "v135-restd") { const x = b5ReStd(id); if (x) toast("Standard claim record " + x.clm + " reported; Core accepted it."); render(); return; }
+  if (act === "v135-ref-med") { b5RefMed(); toast("Channel Operating Parameters v2 not implemented: Medium divergence, alert to Operations, draws stay on sale."); render(); return; }
+}
+window.addEventListener("click", b5Click, true);
+/* ===== V13-135 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">

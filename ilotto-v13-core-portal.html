@@ -9773,6 +9773,147 @@ R133_HOOKS.push(() => { if (S.page !== 'coi') return; document.querySelectorAll(
 
 </script>
 <script>
+/* ===== p8g_135.js ===== */
+/* =====================================================================
+ * p8g_135.js — PRD 1.3.5 updates (Core portal)
+ * Loaded after p8f_134.js and before boot().
+ *  A. 6A.13.1 settlement statement · Adjustment Overpayment Add-back detail:
+ *     Overpayment / Add-back / Borne By PCSO / Offset (+ PCSO net borne = Σ Borne − Σ Offset)
+ *  B. 6A.7.4 add-back note: cap per adjustment, period by Core receipt time
+ *  C. 6A.11.4 Channel Paid = cumulative net paid (credited − reported reversals + earlier top-ups)
+ *  D. 6A.11.3 Top-up deadline by adjustment; rejected (iLotto Error) ticket re-reported as Standard
+ *  E. 6A.3.5 divergence severity: six domains still on an old version are Medium (alert + case, no stop)
+ * Demo rows are marked demo:true and listed in README §14.
+ * ===================================================================== */
+'use strict';
+const R135 = { ver: '1.3.5' };
+const r2_135 = x => Math.round(x * 100) / 100;
+
+/* =====================================================================
+ * A. 6A.13.1 add-back detail columns + demo rows (PRD 6A.13.1 例 2, 附录 B T106)
+ * ===================================================================== */
+R134_COLS.stAdd = () => [
+  { h: 'Draw ID', k: 'draw' },
+  { h: 'Result Version', r: r => esc(r.verLabel || ('v' + (r.ver || 2))) },
+  { h: 'Transaction ID', r: r => `<span class="mono">${esc(r.txid)}</span>` },
+  { h: 'Overpayment', cls: 'num', r: r => r.over == null ? '-' : fmtP(r.over) },
+  { h: 'Add-back', cls: 'num', r: r => fmtP(r.diff) },
+  { h: 'Borne By PCSO', cls: 'num', r: r => (r.borne || 0) < 0 ? '−' + fmtP(-r.borne) : fmtP(r.borne || 0) },
+  { h: 'Offset', cls: 'num', r: r => fmtP(r.offset || 0) },
+  { h: 'Received At', r: r => esc(r.recvAt || r.at || '-') },
+];
+function stAddTotals(s) {
+  const rows = (s && s.addRows) || []; const sum = k => r2_135(rows.reduce((a, r) => a + (r[k] || 0), 0));
+  const borne = sum('borne'), offset = sum('offset');
+  return { add: sum('diff'), borne, offset, net: r2_135(borne - offset) };
+}
+const negP = v => v < 0 ? '−' + fmtP(-v) : fmtP(v);
+R133_HOOKS.push(() => {
+  const tb = document.querySelector('[data-table=stAdd]'); if (!tb || document.getElementById('stAddNote')) return;
+  const s = S.drawer && S.drawer.stId && SEED.settlements.find(x => x.id === S.drawer.stId); if (!s || !(s.addRows || []).length) return;
+  const x = stAddTotals(s);
+  tb.insertAdjacentHTML('afterend', `<p class="tiny" id="stAddNote">${esc(t(
+    `加回合计 ${fmtP(x.add)}；PCSO 实际承担 = Σ 其中 PCSO 承担 − Σ 其中抵回 = ${negP(x.borne)} − ${fmtP(x.offset)} = ${negP(x.net)}。其中 PCSO 承担按调整当时记（= 超付额 − 实际冲回额），追回补报行记负的补扣额；其中抵回 = 同一张票此前仍未追回的额，在再次调整的行记。两列只展示，不进合计。`,
+    `Add-back total ${fmtP(x.add)}. PCSO actually bears = Σ Borne By PCSO − Σ Offset = ${negP(x.borne)} − ${fmtP(x.offset)} = ${negP(x.net)}. Borne By PCSO is recorded at the time of the adjustment (overpayment − amount actually recovered); a Late Recovery row carries the recovered amount as a negative. Offset is the amount of the same ticket still unrecovered before a later adjustment, shown on that adjustment's row. Both columns are shown only and are not part of the total.`))}</p>`);
+});
+(function seedAddBack() {
+  const m = modById('settlement'); if (!m) return; const i0 = m.init;
+  m.init = () => {
+    if (i0) i0();
+    try {
+      const by = id => SEED.settlements.find(s => s.id === id);
+      const old = by('SET-ILT-20260928');
+      if (old) (old.addRows || []).forEach(r => Object.assign(r, { ver: r.ver || 2, over: r.over != null ? r.over : r.diff, borne: r.borne || 0, offset: r.offset || 0, recvAt: r.recvAt || r.at }));
+      const cur = by('SET-ILT-20261012');
+      if (!cur || (cur.addRows || []).some(r => r.demo135)) return;
+      const d = { demo135: true, demo: true };
+      cur.addRows = (cur.addRows || []).concat([
+        /* 6A.13.1 例 2: ₱1,000.00 → ₱600.00 only ₱100.00 recovered; v3 back to ₱1,000.00 */
+        Object.assign({ draw: 'L658-20261009-1', ver: 2, txid: 'ILT-T0080021296', over: 400, diff: 100, borne: 300, offset: 0, recvAt: '2026-10-12 09:12' }, d),
+        Object.assign({ draw: 'L658-20261009-1', ver: 3, txid: 'ILT-T0080021296', over: 0, diff: 0, borne: 0, offset: 300, recvAt: '2026-10-12 16:05' }, d),
+        /* 附录 B T106: ₱2,287.58 → ₱1,250.00, ₱500.00 recovered, ₱300.00 late recovery, v3 restores */
+        Object.assign({ draw: 'L655-20261010-1', ver: 2, txid: 'ILT-T0080021395', over: 1037.58, diff: 500, borne: 537.58, offset: 0, recvAt: '2026-10-12 09:15' }, d),
+        Object.assign({ draw: 'L655-20261010-1', ver: 2, verLabel: 'v2 · Late Recovery', txid: 'ILT-T0080021395', over: null, diff: 300, borne: -300, offset: 0, recvAt: '2026-10-12 14:40' }, d),
+        Object.assign({ draw: 'L655-20261010-1', ver: 3, txid: 'ILT-T0080021395', over: 0, diff: 0, borne: 0, offset: 237.58, recvAt: '2026-10-12 16:05' }, d),
+      ]);
+      cur.adjAddBack = stAddTotals(cur).add;
+      cur.net = r2_135(r2_135(cur.sales) - r2_135(cur.prizesPaid) - r2_135(cur.refunds) + r2_135(cur.adjAddBack) + r2_135(cur.priorAdj));
+    } catch (e) { console.error(e); }
+  };
+})();
+
+/* =====================================================================
+ * B. 6A.7.4 add-back note (cap per adjustment, period by Core receipt)
+ * ===================================================================== */
+R133_HOOKS.push(() => {
+  const p = [...document.querySelectorAll('.view p.tiny')].find(e => /^Core adds back only what the channel reports as actually recovered/.test(e.textContent));
+  if (p && !p.dataset.r135) { p.dataset.r135 = '1'; p.textContent += ' Per ticket, the add-back of one adjustment (later Late Recovery included) is at most the cumulative net paid before this adjustment − the new after-tax payable of this adjustment.'; }
+});
+
+/* =====================================================================
+ * C. 6A.11.4 Channel Paid = cumulative net paid of the ticket
+ * ===================================================================== */
+(function seedDesk135() {
+  if (!SEED.claims) return;
+  const c50 = SEED.claims.find(c => c.id === 'CLM-20261012-0050'); if (c50 && !c50.chBreak) c50.chBreak = { cred: 224000, rev: 0, top: 0 };
+  if (!SEED.claims.some(c => c.id === 'CLM-20261012-0051')) SEED.claims.push({ id: 'CLM-20261012-0051', upid: 'UP-000104501', txid: 'ILT-T0080021421', drawId: 'L658-20261009-1', tier: '2nd Prize', gross: 400000, tax: 80000, net: 320000, channel: 'ILT', method: 'PCSO Main Office', status: 'FOR CLAIMING', startedAt: '2026-10-12 11:40', codeHash: '', check: '', codeAt: '', usedHashes: [],
+    channelPaid: 600, chBreak: { cred: 1000, rev: 400, top: 0 }, channelPaidNote: 'ILT credited ₱1,000.00, reversed ₱400.00 after v2 (₱600.00), v3 moved the ticket above the threshold', demo: true });
+})();
+function chPaidText(c) {
+  const b = c.chBreak || { cred: c.channelPaid, rev: 0, top: 0 };
+  return t(`该票累计净实付 = 已入账 ${fmtP(b.cred)} − 已上报冲回 ${fmtP(b.rev)}（含追回补报）+ 此前补发 ${fmtP(b.top)}；结果调整后越过大奖门槛，渠道已入账部分不冲回（暂定）`,
+    `Cumulative net paid of the ticket = credited ${fmtP(b.cred)} − reversals reported to Core ${fmtP(b.rev)} (late recoveries included) + earlier top-ups ${fmtP(b.top)}. Crossed the big prize threshold after a result adjustment: the amount already paid by the channel is not reversed (provisional).`);
+}
+(function wrapDesk() {
+  const f0 = c2deskView;
+  c2deskView = function (m) {
+    let h = f0(m); const D = c2desk(); const c = D.claim ? c2claim(D.claim) : null;
+    if (c && c.channelPaid) h = h.replace(/(Channel Paid<\/div><div>[^<]*<span class="tiny">)[^<]*(<\/span>)/, (all, a, b) => a + esc(chPaidText(c)) + b);
+    return h;
+  };
+})();
+
+/* =====================================================================
+ * D. 6A.11.3 claim records: rejected ticket re-reported as Standard (附录 B T138) + Top-up deadline note
+ * ===================================================================== */
+(function seedRecs135() {
+  if (!SEED.claimRecords || SEED.claimRecords.some(r => r.id === 'CLM-20261012-0052')) return;
+  SEED.claimRecords.push(
+    { id: 'CLM-20261011-0040', source: 'ILT', upid: 'UP-000104483', txid: 'ILT-T0080021409', drawId: 'L655-20261010-1', tier: '4th Prize', gross: 1000, tax: 0, net: 1000, bets: 1, type: 'Standard', at: '2026-10-11 09:20', method: 'Standard', outcome: 'Approved', validation: 'Rejected', reason: 'Not on the current Winning Wager List · ILT ruled iLotto Error', tiers: [{ tier: '4th Prize', bets: 1, unit: 1000 }], demo: true },
+    { id: 'CLM-20261012-0052', source: 'ILT', upid: 'UP-000104483', txid: 'ILT-T0080021409', drawId: 'L655-20261010-1', tier: '4th Prize', gross: 1000, tax: 0, net: 1000, bets: 1, type: 'Standard', ver: 2, at: '2026-10-12 11:20', method: 'Standard', outcome: 'Approved', validation: 'Accepted', reason: 'Won after result adjustment v2; the earlier record was rejected. Counted in Prizes Paid in full (₱1,000.00).', tiers: [{ tier: '4th Prize', bets: 1, unit: 1000 }], demo: true });
+})();
+R133_HOOKS.push(() => {
+  if (S.page !== 'claims' || S.sub !== 'records') return; const tb = document.querySelector('[data-table=crT]'); if (!tb || document.getElementById('crNote135')) return;
+  tb.insertAdjacentHTML('afterend', `<p class="tiny" id="crNote135">${esc(t(
+    'Top-up 不按兑奖时间判截止日，看所属调整：调整生效时或渠道收到时已过兑奖截止日的拒收（Claim Expired）；截止日前收到的调整，Top-up 兑奖时间晚于截止日也照常核验。Standard 曾被拒收、渠道判 iLotto Error 的票再遇结果调整的，按未兑处理：渠道按新清单报 Standard（整票新值），按该条实付计入渠道已付奖金，不计调整超付加回。',
+    'The claim deadline of a Top-up is judged by its adjustment, not by the claim time: a Top-up is rejected (Claim Expired) only when the adjustment took effect or reached the channel after the claim deadline; a Top-up claimed after the deadline for an adjustment received before it is validated as usual. A ticket whose Standard record was rejected and ruled iLotto Error by the channel is handled as unclaimed when a result adjustment makes it win: the channel reports a new Standard record (whole-ticket new values), counted in Prizes Paid at its net paid, with no add-back.'))} ${demoTag()}</p>`);
+});
+
+/* =====================================================================
+ * E. 6A.3.5 divergence severity (six domains Medium even after the effective time)
+ * ===================================================================== */
+const STALE_CRIT_DOMAINS = ['Game Register', 'Draw Calendar', 'Unit Value', 'Claim Policy'];
+const STALE_MED_DOMAINS = ['Loyalty Framework', 'Settlement Parameters', 'Compliance Parameters', 'Channel Operating Parameters', 'Terms Of Service', 'No Draw Dates'];
+function staleSev(domain, nonexistentDraw) { return STALE_CRIT_DOMAINS.includes(domain) || (domain === 'No Draw Dates' && nonexistentDraw) ? 'Critical' : STALE_MED_DOMAINS.includes(domain) ? 'Medium' : 'High'; }
+function staleHandling(i) {
+  if (!i.stale) return '-';
+  return i.sev === 'Critical' ? t('受影响期次停售，直到落地或偏离消除', 'Affected draws stop sales until applied or resolved') : t('告警并自动建案，不停售', 'Alert and automatic case; sales continue');
+}
+(function seedDecl135() {
+  const d = SEED.declarations; if (!d || d.some(x => x.id === 'CD-EC2-20261009-01')) return;
+  d.push({ id: 'CD-EC2-20261009-01', channel: 'EC2', trigger: 'Daily', submittedAt: '2026-10-09 01:52', against: 'Register (9 games, current versions); Calendar 2026-10-09 #115; Terms Of Service v3; Settlement Parameters SF-v1; Channel Operating Parameters COP-v1', result: 'Divergent', demo: true,
+    items: [{ domain: 'Terms Of Service', object: 'Terms of Service', field: 'Declared version after the effective time (2026-10-01 00:00)', core: 'v3', ch: 'v2', sev: staleSev('Terms Of Service'), stale: true, status: 'Resolved', alert: 'ALT-20261009-000021', caseId: 'CASE-20261009-0014' }] });
+})();
+R134_COLS.declItems = cols => { const i = colIdx(cols, 'Severity'); cols.splice(i + 1, 0, { h: 'Handling', r: x => esc(staleHandling(x)) + (x.alert ? `<div class="tiny mono">${esc(x.alert)} · ${esc(x.caseId || '')}</div>` : '') }); return cols; };
+R133_HOOKS.push(() => {
+  const p = [...document.querySelectorAll('.view p.tiny')].find(e => /^(Severity: Critical|偏离分级：Critical)/.test(e.textContent)); if (!p || p.dataset.r135) return;
+  p.dataset.r135 = '1';
+  p.textContent = t('偏离分级：Critical 关键参数、登记册外游戏/玩法/期次、状态不一致、游戏登记册 / 开奖日历 / 交易单元价值 / 兑奖政策生效后仍声明旧版本（受影响期次停售）；High 其他登记册参数；Medium 日历非关键字段，积分框架、结算参数、合规参数、渠道运行参数、服务条款、无开奖日的版本不一致（含生效后仍声明旧版本：告警并自动建案，不停售；因无开奖日仍售不存在的期次按 Critical）；Low 文字项。',
+    'Severity: Critical — critical parameters, games/bet types/draws not in the register or calendar, status mismatch, Game Register / Draw Calendar / Unit Value / Claim Policy still declared at an old version after the effective time (affected draws stop sales); High — other register parameters; Medium — non-critical calendar fields; Loyalty Framework, Settlement Parameters, Compliance Parameters, Channel Operating Parameters, Terms Of Service and No Draw Dates versions, including an old version still declared after the effective time (alert and automatic case, sales continue; a draw sold that does not exist because of No Draw Dates is Critical); Low — text items.');
+});
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>

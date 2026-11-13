@@ -4007,6 +4007,42 @@ function panel134(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id=
 {const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
  const old=el.querySelector('[data-v134]');if(old)old.remove();const v=el.querySelector('[data-v133]')||el.querySelector('[data-v131]')||el.querySelector('[data-v13]');const html=`<div data-v134="1">${panel134()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
 render();
+/* ===== PRD 1.3.5 player · 6B.4.2 Credited By iLotto =====
+   Wrapper layer (one <script>):
+   6B.4.2   a ticket moved above the threshold after a result adjustment: Credited By iLotto = the ticket's cumulative
+            net paid (credited − reversed + earlier top-ups); Paid By PCSO = new net − Credited By iLotto.
+            Each result adjustment on an auto-credited ticket records the wallet amounts it actually moved, so a ticket
+            that was reduced (and only partly reversed) before crossing the threshold shows the cumulative amount.
+   Demo (panel): Prize Decreased, then Prize Increased above the threshold (Super Lotto 6/49). */
+const adjK135=()=>{const g=gm('super'),no=dno(g,'2026-10-06','');return S.tickets.find(x=>x.g==='super'&&dno(g,x.draw,x.dtime)===no&&x.st==='claimed'&&x.paid==='auto'&&x.res&&x.res.tiers.some(y=>y.type==='POOL'))};
+const cum135=k=>k.cum135?k.cum135:{cred:k.res?k.res.net:0,rev:0,top:0};
+const cumNet135=c=>r2(c.cred-c.rev+c.top);
+/* every result adjustment on the auto-credited ticket: add what actually went in or out of the prize balance */
+{const _a=A.v13AdjAmt;A.v13AdjAmt=function(){if(!S.logged)seedDemo();const k=adjK135();const c0=k?Object.assign({},cum135(k)):null;const n0=S.tx.length;
+ const r=_a.apply(this,arguments);
+ /* PRD 6B.7.4 (1.3.4 a): Top-up = new net − cumulative net paid (not new net − old net) */
+ if(k&&c0&&arguments[0]==='up'){const nw=S.tx.slice(0,S.tx.length-n0).filter(x=>x.tk===k.id&&x.adj&&x.amt>0);const got=r2(nw.reduce((s,x)=>s+x.amt,0));const want=Math.max(0,r2(k.res.net-cumNet135(c0)));const fix=r2(want-got);
+  if(fix!==0){S.bal.prize=r2(S.bal.prize+fix);if(nw[0])nw[0].amt=r2(nw[0].amt+fix);else adjTx(k,fix);toast('Core: Prize Increased · '+fm2(want)+' credited (new net − cumulative net paid)');render()}}
+ if(k&&c0){S.tx.slice(0,S.tx.length-n0).filter(x=>x.tk===k.id&&x.adj).forEach(x=>{if(x.amt<0)c0.rev=r2(c0.rev-x.amt);else c0.top=r2(c0.top+x.amt)});k.cum135=c0}return r}}
+/* crossing the threshold: Credited By iLotto = cumulative net paid; the cheque covers the rest */
+{const _c=A.v131AdjCross;A.v131AdjCross=function(){if(!S.logged)seedDemo();const k=adjK135();const c0=k?Object.assign({},cum135(k)):null;
+ const r=_c.apply(this,arguments);
+ if(k&&c0&&k.chPaid!=null&&k.st==='winPending'){const paid=cumNet135(c0);k.cum135=c0;k.chPaid=paid;k.cheque=r2(k.res.net-paid);k.adjLoss=0;
+  k.crossNote=`The prize was increased after PCSO corrected the draw results. ${fm2(paid)} is already in your prize balance. Tap Start claim and bring your valid ID to the PCSO Main Office to collect the remaining ${fm2(k.cheque)}.`;
+  toast('Prize Increased above the threshold: '+fm2(paid)+' stays credited; PCSO pays '+fm2(k.cheque)+' by cheque');render()}
+ return r}}
+/* ticket detail: how Credited By iLotto is made up, when anything was reversed or topped up */
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){let h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));
+ if(!k||k.chPaid==null||!k.cum135||!(k.cum135.rev||k.cum135.top))return h;const c=k.cum135;
+ const line=`<div class="xs" id="cross_cum" style="color:#666;margin:-2px 0 8px">${fm2(c.cred)} credited${c.rev?' − '+fm2(c.rev)+' reversed':''}${c.top?' + '+fm2(c.top)+' topped up':''} = ${fm2(k.chPaid)}</div>`;
+ const tp=document.createElement('template');tp.innerHTML=h;const card=tp.content.querySelector('#cross_paid');if(card){const rows=[...card.children];const cr=rows.find(x=>/Credited By iLotto/.test(x.textContent));if(cr)cr.insertAdjacentHTML('afterend',line);else card.insertAdjacentHTML('beforeend',line)}
+ return tp.innerHTML}}
+A.v135DownCross=()=>{if(!S.logged)seedDemo();A.v13AdjAmt('down');A.v131AdjCross()};
+function panel135(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
+ return `<h4>Result adjustment above the threshold</h4>${pb('Prize Decreased, then above the threshold (Super Lotto 6/49)',"A.v135DownCross()",'','v135_down_cross')}`}
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-v135]');if(old)old.remove();const v=el.querySelector('[data-v134]')||el.querySelector('[data-v133]');const html=`<div data-v135="1">${panel135()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
 </script>
 </body>
 </html>
