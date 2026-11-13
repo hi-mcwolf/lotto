@@ -3769,6 +3769,214 @@ function panel133(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id=
  /* retired: the results page no longer uses the published calendar amount */
  const j=el.querySelector('#v131_jpna');if(j)j.remove()}}
 render();
+/* ===== PROTO-134 player · PRD 6B.1–6B.5 follow-up =====
+   Wrapper layer (one <script>; function bindings re-wrapped, const arrows untouched; const objects mutated in place):
+   6B.1.9   re-consent pop-up only when the player taps Confirm bet or a deposit (game cards and number picking do not open it);
+            Accept and continue is never dimmed (unticked = error line); the terms-pending bar opens the pop-up;
+            transition: Terms of Service link goes to the PCSO Privacy Notice page, acceptance kept with an empty version;
+            the first Core version opens the pop-up for players without a Core-version acceptance; Mandatory Disclosures listed
+            after the Terms of Service text, and as a Help entry while the Terms of Service are still in transition
+   6B.2.3   Verify again always on the identity status page, the PlaySafe page and the Account identity row (KYC re-check);
+            the Account page has no extra button for Checking Details / Check Unsuccessful
+   6B.2.4   self-exclusion end date by calendar months / years (same day, else the last day of the month; ends 24:00 UTC+8);
+            banner sentence "It applies to all PCSO e-channels and cannot be lifted before it ends.";
+            Core-carried exclusion / restriction at federation: message after MSG_KYC_RESULT, all sessions signed out;
+            corrections, extensions and type changes do not sign the player out
+   6B.3.2/3 lotto current draw not on sale: card + Play page marked, stepper capped, draws start from the next open draw
+            (Confirm your bet lists them); a draw stopped just before Place bet is blocked at check ③;
+            digit draw rows labelled "This draw is not on sale."; registry minimum amount per ticket
+   6B.3.4   draws iLotto was excluded from are not listed in the results history
+   6B.4.2   correction note on the ticket detail (not for tickets paid at PCSO); verified code kept while frozen
+   6B.4.5   no ₱0 Prize Reversal; the shortfall is reversed when a withdrawal is rejected and returned to the prize balance
+   6B.5.4   MSG_PCSO_EXCLUSION_START {end_time}, MSG_PCSO_EXCLUSION_CORRECTED, neutral MSG_SELF_EXCLUSION_CORRECTED,
+            {play_status} on MSG_SELF_EXCLUSION_LIFTED_SPECIAL and MSG_COOLOFF_END */
+(function(){const st=document.createElement('style');st.textContent='.c134{margin-top:10px;padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.55;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.07)}#terms_bar{cursor:pointer;text-decoration:underline}';document.head.appendChild(st)})();
+const SX_ALL='It applies to all PCSO e-channels and cannot be lifted before it ends.';
+const MIN_MSG=m=>`The minimum amount for this ticket is ${fm0(m)}.`;
+const MD_TITLE='Mandatory Disclosures';
+const SX_MONTHS={'3 months':3,'6 months':6,'1 year':12};
+{const _f=fresh;fresh=function(){_f.apply(this,arguments);Object.assign(S,{minBet:null,exclD:{},exclDS:{},fedCarry:'',wdHold:null,mdV:{ver:'MD-2026-01',eff:'2026-09-01'}})}}
+
+/* ---------- 6B.2.4 end date: calendar months / years, ends at 24:00 (UTC+8) of the end date ---------- */
+/* stored as 23:59:59 of the end date so every date display shows the end date itself */
+function calEnd(ms,mo){const d=new Date(ms+8*3600e3);const y=d.getUTCFullYear(),m=d.getUTCMonth()+mo,day=d.getUTCDate();const last=new Date(Date.UTC(y,m+1,0)).getUTCDate();return Date.UTC(y,m,Math.min(day,last),23,59,59)-8*3600e3}
+function syncEXD(){Object.keys(SX_MONTHS).forEach(l=>{EXD[l]=(calEnd(S.clock,SX_MONTHS[l])-S.clock)/864e5});EX_ORDER.forEach(r=>{if(SX_MONTHS[r[0]])r[1]=EXD[r[0]]})}
+const dOnly=s=>typeof s==='string'?s.replace(/(\d{4}-\d{2}-\d{2}) \d{2}:\d{2}(:\d{2})?/g,'$1'):s;
+const fixExNote=n=>{if(n&&/EXCLUSION/.test(n.tpl||'')){n.be=dOnly(n.be);n.bz=dOnly(n.bz)}};
+{const _ex=A.excl;A.excl=function(l,perm){syncEXD();const r=_ex.apply(this,arguments);if(!S.modal)return r;const f=S.modal.fn;const endF=S.clock+(EXD[l]||90)*864e5;
+ S.modal.fn=()=>f().split('Ends on '+fts(endF)+'.').join('Ends on '+fdt(endF)+'.');drawModal();return r}}
+{const _x=A.exclDo;A.exclDo=function(l,perm){syncEXD();const c0=S.clock;const r=_x.apply(this,arguments);const e=S.excl;const tg=e&&(e.pcso?e.self:e);
+ if(tg&&!tg.perm&&SX_MONTHS[tg.label]&&tg.channel==='ILT')tg.endTs=calEnd(c0,SX_MONTHS[tg.label]);fixExNote(S.notifs[0]);render();return r}}
+/* banner: full sentence, end date without the time */
+{const _eb=exBanner;exBanner=function(){let h=_eb.apply(this,arguments);if(!h)return h;h=h.split('It applies to all PCSO e-channels.').join(SX_ALL);return h.replace(/([Uu]ntil )(\d{4}-\d{2}-\d{2}) \d{2}:\d{2}/g,'$1$2')}}
+{const _r=render;render=function(){syncEXD();return _r.apply(this,arguments)}}
+
+/* ---------- 6B.5.4 exclusion messages ---------- */
+const endTxt=e=>e&&e.endTs?'until '+fdt(e.endTs):'until lifted by PCSO';
+const pcsoStartBody=e=>`Your account has been excluded by PCSO ${endTxt(e)}. You cannot place bets or deposit until the exclusion ends.`;
+const playStatus=()=>(otherRestr()||(S.kycRe&&S.kycRe!=='ok')||(S.pre&&S.pre.restrict))?PLAY_OTHER:PLAY_AGAIN;
+const setNote=(n,be)=>{if(n){n.be=be;n.bz=be}};
+{const _p=A.v13Pcso;A.v13Pcso=function(on){if(!on)return _p.apply(this,arguments);const r=_p.apply(this,arguments);const e=S.excl;
+ if(e&&e.pcso){e.endTs=calEnd(S.clock,6);const n=S.notifs.find(x=>x.tpl==='MSG_PCSO_EXCLUSION_START');setNote(n,pcsoStartBody(e))}render();return r}}
+A.v134PcsoNoEnd=()=>{A.v13Pcso(1);const e=S.excl;if(e&&e.pcso){e.endTs=0;setNote(S.notifs.find(x=>x.tpl==='MSG_PCSO_EXCLUSION_START'),pcsoStartBody(e))}render()};
+/* Core correction of a PCSO exclusion: no sign-out (6B.2.4) */
+A.v134PcsoCorr=kind=>{const e=S.excl;if(!e||!e.pcso)return toast('No PCSO exclusion to correct.');tick(5);
+ if(kind==='later'){e.endTs=calEnd(e.endTs||S.clock,3);nfV13('shield','Exclusion updated',`Your exclusion by PCSO has been updated. It now applies ${endTxt(e)}.`,'MSG_PCSO_EXCLUSION_CORRECTED','playsafe');v13Audit('core-pcso-exclusion-corrected');toast('Core: PCSO exclusion corrected · new end '+fdt(e.endTs));return render()}
+ if(kind==='ended'){v13Audit('core-pcso-exclusion-corrected-ended');return A.exclExp()}
+ /* type changed to self-exclusion */
+ const end=e.endTs||calEnd(S.clock,6);S.excl={label:'6 months',perm:false,expired:false,req:false,rej:'',endTs:end,channel:'OTH'};
+ nfV13('shield','Self-exclusion updated',`Your self-exclusion has been updated. It now runs 6 months, ending ${fdt(end)}.`,'MSG_SELF_EXCLUSION_CORRECTED','playsafe');v13Audit('core-exclusion-type-pcso-to-self');toast('Core: exclusion type corrected to self-exclusion');render()};
+/* self-exclusion corrected to a PCSO exclusion: MSG_PCSO_EXCLUSION_START, no sign-out */
+A.v134SelfToPcso=()=>{const e=S.excl;if(!e||e.pcso)return toast('No self-exclusion to correct.');tick(5);
+ S.excl={pcso:1,label:'Excluded by PCSO',perm:false,expired:false,req:false,rej:'',endTs:e.perm?0:e.endTs};
+ nfV13('shield','Account excluded',pcsoStartBody(S.excl),'MSG_PCSO_EXCLUSION_START','playsafe');v13Audit('core-exclusion-type-self-to-pcso');toast('Core: exclusion type corrected to PCSO exclusion');render()};
+/* neutral MSG_SELF_EXCLUSION_CORRECTED (also used when the player extends on another channel) */
+A.v131SxCorrect=()=>{const e=S.excl;if(!e||e.pcso||e.perm)return toast('No fixed-term self-exclusion to correct.');e.endTs=(e.endTs||S.clock)+2*864e5;v13Audit('core-self-exclusion-corrected');
+ nfV13('shield','Self-exclusion updated',`Your self-exclusion has been updated. It now runs ${e.label}, ending ${fdt(e.endTs)}.`,'MSG_SELF_EXCLUSION_CORRECTED','playsafe');toast('Core: self-exclusion corrected · new end '+fdt(e.endTs));render()};
+A.sxLiftedSpecial=()=>{if(!S.logged)seedDemo();const e=S.excl;if(e&&e.pcso&&e.self)delete e.self;else if(!e||!e.pcso)S.excl=null;
+ nfV13('shield','Self-exclusion lifted','Your self-exclusion has been lifted by PCSO. '+playStatus(),'MSG_SELF_EXCLUSION_LIFTED_SPECIAL','playsafe');toast('Core: PCSO lifted the self-exclusion early. A message was sent.');render()};
+A.v134CoolEnd=()=>{if(!S.cool||S.cool.until<=S.clock)return toast('No active cool-off.');S.cool=null;
+ nfV13('clock','Cool-off ended','Your cool-off has ended. '+playStatus(),'MSG_COOLOFF_END','playsafe');v13Audit('cool-off-ended');toast('Cool-off ended · MSG_COOLOFF_END sent');render()};
+/* every exclusion message: end date only */
+{const _e=A.exclExp;A.exclExp=function(){const r=_e.apply(this,arguments);fixExNote(S.notifs[0]);return r}}
+
+/* ---------- 6B.1.10 / 6B.5.4 restriction carried back with the federation match: message after MSG_KYC_RESULT, signed out ---------- */
+{const _fa=fedApply;fedApply=function(){const m=S.fedMode||'none';
+ if(m==='matchr'){S.fedMode='match';let r;try{r=_fa.apply(this,arguments)}finally{S.fedMode='matchr'}if(r==='approved'){S.coreRst=1;S.fedCarry='coreR';v13Audit('federation-match-restriction-applied')}return r}
+ const r=_fa.apply(this,arguments);if(m==='matchx'&&r==='approved')S.fedCarry='self';return r}}
+{const _fm=A.fedMode;A.fedMode=function(m){if(m!=='matchr')return _fm.apply(this,arguments);S.fedMode=m;toast('Core federation result: Match · existing Core restriction');render()}}
+function fedCarryOut(){const c=S.fedCarry;if(!c)return;S.fedCarry='';
+ if(c==='self'){nfExcl();S.notifs[0].tpl='MSG_SELF_EXCLUSION_START';fixExNote(S.notifs[0]);S.notifs[0].nav='playsafe'}
+ else addNotif('lock','Account status','Account status','Your account was restricted. Reason: '+PCSO_REASON,'Your account was restricted. Reason: '+PCSO_REASON),S.notifs[0].tpl='MSG_ACCOUNT_STATUS';
+ v13Audit('federation-carried-restriction-message');S.sOut=1;
+ if(S.logged)sessOut('Core: the federation match carried '+(c==='self'?'a self-exclusion':'a restriction')+'. All sessions were signed out.');else render()}
+{const _ek=A.ekSubmit;A.ekSubmit=function(){const r=_ek.apply(this,arguments);fedCarryOut();return r}}
+{const _ks=A.kycSet;A.kycSet=function(){const r=_ks.apply(this,arguments);fedCarryOut();return r}}
+{const _fd=A.fedDecide;A.fedDecide=function(d){const r=_fd.apply(this,arguments);fedCarryOut();return r}}
+
+/* ---------- 6B.1.9 terms ---------- */
+PCSO_SITE.tos=PCSO_SITE.privacy;
+/* game cards and the Play tab do not open the pop-up; Confirm bet and deposits do */
+function termsUnmark(){document.querySelectorAll('#phone [data-rst="terms"]').forEach(e=>{const o=e.getAttribute('onclick')||'';if(/A\.playGame\(/.test(o)){e.removeAttribute('data-rst');e.removeAttribute('aria-disabled');e.classList.remove('rstd')}});
+ document.querySelectorAll('#phone .rstbar[data-k="terms"]').forEach(b=>{if(b.id!=='terms_bar'){b.id='terms_bar';b.setAttribute('onclick','A.termsModal()');b.setAttribute('role','button')}})}
+{const _r=render;render=function(){const r=_r.apply(this,arguments);termsUnmark();return r};const _dm=drawModal;drawModal=function(){const r=_dm.apply(this,arguments);termsUnmark();return r};const _su=sumUp;sumUp=function(){const r=_su.apply(this,arguments);termsUnmark();return r}}
+{const _tm=A.termsModal;A.termsModal=function(){const r=_tm.apply(this,arguments);if(S.modal){const f=S.modal.fn;S.modal.fn=()=>f().replace(/(id="tm_ok" style=")opacity:\.55/,'$1');drawModal()}return r}}
+/* transition: acceptance kept with an empty version and the time */
+{const _rn=A.regNext;if(_rn)A.regNext=function(){const r=_rn.apply(this,arguments);(S.termsAcc||[]).forEach(x=>{if(x.reg===1&&S.termsNA&&S.termsNA[x.type])x.ver=''});return r}}
+{const _hp=SC.help.html;SC.help.html=function(){let h=_hp.apply(this,arguments);const na=S.termsNA&&S.termsNA.tos;
+ if(na)h=h.replace(new RegExp(`(id="help_tos"[^]*?<div class="xs mu">)Version [^<]*`),'$1PCSO website');
+ if(na&&S.mdV)h=h.replace(/(<button class="card mt row sp" id="help_privacy")/,`<button class="card mt row sp" id="help_md" style="width:100%" onclick="A.go('mdisc')"><div class="row g12"><span style="color:var(--cy)">${I('list',22)}</span><div style="text-align:left"><div class="b">${MD_TITLE}</div><div class="xs mu">Version ${S.mdV.ver}</div></div></div>${I('chev',18)}</button>$1`);
+ return h}}
+const mdBody=()=>`<div class="card c2 mt" style="font-size:13px;line-height:1.7"><span class="badge b-am">Demo data</span><div class="mt3">The Mandatory Disclosures published by PCSO appear here, exactly as received.</div></div>`;
+{const _th=SC.terms.html;SC.terms.html=function(){let h=_th.apply(this,arguments);const ty=(S.p&&S.p.type)||'tos';if(ty!=='tos'||!S.mdV)return h;
+ const sec=`<div id="terms_md" style="margin-top:18px"><h3 style="font-size:17px">${MD_TITLE}</h3><div class="row g8 mt3" style="flex-wrap:wrap"><span class="badge b-gy">Version ${S.mdV.ver}</span><span class="badge b-gy">Effective ${S.mdV.eff}</span></div>${mdBody()}</div>`;
+ const i=h.indexOf('</div></div>',h.indexOf('id="terms_page"'));
+ return i>0?h.slice(0,i+12)+sec+h.slice(i+12):h+sec}}
+SC.mdisc={auth:true,back:true,title:()=>MD_TITLE,html:()=>{const v=S.mdV||{ver:'MD-2026-01',eff:'2026-09-01'};
+ return `<div class="fade"><div class="card" id="md_page"><h1 style="font-size:22px">${MD_TITLE}</h1><div class="row g8 mt3" style="flex-wrap:wrap"><span class="badge b-gy">Version ${v.ver}</span><span class="badge b-gy">Effective ${v.eff}</span></div>
+ <div class="xs mu mt" style="line-height:1.6">Published by PCSO. Shown as received from PCSO.</div>${mdBody()}</div></div>`}};
+A.v134TosNA=()=>{S.termsNA=S.termsNA||{};S.termsNA.tos=S.termsNA.tos?0:1;
+ if(S.termsNA.tos){(S.termsAcc||[]).forEach(x=>{if(x.type==='tos')x.ver=''});v13Audit('terms-of-service-transition')}
+ toast(S.termsNA.tos?'Core has not published Terms of Service yet: the link opens the PCSO website (Privacy Notice page); acceptances are kept without a version':'Terms of Service transition ended');render()};
+/* the first Core version opens the pop-up for every player without a Core-version acceptance, whatever its re-consent setting */
+A.v134TosFirst=()=>{if(!S.logged&&S.mode!=='demo')seedDemo();S.termsNA=S.termsNA||{};S.termsNA.tos=0;S.termsV.tos={ver:'TOS-2026-01',eff:fdt(S.clock),sum:'First version published by PCSO'};v13Audit('terms-first-version-effective');
+ nfV13('list','Terms updated','Our Terms of Service have been updated. Tap to read the new version.','MSG_TERMS_UPDATED','terms');
+ const has=(S.termsAcc||[]).some(x=>x.type==='tos'&&x.ver);
+ if(!has){const it={type:'tos',sum:'First version published by PCSO'};if(S.termsPend&&S.termsPend.type!=='tos'){S.termsQ=S.termsQ||[];S.termsQ.unshift(S.termsPend)}S.termsPend=it;S.termsNotNow=0}
+ toast(has?'First Terms of Service version (no re-consent): the player already accepted a Core version':'First Terms of Service version: no Core-version acceptance on record, the pop-up shows at the next sign-in or bet / deposit');render()};
+
+/* ---------- 6B.2.3 Verify again: identity row on Account, PlaySafe page ---------- */
+const reNeed=()=>S.logged&&S.kyc==='approved'&&(S.kycRe==='req'||S.kycRe==='fail');
+{const _a=SC.account.html;SC.account.html=function(){const k=S.kyc;let h=_a.apply(this,arguments);
+ if(k==='checking')h=h.replace('>View progress</button>','>View</button>');if(k==='checkfail')h=h.replace(">Contact support</button>",">View</button>");
+ if(reNeed())h=h.replace(`<button class="pillbtn mt" onclick="A.go('kycStatus')">View</button>`,`<button class="pillbtn mt" id="acc_kyc_reverify" onclick="A.v133Reverify()">Verify again</button>`);
+ return h}}
+{const _ps=SC.playsafe.html;SC.playsafe.html=function(){let h=_ps.apply(this,arguments);if(!(S.logged&&S.kyc==='approved'&&S.kycRe))return h;const rev=S.kycRe==='review';
+ const card=`<div class="card c2 mt" id="ps_kycre" style="border:1px solid rgba(245,158,11,.4);font-size:13px;line-height:1.6">${rev?MSG_KYCR_REV:MSG_KYCR}${rev?'':`<button class="btn c mt3" id="ps_kycre_go" onclick="A.v133Reverify()">Verify again</button>`}</div>`;
+ return h.replace(/(<h3 id="ps_lim")/,card+'$1')}}
+
+/* ---------- 6B.3.2 / 6B.3.3 draw-level suspension: lotto current draw, digit rows, check ③ ---------- */
+const curD=g=>g&&g.t==='lotto'?drawList(g,1)[0]:'';
+const curOff=g=>!!(g&&g.t==='lotto'&&dSusp(g,curD(g)));
+const openN=g=>drawList(g,12).filter(d=>{const tm=g.sess[0];const cut=Date.parse(d+'T'+tm+':00+08:00')-g.lead[0]*60000;return cut>nowEff()&&opensAt(g,d,tm)<=nowEff()&&!dSusp(g,d)}).length;
+{const _gc=gcard;gcard=function(g){const h=_gc.apply(this,arguments);if(!curOff(g))return h;
+ return h.replace(/(<div class="gd mu">[^<]*<\/div>)/,`$1<div class="xs" data-dsusp-card="1" style="color:var(--am);font-weight:700;line-height:1.35">${MSG_DRAW_OFF}</div>`)}}
+{const _pl=SC.play.html;SC.play.html=function(){let h=_pl.apply(this,arguments);const P=PL(),g=gm(P.game);
+ h=h.split('<span class="xs" style="color:var(--am);font-weight:700">· Suspended</span>').join(`<span class="xs" style="color:var(--am);font-weight:700">· ${MSG_DRAW_OFF}</span>`);
+ if(!curOff(g))return h;const cap=Math.max(1,Math.min(12,openN(g)));if(P.draws>cap)P.draws=cap;
+ h=h.replace('<div class="row cdrow" id="cd"',`<div class="c134" id="dsusp_play" style="margin:8px 0">${dno(g,curD(g),'')} · ${MSG_DRAW_OFF}</div><div class="row cdrow" id="cd"`);
+ return h.replace(/A\.step\('draws',(-?1),1,12\)/g,`A.step('draws',$1,1,${cap})`).replace(/Up to 12</,`Up to ${cap}<`).replace(/(<b id="st_draws">)\d+/,'$1'+P.draws)}}
+/* draw list rows: the sentence goes on its own line under the cut-off time */
+{const _dm=drawModal;drawModal=function(){const r=_dm.apply(this,arguments);document.querySelectorAll('#ovl [data-dsusp]').forEach(b=>{if(b.querySelector('[data-dsusp-lbl]'))return;
+ [...b.querySelectorAll('span')].filter(x=>/· (Suspended|This draw is not on sale\.)/.test(x.textContent)&&!x.children.length).forEach(x=>x.remove());
+ const sub=[...b.querySelectorAll('*')].filter(x=>!x.children.length&&/Closes/.test(x.textContent)).pop();
+ const lb=`<div class="xs" data-dsusp-lbl="1" style="color:var(--am);font-weight:700;margin-top:2px">${MSG_DRAW_OFF}</div>`;if(sub)sub.insertAdjacentHTML('afterend',lb);else b.insertAdjacentHTML('beforeend',lb)});return r}}
+{const _l=lottoRow;lottoRow=function(g,d){return _l.apply(this,arguments).replace('data-dsusp-row="1">Suspended<',`data-dsusp-row="1">${MSG_DRAW_OFF}<`)}}
+/* 6B.3.3 Number Of Draws: lotto current draw not on sale → the N draws start from the next open draw, skipping the suspended one;
+   the dates shown on Confirm your bet are kept, so a draw stopped just before Place bet is still caught by check ③ */
+{const _bp=betPlan;betPlan=function(){const r=_bp.apply(this,arguments),P=r.P,g=r.g;if(g.t!=='lotto'||r.times)return r;
+ if(P.dlock&&S.screen==='betConfirm'&&P.dlock.length===P.draws){r.dates=P.dlock.slice();return r}
+ if(curOff(g))r.dates=drawList(g,P.draws+4).filter(d=>!dSusp(g,d)).slice(0,P.draws);return r}}
+{const _c=SC.betConfirm.html;SC.betConfirm.html=function(){let h=_c.apply(this,arguments);const {g,dates}=betPlan();const cd=curD(g);
+ if(!(g.t==='lotto'&&curOff(g)&&!dates.includes(cd)))return h;
+ return h.replace('<h3 style="margin-top:18px">',`<div class="c134" id="cf_dsusp">${dno(g,cd,'')} · ${MSG_DRAW_OFF} ${MSG_NEXT_OPEN}</div><h3 style="margin-top:18px">`)}}
+const underMin=()=>{if(!S.minBet||!S.play)return 0;const {g,tot,tickets}=betPlan();const mn=S.minBet[g.id];return mn!=null&&tickets>0&&tot/tickets<mn?mn:0};
+/* ③ draw-level suspension after ① login / identity and ② device; ⑧ registry minimum after the account checks */
+const pre134=()=>{if(!S.play)return false;const g=gm(S.play.game);
+ if(planHitsSusp()){const pk=preKey(g);if(pk&&(pk==='kyc'||pk===devKey())){rstShow(pk);return true}
+  const one=betPlan().dates.length===1;toast(one?MSG_DRAW_OFF:MSG_DNOS);v13Audit('bet-blocked-draw-not-on-sale');return true}
+ const mn=underMin();if(mn&&!preKey(g)){toast(MIN_MSG(mn));return true}return false};
+const MSG_NEXT_OPEN='Your draws start from the next open draw.';
+{const _b=A.bet;A.bet=function(){if(S.play)delete S.play.dlock;if(pre134())return;const r=_b.apply(this,arguments);
+ if(S.play&&S.screen==='betConfirm'){const bp=betPlan();if(bp.g.t==='lotto'&&!bp.times)S.play.dlock=bp.dates.slice()}return r}}
+{const _bg=A.betGo;A.betGo=function(){if(pre134())return;return _bg.apply(this,arguments)}}
+A.v134CurSusp=()=>{const g=gm('grand'),d=curD(g);S.dSusp=S.dSusp||{};if(S.dSusp.grand===d){delete S.dSusp.grand;if(!Object.keys(S.dSusp).length)S.dSusp=null;v13Audit('draw-level-sale-resumed');toast('Grand Lotto 6/55 current draw back on sale');return render()}
+ S.dSusp.grand=d;v13Audit('draw-level-sale-suspended');toast('Not on sale: Grand Lotto 6/55 '+dno(g,d,'')+' (current draw)');render()};
+/* the Super Lotto / 3D Lotto demo toggle keeps the Grand Lotto current-draw suspension */
+{const _ds=A.v131DrawSusp;A.v131DrawSusp=function(){const gr=S.dSusp&&S.dSusp.grand;if(gr){delete S.dSusp.grand;if(!Object.keys(S.dSusp).length)S.dSusp=null}const r=_ds.apply(this,arguments);if(gr){S.dSusp=S.dSusp||{};S.dSusp.grand=gr;render()}return r}}
+A.v134MinBet=()=>{S.minBet=S.minBet?null:{super:50};toast(S.minBet?'Core registry: minimum amount per ticket ₱50 for Super Lotto 6/49 (Demo data)':'Minimum amount per ticket back to the price per line');render()};
+
+/* ---------- 6B.3.4 results history: draws iLotto was excluded from are not listed ---------- */
+function exclDApply(){const X=S.exclD||{};Object.keys(X).forEach(gid=>{const L=S.draws&&S.draws[gid];if(!L)return;const keep=[];L.forEach(d=>{if(X[gid].includes(d.no)){S.exclDS[d.no]=d}else keep.push(d)});if(keep.length!==L.length)S.draws[gid]=keep})}
+{const _r=render;render=function(){exclDApply();return _r.apply(this,arguments)}}
+A.v134ExclPast=()=>{const g=gm('mega');S.exclD=S.exclD||{};S.exclDS=S.exclDS||{};const X=S.exclD.mega=S.exclD.mega||[];const no=dno(g,'2026-10-07','');
+ if(X.includes(no)){S.exclD.mega=X.filter(x=>x!==no);const d=S.exclDS[no];if(d){S.draws.mega.push(d);S.draws.mega.sort((a,b)=>a.date<b.date?1:-1);delete S.exclDS[no]}toast('Demo reset: '+no+' listed again');return render()}
+ X.push(no);v13Audit('channel-excluded-draw-not-listed');S.res.game='mega';toast('Core: iLotto was excluded from Mega Lotto 6/45 '+no+' · no result sent, not listed in the results');render()};
+{const _vd=A.v131VoidDraw;A.v131VoidDraw=function(){const g=gm('mega');const ks=S.tickets.filter(x=>x.g==='mega'&&(x.st==='await'||x.st==='pre'));const r=_vd.apply(this,arguments);
+ if(ks.length){S.exclD=S.exclD||{};const X=S.exclD.mega=S.exclD.mega||[];const no=dno(g,ks[0].draw,ks[0].dtime);if(!X.includes(no))X.push(no)}return r}}
+
+/* ---------- 6B.4.2 ticket detail: correction note (not for tickets paid at PCSO) ---------- */
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){let h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!k||archived(k))return h;
+ const g=gm(k.g),no=g&&dno(g,k.draw,k.dtime),dt=no&&S.corr&&S.corr[no];if(!dt||h.indexOf('id="tk_corr"')>=0)return h;
+ if(k.pcsoAdj||(k.st==='claimed'&&k.paid==='counter'))return h;
+ return h.replace('<h3 style="margin-top:20px">Bet details</h3>',`<div class="c131" id="tk_corr">These results were corrected by PCSO on ${dt}.</div><h3 style="margin-top:20px">Bet details</h3>`)}}
+
+/* ---------- 6B.4.5 / 6B.4.2 no ₱0 reversal; shortfall reversed after a rejected withdrawal ---------- */
+const LATE_TYPES=['No Longer Won','Prize Decreased','Winning Wager Removal'];
+A.v134WdAll=()=>{if(!S.logged)seedDemo();const amt=r2(S.bal.prize);if(!(amt>0))return toast('The prize balance is already ₱0.');S.bal.prize=0;addTx('withdraw',-amt,'proc','GCash');S.wdHold={amt,id:S.tx[0].id};v13Audit('withdrawal-whole-prize-balance');toast('Withdrawal of '+fm2(amt)+' submitted · prize balance ₱0');render()};
+A.v134WdReject=()=>{const w=S.wdHold;if(!w)return toast('Submit a withdrawal of the whole prize balance first.');S.wdHold=null;const x=S.tx.find(t=>t.id===w.id);if(x)x.st='rej';S.bal.prize=r2(S.bal.prize+w.amt);
+ let got=0;S.tickets.filter(k=>k.adjLoss>0&&LATE_TYPES.includes(k.adj)).forEach(k=>{const take=Math.min(S.bal.prize,k.adjLoss);if(take>0){S.bal.prize=r2(S.bal.prize-take);k.adjLoss=r2(k.adjLoss-take);adjTx133(k,-take,NOTE_RESULT);got=r2(got+take);v13Audit('late-recovery-reported-to-core')}});
+ toast('Withdrawal rejected · '+fm2(w.amt)+' returned to the prize balance'+(got?' · '+fm2(got)+' not recovered earlier is now reversed':''));render()};
+
+/* ---------- 6B.4.2 verified code: Core invalidation for any verified ticket ---------- */
+{const _i=A.v133Invalidate;A.v133Invalidate=function(){if(S.tickets.some(x=>x.invPend))return _i.apply(this,arguments);const k=S.tickets.find(x=>x.st==='winPending'&&x.cv);if(!k)return _i.apply(this,arguments);
+ k.cv=0;k.cvAt=0;v13Audit('core-claim-verification-invalidated');toast('Core: claim verification invalidated'+(S.wFrozen?' · wallet frozen: claim code voided, Start claim hidden':' · Start claim is back'));render()}}
+
+/* ---------- demo panel ---------- */
+function panel134(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
+ return `<h4>Terms, exclusions and draw sales</h4>
+ ${pb('Core has not published Terms of Service yet',"A.v134TosNA()",S.termsNA&&S.termsNA.tos?'on':'','v134_tos_na')}${pb('Core: first Terms of Service version (no re-consent setting)',"A.v134TosFirst()",'','v134_tos_first')}
+ <div class="xs" style="color:#666;margin:6px 0 4px">Exclusions and restrictions</div>
+ ${pb('Core: PCSO exclusion without an end date',"A.v134PcsoNoEnd()",'','v134_pcso_noend')}${pb('Core: PCSO exclusion corrected (end date later)',"A.v134PcsoCorr('later')","",'v134_pcso_later')}${pb('Core: PCSO exclusion corrected (already ended)',"A.v134PcsoCorr('ended')",'','v134_pcso_ended')}
+ ${pb('Core: PCSO exclusion corrected to self-exclusion',"A.v134PcsoCorr('self')",'','v134_pcso_self')}${pb('Core: self-exclusion corrected to PCSO exclusion',"A.v134SelfToPcso()",'','v134_self_pcso')}
+ ${pb('Cool-off period ends',"A.v134CoolEnd()",'','v134_cool_end')}${pb('Federation: Match · existing Core restriction',"A.fedMode('matchr')",S.fedMode==='matchr'?'on':'','v134_fed_matchr')}
+ <div class="xs" style="color:#666;margin:6px 0 4px">Draws, results and prize balance</div>
+ ${pb('Current draw not on sale (Grand Lotto 6/55)',"A.v134CurSusp()",S.dSusp&&S.dSusp.grand?'on':'','v134_cursusp')}${pb('Minimum amount per ticket ₱50 (Super Lotto 6/49)',"A.v134MinBet()",S.minBet?'on':'','v134_minbet')}
+ ${pb('Core: iLotto excluded from a past draw (Mega Lotto 6/45)',"A.v134ExclPast()",S.exclD&&S.exclD.mega&&S.exclD.mega.length?'on':'','v134_exclpast')}
+ ${pb('Withdraw the whole prize balance',"A.v134WdAll()",S.wdHold?'on':'','v134_wdall')}${pb('Withdrawal rejected (returned to the prize balance)',"A.v134WdReject()",'','v134_wdrej')}`}
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-v134]');if(old)old.remove();const v=el.querySelector('[data-v133]')||el.querySelector('[data-v131]')||el.querySelector('[data-v13]');const html=`<div data-v134="1">${panel134()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
 </script>
 </body>
 </html>

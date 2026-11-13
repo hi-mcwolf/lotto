@@ -14868,6 +14868,587 @@ function b3Click(e) {
 window.addEventListener("click", b3Click, true);
 window.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.modal && S.modal.type === "v133-ob") { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 /* ===== V13-133 END ===== */
+/* ===== V13-134 block (PRD 1.3.4 admin: 6B.6–6B.14 batch changes) =====
+   Injected by patch_v134.py right after the V13-133 block. Overrides are runtime reassignments (X = function …) of the global bindings
+   used by the earlier blocks, mostly DOM post-processing through v13Tpl. Acts start with "v134-" and are handled by b4Click, a window
+   capture listener registered after the V13-133 one. State S.v134. Demo values are marked Demo data. */
+S.v134 = { daily: "Submitted", dailyAt: "01:12", late: [], vOpen: {}, f: {}, err: "" };
+function b4Pe(n) { return "₱" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function b4R2(x) { return Math.round(x * 100) / 100; }
+function b4Ths(tb) { return [...tb.querySelectorAll(":scope > thead > tr > th")]; }
+function b4Table(c, head) { return [...c.querySelectorAll("table")].find((x) => b4Ths(x).some((h) => h.textContent.trim() === head)); }
+function b4Idx(tb, head) { return b4Ths(tb).findIndex((h) => h.textContent.trim() === head); }
+function b4Note(c, html, key) { const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v134="${key}">${html}</span>`); }
+const B4_COP = [ /* 6A.3.8 Channel Operating Parameters as sent to the channel (Demo data: product defaults) */
+  ["E-Channel Execution Deadline", "5 minutes"], ["Whole-Draw Void Deadline", "24 hours"], ["Sealed Summary Deadline", "15 minutes after cut-off"],
+  ["Re-report Deadline", "30 minutes"], ["Reconciliation Deadline", "2 hours after receipt (each result also carries the value for its draw)"],
+  ["Maximum Reporting Latency", "60 seconds"], ["Player Status Execution Deadline", "5 minutes (exclusion notices too)"], ["Declaration Grace Period", "30 minutes"],
+  ["Daily Declaration Cut-off", "02:00 (UTC+8)"], ["Heartbeat Interval And Grace Period", "30 seconds · 3 heartbeats in a row"],
+  ["Domain State Report Time", "02:30 (daily full reconciliation time − 30 minutes)"], ["Re-sync Wait Timeout", "30 minutes"]
+];
+const B4_CMP = [["Above-threshold Transaction Amount", "₱500,000.00 per transaction"], ["Metrics Reporting Cycle", "Daily"], ["Reporting Cut-off", "6 hours"], ["On-demand Reply Deadline", "24 hours"]];
+function b4KvTable(rows, key) { return `<div data-v134="${key}">${table(["Parameter", "Value"], rows.map(([k, v]) => `<tr data-v134-p="${esc(k)}"><td>${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`))}</div>`; }
+
+/* =====================================================================================================
+   6B.6.2 dashboard: Core card domains, exclusions KPI (Core-registered only), to-dos
+   ===================================================================================================== */
+const b4Card0 = v13CoreCard;
+v13CoreCard = function () {
+  return v13Tpl(b4Card0(), (c) => {
+    const s = c.querySelector("[data-v13=core-sync]");
+    const tip = "Last successful exchange with iLotto Core (UTC+8). The time per domain (Player Registry, Draw Results, Reference Data, Transactions, Prize Claims) is on Core integration › Core connection.";
+    if (s) { s.title = tip; s.parentElement.insertAdjacentHTML("afterend", `<span class="tiny" data-v134="sync-note" title="${esc(tip)}">${z("Per domain: Core connection", "分领域时间见 Core 连接状态")}</span>`); }
+    const bl = [...c.querySelectorAll("[data-v13-core=queue]")].find((b) => /Backlog Age/.test(b.textContent));
+    if (bl && bl.dataset.act) bl.title = "Age of the oldest unreported transaction. Red above the maximum reporting latency (60 seconds by default), a Channel Operating Parameter sent by iLotto Core; a P1 to-do is added.";
+  });
+};
+v13ExclMonth = function () { return S.v13.excl.filter((e) => !b4ExclLocal(e) && e.from.slice(0, 7) === S.demoMonth); };
+const b4Kpi0 = raKpiExtra;
+raKpiExtra = function (d) {
+  return v13Tpl(b4Kpi0(d), (c) => {
+    const k = c.querySelector("[data-kpi=excl]"); if (!k) return;
+    const add = " Only exclusions registered at Core count; Local only exclusions and submissions still queued or waiting to be re-reported do not.";
+    k.title = (k.title || "") + add; k.insertAdjacentHTML("beforeend", `<div class="tiny" data-v134="excl-kpi-note">${z("Registered at Core only", "只计 Core 已登记")}</div>`);
+  });
+};
+const B4_DIR_OWN = ["Settlement Variance Explanation"];
+function b4DirSplit(d) { return B4_DIR_OWN.includes(d.type) || d.sub === "KYC Review" || d.sub === "Additional Verification Required"; }
+function b4DirOverdue(d) { return !["Executed", "Replied"].includes(d.exec) && !d.revoked && b3Dl(d) === "Overdue"; }
+function b4SveOver() { return S.v13a2.dirs.filter((d) => d.type === "Settlement Variance Explanation" && b4DirOverdue(d)); }
+function b4KycOver() {
+  const now = a2NowMs();
+  return S.kyc.filter((k) => k.status === "pending" && ["core", "addver", "agerej"].includes(k.src) && (() => {
+    if (k.src === "addver") return k.cdue && now > btMs(k.cdue);
+    if (k.src === "core") { const d = S.v13a2.dirs.find((x) => x.id === k.dir); return d && d.deadline && now > btMs(d.deadline); }
+    return false;
+  })());
+}
+function b4DailyCut() { return btMs(A2_TODAY() + " 02:00:00"); }
+function b4DailyRed() { return S.v134.daily !== "Submitted" && a2NowMs() >= b4DailyCut(); }
+const b4Todos0 = v13Todos;
+v13Todos = function () {
+  const L = b4Todos0(), all = demoAll(), me = myRole(), can = (roles) => all || roles.indexOf(me) >= 0;
+  /* directives overdue or failed: settlement variance explanations, KYC review and additional verification are counted separately (6B.6.2) */
+  const di = L.findIndex((r) => /Core directives? overdue or failed/.test(r.title || ""));
+  const own = S.v13a2.dirs.filter((d) => !b4DirSplit(d) && (b4DirOverdue(d) || b3Xr(d) === "Failed"));
+  if (di >= 0) { if (own.length) { L[di].title = own.length + (own.length > 1 ? " Core directives" : " Core directive") + " overdue or failed"; L[di].sub = "Past the execution deadline without a result, or execution failed; settlement variance explanations and KYC reviews are listed separately"; } else L.splice(di, 1); }
+  else if (own.length && can(["ops"])) L.push({ act: "v13-core-go", arg: "dir", title: own.length + (own.length > 1 ? " Core directives" : " Core directive") + " overdue or failed", sub: "Past the execution deadline without a result, or execution failed; settlement variance explanations and KYC reviews are listed separately", pri: "P1" });
+  const sv = b4SveOver();
+  if (sv.length && can(["finance"])) L.push({ act: "v134-go-sve", arg: "", title: sv.length + (sv.length > 1 ? " settlement variance explanations" : " settlement variance explanation") + " overdue", sub: "Core Settlement Variance Explanation past the deadline without a reply · " + sv.map((d) => d.id).join(", "), pri: "P1" });
+  if (b4DailyRed() && can(["ops"])) L.push({ act: "v134-go-decl", arg: "", title: "Today's Daily declaration not submitted", sub: "Daily Declaration Cut-off 02:00 passed · " + S.v134.daily + " · submit before iLotto Core marks it overdue", pri: "P1" });
+  const ki = L.findIndex((r) => /awaiting KYC review or additional verification/.test(r.title || ""));
+  if (ki >= 0) { const n = b4KycOver().length; if (n) { L[ki].sub = String(L[ki].sub || "") + " · " + n + " overdue"; L[ki].ovd = n; } }
+  return L;
+};
+const b4Dash0 = viewDash0;
+viewDash0 = function () {
+  const L = v13Todos();
+  return v13Tpl(b4Dash0(), (c) => {
+    const k = L.find((r) => r.ovd); if (!k) return;
+    const b = [...c.querySelectorAll(".todo-item")].find((x) => /awaiting KYC review or additional verification/.test(x.textContent)); if (!b) return;
+    const bb = b.querySelector("b"); if (bb) bb.insertAdjacentHTML("afterend", " " + tag("rose", "Overdue"));
+    b.setAttribute("data-v134", "kyc-todo-overdue");
+  });
+};
+
+/* =====================================================================================================
+   6B.7.2 games: version withdrawn by Core (Withdrawal notice), version history keeps it marked Withdrawn
+   ===================================================================================================== */
+(function b4SeedWithdrawn() {
+  const r = V13_REG.s649; if (!r || r.wd) return;
+  r.wd = [{ ver: "v3", eff: "2026-11-01 00:00", notice: "RCN-20261008-0017", recv: "2026-10-08 10:02", impl: "2026-10-08 10:03", what: "Prize tier names updated", wdNotice: "RCN-20261010-0018", wdAt: "2026-10-10 14:20", why: "Published in error; the prize tier names stay unchanged" }];
+})();
+const b4Game0 = v13ViewGame;
+v13ViewGame = function (g) {
+  const h = b4Game0(g), r = v13Reg(g);
+  if (!r.wd || !r.wd.length) return h;
+  return v13Tpl(h, (c) => {
+    const card = c.querySelector("[data-v13=gd-hist]"); if (!card) return;
+    const tb = card.querySelector("table"); if (!tb) return;
+    const body = tb.querySelector("tbody"); if (!body) return;
+    const rows = r.wd.map((w) => {
+      const open = S.v134.vOpen[g.id + w.ver];
+      return `<tr class="click" data-act="v134-ver-wd" data-id="${g.id + w.ver}" data-v134="ver-wd" style="opacity:.6"><td class="mono">${w.ver} ${tag("muted", "Withdrawn")}</td><td class="mono">${w.eff}</td><td><button type="button" class="link mono" data-act="v13-core-go" data-arg="ref">${w.notice}</button></td><td class="mono">${w.recv}</td><td class="mono">Withdrawn</td><td>-</td></tr>` + (open ? `<tr data-v134="ver-wd-det"><td colspan="6"><div class="tiny"><b>${z("Withdrawn by iLotto Core", "Core 已撤回")}:</b> ${esc(w.wdNotice)} · ${esc(w.wdAt)} · ${z("Reason", "原因")}: ${esc(w.why)}</div><div class="tiny">${z("The implemented pending version was discarded; the version in effect did not change.", "已落地待生效版本已丢弃，当前生效版本不变。")} ${z("Change note", "变更说明")}: ${esc(w.what)}</div></td></tr>` : "");
+    }).join("");
+    body.insertAdjacentHTML("afterbegin", rows);
+    card.insertAdjacentHTML("beforeend", `<p class="tiny" data-v134="ver-wd-note">${z("A version iLotto Core withdraws before it takes effect stays here marked Withdrawn (click it for the reason); its Next mark on the game list is removed. Core allows at most one approved version pending per object.", "Core 在生效前撤回的版本保留并标 Withdrawn（点开看原因），游戏列表的 Next 标记去掉；同一对象同时最多一个待生效版本。")}</p>`);
+  });
+};
+
+/* =====================================================================================================
+   6B.7.3 draw list: Pool Amount column removed (per-tier pool amounts only in the draw detail Result block)
+   ===================================================================================================== */
+const b4DrawList0 = viewDrawList;
+viewDrawList = function (...a) {
+  return v13Tpl(b4DrawList0(...a), (c) => {
+    c.querySelectorAll("table").forEach((tb) => {
+      const k = b4Idx(tb, "Jackpot / Prize Pool Amount"); if (k < 0 || !b4Ths(tb).some((h) => h.textContent.trim() === "Draw Sequence No")) return;
+      const n = b4Ths(tb).length; b4Ths(tb)[k].remove();
+      tb.querySelectorAll(":scope > tbody > tr").forEach((tr) => { if (tr.children.length === n && tr.children[k]) tr.children[k].remove(); else if (tr.children.length === 1 && tr.children[0].colSpan === n) tr.children[0].colSpan = n - 1; });
+      tb.setAttribute("data-v134", "draw-list");
+    });
+  });
+};
+
+/* =====================================================================================================
+   6B.7.4 draw detail: per-draw reconciliation time limit; Adjustments: borne by PCSO, late recovery, past claim deadline
+   ===================================================================================================== */
+const b4Recon0 = v13ReconCard;
+v13ReconCard = function (i) {
+  return v13Tpl(b4Recon0(i), (c) => {
+    const th = [...c.querySelectorAll("th")].find((x) => x.textContent.trim() === "Confirmation Due"); if (!th || !th.nextElementSibling) return;
+    th.nextElementSibling.insertAdjacentHTML("beforeend", ` <span class="tiny" data-v134="due-note">${z("= received time + the reconciliation time limit sent with this result (2 hours by default)", "= 回执时间 + 随本期结果下发的对账时限（默认 2 小时）")}</span>`);
+  });
+};
+const B4_LATE_TKT = { "PL-104482": ["L655-20261012-1", "ILT-TKT202610090244"] }; /* Demo data: the Not Recovered row of the 6B.7.4 example */
+const b4Adj0 = v13AdjCard;
+v13AdjCard = function (i) {
+  return v13Tpl(b4Adj0(i), (c) => {
+    const card = c.querySelector("[data-v13=adj]"); if (!card) return;
+    const tb = card.querySelector("table"); if (!tb) return;
+    const k = b4Idx(tb, "Not Recovered"); if (k < 0) return;
+    const ths = b4Ths(tb); ths[k].textContent = "Not Recovered (Borne By PCSO)"; ths[k].insertAdjacentHTML("afterend", "<th>Late Recovery</th>");
+    tb.querySelectorAll(":scope > tbody > tr[data-v131-adj]").forEach((tr) => {
+      const a = (i.adj || []).find((x) => x.ver === tr.dataset.v131Adj); const late = a ? b4R2(a.rows.reduce((s, r) => s + (r.late || 0), 0)) : 0;
+      if (tr.children[k]) tr.children[k].insertAdjacentHTML("afterend", `<td class="mono amt" data-v134="adj-late">${peso2(late)}</td>`);
+      const nx = tr.nextElementSibling; if (nx && !nx.dataset.v131Adj && nx.children.length === 1) nx.children[0].colSpan = nx.children[0].colSpan + 1;
+    });
+    card.querySelectorAll("tr[data-v13-adjrow]").forEach((tr) => {
+      let r = null; (i.adj || []).forEach((a) => a.rows.forEach((x) => { if (x.ref === tr.dataset.v13Adjrow) r = x; }));
+      if (r && r.late) { const td = tr.children[6]; if (td) td.insertAdjacentHTML("beforeend", `<div class="tiny" data-v134="adj-late-row">Late Recovery ${peso2(r.late)} · reported ${esc(r.lateAt || "")}</div>`); }
+      if (r && r.pastDl && tr.children[5]) tr.children[5].innerHTML = tag("muted", "Not Applicable") + `<div class="tiny">Past the claim deadline</div>`;
+    });
+    const p = card.querySelector("p.tiny");
+    if (p) {
+      p.innerHTML = p.innerHTML.replace("the part that cannot be recovered is fixed at the balance at handling time and is borne by the channel.", "the part that cannot be recovered is fixed at the balance at handling time and is borne by PCSO; Core adds back only what was actually reversed.");
+      p.insertAdjacentHTML("beforeend", ` <span data-v134="adj-note">${z("Late Recovery: when a withdrawal of the player is later rejected, the unrecovered amount is deducted from the returned prize balance and reported to Core by ticket as a Late Recovery; Core adds it back in the period it receives it. A top-up pays the new after-tax payable minus the ticket's cumulative net paid (original paid − reported reversals, late recoveries included, + earlier top-ups). An adjustment that takes effect, or reaches iLotto, after the ticket's claim deadline is not applied, claimed or not: the ticket detail gets a correction note, nothing is reversed or topped up, and the result is reported Not Applicable.", "追回补报：玩家提现被驳回后按未追回额补扣并按票上报 Core；补发 = 新税后 − 该票累计净实付；调整生效或收到时已过兑奖截止日的票不冲回、不补发，报 Not Applicable。")}</span>`);
+    }
+  });
+};
+
+/* =====================================================================================================
+   6B.7.5 big prize claim records: wallet freeze inside the payment registration window
+   ===================================================================================================== */
+const b4Claims0 = viewClaimsMenu;
+viewClaimsMenu = function () {
+  const h = b4Claims0(); if (S.sub) return h;
+  return v13Tpl(h, (c) => b4Note(c, z("Wallet freeze: valid claim codes of the player are voided and the void is reported (a system reason, not counted in the player's three regenerations). A code Core has already validated, inside the payment registration window, stays Verified – awaiting payment; it is voided only after Core sends Claim Code Validation Lapsed, and a CLAIMED received first is handled as claimed.", "钱包冻结：作废有效兑奖码并上报；已被 Core 校验、处于付款登记时限内的维持 Verified – awaiting payment，收到校验失效后再作废；先收到 CLAIMED 的按已兑处理。"), "claims-freeze"));
+};
+
+/* =====================================================================================================
+   6B.8.3 player profile: every exclusion in effect on its own line; Wallet Frozen tier in Effective Restriction
+   ===================================================================================================== */
+function b4PlExcls(p) { return S.v13.excl.filter((e) => e.player === p.id && e.st === "In Effect"); }
+v13Restr = function (p) {
+  const src = [], ex = b4PlExcls(p);
+  if (p.status === "frozen") src.push(["Sign-in blocked", "Temporarily deactivated (admin)"]);
+  if (p.core === "Suspended") src.push(["Sign-in blocked", "iLotto Core: Suspended"]);
+  if (p.wallet && p.wallet.st === "frozen") src.push(["Wallet frozen", "Wallet frozen (local)"]);
+  if (p.core === "Restricted") src.push(["Restricted sign-in", "iLotto Core: Restricted"]);
+  ex.forEach((e) => src.push(["Restricted sign-in", e.type + (b4ExclLocal(e) ? " (Local only)" : "")]));
+  if (p.status === "limited") src.push(["Betting blocked", "Betting limited (admin)"]);
+  const ord = ["Sign-in blocked", "Wallet frozen", "Restricted sign-in", "Betting blocked"];
+  const top = ord.find((o) => src.some((s) => s[0] === o)) || "No restriction";
+  return { top, src };
+};
+v13CoreImposed = function (p) { return p.core === "Suspended" || p.core === "Restricted" || b4PlExcls(p).some((e) => e.type === "PCSO-Imposed Exclusion"); };
+const b4PlCard0 = v13PlayerCard;
+v13PlayerCard = function (p) {
+  const ex = b4PlExcls(p);
+  return v13Tpl(b4PlCard0(p), (c) => {
+    const th = [...c.querySelectorAll("th")].find((x) => x.textContent.trim() === "Exclusion Status"); if (!th || !th.nextElementSibling) return;
+    const td = th.nextElementSibling;
+    td.innerHTML = ex.length ? ex.map((e) => `<div data-v134="pl-excl"><button type="button" class="link" data-act="v13-excl-player" data-id="${p.id}">${esc(e.type)} · ${/^\d{4}-\d\d-\d\d$/.test(e.until) ? "until " + e.until : esc(e.until.toLowerCase() === "until lifted" ? "until lifted" : e.until)}</button>${b4ExclLocal(e) ? " " + tag("muted", "Local only") : ""}</div>`).join("") : "None";
+    const rt = [...c.querySelectorAll("th")].find((x) => x.textContent.trim() === "Effective Restriction");
+    if (rt) rt.title = "The strictest of local account status, wallet status, Core account status and exclusions: Sign-in blocked / Wallet frozen (can sign in and see balances and tickets; no bets, deposits or withdrawals) / Restricted sign-in (can see balances and tickets and withdraw; no bets or deposits) / Betting blocked / No restriction.";
+  });
+};
+
+/* =====================================================================================================
+   6B.8.3 permanent deletion blockers = the deletion pre-check: V1.2 items + wallet frozen + unpaid Core-list winners + open result adjustments
+   ===================================================================================================== */
+const b4DelBlk0 = delBlockers;
+delBlockers = function (p) {
+  const r = b4DelBlk0(p), refs = S.tickets.filter((x) => x.player === p.id).map((x) => "ILT-" + x.no);
+  if (p.wallet && p.wallet.st === "frozen") r.push("Cannot delete: the wallet is frozen.");
+  if (S.tickets.some((x) => x.player === p.id && x.st === "won" && x.prize && x.paid == null)) r.push("Cannot delete: a winning ticket on the Core winning list has not been paid yet.");
+  if (S.issues.some((i) => (i.adj || []).some((a) => a.rows.some((x) => !x.done && x.hs !== "Superseded" && refs.includes(x.ref))))) r.push("Cannot delete: a result adjustment of the player's tickets is still being handled.");
+  return r;
+};
+
+/* =====================================================================================================
+   6B.9.2 exclusions: Source column and filter (Core / Local); local rows show - for the IDs; this month = Core rows only
+   ===================================================================================================== */
+function b4ExclLocal(e) { return !!(e.local || e.rejNoRetry || e.queued || !/^EXR-/.test(e.id)); }
+S.v13.exq.src = S.v13.exq.src || "all";
+const b4ExclRows0 = v13ExclRows;
+v13ExclRows = function () {
+  const q = S.v13.exq, src = q.src || "all";
+  return b4ExclRows0().filter((e) => (src === "all" || (src === "Local" ? b4ExclLocal(e) : !b4ExclLocal(e))) && (!q.month || !b4ExclLocal(e)));
+};
+const b4Excl0 = v13ViewExcl;
+v13ViewExcl = function () {
+  const q = S.v13.exq;
+  return v13Tpl(b4Excl0(), (c) => {
+    const tools = c.querySelector(".tools");
+    if (tools) { const lab = [...tools.querySelectorAll("label")].find((l) => /Initiated By/.test(l.textContent)); const html = `<label class="f" data-v134="excl-src">Source<select data-v13q="exq.src">${[["all", "All"], ["Core", "Core"], ["Local", "Local"]].map(([v, l]) => `<option value="${v}" ${(q.src || "all") === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>`; if (lab) lab.insertAdjacentHTML("afterend", html); else tools.insertAdjacentHTML("afterbegin", html); }
+    const tb = b4Table(c, "Exclusion ID"); if (!tb) return;
+    b4Ths(tb)[0].insertAdjacentHTML("afterend", "<th>Source</th>");
+    const kd = b4Idx(tb, "Directive ID");
+    tb.querySelectorAll("tbody tr[data-v13-excl]").forEach((tr) => {
+      const e = S.v13.excl.find((x) => x.id === tr.dataset.v13Excl); if (!e) return;
+      const loc = b4ExclLocal(e);
+      if (loc) { tr.children[0].textContent = "-"; tr.children[0].title = "Not registered at Core yet (local record " + e.id + ")"; if (kd >= 0 && tr.children[kd - 1]) tr.children[kd - 1].textContent = "-"; }
+      tr.children[0].insertAdjacentHTML("afterend", `<td data-v134="excl-src">${loc ? tag("muted", "Local") : "Core"}</td>`);
+    });
+    b4Note(c, z("Source: Core = registered in the iLotto Core exclusion register; Local = not registered at Core yet (a submission queued or waiting to be re-reported, or a Local only self-exclusion of a player who is not federated); its Exclusion ID and Directive ID show -, Effective From is the local time the player confirmed, and Status is judged locally. Once Core registers it, the row turns Core and takes the Core ID, time and status. Effective this month and the dashboard count include Core rows only.", "来源：Core = 已在 Core 排除登记册登记；Local = 尚未登记（排队中、被拒收待重报的代交，未联邦玩家的本地自我排除），编号与指令编号显示 -；本月生效与仪表盘只计 Core 行。"), "excl-src-note");
+  });
+};
+
+/* =====================================================================================================
+   6B.10.2 transactions: Reporting Status only Pending / Reported / Queued; Conformance filter; re-reported on request
+   ===================================================================================================== */
+(function b4Txst() { /* a Non-Conformant judgement is a Conformance value: the reporting status stays Reported */
+  Object.keys(S.v13a2.txst).forEach((k) => { const o = S.v13a2.txst[k]; if (o.st === "Non-Conformant") { o.st = "Reported"; o.conf = "Non-Conformant"; } });
+  S.v13a2.txst["ILT-TKT20261009010801"] = Object.assign({}, S.v13a2.txst["ILT-TKT20261009010801"] || {}, { rr: "DIR-20261011-000093" });
+})();
+a2RepTag = function (s) { return s === "Reported" ? tag("ok", "Reported") : s === "Pending" ? tag("warn", "Pending") : s === "Queued" ? tag("cyan", "Queued") : "-"; };
+const b4TxBar0 = a2TxBar;
+a2TxBar = function () {
+  const q = a2Q("tx", { ref: "", upid: "", st: "all" });
+  if (q.st === "Non-Conformant") q.st = "all";
+  return v13Tpl(b4TxBar0(), (c) => {
+    const sel = c.querySelector("select[data-a2q='tx.st']"); if (sel) { [...sel.options].forEach((o) => { if (o.value === "Non-Conformant") o.remove(); }); sel.closest("label").title = "Only whether the transaction reached Core; a Non-Conformant judgement is filtered by Conformance."; }
+    const lab = sel ? sel.closest("label") : null;
+    const html = `<label class="f" data-v134="tx-conf">${z("Conformance", "校验结果")}${a2Sel("tx.conf", [["all", "All"], "Pending", "Conformant", "Non-Conformant", "Excluded"], q.conf || "all")}</label>`;
+    if (lab) lab.insertAdjacentHTML("afterend", html);
+  });
+};
+const b4TxMatch0 = a2TxMatch;
+a2TxMatch = function (x) {
+  const q = a2Q("tx", { ref: "", upid: "", st: "all" }), cf = q.conf || "all";
+  if (!b4TxMatch0(x)) return false;
+  if (q.ref && q.ref.trim()) return true;
+  return cf === "all" || (x.rep && x.rep.conf === cf);
+};
+const b4Orders0 = viewOrders;
+viewOrders = function () {
+  return v13Tpl(b4Orders0(), (c) => {
+    const tb = b4Table(c, "Reporting Status"); if (!tb) return;
+    const k = b4Idx(tb, "Reporting Status"), kr = b4Idx(tb, "Transaction Reference");
+    tb.querySelectorAll(":scope > tbody > tr").forEach((tr) => {
+      const ref = tr.children[kr] ? tr.children[kr].textContent.trim() : ""; const o = S.v13a2.txst[ref];
+      if (o && o.rr && tr.children[k]) tr.children[k].insertAdjacentHTML("beforeend", `<div class="tiny" data-v134="tx-rr">Re-reported on request · ${a2Link("v134-go-dir", o.rr, { id: o.rr })}</div>`);
+    });
+    b4Note(c, "Reporting Status only says whether the transaction reached Core (Pending / Reported / Queued); a Core Non-Conformant judgement and any later change (Conformant after a closure exception, Excluded after a void) only change Conformance. A transaction re-reported for a Core Re-report Request carries that directive ID; Core does not count it as a Late Report.", "tx-st-note");
+  });
+};
+
+/* 6B.10.3 prize payments: Claim Record ID (Core), top-up amount rule, Decide Rejection → Mark Handled in Reconciliation */
+function b4Clm(r) {
+  if (!r) return "-";
+  if (r.src === "PCSO Counter") return r.clm;
+  if (r.cv === "Awaiting" || !r.cv) return "-";
+  const fix = { "PRC-ILT-20261012-0009": "CLM-20261012-000318" };
+  if (fix[r.clm]) return fix[r.clm];
+  const h = x13Hash(r.clm), d = String(r.claimedAt || r.at || "").slice(0, 10).replace(/-/g, "");
+  return "CLM-" + (d || "20261010") + "-000" + String(100 + (h % 899)).padStart(3, "0");
+}
+function b4DivFor(clm) { return S.v13.divs.find((d) => d.dom === "Prize Claims" && d.obj === clm); }
+const b4PrizePay0 = viewPrizePay;
+viewPrizePay = function () {
+  const rows = b1PrizeRows();
+  return v13Tpl(b4PrizePay0(), (c) => {
+    const tb = b4Table(c, "Core Verification"); if (!tb) return;
+    const k = b4Idx(tb, "Claim Record"); if (k >= 0) { b4Ths(tb)[k].textContent = "Claim Record ID"; b4Ths(tb)[k].title = "Generated by iLotto Core and returned with the verification receipt; - until then. PCSO Counter rows take the ID sent with CLAIMED. An adjustment request for a prize claim record names it by this ID."; }
+    const kd = b4Idx(tb, "Rejection Decision");
+    tb.querySelectorAll("tbody tr[data-a2-prize]").forEach((tr) => {
+      const r = rows.find((x) => x.clm === tr.dataset.a2Prize); if (!r) return;
+      if (k >= 0 && tr.children[k]) tr.children[k].innerHTML = `<span class="mono" data-v134="clm-id">${b4Clm(r)}</span>${r.src === "Auto Credit" ? `<div class="tiny mono">${esc(r.clm)}</div>` : ""}`;
+      const rec = S.v133.rej[r.clm], dv = b4DivFor(r.clm);
+      if (rec && kd >= 0 && tr.children[kd] && dv) { const done = b3DivHandled(dv); tr.children[kd].insertAdjacentHTML("beforeend", `<div class="tiny" data-v134="rej-div">${done ? "Divergence " + esc(dv.id) + " handled" : `Next: ${a2Link("v134-go-div", "Mark Handled " + esc(dv.id), { id: dv.id })} in Core integration › Reconciliation`}</div>`); }
+    });
+    const p = c.querySelector("[data-v133=pp-note]");
+    if (p) p.innerHTML = p.innerHTML.replace(/Top-up Amount \(Top-up rows only\) = new after-tax payable − after-tax payable of the previous effective version; it counts as channel-paid/, "Top-up Amount (Top-up rows only) = new after-tax payable − the ticket's cumulative net paid (accepted original record − reversals reported to Core, late recoveries included, + earlier top-ups), the amount actually paid to the player; it counts in full as channel-paid (Prizes Paid (Net))");
+    b4Note(c, z("One Standard record per ticket; a result-adjustment top-up is a separate Top-up record, so a Transaction Reference can have several records. A reversal is not a claim record: see the draw's Adjustments block and the player's wallet history. After Decide Rejection the same Finance review closes the matching Prize Claims divergence with Mark Handled (Core integration › Reconciliation). An iLotto Error reversal that cannot be recovered is fixed at decision time and borne by the channel; it is not deducted again after a rejected withdrawal.", "一张票一条 Standard 记录，补发另起 Top-up 记录；判定拒收后由同一财务复核在对账差异对兑奖领域差异 Mark Handled。"), "pp-note2");
+  });
+};
+
+/* 6B.10.4 adjustment request: target Prize Claim Record is named by the Core Claim Record ID */
+const b4Modal0 = x13Modal;
+x13Modal = function () {
+  const m = S.modal, h = b4Modal0();
+  if (!m || m.type !== "v13a2-arq") return h;
+  const f = S.v13a2.f; if ((f.tt || "Transaction") !== "Prize Claim Record") return h;
+  return v13Tpl(h, (c) => {
+    const inp = c.querySelector("input[data-a2f=ref]"); if (!inp) return;
+    const lab = inp.previousElementSibling && inp.previousElementSibling.tagName === "LABEL" ? inp.previousElementSibling : null;
+    if (lab) lab.textContent = "Claim Record ID";
+    if (f.clmid === undefined) { const r = b1PrizeRows().find((x) => x.clm === f.ref); f.clmid = r ? (b4Clm(r) === "-" ? "" : b4Clm(r)) : ""; }
+    inp.outerHTML = `<input data-v134f="clmid" data-v134="arq-clm" value="${esc(f.clmid || "")}" placeholder="CLM-20261012-000318" />`;
+  });
+};
+
+const b4ArqSave0 = b1ArqSave;
+b1ArqSave = function () { /* a Prize Claim Record target is looked up by the Core Claim Record ID */
+  const f = S.v13a2.f;
+  if ((f.tt || "Transaction") === "Prize Claim Record" && f.clmid !== undefined) {
+    const v = String(f.clmid || "").trim().toUpperCase(), r = v ? b1PrizeRows().find((x) => x.src === "Auto Credit" && b4Clm(x).toUpperCase() === v) : null;
+    if (!r) { f.err = "No prize claim records found."; render(); return; }
+    if (a2OpenAdj(r.clm)) { f.err = "An adjustment request for this record is already in progress."; render(); return; }
+    f.ref = r.clm;
+  }
+  return b4ArqSave0();
+};
+
+/* 6B.10.5 tickets: Claim Status Prize to claim / Claimed / Expired / Not Applicable */
+(function b4TkClaim() { const M = { Unclaimed: "Prize to claim", "N/A": "Not Applicable" }; S.tickets.forEach((t1) => { if (M[t1.claim]) t1.claim = M[t1.claim]; }); if (S.tk && M[S.tk.claim]) S.tk.claim = M[S.tk.claim]; })();
+const b4Tickets0 = viewTickets;
+viewTickets = function () {
+  const now = sysNow().slice(0, 10);
+  S.tickets.forEach((t1) => { if (t1.claim === "Prize to claim" && t1.deadline && t1.deadline < now) t1.claim = "Expired"; });
+  return v13Tpl(b4Tickets0(), (c) => {
+    const sel = c.querySelector("select[data-tkf=claim]"); if (!sel) return;
+    const cur = S.tk.claim || "all";
+    sel.innerHTML = [["all", "All"], ["Prize to claim", "Prize to claim"], ["Claimed", "Claimed"], ["Expired", "Expired"], ["Not Applicable", "Not Applicable"]].map(([v, l]) => `<option value="${v}" ${cur === v ? "selected" : ""}>${l}</option>`).join("");
+    sel.closest("label").setAttribute("data-v134", "tk-claim");
+    sel.closest("label").title = "Claimed for a big prize follows the CLAIMED notice from Core; Prize to claim and Expired follow the ticket status (Expired at 23:59:59 local time on the claim deadline).";
+  });
+};
+
+/* 6B.10.6 withdrawal rejected: the deducted unrecovered amount is reported to Core as a Late Recovery */
+function b4LateRec(d) {
+  if (!d || d.b4Late) return;
+  if (!d.unrecDed) { const u0 = S.v133.unrec[d.player]; if (!u0) return; const u = Math.min(u0, d.amt); S.v133.unrec[d.player] = b4R2(u0 - u); d.unrecDed = u; x13Aud(t("交易流水", "Transactions"), "Prize Reversal (unrecovered prize adjustment deducted after a rejected withdrawal)", d.ref + " · " + d.player, "—", b4Pe(u) + " · reported to Core as a Late Recovery"); }
+  d.b4Late = true;
+  const m = B4_LATE_TKT[d.player] || ["L655-20261012-1", "-"], at = a2NowFull();
+  const i = S.issues.find((x) => x.no === m[0]); let ver = i && i.res ? i.res.ver : "v2", eff = "";
+  if (i && i.adj) i.adj.forEach((a) => a.rows.forEach((r) => { if (r.ref === m[1]) { r.late = b4R2((r.late || 0) + d.unrecDed); r.lateAt = at; ver = a.ver; eff = a.at; } }));
+  S.v134.late.push({ draw: m[0], ref: m[1], ver, amt: d.unrecDed, at, eff: eff || at, player: d.player, wd: d.ref });
+  const au = S.audits.find((x) => /unrecovered prize adjustment deducted/.test(x.evt || "")); if (au) au.after = String(au.after || "").replace("internal only, not reported to Core", "reported to Core as a Late Recovery");
+  x13Aud(t("交易流水", "Transactions"), "Late Recovery reported to Core", m[1] + " · " + d.player, "—", b4Pe(d.unrecDed) + " · result " + ver + " · " + at);
+  toast("Rejected. " + b4Pe(d.amt) + " returned to the prize balance; the unrecovered prize adjustment of " + b4Pe(d.unrecDed) + " was deducted (Prize Reversal) and reported to Core as a Late Recovery.");
+  render();
+}
+
+/* the withdrawal reject handlers stop the click at the window (stopImmediatePropagation), so the rejection is picked up from its audit entry */
+const b4LogAudit0 = logAudit;
+logAudit = function (partial) {
+  const r = b4LogAudit0(partial);
+  if (partial && /^Reject withdrawal review/.test(partial.evt || "")) { const ref = String(partial.obj || "").split(" · ")[0]; setTimeout(() => { const d = S.withdraws.find((x) => x.ref === ref); if (d && d.st === "rejected") b4LateRec(d); }, 0); }
+  return r;
+};
+
+/* =====================================================================================================
+   6B.11.4 remittance statement: add-back = amounts actually reversed, by report date; Overpayment / Borne By PCSO; late recovery rows
+   ===================================================================================================== */
+a2AddBack = function () {
+  const L = [];
+  S.issues.forEach((i) => (i.adj || []).forEach((a) => {
+    const rs = a.rows.filter((r) => r.done && !r.pastDl && r.result !== "Not Applicable" && (r.diffNet != null ? r.diffNet < 0 : /No Longer Won|Prize Reduced|Prize Decreased/.test(r.type)));
+    const by = {}; rs.forEach((r) => { const d = String(r.repAt && r.repAt !== "-" && r.repAt !== "Queued" ? r.repAt : r.doneAt || a.at || "").slice(0, 10); (by[d] = by[d] || []).push(r); });
+    if (!rs.length) by[String(a.at || "").slice(0, 10)] = [];
+    Object.keys(by).sort().forEach((day) => {
+      const g = by[day], over = b4R2(g.reduce((s, r) => s + (r.diffNet != null ? -r.diffNet : taxOf(r.oPrize).net - (r.nPrize ? taxOf(r.nPrize).net : 0)), 0)), amt = b4R2(g.reduce((s, r) => s + (r.recovered || 0), 0));
+      const lt = b4R2(g.reduce((s, r) => s + (r.late || 0), 0)); /* a later late recovery moves out of Borne By PCSO into its own add-back row */
+      L.push({ draw: i.no, ver: a.from + " → " + a.ver, day, bets: g.length, over, amt, pcso: b4R2(over - amt - lt), rec: amt, borne: b4R2(over - amt - lt), tax: b4R2(a.rows.reduce((s, r) => s + (r.taxDiff || 0), 0)), at: a.at });
+    });
+  }));
+  S.v134.late.forEach((x) => L.push({ draw: x.draw, ver: "Recovered after withdrawal rejection", day: x.at.slice(0, 10), bets: 1, over: 0, amt: x.amt, pcso: 0, rec: x.amt, borne: 0, tax: 0, at: x.eff, late: true }));
+  return L;
+};
+const b4AbCard0 = a2AddBackCard;
+a2AddBackCard = function () {
+  const L = a2AddBack(), tot = b4R2(L.reduce((s, r) => s + r.amt, 0));
+  return v13Tpl(b4AbCard0(), (c) => {
+    const card = c.querySelector("[data-a2=addback]"); if (!card) return;
+    const p = card.querySelector("p.tiny"); if (p) p.textContent = "Generated by the system for auto-credited tickets whose new after-tax payable is below the ticket's cumulative net paid after a Core result adjustment (no longer won or a lower prize). Add-back Amount = what was actually reversed from the prize balance and reported to Core with the handling result; the part that could not be recovered is borne by PCSO and not added back. One row per draw, version and report date, dated by the time the handling result (or the late recovery) was reported to Core, the same rule Core uses; Adjustment Effective At is shown only. A deduction made after a rejected withdrawal is reported as a Late Recovery and added back in its own row. Tickets past the claim deadline when the adjustment took effect or reached iLotto are reported Not Applicable and are not in these rows. The tax difference is not part of the add-back; it has its own row below. The rows go into the first statement generated after their date and count in its Net Due To PCSO.";
+    const tb = card.querySelector("table"); if (!tb) return;
+    tb.querySelector(":scope > thead > tr").innerHTML = ["Draw ID", "Result Version", "Reported On", "Affected Tickets", "Overpayment", "Add-back Amount", "Borne By PCSO", "Adjustment Effective At"].map((h) => `<th>${h}</th>`).join("");
+    tb.querySelector(":scope > tbody").innerHTML = L.length ? L.map((r) => `<tr data-a2-ab="${r.draw}" data-v134-ab="${r.late ? "late" : "adj"}"><td class="mono">${r.draw}</td><td class="mono">${esc(r.ver)}</td><td class="mono">${r.day}</td><td class="mono">${r.bets}</td><td class="mono amt">${peso2(r.over)}</td><td class="mono amt" data-a2="ab-amt">${peso2(r.amt)}</td><td class="mono amt">${peso2(r.pcso)}</td><td class="mono">${r.at || "-"}</td></tr>`).join("") : `<tr><td colspan="8" class="muted">${z("No result adjustment has an overpayment to add back.", "暂无需加回的调整超付。")}</td></tr>`;
+    const t0 = card.querySelector("[data-a2=ab-total]"); if (t0) t0.textContent = peso2(tot);
+    tb.setAttribute("data-v134", "addback");
+  });
+};
+const b4Cnd0 = a2ViewCnd;
+a2ViewCnd = function () {
+  return v13Tpl(b4Cnd0(), (c) => {
+    const th = [...c.querySelectorAll("th")].find((x) => x.textContent.trim() === "Total Payout (Local / Core)");
+    if (th) { th.title = "Core = Prizes Paid (Net): after tax, dated by the claim time. Not comparable with the Core report's Prizes Won (Gross), which is pre-tax, by draw date and includes counter payouts."; th.setAttribute("data-v134", "cnd-net"); }
+    b4Note(c, "Total Payout compares with Core Prizes Paid (Net) (after tax, by claim time); the Core report's Prizes Won (Gross) uses another basis and is not compared here.", "cnd-note");
+  });
+};
+
+/* =====================================================================================================
+   6B.13.4 global parameters: Channel Operating Parameters (read-only), single claim policy threshold, compliance parameters
+   ===================================================================================================== */
+(function b4Params() {
+  A2_CPARAMS.forEach((r) => {
+    if (/^Auto-credit Cap/.test(r[0])) r[1] = "₱300,000.00 (single value: the channel auto-credit cap; amount-tier verification requirements apply in Core only)";
+    if (/^Compliance Parameters/.test(r[0])) { r[0] = "Compliance Parameters (above-threshold amount, metrics reporting cycle, reporting cut-off, on-demand reply deadline)"; r[1] = "₱500,000.00 · Daily · 6 hours · 24 hours"; }
+  });
+  if (!A2_CPARAMS.some((r) => /^Channel Operating Parameters/.test(r[0]))) A2_CPARAMS.push(["Channel Operating Parameters", "12 time limits (see below)", "v1", "2026-10-01 00:00", "-", "Implemented"]);
+})();
+const b4Params0 = viewParams;
+viewParams = function () {
+  return v13Tpl(b4Params0(), (c) => {
+    const card = c.querySelector("[data-a2=core-params]"); if (!card) return;
+    const tr = card.querySelector("tr[data-a2-cp='Channel Operating Parameters']"); if (tr) tr.setAttribute("data-v134", "cop-row");
+    const tb = card.querySelector("table");
+    if (tb) tb.insertAdjacentHTML("afterend", `<details class="tiny" data-v134="cop" open><summary>${z("Channel Operating Parameters (iLotto Core, read-only)", "渠道运行参数（Core 下发，只读）")}</summary>${b4KvTable(B4_COP, "cop-table")}<p class="tiny">${z("Time limits iLotto must meet, sent by reference change notice and applied from their effective time; a time limit already running keeps the value in effect when it started. The on-demand compliance metrics reply deadline belongs to Compliance Parameters. The reconciliation time limit also comes with each result for its draw.", "渠道须遵守的各项时限，经参照变更通知下发、按生效时间执行；已开始计时的期限按开始时的值判定。")}</p></details><details class="tiny" data-v134="cmp"><summary>${z("Compliance Parameters (iLotto Core, read-only)", "合规参数（Core 下发，只读）")}</summary>${b4KvTable(B4_CMP, "cmp-table")}</details>`);
+  });
+};
+/* 6B.13.5 Pending Finance review: types now received read-only from Core are gone */
+const b4SysChg0 = viewSysChg;
+viewSysChg = function (...a) {
+  return v13Tpl(b4SysChg0(...a), (c) => {
+    const b = c.querySelector("[data-x13=fin-tab]"); if (!b) return;
+    b.textContent = "Pending Finance review lists the requests Finance review approves: local global parameters, balance write-off, wallet freeze / unfreeze, manual points adjustment, export limit release and manual entries in the integration register. Tax rate table, transaction unit value, channel (terminal) disable / restore, Webhook subscription settings, new game, big prize threshold, claim code validity and points parameters (including the master switch) are received read-only from iLotto Core and can no longer be requested here; requests made before go-live stay viewable. Game parameter and draw schedule requests are under Game management. Operations submits, and nobody approves their own request. Only one pending request per parameter.";
+    b.setAttribute("data-v134", "fin-tab");
+  });
+};
+
+/* =====================================================================================================
+   6B.14.2 directives: Directive Revocation, Contact Re-verified, Reference Change Withdrawal; revoked rows; who sees what
+   ===================================================================================================== */
+(function b4SeedDirs() {
+  const L = S.v13a2.dirs;
+  const mk = (o) => Object.assign({ reason: "", by: "core.sa01", players: [], detail: "", fail: "", handler: "System", mode: "auto", sub: "", round: 0, ackHist: [] }, o);
+  const add = [
+    mk({ id: "DIR-20261010-000119", type: "Directive Revocation", sum: "Revoke DIR-20261010-000118 (Draw Postponement)", reason: "Issued in error", by: "core.sa02", issued: "2026-10-10 12:03:00", deadline: "2026-10-10 12:08:00", exec: "Executed", execAt: "2026-10-10 12:03:02", target: "DIR-20261010-000118", pres: "Revoked", detail: "DIR-20261010-000118 had not been executed: it is not executed and its receipt shows Revoked. Core marks the revocation Effective." }),
+    mk({ id: "DIR-20261008-000114", type: "Directive Revocation", sum: "Revoke DIR-20261008-000108 (Match Review Outcome)", reason: "Conclusion recorded on the wrong case", by: "core.reg02", issued: "2026-10-08 11:20:30", deadline: "2026-10-08 11:25:30", exec: "Executed", execAt: "2026-10-08 11:20:31", target: "DIR-20261008-000108", pres: "Already Executed", detail: "DIR-20261008-000108 was already executed at 11:20:04 and is not rolled back; Core marks the revocation Not Effective and sends a new directive if the effect must be undone." }),
+    mk({ id: "DIR-20261011-000117", type: "Contact Re-verified", sum: "UP-000104482 re-verified the mobile number on another channel", reason: "Contact reassigned earlier", by: "System", issued: "2026-10-11 10:12:00", deadline: "", exec: "Executed", execAt: "2026-10-11 10:12:01", detail: "Only acknowledged. The notice has no new contact; the local Re-verification required mark stays and the player still registers and verifies a new mobile number or e-mail at the next iLotto sign-in." }),
+    mk({ id: "DIR-20261010-000115", type: "Reference Change Withdrawal", sum: "Withdrawal · Game Register · S649 v3 (published 2026-10-08)", reason: "Published in error; the prize tier names stay unchanged", by: "core.reg01", issued: "2026-10-10 14:20:00", deadline: "2026-10-10 14:25:00", exec: "Executed", execAt: "2026-10-10 14:20:03", detail: "The implemented pending version S649 v3 was discarded and recorded Withdrawn; the version in effect (v2) did not change." }),
+    mk({ id: "DIR-20261009-000111", type: "Match Review Outcome", sub: "Additional Verification Required", mode: "reply", sum: "MR-20261009-0005 · additional verification required (date of birth)", reason: "Registry specialist asked for additional verification", by: "core.reg02", issued: "2026-10-09 09:30:00", deadline: "2026-10-10 18:00:00", exec: "Replied", execAt: "2026-10-10 15:20:00", handler: "System", detail: "The result was reported by the system when the identity reviewer recorded the verification in Identity review." }),
+    mk({ id: "DIR-20261011-000093", type: "Re-report Request", sum: "Re-report the difference set of L642-20261013-1 (Core summary attached)", reason: "Missing Transactions", by: "System", issued: "2026-10-11 09:00:00", deadline: "2026-10-11 09:30:00", exec: "Executed", execAt: "2026-10-11 09:00:40", detail: "1 transaction re-reported with this directive ID (ILT-TKT20261009010801); Core does not count it as a Late Report." })
+  ];
+  add.forEach((d) => { if (L.some((x) => x.id === d.id)) return; d.recv = btFmt(btMs(d.issued) + 1000); d.ackHist = [[d.recv, "Receipt confirmation sent"]].concat(d.execAt ? [[d.execAt, d.exec === "Replied" ? "Result reported" : "Execution result sent"]] : []); d.ack = b1Ack(d); L.push(d); });
+  const r = L.find((x) => x.id === "DIR-20261010-000118"); if (r) r.revokedBy = "DIR-20261010-000119";
+  const k = L.find((x) => x.id === "DIR-20261005-000104"); if (k && !k.coreClosed) k.coreClosed = "2026-10-12 11:30:00";
+  ["Directive Revocation", "Contact Re-verified", "Reference Change Withdrawal"].forEach((t1) => { if (A2_DTYPES.indexOf(t1) < 0) A2_DTYPES.push(t1); });
+  if (B3_ACK_ONLY.indexOf("Contact Re-verified") < 0) B3_ACK_ONLY.push("Contact Re-verified");
+})();
+a2DirVisible = function (d) { if (myRole() === "kyc" && !demoAll()) return d.sub === "KYC Review" || d.sub === "Additional Verification Required"; return true; };
+const b4Receipt0 = b3Receipt;
+b3Receipt = function (d) { return b4Receipt0(d); };
+const b4ViewDir0 = a2ViewDir;
+a2ViewDir = function () {
+  return v13Tpl(b4ViewDir0(), (c) => {
+    const ty = c.querySelector("select[data-a2q='dir.type']");
+    if (ty && myRole() === "kyc" && !demoAll()) { [...ty.options].forEach((o) => { if (!["all", "Compliance Directive", "Match Review Outcome"].includes(o.value)) o.remove(); }); if (![...ty.options].some((o) => o.value === "Match Review Outcome")) ty.insertAdjacentHTML("beforeend", `<option value="Match Review Outcome" ${a2Q("dir", {}).type === "Match Review Outcome" ? "selected" : ""}>Additional Verification Required</option>`); }
+    c.querySelectorAll("tbody tr[data-a2-dir]").forEach((tr) => {
+      const d = S.v13a2.dirs.find((x) => x.id === tr.dataset.a2Dir); if (!d) return; const sum = tr.children[2]; if (!sum) return;
+      if (d.type === "Directive Revocation") sum.insertAdjacentHTML("beforeend", `<div class="tiny" data-v134="dir-pres">Processing Result: ${d.pres === "Revoked" ? tag("ok", "Revoked") : tag("warn", "Already Executed")}</div>`);
+      if (d.revoked && d.revokedBy) sum.insertAdjacentHTML("beforeend", `<div class="tiny" data-v134="dir-revby">${tag("muted", "Revoked")} by ${a2Link("v134-go-dir", esc(d.revokedBy), { id: d.revokedBy })}</div>`);
+      if (d.coreClosed) sum.insertAdjacentHTML("beforeend", `<div class="tiny" data-v134="dir-closed">${tag("muted", "Closed by Core")} ${esc(d.coreClosed.slice(0, 16))} · later conclusions are still reported</div>`);
+      if (d.sub === "Additional Verification Required") { tr.querySelectorAll("[data-act=v13a2-dir-reply]").forEach((b) => b.remove()); const t1 = tr.children[1]; if (t1 && !/Additional Verification/.test(t1.textContent)) t1.insertAdjacentHTML("beforeend", `<div class="tiny">Additional Verification Required</div>`); }
+    });
+    b4Note(c, z("Directive Revocation: Core can revoke any directive whose result is not Executed yet. A revoked directive not yet executed (or a reply not yet sent) is not executed and its receipt shows Revoked with the revocation ID; one already executed or replied is not rolled back. The revocation row shows the processing result Revoked or Already Executed and itself reports Executed. A directive revoked while iLotto was offline is not pushed again; only its revocation arrives. Contact Re-verified is only acknowledged. Reference Change Withdrawal discards an implemented pending version. Additional verification required is answered from Identity review (no Reply here). A KYC review closed by Core still gets later rounds; Core then only updates the player's latest KYC review.", "指令撤销：未执行的不再执行、收到确认显示 Revoked 与撤销通知编号；已执行的不回退；撤销通知行显示处理结果 Revoked / Already Executed。"), "dir-note");
+  });
+};
+
+/* =====================================================================================================
+   6B.14.3 reference changes: Withdrawal notice and Withdrawn status; Channel Operating Parameters domain; today's Daily declaration
+   ===================================================================================================== */
+(function b4SeedNotices() {
+  const N = S.v13a2.notices; if (N.some((n) => n.id === "RCN-20261010-0018")) return;
+  N.push({ id: "RCN-20261008-0017", type: "Change", dom: "Game Register", obj: "S649", ver: "v3", eff: "2026-11-01 00:00", iss: "2026-10-08 10:00", recv: "2026-10-08 10:02", ack: "Sent", impl: "Withdrawn", what: "Prize tier names updated", why: "Published in error; the prize tier names stay unchanged", by4: true });
+  N.push({ id: "RCN-20261010-0018", type: "Withdrawal", dom: "Game Register", obj: "S649", ver: "v3", eff: "-", iss: "2026-10-10 14:20", recv: "2026-10-10 14:20", ack: "Sent", impl: "Implemented", what: "Withdraws S649 v3 (published 2026-10-08). Reason: Published in error; the prize tier names stay unchanged. The pending version was discarded and Executed was reported.", by4: true });
+  N.push({ id: "RCN-20260920-0010", type: "Full Snapshot", dom: "Channel Operating Parameters", obj: "Channel operating parameters", ver: "v1", eff: "2026-10-01 00:00", iss: "2026-09-20 09:00", recv: "2026-09-20 09:00", ack: "Sent", impl: "Implemented", what: "12 time limits", cop: true, by4: true });
+  N.sort((a, b) => (a.iss < b.iss ? 1 : -1));
+})();
+const b4ImplTag0 = v13ImplTag;
+v13ImplTag = function (s) { return s === "Withdrawn" ? tag("muted", "Withdrawn") : b4ImplTag0(s); };
+const b4ViewRef0 = a2ViewRef;
+a2ViewRef = function () {
+  const sub = S.v13a2.refSub || "notices";
+  return v13Tpl(b4ViewRef0(), (c) => {
+    const dom = c.querySelector("select[data-a2q='ref.dom']");
+    if (dom) { ["Settlement Parameters", "Compliance Parameters", "Channel Operating Parameters"].forEach((v) => { if (![...dom.options].some((o) => o.value === v)) dom.insertAdjacentHTML("beforeend", `<option value="${v}" ${a2Q("ref", {}).dom === v ? "selected" : ""}>${v}</option>`); }); }
+    const im = c.querySelector("select[data-a2q='ref.impl']");
+    if (im && ![...im.options].some((o) => o.value === "Withdrawn")) im.insertAdjacentHTML("beforeend", `<option value="Withdrawn" ${a2Q("ref", {}).impl === "Withdrawn" ? "selected" : ""}>Withdrawn</option>`);
+    c.querySelectorAll("tr[data-a2-notice]").forEach((tr) => {
+      const n = S.v13a2.notices.find((x) => x.id === tr.dataset.a2Notice); if (!n) return;
+      if (n.impl === "Withdrawn") { tr.style.opacity = ".55"; tr.setAttribute("data-v134", "notice-wd"); const k = b4Idx(tr.closest("table"), "Time To Effective"); if (k >= 0 && tr.children[k]) tr.children[k].textContent = "-"; }
+      if (n.type === "Withdrawal") tr.setAttribute("data-v134", "notice-withdrawal");
+    });
+    if (sub === "decls") {
+      const st = S.v134.daily, red = b4DailyRed(), v = st === "Submitted" ? tag("ok", "Submitted") + ` <span class="mono">${S.v134.dailyAt}</span>` : st === "Queued" ? tag("warn", "Queued") : tag("rose", "Not Submitted");
+      const strip = `<div class="banner${red ? " rose" : ""}" data-v134="daily" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>${z("Today's Daily declaration", "今日 Daily 声明")}:</b> <span data-v134="daily-st">${v}</span> <span class="tiny">(${z("due", "截止")} 02:00 · Daily Declaration Cut-off)</span>${red ? `<span class="tiny" data-v134="daily-red">${z("Past the cut-off and not submitted: a P1 to-do is raised before iLotto Core marks it overdue.", "已过截止仍未提交：已进 P1 待办。")}</span>` : ""}${a2Is("ops") ? a2Btn("v134-daily-sim", z("Demo: next Daily status", "演示：切换今日 Daily 状态")) : ""}</div>`;
+      const tabs = c.querySelector("[data-a2=ref-filters]"); const host = tabs ? tabs.closest(".card") : null;
+      if (host) host.insertAdjacentHTML("beforebegin", strip); else c.insertAdjacentHTML("afterbegin", strip);
+    }
+    b4Note(c, z("Types: Change / Rollback / Full Snapshot / Withdrawal (Core withdraws an approved version that has not taken effect, with the reason). A withdrawn version is discarded, its notice shows Withdrawn (greyed) and Executed is reported; at most one approved version is pending per object. Implemented reports Executed within the execution deadline; Failed reports the reason. Channel Operating Parameters (the time limits iLotto must meet) and Compliance Parameters (above-threshold amount, reporting cycle, cut-off and on-demand reply deadline) are declared and compared like the other domains. Today's Daily declaration status is at the top of Declarations: Submitted / Queued / Not Submitted.", "类型含 Withdrawal；被撤回版本 Withdrawn（置灰）；渠道运行参数与合规参数同样进声明比对；Declarations 顶部显示今日 Daily 声明状态。"), "ref-note");
+  });
+};
+function b4NoticeView(n) {
+  const kv = [["Type", esc(n.type)], ["Domain / Object", esc(n.dom + " · " + n.obj)], ["Version", esc(n.ver)], ["Effective At", esc(n.eff)], ["Issued At / Received At", esc(n.iss + " / " + n.recv)], ["Field-level changes", esc(n.what || "-")], ["Implementation Status", v13ImplTag(n.impl)]];
+  if (n.why) kv.push(["Withdrawal Reason", esc(n.why)]);
+  let more = "";
+  if (n.cop) more = b4KvTable(B4_COP, "notice-cop");
+  if (n.dom === "Compliance Parameters") more = b4KvTable(B4_CMP, "notice-cmp");
+  return v13KV(kv) + more;
+}
+
+/* 6B.14.4 reporting queue: Reporting Status values without Non-Conformant (that is its own tab) */
+const b4Queue0 = a2ViewQueue;
+a2ViewQueue = function () {
+  const q = S.v13a2.q.queue; if (q && q.st === "Non-Conformant") q.st = "PQ";
+  return v13Tpl(b4Queue0(), (c) => {
+    const s = c.querySelector("select[data-a2q='queue.st']"); if (s) { [...s.options].forEach((o) => { if (o.value === "Non-Conformant") o.remove(); }); s.closest("label").setAttribute("data-v134", "queue-st"); s.closest("label").title = "Non-conformant transactions are on the Non-conformant tab."; }
+  });
+};
+/* 6B.14.5 reconciliation: Finance review handles Prize Claims divergences too */
+const b4Recon2 = a2ViewRecon;
+a2ViewRecon = function () {
+  const sub = S.v13a2.rSub || "div", fin = myRole() === "finance" && !demoAll();
+  return v13Tpl(b4Recon2(), (c) => {
+    if (sub !== "div") return;
+    if (fin) c.querySelectorAll("tr[data-a2-div]").forEach((tr) => {
+      const d = S.v13.divs.find((x) => x.id === tr.dataset.a2Div); if (!d || d.dom !== "Prize Claims" || a2Handling(d) !== "Needs Action") return;
+      const act = tr.lastElementChild; if (act && !act.querySelector("[data-act=v13a2-div-handle]")) act.insertAdjacentHTML("beforeend", a2Btn("v13a2-div-handle", z("Mark Handled", "标记已处理"), { id: d.id, cls: "btn-primary" }));
+    });
+    b4Note(c, z("Finance review handles Transactions and Prize Claims divergences (a Prize Claims divergence raised by a rejected claim record is closed by whoever decided the rejection); Settlement is handled in Reports › PCSO settlement. Operations, Finance review and Compliance audit can export.", "财务复核处理交易与兑奖领域差异（兑奖领域由判定拒收的本人关闭）；结算领域在报表处理；运营专员、财务复核、合规审计可导出。"), "recon-note");
+  });
+};
+/* 6B.14.6 connection: heartbeat interval from Channel Operating Parameters; PlaySafe metrics wording */
+const b4Conn0 = a2ViewConn;
+a2ViewConn = function () {
+  return v13Tpl(b4Conn0(), (c) => {
+    const lh = [...c.querySelectorAll("*")].find((x) => x.children.length === 0 && /interval 30s/.test(x.textContent));
+    if (lh) lh.insertAdjacentHTML("afterend", ` <span class="tiny" data-v134="hb-cop">(Channel Operating Parameters)</span>`);
+    const p = [...c.querySelectorAll("p.tiny")].find((x) => /PlaySafe summary \(risk players/.test(x.textContent));
+    if (p) { p.innerHTML = p.innerHTML.replace(/PlaySafe summary \(risk players, share of active players with limits set, cool-offs, reality checks; an active player is one who placed at least one bet in the reporting period\)/, "PlaySafe summary (active players, players with limits set and their share, risk players, cool-offs, reality checks: an active player placed at least one bet in the period; limits set = the player set or changed at least one limit, defaults written at sign-up do not count; risk players = distinct players with a PlaySafe risk alert in the period; cool-offs = cool-offs started; reality checks = reality checks shown)"); p.setAttribute("data-v134", "metrics-note"); }
+  });
+};
+
+/* =====================================================================================================
+   clicks (window capture, after the V13-133 listener) and inputs
+   ===================================================================================================== */
+function b4Click(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id, arg = el.dataset.arg;
+  const stop = () => { e.stopPropagation(); e.preventDefault(); };
+  /* notice view: withdrawal reason and parameter tables */
+  if (act === "v13a2-notice-view") { const n = S.v13a2.notices.find((x) => x.id === id); if (n && (n.by4 || n.dom === "Compliance Parameters")) { stop(); S.modal = { type: "v13a2-view", title: n.id, html: b4NoticeView(n) }; render(); } return; }
+  if (!act || act.indexOf("v134-") !== 0) return;
+  stop(); if (el.disabled) return;
+  if (act === "v134-go-sve") { S.v13a2.q.dir = { type: "Settlement Variance Explanation", exec: "all", dl: "All", xr: "all", from: "", to: "", id: "" }; v13CoreGo("dir"); return; }
+  if (act === "v134-go-decl") { v13CoreGo("ref"); S.v13a2.refSub = "decls"; render(); return; }
+  if (act === "v134-go-dir") { S.v13a2.q.dir = Object.assign(a2Q("dir", {}), { id }); v13CoreGo("dir"); return; }
+  if (act === "v134-go-div") { S.v13a2.q.recon = Object.assign(a2Q("recon", { dom: "all", lvl: "all", hand: "all", ref: "" }), { ref: id, from: "", to: "" }); v13CoreGo("recon"); return; }
+  if (act === "v134-ver-wd") { S.v134.vOpen[id] = !S.v134.vOpen[id]; render(); return; }
+  if (act === "v134-daily-sim") { const seq = ["Submitted", "Queued", "Not Submitted"]; S.v134.daily = seq[(seq.indexOf(S.v134.daily) + 1) % seq.length]; if (S.v134.daily === "Submitted") S.v134.dailyAt = a2NowFull().slice(11, 16); render(); return; }
+}
+window.addEventListener("click", b4Click, true);
+/* Register Version of draws synchronized after the V13 seeding (Scheduled demo draw EZ2/SW3 …-9, added / rescheduled draws):
+   same source as the seeded draws, the game's register version (v13RegVer); filled before every render */
+function b4FillRegVer() { (S.issues || []).forEach((i) => { if (!i.regVer || /undefined|NaN/.test(i.regVer)) { const g = gameBy(i.game); if (g) i.regVer = v13RegVer(g); } }); }
+(function () { const r0 = render; render = function () { b4FillRegVer(); return r0.apply(this, arguments); }; })();
+(function () { const e0 = blEnsureSale; blEnsureSale = function () { const r = e0.apply(this, arguments); b4FillRegVer(); return r; }; })();
+b4FillRegVer();
+document.addEventListener("input", (e) => { const el = e.target; if (el && el.dataset && el.dataset.v134f) { S.v13a2.f[el.dataset.v134f] = el.value; } }, true);
+/* ===== V13-134 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">

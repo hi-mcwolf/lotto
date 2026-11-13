@@ -8360,6 +8360,1419 @@ kycSync();
 
 </script>
 <script>
+/* ===== p8f_134.js ===== */
+/* =====================================================================
+ * p8f_134.js — PRD 1.3.4 updates (PROTO-134, Core portal)
+ * Loaded after p8e_133b.js and before boot(). Wraps globals / module views and acts.
+ * Sections:
+ *  A. 6A.20.3 matrix cells + Senior Authorization role attribute + button letters
+ *  B. "须高级授权人批准的申请" display names (Pending Approval / Approved / Rejected / Withdrawn)
+ *     + 6A.2.5 Authorization Requests (Channel / Draw / Closure) + pending markers
+ *  C. 6A.2.6 Directive Revocation / Revocation Result, Contact Re-verified, Reference Change Withdrawal
+ *  D. 6A.2.2 Integration Parameters, 6A.2.3 Certification Edit, 6A.2.4 Last Sync domains, 6A.2.7 Revoke immediately
+ *  … further sections below (see README §13)
+ * Demo rows added here are marked demo:true and listed in README §13.
+ * ===================================================================== */
+'use strict';
+const R134 = { ver: '1.3.4' };
+/* column hooks compose with the 1.3.3b ones instead of replacing them */
+const R134_COLS = new Proxy(R133B_COLS, { set(t, k, v) { const prev = t[k]; t[k] = prev ? (cols => { const c1 = prev(cols) || cols; return v(c1.slice()) || c1; }) : v; return true; } });
+/* openModal({ vals }) pre-fills m_ fields (used by the 1.3.4 forms) */
+(function wrapOpenModal() { const o0 = openModal; openModal = function (spec) { o0(spec); if (spec && spec.vals) { Object.assign(S.fv, spec.vals); S._skipSnap = true; render(); } }; })();
+
+/* =====================================================================
+ * A. 6A.20.3 default matrix (1.3.4) + Senior Authorization (说明 ⑳)
+ * column order = ROLE_IDS: ops ra sa enc auth reg claims fin comp aud sysadm
+ * ===================================================================== */
+(function perm134() {
+  const rows = {
+    'Configuration Declarations': 'VCE|V|V|-|-|-|-|-|V|VX|-',
+    'Result Adjustment': '-|-|VA|VC|-|-|-|V|V|VX|-',
+    'Transactions': 'VCE|-|VA|-|-|-|-|VAX|VX|VX|-',
+    'Reports': 'VX|V|VA|-|-|VX|V|VX|VCX|VX|-',
+    'User Accounts': '-|-|-|-|-|-|-|-|-|VX|VCEAX',
+  };
+  for (const k in rows) { PERM[k] = {}; rows[k].split('|').forEach((v, i) => PERM[k][ROLE_IDS[i]] = v === '-' ? '' : v); }
+  (SEED.roles || []).forEach(r => { if (r.senior === undefined) r.senior = r.id === 'sa'; });
+})();
+/** role attribute Senior Authorization (6A.20.3 说明 ⑳); preset Senior Authorizer = on */
+function roleSenior(id) { const r = (SEED.roles || []).find(x => x.id === id); return !!(r && r.senior); }
+/** A on a two-level module: senior=true → only the senior level, false → only the general level */
+function canLevel(mod, senior, u = S.user) { if (!u) return false; return (u.roles || []).some(r => (PERM[mod] && (PERM[mod][r] || '').includes('A')) && roleSenior(r) === !!senior); }
+const MSG_SENIOR_AUDIT = 'Audit oversight roles cannot hold senior authorization.';
+(function wrapRoleEditor() {
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'r_audit') && !fields.some(f => f && f.k === 'r_senior')) {
+      const i = fields.findIndex(f => f && f.k === 'r_audit'); const ro = !!fields[i].dis;
+      fields = fields.slice(); fields.splice(i + 1, 0, { k: 'r_senior', zh: '高级授权', en: 'Senior Authorization', ctl: 'switch', dis: ro, hint: 'Decides the approval level of this role’s Approve on two-level modules (Game Registry, Draw Calendar, Claim Policy, Terms Of Service, Transactions).' });
+    }
+    return f0(fields, o);
+  };
+  const r0 = roleForm;
+  roleForm = function (r) { r0(r); if (S.drawer && S.drawer.vals) { S.drawer.vals.r_senior = r ? !!r.senior : false; } if (S.fv && !('r_senior' in S.fv)) S.fv.r_senior = r ? !!r.senior : false; render(); };
+  const v0 = roleValidate;
+  roleValidate = function (v, editId) { const e = v0(v, editId); const on = x => x === true || x === 'true'; if (on(v.r_senior) && on(v.r_audit)) e.r_senior = MSG_SENIOR_AUDIT; return e; };
+  const a0 = acNew;
+  acNew = function (type, target, before, after, payload, note) {
+    if (['Create Role', 'Edit Role'].includes(type) && payload && payload.perms) { const s = S.fv && (S.fv.r_senior === true || S.fv.r_senior === 'true'); payload.senior = !!s; const r = payload.id && roleById(payload.id); if (r && !!r.senior !== payload.senior) after = (after && after !== '-' ? after + '; ' : '') + `Senior Authorization: ${r.senior ? 'On' : 'Off'} → ${payload.senior ? 'On' : 'Off'}`; }
+    return a0(type, target, before, after, payload, note);
+  };
+  const p0 = acApply;
+  acApply = function (a) { const res = p0(a); if (a && ['Create Role', 'Edit Role'].includes(a.type) && a.payload && 'senior' in a.payload) { const r = roleById(a.payload.id); if (r) r.senior = !!a.payload.senior; } return res; };
+  acApply.toString = () => p0.toString();
+})();
+R134_COLS.roleList = cols => { const i = colIdx(cols, 'Type'); cols.splice(i + 1, 0, { h: 'Senior Authorization', r: r => r.senior ? badge('On', 'info') : '<span class="muted">Off</span>' }); return cols; };
+
+/* =====================================================================
+ * B. Requests that need a Senior Authorizer: one set of names (6A.2.5, 6A.20.3 说明 ㉑)
+ * internal status values stay ('Awaiting Authorization' / 'Authorized'); UI shows the 1.3.4 names
+ * ===================================================================== */
+const REQ_SHOW = { 'Awaiting Authorization': 'Pending Approval', 'Pending Authorization': 'Pending Approval', Authorized: 'Approved' };
+function reqStatus(s) { return REQ_SHOW[s] || s; }
+['Pending Approval', 'Approved'].forEach(s => { if (!_toneMap[s]) _toneMap[s] = s === 'Approved' ? 'ok' : 'warn'; });
+const AR_CATS = { channel: 'Channel', draw: 'Draw', closure: 'Closure' };
+const AR_ACTIONS_134 = ['Partial Suspension', 'Full Suspension', 'Restore', 'Roll Back', 'Activation', 'Decommission', 'Integration Parameter Change', 'Draw Postponement', 'Draw Resumption', 'Draw Cancellation', 'Channel Exclusion'];
+const AR_ACT_CAT = { Channel: AR_ACTIONS_134.slice(0, 7), Draw: ['Draw Postponement', 'Draw Resumption', 'Draw Cancellation'], Closure: ['Channel Exclusion'] };
+const AR_STATES_134 = ['Pending Approval', 'Re-syncing', 'Re-sync Failed', 'Approved', 'Rejected', 'Withdrawn'];
+function arObject(x) { return x.kind === 'closure' ? `${x.target} · ${(x.payload || {}).channel || '-'}` : x.target; }
+function arScope(x) {
+  const p = x.payload || {};
+  if (['Partial Suspension', 'Full Suspension', 'Roll Back', 'Restore'].includes(x.type)) return x.type === 'Full Suspension' ? 'All' : (p.scope || []).join(', ') || '-';
+  if (x.type === 'Integration Parameter Change') return `${p.param} → ${p.value === 'Default' ? 'Default' : fmtN(p.value)}`;
+  if (['Draw Postponement', 'Draw Resumption'].includes(x.type)) return p.newDrawAt || p.newAt || '-';
+  return '-';
+}
+function arChannels(x) { if (x.kind === 'channel') return [x.target]; if (x.kind === 'closure') return [(x.payload || {}).channel]; const d = drawById(x.target); return d ? gameChannels(d.game).map(c => c.code || c) : []; }
+/** generic 6A.2 entries are hidden for roles that may only start from a source page (说明 ⑭) */
+function chGenericC(u = S.user) { return !!u && (u.roles || []).some(r => !['fin', 'comp'].includes(r) && (PERM['Channel Control'][r] || '').includes('C')); }
+function chAuthListView(m) {
+  let h = pageH({ zh: '授权申请', en: 'Authorization Requests' }, '6A.2.5', t('须高级授权人批准的渠道、期次、封盘三类申请；批准前对象保持原状态，只加待批准标记。', 'Channel, draw and closure requests that need a Senior Authorizer. Until approved, the object keeps its state and only carries a pending marker.')) + subTabs(m);
+  const r = rangeVal('chAr', dayOff(-30), dayOff(0), 92);
+  const cat = fv('chAr', 'cat', 'All');
+  const actOpts = cat === 'All' ? AR_ACTIONS_134 : AR_ACT_CAT[cat];
+  h += filterBar('chAr', [
+    { k: 'cat', zh: '类别', en: 'Category', type: 'select', def: 'All', opts: ['All', 'Channel', 'Draw', 'Closure'] },
+    { k: 'channel', zh: '渠道', en: 'Channel', type: 'select', def: 'All', opts: ['All'].concat(SEED.channels.filter(c => c.status !== 'Decommissioned').map(c => c.code)) },
+    { k: 'draw', zh: '期次', en: 'Draw ID', type: 'text', ph: 'L655-20261012-1' },
+  ].concat(rangeFields(dayOff(-30), dayOff(0), '提交时间', 'Submitted')),
+    msel('chAr', 'action', { zh: '动作', en: 'Action' }, actOpts, actOpts) + msel('chAr', 'status', { zh: '状态', en: 'Status' }, AR_STATES_134, ['Pending Approval']));
+  if (r.err) h += banner(r.err, 'amber');
+  const chF = fv('chAr', 'channel', 'All'), drF = (fv('chAr', 'draw', '') || '').trim(), acts = mselVal('chAr', 'action', actOpts).filter(a => actOpts.includes(a)), sts = mselVal('chAr', 'status', ['Pending Approval']).map(reqStatus);
+  const open = x => ['Awaiting Authorization', 'Re-syncing', 'Re-sync Failed'].includes(x.status);
+  const rows = SEED.authReqs.filter(x => AR_CATS[x.kind]).filter(x => (cat === 'All' || AR_CATS[x.kind] === cat) && (chF === 'All' || arChannels(x).includes(chF)) && (!drF || (x.kind !== 'channel' && x.target === drF)) && acts.includes(x.type) && sts.includes(reqStatus(x.status)) && (open(x) || r.err || inRange(x.at, r)));
+  const canA = can('Channel Control', 'A') || hasRole('sa'), canC = chGenericC();
+  h += table('chArList', [
+    { h: 'Request ID', r: x => `<span class="mono">${esc(x.id)}</span>` }, { h: 'Category', r: x => esc(AR_CATS[x.kind]) }, { h: 'Object', r: x => `<span class="mono nowrap">${esc(arObject(x))}</span>` }, { h: 'Action', k: 'type' },
+    { h: 'Scope', r: x => esc(arScope(x)) }, { h: 'Reason', k: 'reason' }, { h: 'Related Case', r: x => esc((x.payload || {}).case || x.case || '-') },
+    { h: 'Initiated By', k: 'by' }, { h: 'Submitted At', r: x => `<span class="nowrap">${esc(x.at)}</span>` },
+    { h: 'Status', r: x => badge(reqStatus(x.status), ['Awaiting Authorization', 'Re-syncing'].includes(x.status) ? 'warn' : x.status === 'Re-sync Failed' ? 'bad' : x.status === 'Authorized' ? 'ok' : '') + (x.resync && ['Re-syncing', 'Re-sync Failed'].includes(x.status) ? `<div class="tiny mono">${esc(x.resync)}</div>` : '') },
+    { h: 'Decided By', r: x => esc(x.status === 'Withdrawn' ? x.by : (x.authBy || '-')) }, { h: 'Decided At', r: x => `<span class="nowrap">${esc(x.authAt || x.wdAt || '-')}</span>` }, { h: 'Rejection Reason', r: x => esc(x.status === 'Rejected' ? (x.rejectReason || '-') : '-') },
+    { h: 'Control Version', cls: 'num', r: x => x.ctlVer ? String(x.ctlVer) : '-' },
+    { h: 'Directive ID', r: x => x.type === 'Integration Parameter Change' ? '-' : arDirective(x) && !['Re-syncing', 'Re-sync Failed'].includes(x.status) ? `<button class="btn link mono" data-act="go" data-a="channels/directives">${esc(arDirective(x))}</button>` : '-' },
+    { h: 'Actions', r: x => {
+      if (x.status === 'Awaiting Authorization') return `<span class="nowrap">${[canA && hasRole('sa') ? btn({ zh: '批准', en: 'Approve' }, 'authOk', x.id, { cls: 'sm ok', dis: x.by === me(), tip: 'You cannot authorize a request you initiated.' }) : '', canA && hasRole('sa') && x.by !== me() ? btn({ zh: '驳回', en: 'Reject' }, 'authRej', x.id, { cls: 'sm' }) : '', x.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'authWd', x.id, { cls: 'sm' }) : ''].join(' ')}</span>`;
+      if (x.status === 'Re-syncing') return `<span class="nowrap">${btn({ zh: '模拟再同步通过', en: 'Simulate re-sync passed' }, 'arResyncSim', x.id + '|pass', { cls: 'sm dev', dev: true })} ${btn({ zh: '模拟再同步未通过', en: 'Simulate re-sync failed' }, 'arResyncSim', x.id + '|fail', { cls: 'sm dev', dev: true })}</span>`;
+      if (x.status === 'Re-sync Failed') return `<span class="nowrap">${[canC ? btn({ zh: '重新再同步', en: 'Retry Re-sync' }, 'arRetry', x.id, { cls: 'sm primary' }) : '', x.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'arWdFailed', x.id, { cls: 'sm' }) : ''].join(' ')}</span>`;
+      return ''; } },
+  ], rows, { empty: { zh: '没有符合条件的申请', en: 'No requests match the filters.' } });
+  return h;
+}
+/* the shared request table (calendar / closure / control pages) uses the same names and buttons */
+authTable = function (id, reqs) {
+  return table(id, [
+    { h: { zh: '申请编号', en: 'Request ID' }, k: 'id', cls: 'mono' },
+    { h: { zh: '动作', en: 'Action' }, k: 'type' },
+    { h: { zh: '对象', en: 'Object' }, r: r => `<b>${esc(arObject(r))}</b>${r.summary ? `<div class="tiny">${esc(r.summary)}</div>` : ''}` },
+    { h: { zh: '原因', en: 'Reason' }, k: 'reason' },
+    { h: { zh: '发起人', en: 'Initiated By' }, r: r => `${esc(r.by)}<div class="tiny">${esc(r.at)}</div>` },
+    { h: { zh: '状态', en: 'Status' }, r: r => badge(reqStatus(r.status)) + (r.authBy ? `<div class="tiny">${esc(r.authBy)} · ${esc(r.authAt)}</div>` : '') },
+    { h: { zh: '操作', en: 'Actions' }, r: r => r.status !== 'Awaiting Authorization' ? '' : [
+      hasRole('sa') ? btn({ zh: '批准', en: 'Approve' }, 'authOk', r.id, { cls: 'sm ok', dis: r.by === me(), tip: 'You cannot authorize a request you initiated.' }) : '',
+      hasRole('sa') && r.by !== me() ? btn({ zh: '驳回', en: 'Reject' }, 'authRej', r.id, { cls: 'sm' }) : '',
+      r.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'authWd', r.id, { cls: 'sm' }) : '',
+    ].join(' ') },
+  ], reqs, { nopage: true, empty: { zh: '没有申请', en: 'No requests.' } });
+};
+/* one open request per object; draw / closure duplicate message (6A.2.5) */
+(function wrapSubmitAuth() {
+  const s0 = submitAuth;
+  submitAuth = function (o) {
+    if (['draw', 'closure'].includes(o.kind) && SEED.authReqs.some(r => r.kind === o.kind && r.target === o.target && r.status === 'Awaiting Authorization' && (o.kind !== 'closure' || (r.payload || {}).channel === (o.payload || {}).channel))) { toast('This draw already has a request awaiting authorization.', 'err'); return null; }
+    if (o.kind === 'channel' && o.type === 'Integration Parameter Change') {
+      if (SEED.authReqs.some(r => r.kind === 'channel' && r.type === o.type && r.target === o.target && r.status === 'Awaiting Authorization' && (r.payload || {}).param === (o.payload || {}).param)) { toast('This channel already has an action awaiting authorization.', 'err'); return null; }
+      const r = Object.assign({ id: nid('AR'), status: 'Awaiting Authorization', by: me(), at: nowS(), authBy: '', authAt: '' }, o);
+      SEED.authReqs.unshift(r); audit('Channel Control', 'Submitted for authorization', r.id, `${r.type} · ${r.target} · ${r.reason}`); return r;
+    }
+    return s0(o);
+  };
+})();
+const PEND_MARK = { Activation: 'Activation pending', Decommission: 'Decommission pending', 'Draw Postponement': 'Postponement pending', 'Draw Resumption': 'Resumption pending', 'Draw Cancellation': 'Cancellation pending', 'Channel Exclusion': 'Exclusion pending' };
+function pendMarks(kind, target, ch) {
+  return SEED.authReqs.filter(r => r.kind === kind && r.target === target && r.status === 'Awaiting Authorization' && PEND_MARK[r.type] && (!ch || (r.payload || {}).channel === ch)).map(r => badge(PEND_MARK[r.type], 'warn')).join(' ');
+}
+R134_COLS.chList = cols => { const i = colIdx(cols, 'Status'); if (i >= 0) cols[i] = { h: 'Status', r: c => badge(c.status) + (pendMarks('channel', c.code) ? ' ' + pendMarks('channel', c.code) : '') }; return cols; };
+R134_COLS.calT = cols => { const i = colIdx(cols, 'Status'); if (i >= 0) { const r0 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: (d, j) => (r0 ? r0(d, j) : badge(d.status)) + (pendMarks('draw', d.id) ? ' ' + pendMarks('draw', d.id) : '') }); } return cols; };
+(function wrapChOpenSub() {
+  const o0 = chOpen;
+  chOpen = function (code, tab) {
+    o0(code, tab); const ch = chByCode(code); if (!S.drawer || !ch) return;
+    const s0 = S.drawer.sub; S.drawer.sub = () => (typeof s0 === 'function' ? s0() : s0 || '') + (pendMarks('channel', code) ? ' ' + pendMarks('channel', code) : '');
+    if (!S.drawer.tabs.some(x => x.id === 'intparams')) S.drawer.tabs.splice(3, 0, { id: 'intparams', zh: '集成参数', en: 'Integration Parameters' });
+    render();
+  };
+})();
+
+/* =====================================================================
+ * C. 6A.2.6 directive types: Directive Revocation, Contact Re-verified, Reference Change Withdrawal
+ * ===================================================================== */
+[['Contact Re-verified', '6A.8.5', 'Receipt only'], ['Reference Change Withdrawal', '6A.3.3, 6A.3.4', 'Auto-executed'], ['Directive Revocation', '6A.2.6', 'Auto-executed']].forEach(x => { if (!DIR_TYPES.some(y => y[0] === x[0])) { DIR_TYPES.push(x); DIR_MODE[x[0]] = x[2]; } });
+const REV_OUTCOME = { Revoked: 'Effective', 'Already Executed': 'Not Effective' };
+['Effective'].forEach(s => { _toneMap[s] = _toneMap[s] || 'ok'; }); _toneMap['Not Effective'] = 'bad';
+function revCell(d) {
+  if (d.type === 'Directive Revocation') {
+    const o = d.revOutcome; const tgt = d.revokes;
+    return (o ? badge(o, o === 'Revoked' ? 'ok' : 'bad') : '<span class="muted">-</span>') + `<div class="tiny">${t('撤销', 'Revokes')} <span class="mono">${esc(tgt || '-')}</span></div>`
+      + (!o ? ' ' + btn({ zh: '模拟已撤销', en: 'Simulate Revoked' }, 'dirRevSim', d.id + '|Revoked', { cls: 'sm dev', dev: true }) + ' ' + btn({ zh: '模拟已执行', en: 'Simulate Already Executed' }, 'dirRevSim', d.id + '|Already Executed', { cls: 'sm dev', dev: true }) : '');
+  }
+  if (!d.revRes) return '-';
+  return badge(d.revRes, d.revRes === 'Effective' ? 'ok' : d.revRes === 'Not Effective' ? 'bad' : 'warn') + (d.revDir ? `<div class="tiny mono">${esc(d.revDir)}</div>` : '');
+}
+['dirAll', 'chDirs', 'diagDir', 'drDirs'].forEach(tid => {
+  R133B_COLS[tid] = cols => {
+    const i = colIdx(cols, 'Execution Result'); if (i >= 0) cols.splice(i + 1, 0, { h: 'Revocation Result', r: revCell });
+    const j = colIdx(cols, 'Actions'); if (j >= 0) { const canC = chGenericC(), canA = can('Channel Control', 'A');
+      cols[j] = { h: 'Actions', r: d => `<span class="nowrap">${[
+        canC && d.type !== 'Directive Revocation' && (['Timed Out', 'Escalated'].includes(d.receipt) || d.exec === 'Failed') ? btn({ zh: '重发', en: 'Resend' }, 'dirResend', d.id, { cls: 'sm' }) : '',
+        canA && d.type !== 'Directive Revocation' && d.receipt !== 'Revoked' && !['Executed', 'Not Required'].includes(d.exec) ? btn({ zh: '撤销', en: 'Revoke' }, 'dirRevoke', d.id, { cls: 'sm danger' }) : ''].join(' ')}</span>` }; }
+    return cols;
+  };
+});
+const MSG_REVOKE = 'The receipt becomes Revoked and queued directives for the same object are released. A Directive Revocation is sent to the E-Channel; its reply shows whether the revocation took effect (Revoked → Effective, Already Executed → Not Effective). To roll back or still deliver the business effect, issue a new directive.';
+ACT.dirRevoke = id => {
+  const d = dirById(id); if (!can('Channel Control', 'A') || !d || d.type === 'Directive Revocation') return;
+  ask({ title: `${t('撤销指令', 'Revoke')} · ${id}`, danger: true, ok: { zh: '撤销', en: 'Revoke' }, msg: esc(MSG_REVOKE),
+    reason: { zh: '原因', en: 'Reason', max: 500 }, check: { zh: '确认撤销该指令', en: 'I confirm this directive is revoked' },
+    onOk: v => {
+      const why = v.m_reason.trim(); d.receipt = 'Revoked'; d.revokedBy = me(); d.revokedAt = nowS(true); d.revokeReason = why; dirRelease(id);
+      const n = issueDirective({ channel: d.channel, type: 'Directive Revocation', summary: `Revoke ${d.id} (${d.type})`, reason: why, by: me(), ref: d.id });
+      n.revokes = d.id; n.objv = `${d.id} · Revocation`; d.revDir = n.id; d.revRes = 'Pending';
+      audit('Channel Control', 'Directive revoked', id, `${why} · Directive Revocation ${n.id}`); toast(t('已撤销，已下发指令撤销通知', `Directive revoked. Directive Revocation ${n.id} sent to ${d.channel}.`));
+    } });
+};
+function revApply(n, outcome) {
+  dir133(n); n.revOutcome = outcome; n.exec = 'Executed'; n.ack = 'Executed'; n.reportedAt = nowS(true); n.ackAt = n.reportedAt; if (n.receipt === 'Awaiting') { n.receipt = 'Received'; n.receivedAt = n.reportedAt; }
+  const d = dirById(n.revokes); if (d) { d.revRes = REV_OUTCOME[outcome]; if (outcome === 'Already Executed' && ['Awaiting', 'Failed'].includes(d.exec)) { /* the original stays as last reported */ } }
+  audit('Channel Control', 'Directive revocation reported', n.id, `${outcome} → ${n.revokes} ${REV_OUTCOME[outcome]}`);
+}
+ACT.dirRevSim = a => { const [id, o] = a.split('|'); const n = dirById(id); if (!n) return; revApply(n, o); toast(`${id}: ${o}. Revocation Result of ${n.revokes}: ${REV_OUTCOME[o]}.`); render(); };
+(function wrapDirAckRev() { const a0 = ACT.dirAck; ACT.dirAck = id => { const n = dirById(id); if (n && n.type === 'Directive Revocation') { revApply(n, 'Revoked'); render(); return; } a0(id); }; })();
+/* revoked + effective: deadline status stays as at revocation (6A.2.6, 产品拟定) */
+(function wrapDir133() { const d0 = dir133; dir133 = function (d) { const keep = d.revRes === 'Effective' ? d.dlStatus : null; const r = d0(d); if (keep) d.dlStatus = keep; return r; }; })();
+/* demo: one revoked directive with an outcome (Demo data) */
+(function seedRev() {
+  const D = SEED.directives; if (D.some(x => x.id === 'DIR-20261012-000114')) return;
+  D.push({ id: 'DIR-20261012-000114', channel: 'EC2', type: 'Player Status', summary: 'UP-000231910 suspended', reason: 'Wrong player selected', by: 'draw.a', authBy: '-', issuedAt: '2026-10-12 15:00:00', deadline: '2026-10-12 15:05:00', ack: 'Awaiting', ackAt: '', retries: 0, objv: 'UP-000231910 · Status v2', receipt: 'Revoked', receivedAt: '2026-10-12 15:00:04', exec: 'Awaiting', dlStatus: 'Pending', revokedBy: 'sa.a', revokedAt: '2026-10-12 15:02:10', revokeReason: 'Wrong player selected', revDir: 'DIR-20261012-000115', revRes: 'Effective', demo: true });
+  D.push({ id: 'DIR-20261012-000115', channel: 'EC2', type: 'Directive Revocation', summary: 'Revoke DIR-20261012-000114 (Player Status)', reason: 'Wrong player selected', by: 'sa.a', authBy: '-', issuedAt: '2026-10-12 15:02:10', deadline: '2026-10-12 15:07:10', ack: 'Executed', ackAt: '2026-10-12 15:02:31', retries: 0, objv: 'DIR-20261012-000114 · Revocation', receipt: 'Received', receivedAt: '2026-10-12 15:02:12', exec: 'Executed', reportedAt: '2026-10-12 15:02:31', revokes: 'DIR-20261012-000114', revOutcome: 'Revoked', demo: true });
+})();
+
+/* =====================================================================
+ * D. 6A.2.2 Integration Parameters · 6A.2.3 Certification Edit · 6A.2.4 Last Sync · 6A.2.7 Revoke immediately
+ * ===================================================================== */
+const INT_PARAMS = [{ p: 'Rate Limit', unit: 'requests per second', def: 50 }, { p: 'Daily Quota', unit: 'requests per day', def: 2000000 }, { p: 'Request Timeout', unit: 'seconds', def: 10 }];
+SEED.intOverrides = SEED.intOverrides || [{ channel: 'ILT', param: 'Rate Limit', value: 75, coi: 'COI-2026-002', at: '2026-09-01 00:00', by: 'ops.a', authBy: 'sa.b', demo: true }];
+function intParamDef(p) { const o = SEED.opParams && SEED.opParams.find(x => x.id === 'intDefaults'); const x = INT_PARAMS.find(y => y.p === p); return x ? x.def : 0; }
+function intRows(code) {
+  return INT_PARAMS.map(x => { const o = SEED.intOverrides.find(y => y.channel === code && y.param === x.p); const pend = SEED.authReqs.find(r => r.kind === 'channel' && r.type === 'Integration Parameter Change' && r.target === code && r.status === 'Awaiting Authorization' && r.payload.param === x.p);
+    return { id: x.p, param: x.p, unit: x.unit, def: intParamDef(x.p), val: o ? o.value : null, coi: o ? o.coi : '', status: pend ? 'Override Pending' : o ? 'Overridden' : 'Default', pend }; });
+}
+function coiApprovedFor(code) { return (SEED.coi || []).filter(e => e.channel === code && e.type === 'Approved Treatment Difference' && e.status === 'Approved'); }
+const MSG_INT_COI = 'A channel-specific value needs an approved Conflict-of-Interest Register entry.';
+function intParamsBody(ch) {
+  const ro = ch.status === 'Decommissioned' || !chGenericC();
+  return `<p class="tiny">${esc(t('全网默认值在 6A.3.8 运营参数维护，此处只读；本渠道值须关联一条本渠道状态为 Approved 的获批差别待遇条目，由 Core 运营提交、高级授权人批准。', 'Network defaults are maintained on Operating Parameters (6A.3.8) and are read-only here. A channel value needs an approved Conflict-of-Interest Register entry for this channel; Core Operations submits, a Senior Authorizer approves.'))}</p>`
+    + table('intParT', [
+      { h: 'Parameter', r: x => `${esc(x.param)}<div class="tiny">${esc(x.unit)}</div>` }, { h: 'Network Default', cls: 'num', r: x => fmtN(x.def) },
+      { h: 'Channel Value', cls: 'num', r: x => x.val == null ? 'Default' : fmtN(x.val) },
+      { h: 'Conflict-of-Interest Register Entry', r: x => x.coi ? `<button class="btn link mono" data-act="go" data-a="coi/register">${esc(x.coi)}</button>` : '-' },
+      { h: 'Status', r: x => badge(x.status, x.status === 'Override Pending' ? 'warn' : x.status === 'Overridden' ? 'info' : '') + (x.pend ? `<div class="tiny mono">${esc(x.pend.id)}</div>` : '') },
+      { h: 'Actions', r: x => ro ? '' : btn({ zh: '修改', en: 'Edit Parameter' }, 'intEdit', ch.code + '|' + x.param, { cls: 'sm', dis: !!x.pend, tip: 'This channel already has an action awaiting authorization.' }) },
+    ], intRows(ch.code), { nopage: true }) + `<p class="tiny">${demoTag()} ${esc(t('关联条目转 Ended 时本渠道值自动回到全网默认值。', 'When the linked entry ends, the channel value returns to the network default automatically.'))}</p>`;
+}
+ACT.intEdit = a => {
+  const [code, param] = a.split('|'); const ch = chByCode(code); const row = intRows(code).find(x => x.param === param);
+  const cois = coiApprovedFor(code);
+  openModal({ title: `Edit Parameter · ${code}`, ok: { zh: '提交', en: 'Submit' }, vals: { m_param: param, m_val: row.val == null ? row.def : row.val, m_coi: row.coi || '' },
+    body: () => formHtml([
+      { k: 'm_param', zh: '参数', en: 'Parameter', ctl: 'select', req: true, opts: INT_PARAMS.map(x => x.p), def: param },
+      { k: 'm_val', zh: '本渠道值', en: 'Channel Value', ctl: 'number', req: true, hint: `Network Default: ${fmtN(intParamDef(fval('m_param', param)))} · enter the network default to remove the override` },
+      { k: 'm_coi', zh: '关联差别待遇条目', en: 'Conflict-of-Interest Register Entry', ctl: 'select', opts: [['', '-']].concat(cois.map(e => [e.id, `${e.id} · ${trunc(e.details, 60)}`])) },
+      { k: 'm_reason', zh: '原因', en: 'Reason', ctl: 'textarea', req: true },
+    ]) + `<p class="tiny">${t('提交生成一条渠道类授权申请，高级授权人批准后生效。', 'Submitting creates a channel authorization request; it takes effect once a Senior Authorizer approves it.')}</p>`,
+    onOk: v => {
+      const e = {}; const p = v.m_param || param; const def = intParamDef(p); const val = +v.m_val;
+      if (v.m_val === '' || isNaN(val) || val <= 0) e.m_val = 'Enter a value in the allowed range.';
+      if (!e.m_val && val !== def && !v.m_coi) e.m_coi = MSG_INT_COI;
+      if (!(v.m_reason || '').trim()) e.m_reason = 'Enter a reason.';
+      if (Object.keys(e).length) { S.ferr = Object.assign(S.ferr || {}, e); render(); return false; }
+      const r = submitAuth({ kind: 'channel', type: 'Integration Parameter Change', target: code, summary: `${p} → ${val === def ? 'Default' : fmtN(val)}`, reason: v.m_reason.trim(), payload: { param: p, value: val === def ? 'Default' : val, coi: val === def ? '' : v.m_coi } });
+      if (!r) return false; toast(`Submitted ${r.id}. Needs approval by Senior Authorizer.`);
+    } });
+};
+AUTH_APPLY['Integration Parameter Change'] = r => {
+  const p = r.payload; SEED.intOverrides = SEED.intOverrides.filter(x => !(x.channel === r.target && x.param === p.param));
+  if (p.value !== 'Default') SEED.intOverrides.push({ channel: r.target, param: p.param, value: p.value, coi: p.coi, at: nowS(), by: r.by, authBy: me() });
+  audit('Channel Control', 'Integration parameter override approved', r.target, `${p.param} → ${p.value} · ${p.coi || '-'}`);
+};
+/* certification Edit (6A.2.3) */
+const CERT_EDIT_FROM = ['Certified', 'Active', 'Partially Suspended', 'Suspended'];
+ACT.certEdit = code => {
+  const ch = chByCode(code); if (!can('E-Channels', 'E') || !CERT_EDIT_FROM.includes(ch.status)) return;
+  openModal({ title: `Edit · ${code} · Certification`, ok: { zh: '保存', en: 'Save' }, vals: { m_cd: ch.certDate || '', m_ce: ch.certExpiry || '', m_cs: ch.certScope || '' },
+    body: () => formHtml([
+      { k: 'm_cd', zh: '认证日期', en: 'Certification Date', ctl: 'date', req: true }, { k: 'm_ce', zh: '认证到期日', en: 'Certification Expiry', ctl: 'date', req: true },
+      { k: 'm_cs', zh: '认证范围', en: 'Certification Scope', ctl: 'text', req: true }, { k: 'm_reason', zh: '原因', en: 'Reason', ctl: 'textarea', req: true },
+    ]),
+    onOk: v => {
+      const e = {}; if (!(v.m_reason || '').trim()) e.m_reason = 'Enter a reason.'; if (!v.m_cd) e.m_cd = 'This field is required.'; if (!v.m_ce) e.m_ce = 'This field is required.'; else if (v.m_cd && v.m_ce <= v.m_cd) e.m_ce = 'The expiry must be after the certification date.';
+      const lost = SEED.games.find(g => { const def = gameDef(g); const av = (def && def.avail) || []; return av.includes(code) && !String(v.m_cs || '').split(/[,;]\s*/).some(s => s && (g.code.includes(s) || s.toLowerCase().includes(g.name.toLowerCase()) || /all/i.test(s))); });
+      if (!e.m_cs && lost && v.m_cs !== ch.certScope && /games?:/i.test(v.m_cs || '')) e.m_cs = `Remove this E-Channel from the channel availability of ${lost.code} first.`;
+      if (Object.keys(e).length) { S.ferr = Object.assign(S.ferr || {}, e); render(); return false; }
+      const before = `${ch.certDate} / ${ch.certExpiry} / ${ch.certScope}`; ch.certDate = v.m_cd; ch.certExpiry = v.m_ce; ch.certScope = v.m_cs.trim();
+      audit('E-Channels', 'Certification edited', code, `${before} → ${ch.certDate} / ${ch.certExpiry} / ${ch.certScope} · ${v.m_reason.trim()}`); toast(t('已保存认证信息', 'Certification details saved.'));
+    } });
+};
+(function wrapChDrawer() {
+  const b0 = chDrawerBody;
+  chDrawerBody = function (ch) {
+    if (S.dtab === 'intparams') return intParamsBody(ch);
+    let h = b0(ch);
+    if (S.dtab === 'cert' && can('E-Channels', 'E') && CERT_EDIT_FROM.includes(ch.status)) h = `<div style="text-align:right;margin-bottom:6px">${btn({ zh: '修改认证信息', en: 'Edit' }, 'certEdit', ch.code, { cls: 'sm', id: 'btnCertEdit' })}</div>` + h;
+    if (S.dtab === 'board' && ch.metrics) h = h.replace(/(<div>Last Sync<\/div><div>)([\s\S]*?)(<\/div>)/, (s, a, b, c) => a + lastSyncCell(ch) + c);
+    return h;
+  };
+  const f0 = chDrawerFoot;
+  chDrawerFoot = function (ch) {
+    let h = f0(ch);
+    if (!S.drawer.edit && !chGenericC() && can('Channel Control', 'C')) h = h.replace(/<button[^>]*data-act="chSusp"[\s\S]*?<\/button>/, '');
+    // pending activation / decommission: no second request button
+    if (SEED.authReqs.some(r => r.kind === 'channel' && r.target === ch.code && r.status === 'Awaiting Authorization' && ['Activation', 'Decommission'].includes(r.type))) h = h.replace(/<button[^>]*data-act="ch(Activate|Decom)"[\s\S]*?<\/button>/g, '');
+    return h;
+  };
+})();
+/* 6A.2.4 Last Sync = earliest of the five domains */
+const SYNC_DOMAINS = ['Player Federation', 'Draw Results', 'Reference Data', 'Transactions', 'Prize Claims'];
+function syncTimes(ch) { const base = String(ch.metrics && ch.metrics.lastSync || ''); const ms = dt(base.length === 8 ? fmtD(S.now) + ' ' + base : base) || S.now; return SYNC_DOMAINS.map((d, i) => ({ d, at: fmtDT(ms + [0, 95, 40, 12, 230][i] * 1000, true) })); }
+function lastSyncCell(ch) { const x = syncTimes(ch); const min = x.reduce((a, b) => (a.at <= b.at ? a : b)); return `<span title="${esc(x.map(y => y.d + ': ' + y.at).join('\n'))}">${esc(min.at.slice(11))}</span><div class="tiny">${esc(t('五个领域中最早', 'Earliest of 5 domains'))}: ${x.map(y => esc(y.d + ' ' + y.at.slice(11))).join(' · ')}</div>`; }
+R134_COLS.chBoardT = cols => { const i = colIdx(cols, 'Last Sync'); if (i >= 0) cols[i] = { h: 'Last Sync', r: c => lastSyncCell(c) }; return cols; };
+/* 6A.2.7 Revoke immediately only for Channel Credentials · E */
+(function wrapCredRotate() {
+  const m = modById('credentials'); if (!m || !m.acts || !m.acts.credRotate) return; const r0 = m.acts.credRotate;
+  m.acts.credRotate = id => { if (can('Channel Credentials', 'E')) return r0(id); const a0 = ask; ask = o => { a0(Object.assign({}, o, { fields: (o.fields || []).filter(f => f.k !== 'm_now') })); }; try { r0(id); } finally { ask = a0; } };
+})();
+
+/* =====================================================================
+ * E. 6A.3.3 Withdraw a published (not yet effective) version · single version chain · Roll Back only latest Effective
+ * ===================================================================== */
+const CR_MOD = { 'Game Register': 'Game Registry', 'Draw Calendar': 'Draw Calendar', 'No Draw Dates': 'Draw Calendar', 'Unit Value': 'Game Registry', 'Loyalty Framework': 'Game Registry', 'Claim Policy': 'Claim Policy', 'Terms of Service': 'Terms Of Service', 'Compliance Parameters': 'Game Registry', 'Operating Parameters': 'Game Registry', 'Channel Operating Parameters': 'Game Registry' };
+function crMod(cr) { return CR_MOD[cr.domain] || 'Game Registry'; }
+function crScheduled(cr) { return cr.status === 'Published' && dt(cr.effectiveAt) > S.now; }
+function publishedFor(obj, domain) { return SEED.changes.find(c => c.object === obj && (!domain || c.domain === domain) && crScheduled(c)); }
+const MSG_SCHEDULED_GAME = 'This game already has an approved change that is not yet effective.';
+(function wrapCR() {
+  const s0 = submitCR;
+  submitCR = function (o) {
+    if (o && !o.emergency && o.kind !== 'rollback' && publishedFor(o.object, o.domain)) { toast(o.domain === 'Game Register' ? MSG_SCHEDULED_GAME : 'A scheduled version already exists. Wait until it takes effect or withdraw it.', 'err'); return null; }
+    return s0(o);
+  };
+  const f0 = crFoot;
+  crFoot = function (cr) {
+    let h = f0(cr);
+    if (crScheduled(cr) && can(crMod(cr), 'C') && !cr.emergency) h += btn({ zh: '撤回', en: 'Withdraw' }, 'crPubWd', cr.id, { cls: 'danger', id: 'btnCrPubWd' });
+    return h;
+  };
+  const b0 = crBody;
+  crBody = function (cr) { let h = b0(cr); if (cr.withdrawnAt) h = banner(`<b>Withdrawn</b> · ${esc(cr.withdrawnBy)} · ${esc(cr.withdrawnAt)} · ${esc(cr.withdrawReason)}${cr.wdNotice ? ` · ${t('撤回通知', 'Withdrawal notice')} <span class="mono">${esc(cr.wdNotice)}</span>` : ''}`, 'rose') + h; return h; };
+  const g0 = gameFoot;
+  gameFoot = function (g) {
+    let h = g0(g); if (S.drawer.edit) return h;
+    const pub = publishedFor(g.code, 'Game Register');
+    if (pub) {
+      h = h.replace(/(<button[^>]*data-act="gameEdit")([^>]*)>/, (s, a, b) => `${a.replace('class="btn', 'class="btn dis')}${b.replace(/data-tip="[^"]*"/, '')} data-tip="${MSG_SCHEDULED_GAME}">`);
+      h = h.replace(/<button[^>]*data-act="gameRollback"[\s\S]*?<\/button>/, '');
+      h += btn({ zh: '撤回待生效版本', en: 'Withdraw' }, 'crPubWd', pub.id, { cls: 'danger', id: 'btnGameWd' });
+    }
+    return h;
+  };
+})();
+ACT.crPubWd = id => {
+  const cr = SEED.changes.find(c => c.id === id); if (!cr || !crScheduled(cr) || !can(crMod(cr), 'C')) return;
+  ask({ title: `${t('撤回', 'Withdraw')} · ${cr.id} · ${cr.object} ${cr.version || ''}`, danger: true, ok: { zh: '撤回', en: 'Withdraw' },
+    msg: esc(t('撤回即时生效，不另审批；向收到过该版本的渠道下发参照变更撤回，渠道丢弃该待生效版本。版本号保留、不复用。', 'The withdrawal takes effect at once without approval. A Reference Change Withdrawal goes to every E-Channel that received this version; they discard it. The version number is kept and not reused.')),
+    reason: { zh: '撤回原因', en: 'Reason', max: 500 }, check: { zh: '确认撤回', en: 'I confirm this version is withdrawn' },
+    onOk: v => {
+      const why = v.m_reason.trim(); cr.status = 'Withdrawn'; cr.withdrawnAt = nowS(); cr.withdrawnBy = me(); cr.withdrawReason = why;
+      cr.history.push({ at: nowS(), by: me(), act: 'Withdrawn (published, not yet effective)' });
+      const g = gameByCode(cr.object); if (g) { const gv = g.versions.find(x => 'v' + x.v === cr.version || x.cr === cr.id); if (gv) { gv.withdrawn = true; gv.wdReason = why; gv.wdAt = nowS(); } }
+      const prev = SEED.notices.find(n => n.id === cr.notice); const chs = prev ? prev.per.map(p => p.channel) : activeChannels().map(c => c.code);
+      const n = issueNotice({ type: 'Withdrawal', domain: cr.domain, object: cr.object, version: cr.version || '-', effectiveAt: nowS(), cr: cr.id, channels: chs, reason: why }); n.reason = why; cr.wdNotice = n.id;
+      audit('Game Registry', 'Published version withdrawn', cr.id, `${cr.object} ${cr.version || ''} · ${why} · ${n.id}`); toast(t('已撤回并下发撤回通知', `Withdrawn. Reference Change Withdrawal ${n.id} sent to ${chs.length} E-Channels.`));
+    } });
+};
+/* withdrawn versions: not used as current / next / base; the number is not reused */
+(function wrapVersions() {
+  const n0 = nextVersion; nextVersion = function (g) { const c = curVersion(g); return g.versions.filter(v => !v.withdrawn && v.v > c.v && dt(v.eff) > S.now).sort((a, b) => a.v - b.v)[0] || null; };
+  const c0 = curVersion; curVersion = function (g) { const vs = g.versions.filter(v => !v.withdrawn && dt(v.eff) <= S.now).sort((a, b) => b.v - a.v); return vs[0] || g.versions[0]; };
+  ['game', 'rollback'].forEach(k => { const f = CR_APPLY[k]; if (!f) return; CR_APPLY[k] = cr => { const g = gameByCode(cr.payload.game || cr.object); const maxV = g ? Math.max(...g.versions.map(v => v.v)) : 0; const wd = g ? g.versions.filter(v => v.withdrawn) : [];
+    if (wd.length) { wd.forEach(v => { v._hid = true; }); g.versions = g.versions.filter(v => !v._hid); }
+    try { f(cr); } finally { if (wd.length) { const nv = g.versions[g.versions.length - 1]; if (nv && nv.v <= maxV) { nv.v = maxV + 1; cr.version = 'v' + nv.v; } wd.forEach(v => delete v._hid); g.versions = g.versions.concat(wd).sort((a, b) => a.v - b.v); } } }; });
+})();
+R134_COLS.verT = cols => { cols.splice(1, 0, { h: 'Status', r: v => v.withdrawn ? badge('Withdrawn', 'bad') + `<div class="tiny">${esc(v.wdReason || '')}</div>` : dt(v.eff) > S.now ? badge('Published', 'warn') : badge('Effective', 'ok') }); return cols; };
+R134_COLS.ntT = cols => { const i = colIdx(cols, 'Version'); if (i >= 0) cols[i] = { h: 'Version', r: n => n.type === 'Withdrawal' ? `${esc(n.version)} <span class="tiny">${t('被撤回', 'withdrawn')}</span>` : esc(n.version) }; return cols; };
+_toneMap['Withdrawal'] = 'bad';
+
+/* =====================================================================
+ * F. 6A.3.8 Operating Parameters + Channel Operating Parameters data domain
+ * ===================================================================== */
+SEED.opParams = [
+  { id: 'rcptTimeout', en: 'Receipt Timeout', val: '60 seconds', used: '6A.2.6 rule 1', ch: false },
+  { id: 'rcptRetry', en: 'Receipt Retry Schedule', val: '1 / 2 / 4 / 8 / 16 minutes, 5 retries', used: '6A.2.6 rule 1', ch: false },
+  { id: 'maxDispatch', en: 'Maximum Dispatch Time', val: '30 seconds', used: '6A.2.5', ch: false },
+  { id: 'serialBlock', en: 'Serial Blocking Alert Threshold', val: '10 minutes', used: '6A.2.6 rule 6', ch: false },
+  { id: 'execDl', en: 'E-Channel Execution Deadline', val: '5 minutes', used: '6A.2.5, 6A.2.6', ch: true },
+  { id: 'voidDl', en: 'Whole-Draw Void Deadline', val: '24 hours', used: '6A.2.6 rule 7', ch: true },
+  { id: 'sealDl', en: 'Sealed Summary Deadline', val: '15 minutes after cut-off', used: '6A.5.2', ch: true },
+  { id: 'reRepDl', en: 'Re-report Deadline', val: '30 minutes', used: '6A.5.2', ch: true },
+  { id: 'reconDl', en: 'Reconciliation Deadline', val: '2 hours after receipt', used: '6A.6.6', ch: true },
+  { id: 'maxLat', en: 'Maximum Reporting Latency', val: '60 seconds', used: '6A.10.2', ch: true },
+  { id: 'plDl', en: 'Player Status Execution Deadline', val: '5 minutes', used: '6A.8.6, 6A.9.2', ch: true },
+  { id: 'exWin', en: 'Closure Exception Window', val: '10 minutes', used: '6A.5.2 rule 4', ch: false },
+  { id: 'declGrace', en: 'Declaration Grace Period', val: '30 minutes', used: '6A.3.5', ch: true },
+  { id: 'declCut', en: 'Daily Declaration Cut-off', val: '02:00 (UTC+8)', used: '6A.3.5', ch: true },
+  { id: 'leadTime', en: 'Minimum Implementation Lead Time', val: 'Critical 168 hours, other 72 hours, single calendar change 24 hours', used: '6A.3.3', ch: false },
+  { id: 'ratify', en: 'Emergency Rollback Ratification Window', val: '24 hours', used: '6A.3.3', ch: false },
+  { id: 'certValid', en: 'Certification Validity', val: '12 months', used: '6A.2.3', ch: false },
+  { id: 'credRemind', en: 'Credential Expiry Reminders', val: '30 days and 7 days before expiry', used: '6A.2.7', ch: false },
+  { id: 'credOverlap', en: 'Credential Rotation Overlap', val: '24 hours', used: '6A.2.7', ch: false },
+  { id: 'intDefaults', en: 'Integration Parameter Defaults', val: 'Rate Limit 50 per second · Daily Quota 2,000,000 · Request Timeout 10 seconds', used: '6A.2.2', ch: false },
+  { id: 'archive', en: 'Archive Retrieval Time', val: '24 hours', used: '6A.18.5', ch: false },
+  { id: 'privReview', en: 'Privileged Access Review Cycle', val: 'Quarterly', used: '6A.20.7', ch: false },
+];
+SEED.copVersion = SEED.copVersion || { v: 'COP-v1', eff: '2026-10-01 00:00', notice: 'RCN-20260924-0013', demo: true };
+const COP_MAP = [
+  ['E-Channel Execution Deadline, Whole-Draw Void Deadline, Sealed Summary Deadline, Re-report Deadline, Reconciliation Deadline (6A.6.6), Maximum Reporting Latency (6A.10.2), Player Status Execution Deadline (6A.8.6, 6A.9.2), Declaration Grace Period, Daily Declaration Cut-off', 'This page', 'Reference Approver (Game Registry · A)'],
+  ['Heartbeat Interval and Grace Period', '6A.15.4 Alert Thresholds', 'As on that page (Senior Authorizer)'],
+  ['Domain State Report Time (= daily full reconciliation time − 30 minutes)', '6A.14.7 Divergence Rules', 'As on that page (Senior Authorizer)'],
+  ['Re-sync Wait Timeout', '6A.14.7 Divergence Rules', 'As on that page (Senior Authorizer)'],
+];
+function opPend(p) { return SEED.changes.find(c => c.kind === 'opParam' && c.payload && c.payload.id === p.id && (['Pending Approval', 'Pending Senior Authorization'].includes(c.status) || crScheduled(c))); }
+function opParamsView(m) {
+  let h = pageH({ zh: '运营参数', en: 'Operating Parameters' }, '6A.3.8', t('门户里没有专属配置页的运营参数在此配置：Core 运营提交，参照审批人批准；下发渠道的属渠道运行参数数据域，经参照变更通知下发并进配置声明比对。默认值为演示数据，以《可配置参数登记册》报 PCSO 批准的值为准。', 'Operating parameters that have no page of their own. Core Operations submits, a Reference Approver approves. Parameters sent to E-Channels form the Channel Operating Parameters data domain: they go out as reference change notices and are part of configuration declarations. Defaults are demo values until PCSO approves the Configurable Parameter Register.')) + subTabs(m);
+  const canC = can('Game Registry', 'C');
+  h += table('opParT', [
+    { h: 'Parameter', r: p => esc(p.en) }, { h: 'Current Value', r: p => esc(p.val) + (p.next ? `<div class="tiny">${t('已批准', 'Scheduled')}: ${esc(p.next.val)} · ${esc(p.next.eff)}</div>` : '') },
+    { h: 'Used In', k: 'used' }, { h: 'Sent To E-Channels', r: p => p.ch ? badge('Yes', 'info') : 'No' },
+    { h: 'Pending Request', r: p => { const c = opPend(p); return c ? `<button class="btn link mono" data-act="crOpen" data-a="${c.id}">${c.id}</button> ${badge(crStatus(c) === 'Published' ? 'Published' : c.status, 'warn')}` : '-'; } },
+    { h: 'Actions', r: p => canC ? btn({ zh: '修改', en: 'Edit' }, 'opEdit', p.id, { cls: 'sm', dis: !!opPend(p), tip: 'This parameter already has a change awaiting approval or not yet effective.' }) : '' },
+  ], SEED.opParams, { nopage: true }) + `<p class="tiny">${demoTag()}</p>`;
+  h += card(`${t('渠道运行参数数据域', 'Channel Operating Parameters')} <span class="tag">${esc(SEED.copVersion.v)}</span>`, `<p class="tiny">${esc(t('渠道须遵守的 Core 可配时限单立一个数据域下发，不并入合规参数。Core 判渠道是否逾期按该期限开始计时时有效的值。', 'Core-configurable time limits that E-Channels must follow form their own data domain (not part of Compliance Parameters). Core judges lateness by the value in force when the time limit started.'))}</p>`
+    + table('copMap', [{ h: 'Parameter', k: 'p' }, { h: 'Configured On', k: 'where' }, { h: 'Approval', k: 'appr' }], COP_MAP.map((x, i) => ({ id: i, p: x[0], where: x[1], appr: x[2] })), { nopage: true })
+    + dl([['Current Version', esc(SEED.copVersion.v)], ['Effective From', esc(SEED.copVersion.eff)], ['Last Notice', `<span class="mono">${esc(SEED.copVersion.notice)}</span>`]]));
+  return h;
+}
+ACT.opEdit = id => {
+  const p = SEED.opParams.find(x => x.id === id); if (!p || !can('Game Registry', 'C')) return;
+  openModal({ title: `Edit · ${p.en}`, ok: { zh: '提交', en: 'Submit change request' }, vals: { m_val: p.val },
+    body: () => formHtml([
+      { k: 'm_param', zh: '参数', en: 'Parameter', ctl: 'readonly', html: () => esc(p.en) },
+      { k: 'm_val', zh: '新值', en: 'New Value', ctl: 'text', req: true },
+      ...(p.ch ? [{ k: 'm_eff', zh: '生效时间', en: 'Effective At', ctl: 'datetime', req: true, def: fmtDT(S.now + 4 * 864e5).replace(' ', 'T'), hint: t('下发渠道的参数须满足一般参数提前期 72 小时', 'Parameters sent to E-Channels need the 72-hour lead time for other parameters') }] : []),
+      { k: 'm_note', zh: '变更说明', en: 'Change Note', ctl: 'textarea', req: true, ph: 'PCSO memo 2026-xx' },
+    ]) + `<p class="tiny">Needs approval by Reference Approver${p.ch ? '' : ` · ${t('只在 Core 侧使用，批准即生效', 'Used inside Core only: effective on approval')}`}</p>`,
+    onOk: v => {
+      const e = {}; const nv = String(v.m_val || '').trim();
+      if (!nv || nv === p.val || !/\d|Daily|Weekly|Monthly|Quarterly/i.test(nv)) e.m_val = 'Enter a value in the allowed range.';
+      if (p.ch && empty(v.m_eff)) e.m_eff = 'This field is required.';
+      const note = String(v.m_note || '').trim(); if (!note) e.m_note = 'This field is required.'; else if (note.length > 200) e.m_note = 'Up to 200 characters.';
+      if (Object.keys(e).length) { setErr(e); return false; }
+      const dom = p.ch ? 'Channel Operating Parameters' : 'Operating Parameters'; const ver = p.ch ? 'COP-v' + (+SEED.copVersion.v.replace(/\D/g, '') + 1) : '-';
+      const cr = submitCR({ domain: dom, object: p.en, kind: 'opParam', critical: false, urgent: false, noLead: !p.ch, noNotice: !p.ch, effectiveAt: p.ch ? normDT(v.m_eff) : nowS(), version: ver, note, fields: [{ f: p.en, cur: p.val, pro: nv }], payload: { id: p.id, val: nv } });
+      if (!cr) return false; toast(t(`已提交 ${cr.id}，待参照审批人批准`, `Change request ${cr.id} submitted. Needs approval by Reference Approver.`));
+    } });
+};
+CR_APPLY.opParam = cr => {
+  const p = SEED.opParams.find(x => x.id === cr.payload.id); if (!p) return;
+  if (p.ch && dt(cr.effectiveAt) > S.now) { p.next = { val: cr.payload.val, eff: cr.effectiveAt, cr: cr.id }; SEED.copVersion = Object.assign({}, SEED.copVersion, { pending: cr.version }); }
+  else { p.val = cr.payload.val; delete p.next; }
+  if (p.ch) SEED.copVersion = Object.assign({}, SEED.copVersion, { v: cr.version, eff: cr.effectiveAt });
+  audit('Game Registry', 'Operating parameter approved', p.en, `${cr.fields[0].cur} → ${cr.payload.val}`);
+};
+(function patchRegistry134() {
+  const m = modById('registry'); if (!m) return;
+  if (!m.subs.some(s => s.id === 'opparams')) m.subs = m.subs.concat([{ id: 'opparams', zh: '运营参数', en: 'Operating Parameters' }]);
+  const v0 = m.view; m.view = () => S.sub === 'opparams' ? opParamsView(m) : v0();
+  // 6A.3.5 declarations carry ten data-domain versions (+ Channel Operating Parameters)
+  (SEED.declarations || []).forEach(d => { if (d.against && !/Channel Operating Parameters/.test(d.against)) d.against += '; Channel Operating Parameters COP-v1'; });
+})();
+R133_HOOKS.push(() => { const sel = document.querySelector('select[data-filter="crF|domain"]'); if (sel && ![...sel.options].some(o => o.value === 'Operating Parameters')) { ['Operating Parameters', 'Channel Operating Parameters'].forEach(x => sel.insertAdjacentHTML('beforeend', `<option value="${x}">${x}</option>`)); const cur = fv('crF', 'domain', 'All'); if (cur) sel.value = cur; } });
+
+/* 6A.16.9 Compliance Parameters: four values, Core Operations submits (Game Registry · C), Reference Approver approves */
+Object.assign(SEED.compParams, { reportDlH: SEED.compParams.reportDlH || SEED.compParams.lateAfterH || 6, onDemandH: SEED.compParams.onDemandH || 24, period: 'Daily' });
+function cpCard() {
+  const cp = SEED.compParams; const pend = SEED.changes.find(c => c.kind === 'compParams' && (['Pending Approval', 'Pending Senior Authorization'].includes(c.status) || crScheduled(c)));
+  return card(`${t('合规参数', 'Compliance Parameters')} <span class="tag">${esc(cp.version)}</span>`, dl([['Over-Threshold Transaction Amount', `${fmtP(cp.overThreshold)} ${demoTag()}`], ['Metrics Reporting Period', esc(cp.period)], ['Reporting Deadline', `${cp.reportDlH} hours`], ['On-demand Response Time', `${cp.onDemandH} hours`], ['Effective From', esc(cp.eff)], ['Last Notice', `<span class="mono">${esc(cp.notice || '-')}</span>`]])
+    + (pend ? banner(`${t('待审批或待生效', 'Pending')}: <button class="btn link mono" data-act="crOpen" data-a="${pend.id}">${pend.id}</button> · ${esc(pend.version)} · ${badge(crStatus(pend))}`, 'amber') : (can('Game Registry', 'C') ? `${btn({ zh: '提交变更', en: 'Submit Change Request' }, 'cp.change', '', { cls: 'primary', id: 'btnCpChange' })}<div class="tiny">Needs approval by Reference Approver</div>` : '')));
+}
+(function wrapParamsView() { const p0 = paramsView; paramsView = function (m) { const h = p0(m); const i = h.indexOf('<div class="card"', h.indexOf('<div class="card"') + 10); return i > 0 ? h.slice(0, i) + cpCard() : h + cpCard(); }; })();
+ACT['cp.change'] = () => {
+  const cp = SEED.compParams; if (!can('Game Registry', 'C')) return;
+  openModal({ title: { zh: '合规参数变更', en: 'Compliance Parameters' }, ok: { zh: '提交', en: 'Submit Change Request' }, vals: { m_thr: cp.overThreshold, m_dl: cp.reportDlH, m_od: cp.onDemandH },
+    body: () => formHtml([
+      { k: 'm_thr', zh: '超阈值交易金额', en: 'Over-Threshold Transaction Amount', ctl: 'money', req: true },
+      { k: 'm_period', zh: '指标上报周期', en: 'Metrics Reporting Period', ctl: 'readonly', html: () => 'Daily' },
+      { k: 'm_dl', zh: '上报截止时长（小时）', en: 'Reporting Deadline (hours)', ctl: 'number', req: true },
+      { k: 'm_od', zh: '按需请求回报期限（小时）', en: 'On-demand Response Time (hours)', ctl: 'number', req: true },
+      { k: 'm_eff', zh: '生效时间', en: 'Effective Time', ctl: 'datetime', req: true, def: fmtDT(S.now + 4 * 864e5).replace(' ', 'T'), hint: 'UTC+8' },
+      { k: 'm_note', zh: '变更说明', en: 'Change Note', ctl: 'textarea', req: true },
+    ]) + '<p class="tiny">Needs approval by Reference Approver</p>',
+    onOk: v => {
+      const e = {}; const amt = +String(v.m_thr || '').replace(/[^\d.]/g, ''); const dl = +v.m_dl, od = +v.m_od;
+      if (!(amt >= 1 && amt <= 100000000)) e.m_thr = 'Enter an amount from ₱1.00 to ₱100,000,000.00.';
+      if (!(Number.isInteger(dl) && dl >= 1 && dl <= 24)) e.m_dl = 'Enter a whole number from 1 to 24.';
+      if (!(Number.isInteger(od) && od >= 1 && od <= 72)) e.m_od = 'Enter a whole number from 1 to 72.';
+      if (empty(v.m_eff)) e.m_eff = 'This field is required.'; if (empty((v.m_note || '').trim())) e.m_note = 'Enter a change note.';
+      if (Object.keys(e).length) { setErr(e); return false; }
+      const n = +String(cp.version).replace(/\D/g, '') + 1; const f = [];
+      if (amt !== cp.overThreshold) f.push({ f: 'Over-Threshold Transaction Amount', cur: fmtP(cp.overThreshold), pro: fmtP(amt) });
+      if (dl !== cp.reportDlH) f.push({ f: 'Reporting Deadline', cur: cp.reportDlH + ' hours', pro: dl + ' hours' });
+      if (od !== cp.onDemandH) f.push({ f: 'On-demand Response Time', cur: cp.onDemandH + ' hours', pro: od + ' hours' });
+      if (!f.length) { setErr({ m_thr: 'Change at least one value.' }); return false; }
+      const cr = submitCR({ domain: 'Compliance Parameters', object: 'Compliance Parameters', kind: 'compParams', critical: false, urgent: false, effectiveAt: normDT(v.m_eff), version: 'CP-v' + n, note: v.m_note.trim(), fields: f, payload: { overThreshold: amt, reportDlH: dl, onDemandH: od } });
+      if (!cr) return false; toast(t('已提交，待参照审批人批准', 'Submitted. Needs approval by Reference Approver.'));
+    } });
+};
+CR_APPLY.compParams = cr => { const p = cr.payload || {}; SEED.compParams = Object.assign({}, SEED.compParams, { version: cr.version, eff: cr.effectiveAt, overThreshold: p.overThreshold, reportDlH: p.reportDlH || SEED.compParams.reportDlH, onDemandH: p.onDemandH || SEED.compParams.onDemandH }); audit('Game Registry', 'Compliance parameters published', cr.version, fmtP(p.overThreshold)); };
+
+/* =====================================================================
+ * G. 6A.1.3 dashboard blocks by module permission · alerts pushed to me · new to-do items
+ *    6A.15.5 / 6A.15.6 alert recipients may open the Alerts page and acknowledge their alerts
+ * ===================================================================== */
+const ALERT_TYPE_134 = { 'Sealed summary overdue': 'Draw Anomaly', 'Missing transactions': 'Draw Anomaly', 'Directive not acknowledged': 'Directive Overdue', 'Configuration divergence': 'Divergence', 'Reporting backlog': 'Threshold Breach', 'Certification expiry': 'Directive Overdue', 'Directive Queue Blocked': 'Directive Overdue' };
+function alType134(a) { return a.cat || ALERT_TYPE_134[a.type] || a.type; }
+function alertPushed(a, u = S.user) {
+  if (!u) return false; const r = (SEED.routing || []).find(x => x.type === alType134(a));
+  if (!r) return can('Health Monitoring', 'E', u);
+  return (u.roles || []).some(x => (r.roles || []).includes(x) || (r.escalate || []).includes(x)) || (r.users || []).includes(u.id);
+}
+function alertRecipient(u = S.user) { return !!u && (SEED.routing || []).some(r => (u.roles || []).some(x => (r.roles || []).includes(x) || (r.escalate || []).includes(x)) || (r.users || []).includes(u.id)); }
+ALERT_VISIBLE = (a, u) => alertPushed(a, u);
+alertVisibleAny = function () { return alertRecipient(); };
+/* open-case count: Obstruction Complaint cases only for roles with Conflict Of Interest · V (6A.17.2) */
+function caseVisible(c, u = S.user) { return !c.obstruction || can('Conflict Of Interest', 'V', u); }
+(function wrapDash() {
+  const d0 = dashView;
+  dashView = function () {
+    const hid = []; SEED.cases.forEach(c => { if (!caseVisible(c)) hid.push(c); });
+    if (hid.length) SEED.cases = SEED.cases.filter(c => caseVisible(c));
+    try { return d0(); } finally { if (hid.length) SEED.cases = SEED.cases.concat(hid); }
+  };
+  const m = modById('dash'); if (m) m.view = () => dashView();
+})();
+/* Health module: alert recipients without Health Monitoring · V see only the Alerts tab with their alerts */
+(function patchHealth134() {
+  const m = modById('health'); if (!m) return;
+  const base = m.roles.slice();
+  R134.healthRoles = () => [...new Set(base.concat(...(SEED.routing || []).map(r => (r.roles || []).concat(r.escalate || []))))].filter(r => r !== 'sysadm');
+  const r0 = render; render = function () { m.roles = R134.healthRoles(); return r0(); };
+  (m.subs || []).forEach(s => { if (s.id !== 'alerts' && !s.roles) s.roles = rolesOf('Health Monitoring'); });
+  const v0 = m.view;
+  m.view = () => {
+    if (can('Health Monitoring')) return v0();
+    S.sub = 'alerts';
+    const rows = SEED.alerts.filter(a => alertPushed(a) && a.status !== 'Closed');
+    return pageH({ zh: '告警中心', en: 'Alerts' }, '6A.15.5', t('只显示按告警接收人配置推给本人的告警；可确认，不能导出。', 'Only the alerts routed to you by Alert Routing are shown. You can acknowledge them; export is not available.')) + subTabs(m)
+      + table('halMine', [{ h: 'Alert ID', r: a => `<span class="mono">${a.id}</span>` }, { h: 'Alert Type', r: a => esc(alType134(a)) }, { h: 'Channel Code', r: a => esc(a.channel || '-') }, { h: 'Severity', r: a => badge(a.level || a.sev) },
+        { h: 'Message', k: 'event' }, { h: 'Raised At', r: a => `<span class="nowrap">${esc(a.raisedAt)}</span>` }, { h: 'Status', r: a => badge(a.status) }, { h: 'Acknowledged By / At', r: a => a.ackBy ? `${esc(a.ackBy)}<div class="tiny">${esc(a.ackAt)}</div>` : '-' },
+        { h: '', r: a => a.status === 'Open' ? btn({ zh: '确认', en: 'Acknowledge' }, 'alertAck', a.id, { cls: 'sm' }) : '' }], rows, { empty: { zh: '没有推给本人的告警', en: 'No alerts are routed to you.' } });
+  };
+})();
+/* to-do items added in 1.3.4 (6A.1.3 to-do table); own submissions are not counted */
+TODO_PROVIDERS.push(u => {
+  const out = []; const notMine = x => (x.by || x.submittedBy) !== u.id;
+  if (hasRole('ra', u)) {
+    out.push({ n: SEED.changes.filter(c => c.kind === 'opParam' && c.status === 'Pending Approval' && notMine(c)).length, zh: '条运营参数变更待批准', en: 'operating parameter changes to approve', go: 'registry/changes' });
+    out.push({ n: SEED.changes.filter(c => c.kind === 'compParams' && c.status === 'Pending Approval' && notMine(c)).length, zh: '条合规参数变更待批准', en: 'compliance parameter changes to approve', go: 'registry/changes' });
+  }
+  if (hasRole('sa', u)) {
+    out.push({ n: SEED.authReqs.filter(r => r.kind === 'exclusion' && r.status === 'Awaiting Authorization' && notMine(r)).length, zh: '条排除记录更正待批准', en: 'exclusion corrections to approve', go: 'exclusions' });
+    out.push({ n: (SEED.extRecipReqs || []).filter(r => r.status === 'Pending Approval' && notMine(r)).length, zh: '条外部收件人变更待批准', en: 'external recipient changes to approve', go: 'reports/schedules', q: { tab: 'ext' } });
+    out.push({ n: (SEED.sfVersions || []).filter(v => v.status === 'Pending Approval' && v.by !== u.id).length, zh: '个结算公式版本待批准', en: 'settlement formula versions to approve', go: 'settlement/formula' });
+  }
+  if (hasRole('ops', u)) out.push({ n: calShortGames().length, zh: '个游戏日历不足保有期数', en: 'games with fewer draws than the advance draws to keep', go: 'calendar/calendar' });
+  return out;
+});
+function calShortGames() { return SEED.games.filter(g => { const def = gameDef(g); if (!def || def.status !== 'Active') return false; const keep = def.advance ? (def.keep || 0) : 0; const fut = SEED.draws.filter(d => d.game === g.code && ['Scheduled', 'Open for Betting'].includes(d.status)).length; return keep > 0 && fut < keep; }); }
+
+/* =====================================================================
+ * H. 6A.5.2 Exception Window Ends · Re-report Deadline · Exclusion pending · 6A.5.3 export (not PCSO Finance)
+ * ===================================================================== */
+R134_COLS.cloT = cols => { const i = colIdx(cols, 'Closure Record'); cols.splice(i >= 0 ? i : cols.length, 0, { h: 'Exception Window Ends', r: d => { const c = d.closure; return c && c.exWinEnd ? `<span class="nowrap">${esc(c.exWinEnd)}</span>` : '-'; } }); return cols; };
+R134_COLS.sumT = cols => {
+  const did = () => S.drawer && (S.drawer.drawId || S.drawer.id || (S.drawer.title && String(typeof S.drawer.title === 'function' ? S.drawer.title() : S.drawer.title).split(' ')[0]));
+  const i = colIdx(cols, 'Result'); if (i >= 0) { const r0 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: (p, j) => (r0 ? r0(p, j) : badge(p.result)) + (pendMarks('closure', did(), p.channel) ? ' ' + pendMarks('closure', did(), p.channel) : '') }); }
+  const j = colIdx(cols, 'Submitted At'); cols.splice(j >= 0 ? j + 1 : cols.length, 0, { h: 'Re-report Deadline', r: p => p.result === 'Missing Transactions' && p.reReqAt ? `<span class="nowrap">${esc(reDue(p))}</span>` : '-' });
+  const k = colIdx(cols, 'Actions'); if (k >= 0) { const r1 = cols[k].r; cols[k] = Object.assign({}, cols[k], { r: (p, j2) => { let h = r1 ? r1(p, j2) : ''; if (pendMarks('closure', did(), p.channel)) h = h.replace(/(<button[^>]*data-act="cloExclude"[^>]*class="btn)/, '$1 dis').replace(/(<button[^>]*class="btn)([^"]*)("[^>]*data-act="cloExclude")/, '$1$2 dis" data-tip="This draw already has a request awaiting authorization.$3'); return h; } }); }
+  return cols;
+};
+(function wrapCloseOpen() { const o0 = closureOpen; closureOpen = function (id) { o0(id); if (S.drawer) { S.drawer.drawId = id; render(); } }; })();
+R133_HOOKS.push(() => { if (S.user && hasRole('fin') && !hasRole('ops') && !hasRole('aud')) document.querySelectorAll('#ovl [data-act="recExport"]').forEach(b => b.remove()); });
+(function guardRecExport() { const m = modById('closure'); const a = m && m.acts && m.acts.recExport; if (!a) return; m.acts.recExport = id => { if (!(hasRole('ops') || hasRole('aud'))) { toast('You do not have permission for this action.', 'err'); return; } a(id); }; })();
+
+/* =====================================================================
+ * I. 6A.6.2 workbench defaults · 6A.6.7 Adjust Result / View Adjustment · 6A.7.5 Result Adjustments list
+ *    6A.7.3 Reject in Queued / Authorized Pending Effect, no Withdraw for System · 6A.7.4 Late Recovered / Add-back
+ * ===================================================================== */
+(function wrapBench() {
+  const v0 = drBenchView;
+  drBenchView = function () {
+    S.f.drF = S.f.drF || {};
+    if (S.f.drF.from === undefined) S.f.drF.from = dayOff(-29);
+    if (S.f.drF.sts === undefined) S.f.drF.sts = DR_BASE.concat(['Published']);
+    return v0();
+  };
+})();
+const ADJ_OPEN_134 = ['Awaiting First Entry', 'Awaiting Second Entry', 'Awaiting Prize Entry', 'Awaiting Second Prize Entry', 'Awaiting Authorization', 'Queued', 'Authorized Pending Effect'];
+const ADJ_ALL_134 = ADJ_OPEN_134.concat(['Effective', 'Rejected', 'Withdrawn']);
+_toneMap['Queued'] = _toneMap['Queued'] || 'warn';
+(function wrapAdjStatus() {
+  const s0 = adjStatus;
+  adjStatus = a => {
+    if (a.queued) { const ahead = SEED.resultAdj.some(o => o !== a && o.drawId === a.drawId && !o.queued && adjOpenSt(o) && o.status !== 'Queued'); if (ahead) return 'Queued'; a.queued = false; }
+    if (a.firstVoid) return 'Awaiting First Entry';
+    return s0(a);
+  };
+})();
+function adjParticipants(a) { const d = drawById(a.drawId) || {}; const xs = [a.by, a.num && a.num.first && a.num.first.by, a.num && a.num.second && a.num.second.by, a.prz && a.prz.first && a.prz.first.by, a.prz && a.prz.second && a.prz.second.by].concat((a.auths || []).map(x => x.by)); (d.rv || []).forEach(v => { xs.push(...(v.authBy || [])); }); return xs.filter(Boolean); }
+function adjRowAction(a) {
+  const st = adjSync(a); const enc = hasRole('enc'), sa = hasRole('sa');
+  const v = btn({ zh: '查看', en: 'View' }, 'adjOpen', a.id, { cls: 'sm' });
+  if (enc && st === 'Awaiting First Entry') return btn({ zh: '第一次录入', en: 'First Entry' }, 'adjOpen', a.id, { cls: 'sm primary' });
+  if (enc && st === 'Awaiting Second Entry') { const same = a.num && a.num.first && a.num.first.by === me(); return btn({ zh: '第二次录入', en: 'Second Entry' }, 'adjOpen', a.id, { cls: 'sm primary', dis: same, tip: 'The second entry must be made by a different person' }); }
+  if (enc && st === 'Awaiting Prize Entry') return btn({ zh: '录入奖金', en: 'Enter Prizes' }, 'adjOpen', a.id, { cls: 'sm primary' });
+  if (enc && st === 'Awaiting Second Prize Entry') { const same = a.prz && a.prz.first && a.prz.first.by === me(); return btn({ zh: '第二次奖金录入', en: 'Second Prize Entry' }, 'adjOpen', a.id, { cls: 'sm primary', dis: same, tip: 'The second entry must be made by a different person' }); }
+  if (sa && st === 'Awaiting Authorization') return btn({ zh: '授权', en: 'Authorize' }, 'adjOpen', a.id, { cls: 'sm ok', dis: adjParticipants(a).includes(me()), tip: 'You took part in this result and cannot authorize its adjustment.' });
+  if (sa && st === 'Authorized Pending Effect') return btn({ zh: '重新判奖', en: 'Re-run Determination' }, 'adjRerun', a.id, { cls: 'sm primary' }) + ' ' + btn({ zh: '驳回', en: 'Reject' }, 'adjReject', a.id, { cls: 'sm' });
+  if (sa && st === 'Queued') return v + ' ' + btn({ zh: '驳回', en: 'Reject' }, 'adjReject', a.id, { cls: 'sm' });
+  return v;
+}
+function adjActionable(a) { return /data-act="adj(Open|Rerun|Reject)"[^>]*>(?!View)/.test(adjRowAction(a)) && !/class="btn[^"]*dis/.test(adjRowAction(a)) && !/>View</.test(adjRowAction(a).split('</button>')[0] + '<'); }
+function adjListView() {
+  const m = modById('adjust');
+  let h = pageH({ zh: '结果调整', en: 'Result Adjustments' }, '6A.7.5', t('全部结果调整（人工发起与系统生成），第二次录入、奖金录入、授权与重新判奖的统一入口；人工调整从结果详情 Adjust Result 发起。', 'All result adjustments, manual and system-generated. The single entry point for second entry, prize entry, authorization and re-run determination. Manual adjustments start from Adjust Result in the result detail.'), hasRole('enc') ? btn({ zh: '+ 发起调整', en: 'Adjust Result' }, 'adjPick', '', { cls: 'primary', id: 'adjNewBtn' }) : '') + subTabs(m);
+  const g = fv('adjF', 'game', 'All');
+  const draws = [...new Set(SEED.resultAdj.map(a => a.drawId))].filter(id => g === 'All' || id.startsWith(g + '-'));
+  const r = rangeVal('adjF', dayOff(-90), dayOff(1), 366);
+  if (S.q.draw && (S.f.adjF || {}).draw === undefined) { S.f.adjF = Object.assign(S.f.adjF || {}, { draw: S.q.draw, sts: ADJ_ALL_134 }); }
+  h += filterBar('adjF', [
+    { k: 'game', zh: '游戏', en: 'Game', type: 'select', def: 'All', opts: ['All'].concat(SEED.games.map(x => x.code)) },
+    { k: 'draw', zh: '期次', en: 'Draw ID', type: 'select', def: 'All', opts: ['All'].concat(draws) },
+  ].concat(rangeFields(dayOff(-90), dayOff(1), '发起日期', 'Initiated')),
+    msel('adjF', 'types', { zh: '调整类型', en: 'Adjustment Type' }, ['Winning Numbers Correction', 'Prize Correction', 'Winning Wager Removal'], ['Winning Numbers Correction', 'Prize Correction', 'Winning Wager Removal'])
+    + msel('adjF', 'sts', { zh: '状态', en: 'Status' }, ADJ_ALL_134, ADJ_OPEN_134));
+  if (r.err) h += banner(r.err, 'amber');
+  const dF = fv('adjF', 'draw', 'All'), tys = mselVal('adjF', 'types', ['Winning Numbers Correction', 'Prize Correction', 'Winning Wager Removal']), sts = mselVal('adjF', 'sts', ADJ_OPEN_134);
+  const rows = SEED.resultAdj.filter(a => { adjSync(a); return (g === 'All' || a.drawId.startsWith(g + '-')) && (dF === 'All' || a.drawId === dF) && tys.includes(a.type) && sts.includes(a.status) && (r.err || inRange(a.at, r)); }).sort((x, y) => String(y.at).localeCompare(String(x.at)));
+  const n = rows.filter(a => { const h2 = adjRowAction(a); return !/>View<\/button>$/.test(h2.trim()) && !/^<button[^>]*class="btn[^"]*\bdis\b/.test(h2.trim()); }).length;
+  h += `<p class="dr-needs" id="adjNeeds"><b>${t(`待我处理 (${n})`, `Needs your action (${n})`)}</b></p>`;
+  h += table('adjT', [
+    { h: 'Adjustment ID', r: a => `<span class="mono">${a.id}</span>` }, { h: 'Draw ID', r: a => `<button class="btn link mono" data-act="drView" data-a="${a.drawId}">${a.drawId}</button>` }, { h: 'Adjustment Type', k: 'type' },
+    { h: 'Version', r: a => `<span class="nowrap">v${a.fromV} → v${a.toV || (a.fromV + 1)}</span>` }, { h: 'Initiated By', r: a => esc(a.by) }, { h: 'Initiated At', r: a => `<span class="nowrap">${esc(a.at || '-')}</span>` },
+    { h: 'Status', r: a => badge(a.status, a.status === 'Effective' ? 'ok' : a.status === 'Rejected' || a.status === 'Authorized Pending Effect' ? 'bad' : a.status === 'Withdrawn' ? '' : 'warn') + (a.status === 'Awaiting Authorization' ? ` <span class="tiny">${a.auths.length}/${SEED.policy.adjAuthN || 2}</span>` : '') + (a.cascading ? ' <span class="tag info">Adjustment cascading</span>' : '') },
+    { h: 'Reason', r: a => esc(a.reason) }, { h: 'Effective At', r: a => `<span class="nowrap">${esc(a.effectiveAt || '-')}</span>` },
+    { h: 'Case', r: a => a.caseId ? `<button class="btn link mono" data-act="viewCase" data-a="${a.caseId}">${a.caseId}</button>` : '-' },
+    { h: 'Actions', r: a => `<span class="nowrap">${adjRowAction(a)}</span>` },
+  ], rows, { empty: { zh: '没有符合条件的调整', en: 'No adjustments match the filters.' } });
+  return h;
+}
+(function wrapDrFoot() {
+  const f0 = drViewFoot;
+  drViewFoot = function (d) {
+    let h = f0(d);
+    h = h.replace('data-tip="This draw already has an adjustment in progress."', 'data-tip="An adjustment for this draw is already in progress."').replace('data-tip="该期已有进行中的调整"', 'data-tip="An adjustment for this draw is already in progress."');
+    if (can('Result Adjustment') && SEED.resultAdj.some(a => a.drawId === d.id)) h = btn({ zh: '查看调整', en: 'View Adjustment' }, 'adjViewFor', d.id, { id: 'drViewAdjBtn' }) + h;
+    return h;
+  };
+})();
+ACT.adjViewFor = id => { closeDrawer(); S.f.adjF = { draw: id, game: id.split('-')[0], sts: ADJ_ALL_134 }; go('adjust', 'list', { draw: id }); };
+/* System-generated Winning Wager Removal: no Withdraw; Reject also while Queued / Authorized Pending Effect */
+(function wrapAdjActs() {
+  const m = modById('adjust'); if (!m || !m.acts) return;
+  const w0 = m.acts.adjWd; m.acts.adjWd = id => { const a = SEED.resultAdj.find(x => x.id === id); if (a && (a.system || a.by === 'System')) { toast('A system-generated Winning Wager Removal cannot be withdrawn. A Senior Authorizer can reject it.', 'err'); return; } w0(id); };
+  const r0 = m.acts.adjReject; m.acts.adjReject = id => { if (!hasRole('sa')) { toast('You do not have permission for this action.', 'err'); return; } r0(id); };
+  const f0 = adjFoot; adjFoot = a => { let h = f0(a); if (a.system || a.by === 'System') h = h.replace(/<button[^>]*data-act="adjWd"[\s\S]*?<\/button>/g, ''); if (hasRole('sa') && ['Queued', 'Authorized Pending Effect'].includes(adjSync(a)) && !/data-act="adjReject"/.test(h)) h += btn({ zh: '驳回', en: 'Reject' }, 'adjReject', a.id, { cls: 'danger' }); return h; };
+})();
+/* demo: a second system-generated removal queued behind ADJ-20261012-0003 (Demo data) */
+(function seedQueued() {
+  const m = modById('adjust'); if (!m) return; const i0 = m.init;
+  m.init = () => { if (i0) i0(); try { const a = SEED.resultAdj.find(x => x.id === 'ADJ-20261012-0003'); if (!a || SEED.resultAdj.some(x => x.id === 'ADJ-20261012-0008')) return;
+    const b = JSON.parse(JSON.stringify(a)); Object.assign(b, { id: 'ADJ-20261012-0008', at: '2026-10-12 19:10:00', reason: 'Transaction adjustment TXA-20261012-0011 approved: ticket voided after closure', evidence: ['TXA-20261012-0011'], queued: true, status: 'Queued', fromV: a.fromV, demo: true }); SEED.resultAdj.unshift(b); } catch (e) { console.error(e); } };
+})();
+/* 6A.7.4 Late Recovered / Add-back: add-back = recovered amount (+ late recovery); after the claim deadline ₱0.00 */
+function adjAddBack(x) {
+  if (x.res === 'Not Applicable') return 0;
+  if (!(x.claim === 'Claimed' && x.diff < 0)) return null;
+  if (x.res === 'Recovered') return x.resAmt != null ? x.resAmt : -x.diff;
+  if (x.res === 'Not Recovered') return (x.resAmt || 0) + (x.lateRec || 0);
+  return null;
+}
+R134_COLS.adjDiffT = R134_COLS.adjDiffD = cols => {
+  const i = colIdx(cols, 'Resolution Amount');
+  cols.splice(i + 1, 0, { h: 'Late Recovered', cls: 'num', r: x => x.res === 'Not Recovered' || x.lateRec ? fmtP(x.lateRec || 0) + (x.res === 'Not Recovered' ? `<div>${btn({ zh: '模拟追回补报', en: 'Simulate late recovery' }, 'adjLateSim', x.adj + '|' + x.id, { cls: 'sm dev', dev: true })}</div>` : '') : '-' },
+    { h: 'Add-back', cls: 'num', r: x => { const v = adjAddBack(x); return v == null ? '-' : fmtP(v); } });
+  return cols;
+};
+ACT.adjLateSim = k => {
+  const [aid, id] = k.split('|'); const a = SEED.resultAdj.find(x => x.id === aid); const x = a && a.diffs.find(z => z.id === id); if (!x || x.res !== 'Not Recovered') return;
+  const left = Math.max(0, x.lossAmt != null ? x.lossAmt : (-x.diff - (x.resAmt || 0))); const amt = Math.round(Math.min(left, Math.max(0.01, left / 2)) * 100) / 100;
+  x.lateRec = Math.round(((x.lateRec || 0) + amt) * 100) / 100; x.lossAmt = Math.round((left - amt) * 100) / 100; x.lateAt = nowS(true);
+  if (x.lossAmt <= 0) { x.res = 'Recovered'; x.resAmt = Math.round(((x.resAmt || 0) + x.lateRec) * 100) / 100; x.lateRec = 0; }
+  audit('Result Adjustment', 'Late recovery reported', x.tx, `${fmtP(amt)} · ${aid}`); toast(`Late Recovery ${fmtP(amt)} reported by ${x.channel}; counted in the add-back of the current settlement period.`); render();
+};
+R133_HOOKS.push(() => { const p = [...document.querySelectorAll('.view p.tiny')].find(e => /added back to the channel net remittance in the settlement period in which the adjustment took effect/.test(e.textContent)); if (p) p.textContent = 'Core adds back only what the channel reports as actually recovered (Recovered amount, the recovered part of Not Recovered, and later Late Recovery reports after rejected withdrawals), in the settlement period in which Core receives the report. The unrecovered part is borne by PCSO (provisional). Rows that arrived after the claim deadline are Not Applicable: no recovery, no top-up, no add-back. Finalized periods are not recalculated.'; });
+
+/* =====================================================================
+ * J. 6A.8 exclusion status as a list · Deletion Pending filter · deletion request (pre-check → approval)
+ *    6A.8.3 new federation events · 6A.8.5 Contact Re-verified
+ * ===================================================================== */
+const EX_SHORT = { 'Self-Exclusion': 'Self-Excluded', 'PCSO-Imposed Exclusion': 'PCSO-Imposed Exclusion' };
+function exTags(upid) { const l = c2exOf(upid); return l.length ? l.map(e => badge(e.type === 'PCSO-Imposed Exclusion' ? 'PCSO-Imposed Exclusion' : 'Self-Excluded', 'bad')).join(' ') : 'None'; }
+const DEL_OPEN = ['Pre-check Running', 'Pending Approval'];
+function delOpen(p) { return !!(p.delReq && DEL_OPEN.includes(p.delReq.status)); }
+(function wrapPlFilters() {
+  const f0 = filterBar;
+  filterBar = function (id, fields, right) {
+    if (id === 'plf') { fields = fields.filter(f => f && f.k !== 'ex'); right = msel('plf', 'exm', { zh: '排除状态', en: 'Exclusion Status' }, ['None', 'Self-Excluded', 'PCSO-Imposed Exclusion'], []) + `<label class="mchk" style="margin-right:10px"><input type="checkbox" data-chg="plDelF" id="plDelPend"${fv('plf', 'delp', false) ? ' checked' : ''}> Deletion Pending</label>` + (right || ''); }
+    if (id === 'fedf') fields = fields.map(f => f && f.k === 'ev' && !f.opts.includes('Re-verification Report') ? Object.assign({}, f, { opts: f.opts.concat(['Additional Verification Report', 'Re-verification Report']) }) : f);
+    return f0(id, fields, right);
+  };
+  ACT.plDelF = (v, el) => { setF('plf', 'delp', !!(el && el.checked)); render(); };
+  const r0 = c2plRows;
+  c2plRows = function () {
+    const exm = mselVal('plf', 'exm', []); const dp = fv('plf', 'delp', false);
+    return r0().filter(p => { const types = c2exOf(p.upid).map(e => EX_SHORT[e.type]); const okEx = !exm.length || exm.some(x => x === 'None' ? !types.length : types.includes(x)); return okEx && (!dp || (p.delReq && p.delReq.status === 'Pending Approval')); });
+  };
+})();
+R134_COLS.plT = cols => {
+  const i = colIdx(cols, 'Exclusion Status'); if (i >= 0) cols[i] = { h: 'Exclusion Status', r: p => exTags(p.upid) };
+  const j = colIdx(cols, 'Account Status'); if (j >= 0) cols[j] = { h: 'Account Status', r: p => badge(p.status) + (p.delReq && p.delReq.status === 'Pending Approval' ? '<div style="margin-top:3px">' + badge('Deletion pending', 'warn') + '</div>' : '') };
+  return cols;
+};
+(function wrapPlBody134() {
+  const b0 = c2plBody;
+  c2plBody = function (p) {
+    let h = b0(p);
+    if (S.dtab === 'basic') {
+      const ex = c2exOf(p.upid);
+      h = h.replace(/(<div>Exclusion Status<\/div><div>)([\s\S]*?)(<\/div><div>)/, (s, a, b, c) => a + (ex.length ? ex.map(e => `${c2link('ex.open', e.id, e.id)} · ${esc(e.type)} · ${esc(c2cut(e.from).slice(0, 10))} ~ ${esc(c2exUntil(e))}`).join('<br>') : 'None') + c);
+      h = h.replace(/(<div>Accepted Terms Version<\/div><div>)([\s\S]*?)(<\/div>)/, (s, a, b, c) => a + `Terms of Service: ${esc(p.tosVersion || '-')} · ${esc(c2cut(p.tosAt))}<br>Privacy Notice: ${p.privVersion ? esc(p.privVersion) : '-'} · ${esc(c2cut(p.privAt || p.tosAt))}` + c);
+      h = h.replace(/<div class="banner amber">[^<]*Mark as Deleted awaiting approval[\s\S]*?<\/div>/, '');
+      if (delOpen(p)) h += delPanel(p);
+      if ((p.keyRemoved.mobile || p.keyRemoved.email) && hasRole('reg')) h += `<div style="margin-top:8px">${btn({ zh: '模拟重新验证回报', en: 'Simulate re-verification report' }, 'pl.reverSim', p.upid, { cls: 'sm dev', dev: true, id: 'btnReverSim' })}</div>`;
+    }
+    if (S.dtab === 'acts' && p.delReqs && p.delReqs.length) h += card(t('删除申请', 'Deletion Requests'), table('plDelH', [{ h: 'Request ID', k: 'id', cls: 'mono' }, { h: 'Status', r: r => badge(r.status) }, { h: 'Submitted By / At', r: r => `${esc(r.by)}<div class="tiny">${esc(r.at)}</div>` }, { h: 'Reason', k: 'reason' }, { h: 'Decided By', r: r => esc(r.approvedBy || r.rejectedBy || r.wdBy || '-') }, { h: 'Note', r: r => esc(r.rejectReason || '-') }], p.delReqs, { nopage: true }));
+    return h;
+  };
+})();
+function delPanel(p) {
+  const r = p.delReq; const rows = Object.entries(r.pre || {}).map(([k, v]) => ({ id: k, k, v }));
+  return card(`${t('删除申请', 'Deletion Request')} <span class="mono">${esc(r.id)}</span> ${badge(r.rechecking ? 'Re-checking' : r.status, 'warn')}`,
+    dl([['Submitted By', `${esc(r.by)} · ${esc(r.at)}`], ['Reason', esc(r.reason)], ['Related Case', esc(r.case || '-')]])
+    + (rows.length ? table('delPre', [{ h: t('预检方', 'Pre-check'), r: x => x.k === 'Core' ? 'Core self-check' : esc(x.k) }, { h: 'Result', r: x => badge(x.v, x.v === 'No Blocking Items' ? 'ok' : x.v === 'Awaiting' ? 'warn' : 'bad') }], rows, { nopage: true }) : '')
+    + (r.status === 'Pre-check Running' && Object.values(r.pre).includes('Awaiting') ? btn({ zh: '模拟渠道回复', en: 'Simulate channel replies' }, 'pl.delPreSim', p.upid, { cls: 'sm dev', dev: true, id: 'btnDelPreSim' }) : ''));
+}
+function delBlocks(p) {
+  return SEED.claims.filter(c => c.upid === p.upid && c.status === 'FOR CLAIMING').map(c => `Core · unresolved prize claim ${c.txid}`).concat(SEED.cases.filter(c => c.status !== 'Closed' && String(c.title + c.desc).includes(p.upid)).map(c => `Core · open case ${c.id}`)).concat(c2creds(p).filter(c => p.chBlock[c]).map(c => `${c} · ${p.chBlock[c]}`));
+}
+const MSG_DEL_OPEN = 'A deletion request for this player is already open.';
+const MSG_DEL_RECHECK = 'The player now has open items. The deletion request was rejected.';
+(function wrapDel() {
+  const m = modById('players'); if (!m || !m.acts) return; const A = m.acts;
+  const d0 = A['pl.del'];
+  A['pl.del'] = upid => {
+    const p = c2pl(upid); if (delOpen(p)) { toast(MSG_DEL_OPEN, 'err'); return; }
+    if (delBlocks(p).length) return d0(upid);
+    ask({ title: `Mark as Deleted · ${upid}`, danger: true, ok: { zh: '发起预检', en: 'Run pre-check' },
+      msg: `${t('先生成删除申请并执行删除预检：Core 自查 + 向各持凭证渠道发删除预检。全部回复无阻止条件后才可提交高级授权人批准；审批期间账户状态不变。', 'This creates a deletion request and runs the pre-check: Core self-check plus a Deletion Pre-check to every credential channel. Only when all reply with no blocking items can it be submitted to a Senior Authorizer. The account status does not change while the request is open.')}<br><span class="tiny">Core self-check: ${badge('No Blocking Items', 'ok')} · ${t('渠道', 'Channels')}: ${esc(c2creds(p).join(', '))}</span>`,
+      fields: c2actFields(), reason: { zh: '原因', en: 'Reason', ph: 'Enter the reason for this action.' }, check: C2_CONFIRM,
+      onOk: v => {
+        const pre = { Core: 'No Blocking Items' }; c2creds(p).forEach(c => { pre[c] = 'Awaiting'; });
+        const r = { id: nid('DEL'), by: me(), at: nowS(), reason: v.m_reason.trim(), case: v.m_case, status: 'Pre-check Running', pre };
+        r.dirs = issueDirectives(c2creds(p), { type: 'Deletion Pre-check', summary: `${upid} · deletion pre-check (${r.id})`, reason: r.reason, ref: r.id }).map(d => d.id);
+        p.delReq = r; (p.delReqs = p.delReqs || []).unshift(r); audit('Player Registry', 'Deletion pre-check started', upid, `${r.id} · ${r.reason}`);
+        toast(`Deletion request ${r.id} created. Pre-check sent to ${c2creds(p).join(', ')}.`);
+      } });
+  };
+  A['pl.delPreSim'] = upid => { const p = c2pl(upid); const r = p.delReq; if (!r || r.status !== 'Pre-check Running') return; Object.keys(r.pre).forEach(k => { if (r.pre[k] === 'Awaiting') r.pre[k] = p.chBlock[k] ? 'Blocked' : 'No Blocking Items'; }); c2ackSim(r.dirs);
+    if (Object.values(r.pre).includes('Blocked')) { r.status = 'Rejected'; r.rejectedBy = 'System'; r.rejectReason = Object.entries(r.pre).filter(([, v]) => v === 'Blocked').map(([k]) => `${k} · ${p.chBlock[k]}`).join('; '); audit('Player Registry', 'Deletion request rejected (pre-check)', upid, r.rejectReason, 'Rejected'); toast(`Pre-check found blocking items: ${r.rejectReason}. The request was rejected.`, 'warn'); }
+    else toast(t('全部渠道回复无阻止条件', 'All channels replied: no blocking items.')); render(); };
+  A['pl.delSubmit'] = upid => { const p = c2pl(upid); const r = p.delReq; if (!r || r.status !== 'Pre-check Running' || r.by !== me()) return; if (Object.values(r.pre).some(v => v !== 'No Blocking Items')) { toast('Wait until every channel has replied with no blocking items.', 'err'); return; }
+    r.status = 'Pending Approval'; r.submittedAt = nowS(); audit('Player Registry', 'Mark as Deleted submitted', upid, `${r.id} · ${r.reason}`); toast(t('已提交，待高级授权人批准', 'Submitted. A Senior Authorizer must approve.')); render(); };
+  A['pl.delWd'] = upid => { const p = c2pl(upid); const r = p.delReq; if (!r || !delOpen(p) || r.by !== me()) return; ask({ title: `Withdraw · ${r.id}`, ok: { zh: '撤回', en: 'Withdraw' }, onOk: () => { r.status = 'Withdrawn'; r.wdBy = me(); audit('Player Registry', 'Deletion request withdrawn', upid, r.id); toast(t('已撤回', 'Request withdrawn.')); } }); };
+  const ok0 = A['pl.delOk'];
+  A['pl.delOk'] = upid => {
+    const p = c2pl(upid); const r = p.delReq; if (!r || r.status !== 'Pending Approval') return;
+    if (!can('Player Registry', 'A')) { toast('A Senior Authorizer must approve.', 'err'); return; }
+    const b = delBlocks(p); if (b.length && r.by !== me()) { r.status = 'Rejected'; r.rejectedBy = 'System'; r.rejectReason = b.join('; '); audit('Player Registry', 'Deletion request rejected (re-check)', upid, r.rejectReason, 'Rejected'); toast(MSG_DEL_RECHECK, 'err'); render(); return; }
+    return ok0(upid);
+  };
+  const rj0 = A['pl.delRej'];
+  A['pl.delRej'] = upid => { const p = c2pl(upid); const r = p.delReq; if (!r || r.status !== 'Pending Approval') return; rj0(upid); const a0 = S.modal && S.modal.onOk; if (a0) S.modal.onOk = v => { const res = a0(v); if (res !== false) r.rejectReason = (v.m_reason || '').trim(); return res; }; };
+  A['pl.reverSim'] = upid => {
+    const p = c2pl(upid); const keys = ['mobile', 'email'].filter(k => p.keyRemoved[k]); if (!keys.length) return; const ch = c2creds(p)[0];
+    keys.forEach(k => { p.keyRemoved[k] = false; });
+    SEED.federation.unshift({ id: nid('FED'), at: nowS(true), channel: ch, event: 'Re-verification Report', kar: '', comp: null, result: 'Accepted', reason: `Re-verified: ${keys.map(k => k === 'mobile' ? 'Mobile Number' : 'Email Address').join(', ')}`, upid });
+    const others = c2creds(p).filter(c => c !== ch);
+    const ds = issueDirectives(others, { type: 'Contact Re-verified', summary: `${upid} re-verified on ${ch} · re-verification marker cleared in Core`, reason: 'Re-verification Report', ref: upid });
+    audit('Player Registry', 'Re-verification reported', upid, `${ch} · ${keys.join(', ')} · Contact Re-verified → ${others.join(', ') || '-'}`);
+    toast(`Re-verified on ${ch}. ${ds.length ? `Contact Re-verified sent to ${others.join(', ')}.` : 'No other credential channel.'}`); render();
+  };
+  const f0 = c2plFoot;
+  c2plFoot = function (p) {
+    let h = f0(p);
+    h = h.replace(/(data-act="pl\.delRej"[^>]*>)[\s\S]*?<\/button>/, (s, a) => a + 'Reject</button>').replace(/(data-act="pl\.delOk"[^>]*>)[\s\S]*?<\/button>/, (s, a) => a + 'Approve</button>');
+    if (delOpen(p) && hasRole('reg')) {
+      h = h.replace(/<button[^>]*id="btnMarkDel"[\s\S]*?<\/button>/, '');
+      h += ' ' + btn('Mark as Deleted', 'pl.del', p.upid, { id: 'btnMarkDel', dis: true, tip: MSG_DEL_OPEN });
+      const r = p.delReq;
+      if (r.status === 'Pre-check Running' && r.by === me()) h += ' ' + btn({ zh: '提交审批', en: 'Submit for approval' }, 'pl.delSubmit', p.upid, { cls: 'primary', id: 'btnDelSubmit', dis: Object.values(r.pre).some(v => v !== 'No Blocking Items'), tip: 'Wait until every channel has replied with no blocking items.' });
+      if (r.by === me()) h += ' ' + btn({ zh: '撤回', en: 'Withdraw' }, 'pl.delWd', p.upid, { id: 'btnDelWd' });
+    }
+    return h;
+  };
+})();
+/* seeded pending deletion carries a completed pre-check (Demo data) */
+(function seedDel134() { const p = SEED.players.find(x => x.upid === 'UP-000104495'); if (p && p.delReq && !p.delReq.pre) { p.delReq.pre = { Core: 'No Blocking Items' }; c2creds(p).forEach(c => { p.delReq.pre[c] = 'No Blocking Items'; }); p.delReqs = [p.delReq]; } })();
+
+/* =====================================================================
+ * K. 6A.9.2 exclusion register: Until 24:00, Correction pending, correction requests, detail with Version History
+ *    + natural-month end dates in the DEV self-exclusion simulator (PC179)
+ * ===================================================================== */
+function exCorrPend(id) { return SEED.authReqs.find(r => r.kind === 'exclusion' && r.target === id && r.status === 'Awaiting Authorization'); }
+const MSG_EX_CORR_PEND = 'A correction for this exclusion is awaiting approval.';
+/** add whole calendar months; a missing day takes the month end (2026-08-31 + 6 months = 2027-02-28) */
+function addMonthsClamp(ymdStr, n) { const [y, m, d] = ymdStr.split('-').map(Number); const t0 = new Date(Date.UTC(y, m - 1 + n, 1)); const last = new Date(Date.UTC(t0.getUTCFullYear(), t0.getUTCMonth() + 1, 0)).getUTCDate(); t0.setUTCDate(Math.min(d, last)); return t0.toISOString().slice(0, 10); }
+R134_COLS.exT = cols => {
+  const i0 = colIdx(cols, 'Exclusion ID'); if (i0 >= 0) cols[i0] = { h: 'Exclusion ID', r: e => `<button class="btn link mono tiny nowrap" data-act="ex.open" data-a="${e.id}">${e.id}</button>` };
+  const u = colIdx(cols, 'Until'); if (u >= 0) cols[u] = { h: 'Until', r: e => `<span class="nowrap">${esc(c2exUntil(e))}</span>${e.to ? '<div class="tiny">24:00 (UTC+8)</div>' : ''}` };
+  const s = colIdx(cols, 'Status'); if (s >= 0) cols[s] = { h: 'Status', r: e => badge(e.status) + (exCorrPend(e.id) ? `<div style="margin-top:3px">${badge('Correction pending', 'warn')}</div>` : '') };
+  const a = colIdx(cols, 'Actions'); if (a >= 0) { const r0 = cols[a].r; cols[a] = { h: 'Actions', r: e => { let h = r0(e); if (exCorrPend(e.id)) h = h.replace(/(<button[^>]*class="btn)([^"]*)("[^>]*data-act="ex\.correct")/, `$1$2 dis" data-tip="${MSG_EX_CORR_PEND}$3`); return h; } }; }
+  return cols;
+};
+function exCorrTable(id, rows) {
+  return table(id, [{ h: 'Request ID', k: 'id', cls: 'mono' }, { h: 'Exclusion ID', r: r => `<span class="mono">${esc(r.target)}</span>` }, { h: 'Item And Proposed Value', r: r => esc(r.summary) }, { h: 'Reason And Basis', k: 'reason' }, { h: 'Submitted By', r: r => `${esc(r.by)}<div class="tiny">${esc(r.at)}</div>` },
+    { h: 'Status', r: r => badge(reqStatus(r.status)) }, { h: 'Decided By / At', r: r => r.authBy ? `${esc(r.authBy)}<div class="tiny">${esc(r.authAt)}</div>` : r.status === 'Withdrawn' ? esc(r.by) : '-' }, { h: 'Rejection Reason', r: r => esc(r.status === 'Rejected' ? r.rejectReason || '-' : '-') },
+    { h: 'Actions', r: r => r.status !== 'Awaiting Authorization' ? '' : `<span class="nowrap">${[can('Exclusion Registry', 'A') ? btn({ zh: '批准更正', en: 'Approve correction' }, 'authOk', r.id, { cls: 'sm ok', dis: r.by === me(), tip: 'You cannot authorize a request you initiated.' }) : '', can('Exclusion Registry', 'A') && r.by !== me() ? btn({ zh: '驳回更正', en: 'Reject correction' }, 'authRej', r.id, { cls: 'sm' }) : '', r.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'authWd', r.id, { cls: 'sm' }) : ''].join(' ')}</span>` }],
+  rows, { nopage: true, empty: { zh: '没有更正申请', en: 'No correction requests.' } });
+}
+(function wrapExView() {
+  const m = modById('exclusions'); if (!m) return;
+  const v0 = m.view;
+  m.view = () => {
+    let h = v0(); const pend = SEED.authReqs.filter(r => r.kind === 'exclusion' && r.status === 'Awaiting Authorization');
+    const i = h.indexOf('Exclusion record corrections awaiting authorization');
+    if (i >= 0) { const st = h.lastIndexOf('<div class="card"', i); const tblEnd = h.indexOf('</table>', i); const end = h.indexOf('</div></div>', tblEnd) + 12; if (st >= 0 && end > 11) h = h.slice(0, st) + card(t('更正申请（待批准）', 'Correction requests pending approval'), exCorrTable('exCorrP', pend)) + h.slice(end); }
+    return h;
+  };
+  const A = m.acts;
+  const c0 = A['ex.correct']; A['ex.correct'] = id => { if (exCorrPend(id)) { toast(MSG_EX_CORR_PEND, 'err'); return; } if (!can('Exclusion Registry', 'C')) return; c0(id); if (S.modal) { S.modal.ok = { zh: '提交', en: 'Submit' }; S.modal.title = `Correct Record · ${id}`; render(); } };
+  A['ex.open'] = id => {
+    const e = SEED.exclusions.find(x => x.id === id); if (!e) return;
+    openDrawer({ size: 'lg', title: () => `${e.id} · ${e.type}`, sub: () => `${badge(e.status)}${exCorrPend(e.id) ? ' ' + badge('Correction pending', 'warn') : ''} · <span class="mono">${esc(e.upid)}</span>`,
+      tabs: [{ id: 'info', zh: '基本信息', en: 'Exclusion' }, { id: 'ver', zh: '版本历史', en: 'Version History' }, { id: 'corr', zh: '更正申请', en: 'Correction Requests' }], tab: 'info',
+      body: () => {
+        if (S.dtab === 'ver') return table('exVer', [{ h: 'Version', r: v => 'v' + v.v }, { h: 'Change Type', r: v => badge(v.kind) }, { h: 'Changed Fields', r: v => esc(v.fields) }, { h: 'Source', k: 'src' }, { h: 'Approved By', r: v => esc(v.appr || '-') }, { h: 'Effective At', r: v => `<span class="nowrap">${esc(v.at)}</span>` }, { h: 'Notice', r: v => `<span class="mono">${esc(v.dir || '-')}</span>` }], exVersions(e), { nopage: true });
+        if (S.dtab === 'corr') return exCorrTable('exCorrAll', SEED.authReqs.filter(r => r.kind === 'exclusion' && r.target === e.id));
+        return dl([['Exclusion ID', `<span class="mono">${e.id}</span>`], ['Unique Player ID', c2link('pl.open', e.upid, e.upid)], ['Exclusion Type', esc(e.type)], ['Effective From', esc(e.from)], ['Until', `${esc(c2exUntil(e))}${e.to ? ' · 24:00 (UTC+8)' : ''}`], ['Initiated By', esc(e.source)], ['Status', badge(e.status)], ['Reason', esc(e.reason || '-')]])
+          + table('exPerD', [{ h: 'Channel', k: 'channel' }, { h: 'Receipt / Execution', r: x => { const a = C2_EXEC[c2ack(x)] || c2ack(x); return badge(a, C2_EXEC_TONE[a]); } }, { h: 'Time', r: x => esc(x.dir ? (c2dir(x.dir) || {}).ackAt || '-' : x.ackAt || '-') }], (e.per || []).map(x => Object.assign({ id: x.channel }, x)), { nopage: true });
+      },
+      foot: () => (hasRole('reg') && e.status === 'In Effect' ? btn('Correct Record', 'ex.correct', e.id, { dis: !!exCorrPend(e.id), tip: MSG_EX_CORR_PEND }) : '') });
+  };
+  /* DEV self-exclusion: natural-month end dates (PC179) */
+  const s0 = A['ex.simSelf'];
+  A['ex.simSelf'] = () => { const keep = new Map(SEED.exclusions.map(e => [e, e.to])); s0(); const ok0 = S.modal && S.modal.onOk; if (!ok0) return;
+    S.modal.onOk = v => { const before = new Map(SEED.exclusions.map(e => [e, e.to])); const res = ok0(v); const mo = { '3 months': 3, '6 months': 6, '1 year': 12 }[v.m_dur];
+      if (mo) SEED.exclusions.filter(e => e.upid === v.m_upid && e.type === 'Self-Exclusion' && e.status === 'In Effect' && before.get(e) !== e.to).forEach(e => { e.to = addMonthsClamp(fmtD(S.now), mo); });
+      return res; }; };
+})();
+function exVersions(e) {
+  const out = [{ v: 1, kind: 'Created', fields: `${e.type} · ${c2cut(e.from)} → ${(e.versions && e.versions.length ? (e.versions[0].to || 'open') : c2exUntil(e))}`, src: e.source, appr: '', at: c2cut(e.from), dir: (e.per && e.per[0] && e.per[0].dir) || '' }];
+  (e.versions || []).forEach((x, i) => { const nxt = (e.versions[i + 1] || null); const r = x.req && SEED.authReqs.find(q => q.id === x.req); out.push({ v: i + 2, kind: r ? 'Corrected' : 'Extended', fields: r ? r.summary : `Until ${x.to ? x.to.slice(0, 10) : '-'} → ${nxt ? (nxt.to || '-') : c2exUntil(e)}`, src: r ? r.by : e.source, appr: r ? r.authBy : '', at: x.at, dir: '' }); });
+  if (e.lift) out.push({ v: out.length + 1, kind: 'Lifted', fields: e.lift.reason, src: e.lift.by, appr: '', at: e.lift.at, dir: '' });
+  if (e.status === 'Expired') out.push({ v: out.length + 1, kind: 'Expired', fields: `Until ${c2exUntil(e)} 24:00`, src: 'System', appr: '', at: c2exUntil(e), dir: '' });
+  return out.map(x => Object.assign({ id: x.v }, x));
+}
+/* demo: UP-000187220 holds both a PCSO-imposed exclusion and a self-exclusion (two tags) (Demo data) */
+(function seedTwoEx() { if (SEED.exclusions.some(e => e.id === 'EXR-20261008-0019')) return; SEED.exclusions.push({ id: 'EXR-20261008-0019', upid: 'UP-000187220', type: 'Self-Exclusion', from: '2026-10-08 18:12', to: '2027-04-08', source: 'ILT', by: 'Player', status: 'In Effect', reason: 'Player request', per: [{ channel: 'ILT', ack: 'Acknowledged', ackAt: '2026-10-08 18:13' }, { channel: 'EC2', ack: 'Acknowledged', ackAt: '2026-10-08 18:14' }], versions: [], demo: true }); })();
+
+/* =====================================================================
+ * L. 6A.10 Re-reported on request · Close = Transactions · E · approval level of adjustment requests
+ * ===================================================================== */
+(function seedReRep() {
+  if (!SEED.directives.some(d => d.id === 'DIR-20261012-000116')) SEED.directives.push({ id: 'DIR-20261012-000116', channel: 'EC2', type: 'Re-report Request', summary: '4D-20261012-1 · 37 transactions missing (EC2-0080030001 … EC2-0080030037)', reason: 'Missing Transactions', by: 'ops.a', authBy: '-', issuedAt: '2026-10-12 20:46:10', deadline: '2026-10-12 21:16:10', ack: 'Executed', ackAt: '2026-10-12 20:58:30', retries: 0, objv: '4D-20261012-1 · EC2', receipt: 'Received', receivedAt: '2026-10-12 20:46:12', exec: 'Executed', reportedAt: '2026-10-12 20:58:30', demo: true });
+  SEED.transactions.filter(x => x.channel === 'EC2' && x.drawId === '4D-20261012-1').slice(0, 2).forEach(x => { x.reRep = 'DIR-20261012-000116'; if (x.latency <= 60) x.latency = 742; x.demoReRep = true; });
+})();
+R134_COLS.txT = cols => { const i = colIdx(cols, 'Reporting Latency'); if (i >= 0) { const r0 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: x => x.reRep ? `<span title="Re-report Request ${esc(x.reRep)}">${x.latency} s</span> ${badge('Re-reported on request', 'info')}` : r0(x) }); } return cols; };
+R134_COLS.ncT = cols => { const i = colIdx(cols, 'Actions'); if (i >= 0) { const r0 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: (x, j) => { let h = r0(x, j); if (!can('Transactions', 'E')) h = h.replace(/<button[^>]*data-act="tx\.ncClose"[\s\S]*?<\/button>/, ''); else if (!/tx\.ncClose/.test(h) && x.nonconf && x.nonconf.status === 'Open') h = h.replace('</span>', ' ' + btn({ zh: '关闭', en: 'Close' }, 'tx.ncClose', x.id, { cls: 'sm' }) + '</span>'); return h; } }); } return cols; };
+(function guardNcClose() { const m = modById('tx'); if (!m || !m.acts || !m.acts['tx.ncClose']) return; const c0 = m.acts['tx.ncClose']; m.acts['tx.ncClose'] = id => { if (!can('Transactions', 'E')) { toast('You do not have permission for this action.', 'err'); return; } const x = c2tx(id); if (!x || !x.nonconf || x.nonconf.status !== 'Open') return; c0(id); }; })();
+function txAdjLevel(a) { return a.status === 'Pending Approval' ? 'PCSO Finance approval' : a.status === 'Pending Senior Authorization' ? `Senior authorization (${(a.sa || []).length}/2)` : '-'; }
+R134_COLS.adjT = cols => {
+  if (colIdx(cols, 'Adjustment Category') < 0) return cols; // the 6A.7.5 list shares this table id
+  const i = colIdx(cols, 'Status'); cols.splice(i >= 0 ? i + 1 : cols.length, 0, { h: 'Approval Level', r: a => esc(txAdjLevel(a)) });
+  const k = colIdx(cols, 'Actions'); if (k >= 0) { const r0 = cols[k].r; cols[k] = Object.assign({}, cols[k], { r: a => { let h = r0(a);
+    if (a.status === 'Pending Approval' && !canLevel('Transactions', false)) h = h.replace(/<button[^>]*data-act="tx\.adj(Ok|Rej)"[\s\S]*?<\/button>/g, '');
+    if (a.status === 'Pending Senior Authorization' && !canLevel('Transactions', true)) h = h.replace(/<button[^>]*data-act="tx\.adj(Auth|Rej)"[\s\S]*?<\/button>/g, '');
+    return h; } }); }
+  return cols;
+};
+
+/* =====================================================================
+ * M. 6A.11.2 claim policy: single threshold, continuous ranges, Effective From / Summary Of Changes / Urgent,
+ *    Withdraw · Emergency Roll Back · Ratify · 6A.11.3 Review Status + Mark reviewed conclusions
+ * ===================================================================== */
+(function seedBands() {
+  const P = SEED.claimPolicy; if (P.bandsN) return;
+  P.bandsN = [{ lo: 0.01, hi: 300000, where: P.bands[0].where, method: 'Standard', id: P.bands[0].id },
+    { lo: 300000.01, hi: 5000000, where: P.bands[1].where, method: 'Enhanced', id: 'In person; one original valid government ID matching the registry ID hash, name and birthdate; valid claiming code from the iLotto player app' },
+    { lo: 5000000.01, hi: null, where: P.bands[1].where + ' (jackpot)', method: 'Enhanced', id: 'In person; two original valid government IDs matching the registry ID hash, name and birthdate; valid claiming code from the iLotto player app', demo: true }];
+})();
+function bandText(b) { return b.hi == null ? `> ${fmtP(b.lo - 0.01)}` : `${fmtP(b.lo)} – ${fmtP(b.hi)}`; }
+const MSG_RANGES = 'The prize value ranges must be continuous with no gaps or overlaps.';
+const MSG_FIRST_RANGE = 'The first range must end at the enhanced verification threshold.';
+const MSG_SCHED_VER = 'A scheduled version already exists. Wait until it takes effect or withdraw it.';
+function polBandsFrom(v, P) { const num = x => { const s = String(x == null ? '' : x).replace(/[^\d.]/g, ''); return s === '' ? null : +s; }; return P.bandsN.map((b, i) => Object.assign({}, b, { lo: i === 0 ? 0.01 : num(v['m_blo' + i]), hi: num(v['m_bhi' + i]) })); }
+function bandsCheck(bands, thr) {
+  for (let i = 0; i < bands.length; i++) { const b = bands[i]; if (b.lo == null || (i < bands.length - 1 && (b.hi == null || b.hi <= b.lo))) return MSG_RANGES; if (i > 0 && Math.round((b.lo - bands[i - 1].hi) * 100) !== 1) return MSG_RANGES; }
+  if (bands[bands.length - 1].hi != null) return MSG_RANGES;
+  if (Math.abs(bands[0].hi - thr) > 0.001) return MSG_FIRST_RANGE;
+  return null;
+}
+(function wrapC2Policy() {
+  const p0 = C2_POLICY;
+  C2_POLICY = function () { const P = SEED.claimPolicy; if (P.scheduled && dt(P.scheduled.eff) <= S.now) { P.prevSnap = { version: P.version, eff: P.eff, payload: { enhancedThreshold: P.enhancedThreshold, codeValidity: P.codeValidity, payWindowMin: P.payWindowMin, expiryWarnDays: P.expiryWarnDays, forfeitThreshold: P.forfeitThreshold, validityRules: P.validityRules, bandsN: P.bandsN } }; } return p0(); };
+  const v0 = c2policyView;
+  c2policyView = function (m) {
+    const P = C2_POLICY(); let h = v0(m);
+    h = h.replace(/\['Enhanced Verification Threshold'[^\]]*\]/, '');
+    h = h.replace(/(<div>Enhanced Verification Threshold<\/div><div>)([\s\S]*?)(<\/div>)/, (s, a, b, c) => `<div>Enhanced Verification Threshold</div><div>${fmtP(P.enhancedThreshold)}<div class="tiny">${esc(t('单值，即渠道自动入账上限：单个交易编号本期奖金合计（税前）超过即为大奖，到 PCSO 兑奖台兑付；下发渠道的只有这一个值。', 'One value: the channel auto-credit limit. A transaction whose prizes in the draw (gross) exceed it is a big prize paid at the PCSO counter. Only this value is sent to channels.'))}</div></div>`);
+    const tbl = table('polB', [{ h: 'Prize Value (Gross)', r: b => esc(bandText(b)) + (b.demo ? ' ' + demoTag() : '') }, { h: 'Payout Location And Method', k: 'where' }, { h: 'Verification Method', k: 'method' }, { h: 'ID And Identity Requirements', k: 'id' }], P.bandsN.map((b, i) => Object.assign({ key: i }, b)), { nopage: true, rowKey: 'key' });
+    h = h.replace(/<div class="tbl-wrap"[^>]*>\s*<table>[\s\S]*?<\/table>\s*<\/div>(?=[\s\S]*Withholding tax is calculated)/, '');
+    h = h.replace(/(<p class="tiny">)([^<]*Withholding tax is calculated)/, tbl + `<p class="tiny">${esc(t('金额区间连续、不重叠；第一档上限 = 加强核验门槛；门槛以上可再分档，只影响 Core 的核验要求。', 'Ranges are continuous with no gaps or overlaps; the first range ends at the threshold. Ranges above the threshold only change Core verification requirements.'))}</p>$1$2`);
+    // buttons: Submit disabled while a version is scheduled; Withdraw / Emergency Roll Back / Ratify
+    if (P.scheduled) h = h.replace(/(<button[^>]*id="btnPolEdit"[^>]*?)class="btn([^"]*)"/, '$1class="btn$2 dis"').replace(/(id="btnPolEdit"[^>]*data-tip=")[^"]*"/, `$1${MSG_SCHED_VER}"`);
+    const extra = [];
+    if (P.scheduled && can('Claim Policy', 'C')) extra.push(btn({ zh: '撤回', en: 'Withdraw' }, 'cl.polWd', '', { cls: 'danger', id: 'btnPolWd' }));
+    if (can('Claim Policy', 'E') && P.prevSnap && !SEED.changes.some(c => c.kind === 'polRollback' && !c.ratifyBy)) extra.push(btn({ zh: '紧急回滚', en: 'Emergency Roll Back' }, 'cl.polEmRb', '', { cls: 'danger', id: 'btnPolEmRb' }));
+    const rb = SEED.changes.find(c => c.kind === 'polRollback' && !c.ratifyBy);
+    if (rb) h = h.replace(/(<div class="tabs|<div class="subtabs)/, banner(`${t('紧急回滚待追认', 'Emergency roll back awaiting ratification')}: <b>${esc(rb.id)}</b> · ${esc(rb.submittedBy)} · ${esc(rb.submittedAt)} · ${esc(rb.note)} · ${t('须在', 'due by')} ${esc(rb.ratifyDeadline)} ${hasRole('sa') && rb.submittedBy !== me() ? btn({ zh: '追认', en: 'Ratify' }, 'crRatify', rb.id, { cls: 'sm ok', id: 'btnPolRatify' }) : ''}`, 'amber') + '$1');
+    if (extra.length) h = h.replace(/(<button[^>]*data-act="cl\.polHist"[\s\S]*?<\/button>)/, `$1 ${extra.join(' ')}`);
+    return h;
+  };
+})();
+(function wrapPolEdit() {
+  const m = modById('claims'); if (!m || !m.acts) return; const A = m.acts; const e0 = A['cl.polEdit'];
+  A['cl.polEdit'] = () => {
+    const P = C2_POLICY(); if (P.scheduled) { toast(MSG_SCHED_VER, 'err'); return; }
+    const a0 = ask; ask = o => {
+      const fields = o.fields.map(f => f.k === 'm_eff' ? Object.assign({}, f, { en: 'Effective From', hint: 'UTC+8' }) : f.k === 'm_note' ? Object.assign({}, f, { en: 'Summary Of Changes', ph: 'What changed in this version?' }) : f.k === 'm_thr' ? Object.assign({}, f, { hint: t('单值：渠道自动入账上限', 'One value: the channel auto-credit limit') }) : f);
+      P.bandsN.forEach((b, i) => { if (i > 0) fields.push({ k: 'm_blo' + i, zh: `第 ${i + 1} 档下限`, en: `Range ${i + 1} · From (gross)`, ctl: 'text', def: String(b.lo) }); fields.push({ k: 'm_bhi' + i, zh: `第 ${i + 1} 档上限`, en: `Range ${i + 1} · To (gross)`, ctl: 'text', def: b.hi == null ? '' : String(b.hi), hint: `${b.method}${i === 0 ? ' · from ₱0.01' : ''}${b.hi == null ? ' · leave empty: and above' : ''}` }); });
+      fields.push({ k: 'm_urgent', zh: '紧急', en: 'Urgent', ctl: 'switch', chg: true }, { k: 'm_ureason', zh: '紧急原因', en: 'Urgent Reason', ctl: 'textarea', req: true, show: v => v.m_urgent === true || v.m_urgent === 'true' });
+      const val0 = o.validate;
+      a0(Object.assign({}, o, { msg: '<span class="tiny" id="polApprNote">Needs approval by Reference Approver (Urgent: Needs approval by Senior Authorizer)</span>', fields,
+        validate: v => { const urg = v.m_urgent === true || v.m_urgent === 'true'; const e = val0(v); if (urg && e.m_eff && e.m_eff !== 'Select the effective time.') delete e.m_eff;
+          if (e.m_eff === 'Select the effective time.') e.m_eff = 'Select an effective time.'; if (e.m_note) e.m_note = 'Enter a summary of changes.';
+          if (urg && empty((v.m_ureason || '').trim())) e.m_ureason = 'Enter the reason for the urgent change.';
+          const thr = +v.m_thr; const bands = polBandsFrom(v, P); const chk = bandsCheck(bands, thr);
+          if (!e.m_thr && chk) e.m_bhi0 = chk; return e; },
+        onOk: v => { const urg = v.m_urgent === true || v.m_urgent === 'true'; const top = SEED.changes[0]; const s0 = submitCR;
+          submitCR = cr => { const bands = polBandsFrom(v, P);
+            if (bands.some((b, i) => b.hi !== P.bandsN[i].hi)) cr.fields.push({ f: 'Verification Requirements By Prize Value', cur: P.bandsN.map(bandText).join('; '), pro: bands.map(bandText).join('; ') });
+            if (!cr.fields.length) return null; cr.payload.bandsN = bands; if (urg) { cr.urgent = true; cr.urgentReason = v.m_ureason.trim(); } return s0(cr); };
+          let res; try { res = o.onOk(v); } finally { submitCR = s0; }
+          if (res !== false && urg && SEED.changes[0] !== top) toast(`Change request ${SEED.changes[0].id} submitted. Needs approval by Senior Authorizer`);
+          return res; } }));
+    };
+    try { e0(); } finally { ask = a0; }
+  };
+  A['cl.polWd'] = () => { const P = C2_POLICY(); if (!P.scheduled || !can('Claim Policy', 'C')) return; const cr = SEED.changes.find(c => c.kind === 'claimPolicy' && c.version === P.scheduled.version && c.status === 'Published');
+    ask({ title: `Withdraw · ${P.scheduled.version}`, danger: true, ok: { zh: '撤回', en: 'Withdraw' }, reason: { zh: '原因', en: 'Reason', max: 500 }, onOk: v => { const ver = P.scheduled.version; delete P.scheduled; P.history = P.history.filter(x => x.version !== ver); P.history.unshift({ version: ver, eff: '-', by: me(), appr: '-', note: `Withdrawn: ${v.m_reason.trim()}`, withdrawn: true });
+      if (cr) { cr.status = 'Withdrawn'; cr.withdrawnAt = nowS(); cr.withdrawnBy = me(); cr.withdrawReason = v.m_reason.trim(); cr.history.push({ at: nowS(), by: me(), act: 'Withdrawn (approved, not yet effective)' }); }
+      const n = issueNotice({ type: 'Withdrawal', domain: 'Claim Policy', object: 'Claim Policy', version: ver, effectiveAt: nowS(), cr: cr ? cr.id : '' }); n.reason = v.m_reason.trim(); if (cr) cr.wdNotice = n.id;
+      audit('Claim Policy', 'Scheduled version withdrawn', ver, v.m_reason.trim()); toast(`Withdrawn. Withdrawal notice ${n.id} sent to active E-Channels.`); } }); };
+  A['cl.polEmRb'] = () => { const P = C2_POLICY(); if (!can('Claim Policy', 'E') || !P.prevSnap) return; const prev = P.prevSnap;
+    ask({ title: `Emergency Roll Back · ${P.version} → ${prev.version}`, danger: true, ok: { zh: '紧急回滚', en: 'Emergency Roll Back' }, msg: esc(t('单人立即回滚到紧邻的上一版本并发布；须在 24 小时内由另一名高级授权人追认。', 'Rolls back to the previous version and publishes it at once. Another Senior Authorizer must ratify within 24 hours.')), reason: { zh: '原因', en: 'Reason' },
+      onOk: v => { const from = P.version; const nv = 'v' + (Math.max(...P.history.map(x => +String(x.version).slice(1) || 0)) + 1); Object.assign(P, prev.payload, { version: nv, eff: nowS() }); P.history.unshift({ version: nv, eff: nowS(), by: me(), appr: me() + ' (emergency)', note: `Emergency roll back of ${from} to the content of ${prev.version}: ${v.m_reason.trim()}` }); delete P.prevSnap;
+        const cr = { id: nid('RC'), domain: 'Claim Policy', object: 'Claim Policy', kind: 'polRollback', critical: true, urgent: true, urgentReason: v.m_reason.trim(), effectiveAt: nowS(), submittedBy: me(), submittedAt: nowS(), status: 'Published', version: nv, rollbackOf: from, emergency: true, ratifyBy: '', ratifyDeadline: fmtDT(S.now + 24 * 3600e3), note: v.m_reason.trim(), fields: [{ f: 'Roll back', cur: from, pro: `${nv} = content of ${prev.version}`, crit: true }], payload: {}, approvals: [{ level: 'Senior Authorizer (emergency)', by: me(), at: nowS() }], history: [{ at: nowS(), by: me(), act: 'Emergency roll back published' }] };
+        SEED.changes.unshift(cr); const n = issueNotice({ type: 'Rollback', domain: 'Claim Policy', object: 'Claim Policy', version: nv, effectiveAt: nowS(), cr: cr.id }); cr.notice = n.id;
+        audit('Claim Policy', 'Emergency roll back', nv, v.m_reason.trim()); toast(`Rolled back and published ${nv}. Awaiting ratification by another Senior Authorizer.`); } }); };
+})();
+CR_APPLY.claimPolicy = (f => cr => { f(cr); const P = SEED.claimPolicy; if (P.scheduled && cr.payload.bandsN) P.scheduled.payload.bandsN = cr.payload.bandsN; })(CR_APPLY.claimPolicy);
+/* demo: the policy had a v0 → v1 change so Emergency Roll Back has a previous version (Demo data) */
+(function seedPrev() { const P = SEED.claimPolicy; if (!P.prevSnap) P.prevSnap = { version: 'v0', eff: '2026-09-01 00:00', payload: { enhancedThreshold: 300000, codeValidity: '7 days', payWindowMin: 30, expiryWarnDays: 30, forfeitThreshold: 300000, validityRules: P.validityRules, bandsN: P.bandsN }, demo: true }; })();
+/* 6A.11.3 Review Status */
+function reviewStatus(r) { if (r.reviewedBy || r.reviewed) return 'Reviewed'; if (r.validation === 'Accepted – Flagged' || (r.validation === 'Rejected' && /compliance review/i.test(r.reason || ''))) return 'Pending Review'; return '-'; }
+_toneMap['Pending Review'] = 'warn'; _toneMap['Reviewed'] = 'ok';
+const REVIEW_CONCL = ['Confirmed', 'Adjustment Required', 'Referred To Case'];
+(function wrapRecords() {
+  const f0 = filterBar;
+  filterBar = function (id, fields, right) { if (id === 'crf' && !fields.some(f => f && f.k === 'rev')) fields = fields.concat([{ k: 'rev', zh: '复核状态', en: 'Review Status', type: 'select', def: 'All', opts: ['All', 'Pending Review', 'Reviewed', 'Not Applicable'] }]); return f0(id, fields, right); };
+  const r0 = c2recRows; c2recRows = function () { const rv = (S.page === 'claims' && S.sub === 'records') ? fv('crf', 'rev', 'All') : 'All'; return r0().filter(r => rv === 'All' || (rv === 'Not Applicable' ? reviewStatus(r) === '-' : reviewStatus(r) === rv)); };
+  const m = modById('claims'); if (!m || !m.acts) return;
+  m.acts['cl.reviewed'] = id => {
+    const r = SEED.claimRecords.find(x => x.id === id); if (!r || !can('Prize Claims', 'E')) { toast('You do not have permission for this action.', 'err'); return; } if (reviewStatus(r) !== 'Pending Review') return;
+    ask({ title: `Mark reviewed · ${id}`, ok: 'Mark reviewed', fields: [{ k: 'm_concl', zh: '复核结论', en: 'Conclusion', ctl: 'select', req: true, opts: [['', '-']].concat(REVIEW_CONCL) }], reason: { zh: '说明', en: 'Description', max: 500, err: 'Enter a description.' },
+      validate: v => empty(v.m_concl) ? { m_concl: 'Select a conclusion.' } : {},
+      onOk: v => { r.reviewedBy = me(); r.reviewedAt = nowS(); r.reviewConcl = v.m_concl; r.reviewNote = v.m_reason.trim(); r.reviewed = `${me()} · ${v.m_concl} · ${r.reviewNote}`; audit('Prize Claims', 'Claim record reviewed', id, `${v.m_concl} · ${r.reviewNote}`); toast(t('已复核（记录本身不变）', 'Marked reviewed. The record itself is unchanged.')); } });
+  };
+})();
+R134_COLS.crT = cols => {
+  const i = colIdx(cols, 'Validation Result'); cols.splice(i + 1, 0, { h: 'Review Status', r: r => { const s = reviewStatus(r); return s === '-' ? '-' : `<span title="${esc(r.reviewedBy ? `${r.reviewedBy} · ${r.reviewedAt} · ${r.reviewConcl} · ${r.reviewNote}` : '')}">${badge(s)}</span>${s === 'Reviewed' && r.reviewConcl ? `<div class="tiny">${esc(r.reviewConcl)}</div>` : ''}`; } });
+  const k = colIdx(cols, 'Case / Actions'); if (k >= 0) cols[k] = Object.assign({}, cols[k], { r: r => `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">${r.validation === 'Accepted' ? '-' : caseBtn('CLR-' + r.id, { channel: r.source, event: `Claim record ${r.id} · ${r.validation}`, severity: r.validation === 'Rejected' ? 'High' : 'Medium' })}${reviewStatus(r) === 'Pending Review' && can('Prize Claims', 'E') ? btn('Mark reviewed', 'cl.reviewed', r.id, { cls: 'sm', id: r.validation === 'Accepted – Flagged' ? 'btnReviewed' : 'btnReviewed_' + r.id }) : ''}</div>` });
+  return cols;
+};
+
+/* =====================================================================
+ * N. 6A.12.2 Terms of Service: Urgent, scheduled-version block, first-version note, Emergency Roll Back, Ratify
+ * ===================================================================== */
+const MSG_FIRST_TOS = 'First version: players without an accepted version must accept it.';
+function tosScheduledOf(type, exceptId) { return SEED.tos.find(o => o.type === type && o.status === 'Scheduled' && o.id !== exceptId); }
+function tosHasCore(type) { return SEED.tos.some(o => o.type === type && ['Current', 'Superseded'].includes(o.status)); }
+(function wrapTos() {
+  const f0 = c2tosFields;
+  c2tosFields = function (x) {
+    const fs = f0(x); const type = x ? x.type : fval('type', 'Terms of Service');
+    const i = fs.findIndex(f => f.k === 'reconsent'); if (i >= 0 && !tosHasCore(type)) fs[i] = Object.assign({}, fs[i], { hint: MSG_FIRST_TOS });
+    fs.push({ k: 'urgent', zh: '紧急', en: 'Urgent', ctl: 'switch', chg: true }, { k: 'ureason', zh: '紧急原因', en: 'Urgent Reason', ctl: 'textarea', req: true, show: v => v.urgent === true || v.urgent === 'true' });
+    return fs;
+  };
+  const v0 = c2tosValidate;
+  c2tosValidate = function (v, x) { const e = v0(v, x); const urg = v.urgent === true || v.urgent === 'true'; if (urg) { if (e.eff && e.eff !== 'Select the effective time.') delete e.eff; if (empty((v.ureason || '').trim())) e.ureason = 'Enter the reason for the urgent change.'; } return e; };
+  const s0 = c2tosSave;
+  c2tosSave = function (v, x, submit) {
+    if (submit) { const type = x ? x.type : v.type; if (tosScheduledOf(type, x && x.id)) { toast(MSG_SCHED_VER, 'err'); return null; } }
+    const urg = v.urgent === true || v.urgent === 'true'; if (!urg || !submit) return s0(v, x, submit);
+    const sc = submitCR; submitCR = cr => s0 && sc(Object.assign(cr, { urgent: true, urgentReason: String(v.ureason || '').trim() }));
+    try { return s0(v, x, submit); } finally { submitCR = sc; }
+  };
+  const o0 = c2tosOpen;
+  c2tosOpen = function (id) {
+    o0(id); if (!S.drawer) return; const x = id ? SEED.tos.find(o => o.id === id) : null; const f = S.drawer.foot;
+    S.drawer.foot = () => { let h = f(); const type = x ? x.type : fval('type', 'Terms of Service'); const sch = tosScheduledOf(type, x && x.id);
+      if (sch) h = h.replace(/(<button[^>]*data-act="tos\.submit(Row)?")([^>]*)>/g, (s, a, r, b) => `${a.replace('class="btn', 'class="btn dis')}${b.replace(/data-tip="[^"]*"/, '')} data-tip="${MSG_SCHED_VER}">`).replace(/class="btn dis([^"]*)"([^>]*)class="/, 'class="btn dis$1"$2class="');
+      if (x && x.status === 'Current' && can('Terms Of Service', 'E') && c2tosPrev(x) && !SEED.changes.some(c => c.kind === 'tosRollback' && c.payload.tos === x.id && !c.ratifyBy)) h += ' ' + btn({ zh: '紧急回滚', en: 'Emergency Roll Back' }, 'tos.emRb', x.id, { cls: 'danger', id: 'btnTosEmRb' });
+      const rb = x && SEED.changes.find(c => c.kind === 'tosRollback' && (c.payload.tos === x.id || c.payload.to === x.id) && !c.ratifyBy);
+      if (rb && hasRole('sa') && rb.submittedBy !== me()) h += ' ' + btn({ zh: '追认', en: 'Ratify' }, 'crRatify', rb.id, { cls: 'ok', id: 'btnTosRatify' });
+      return h; };
+    render();
+  };
+  const m = modById('tos'); if (!m || !m.acts) return;
+  m.acts['tos.emRb'] = id => { const x = SEED.tos.find(o => o.id === id); const prev = c2tosPrev(x); if (!x || !prev || !can('Terms Of Service', 'E')) return;
+    ask({ title: `Emergency Roll Back · ${x.version} → ${prev.version}`, danger: true, ok: { zh: '紧急回滚', en: 'Emergency Roll Back' }, msg: esc(t('单人立即回滚到紧邻的上一版本并发布；须在 24 小时内由另一名高级授权人追认。', 'Rolls back to the previous version and publishes it at once. Another Senior Authorizer must ratify within 24 hours.')), reason: { zh: '原因', en: 'Reason' },
+      onOk: v => { x.status = 'Superseded'; x.rolledBack = true; prev.status = 'Current';
+        const cr = { id: nid('RC'), domain: 'Terms of Service', object: x.type, kind: 'tosRollback', critical: true, urgent: true, urgentReason: v.m_reason.trim(), effectiveAt: nowS(), submittedBy: me(), submittedAt: nowS(), status: 'Published', version: prev.version, rollbackOf: x.version, emergency: true, ratifyBy: '', ratifyDeadline: fmtDT(S.now + 24 * 3600e3), note: v.m_reason.trim(), fields: [{ f: 'Roll back', cur: x.version, pro: prev.version, crit: true }], payload: { tos: x.id, to: prev.id }, approvals: [{ level: 'Senior Authorizer (emergency)', by: me(), at: nowS() }], history: [{ at: nowS(), by: me(), act: 'Emergency roll back published' }] };
+        SEED.changes.unshift(cr); const n = issueNotice({ type: 'Rollback', domain: 'Terms of Service', object: x.type, version: prev.version, effectiveAt: nowS(), cr: cr.id }); cr.notice = n.id;
+        audit('Terms Of Service', 'Emergency roll back', x.version, `→ ${prev.version} · ${v.m_reason.trim()}`); toast(`Rolled back to ${prev.version}. Awaiting ratification by another Senior Authorizer.`); closeDrawer(); } }); };
+})();
+/* every Withdrawal notice also goes out as Reference Change Withdrawal directives (6A.2.6 / 6A.3.4) */
+(function wrapIssueNotice() {
+  const n0 = issueNotice;
+  issueNotice = function (o) { const n = n0(o); if (n.type === 'Withdrawal') { n.dirs = issueDirectives(n.per.map(p => p.channel), { type: 'Reference Change Withdrawal', summary: `${n.domain} · ${n.object} · ${n.version} withdrawn`, reason: o.reason || 'Withdrawn before effect', ref: n.id }).map(d => { d.objv = `${n.object} · ${n.version}`; return d.id; }); } return n; };
+})();
+
+/* =====================================================================
+ * O. 6A.13 Prizes Paid (Net) · resolution requests + Pending Requests · formula Scheduled / Withdrawn / 13-field form
+ * ===================================================================== */
+SEED.varReqs = SEED.varReqs || []; SEED.excReqs = SEED.excReqs || [];
+(SEED.sfVersions || []).forEach(v => { v.formula = String(v.formula).replace('Prizes Paid (Net Of Tax)', 'Prizes Paid (Net)'); });
+function netText(root) {
+  if (!root) return; const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); const ns = []; while (w.nextNode()) ns.push(w.currentNode);
+  ns.forEach(n => { const v = n.nodeValue; if (/Prizes Paid/.test(v) && !/Prizes Paid \(Net\)/.test(v)) n.nodeValue = v.replace(/Prizes Paid \(net of tax\)|Prizes Paid \(Net Of Tax\)|Prizes Paid(?! Claim)/g, 'Prizes Paid (Net)'); });
+}
+R133_HOOKS.push(() => { if (S.page === 'settlement') { netText(document.querySelector('.view')); netText(document.getElementById('ovl')); } });
+function reqRow(list, id) { return list.find(r => r.id === id); }
+(function patchSettlement134() {
+  const m = modById('settlement'); if (!m) return; const A = m.acts;
+  if (!m.subs.some(s => s.id === 'pending')) m.subs.splice(1, 0, { id: 'pending', zh: '待批申请', en: 'Pending Requests', roles: ['fin', 'sa', 'aud'] });
+  const v0 = m.view;
+  m.view = () => {
+    if (S.sub === 'pending') return stPendingView(m);
+    let h = v0();
+    if (S.sub === 'formula') { const busy = SEED.sfVersions.some(v => ['Pending Approval', 'Scheduled'].includes(v.status)); if (busy) h = h.replace(/(<button[^>]*?)class="btn([^"]*)"([^>]*data-act="stSfCR")/, `$1class="btn$2 dis" data-tip="${MSG_SF_BUSY}"$3`).replace(/(<button[^>]*data-act="stSfCR"[^>]*?)class="btn([^"]*)"/, `$1class="btn$2 dis" data-tip="${MSG_SF_BUSY}"`); }
+    return h;
+  };
+  const r0 = A.stResolve;
+  A.stResolve = id => { const s = M4.stById(id); if (s.vh && s.vh.pending) { toast('A resolution is already awaiting approval.', 'err'); return; } r0(id); const ok0 = S.modal && S.modal.onOk; if (!ok0) return;
+    S.modal.onOk = v => { const res = ok0(v); if (res !== false && s.vh.pending && !s.vh.pending.id) { const q = { id: nid('VR'), st: s.id, channel: s.channel, period: s.period, amount: M4.stVar(s), sev: M4.stSev ? M4.stSev(s) : '-', reason: s.vh.pending.reason, by: me(), at: nowS(), status: 'Pending Approval' }; SEED.varReqs.unshift(q); s.vh.pending.id = q.id; } return res; }; };
+  const ok0 = A.stResOk;
+  A.stResOk = id => { const s = M4.stById(id); const p = s.vh && s.vh.pending; ok0(id); if (p && !s.vh.pending) { const q = reqRow(SEED.varReqs, p.id); if (q) Object.assign(q, { status: 'Approved', decidedBy: me(), decidedAt: nowS() }); } };
+  const rj0 = A.stResRej;
+  A.stResRej = id => { const s = M4.stById(id); const p = s.vh && s.vh.pending; if (p && p.by === me()) { toast('You cannot approve a request you submitted.', 'err'); return; } rj0(id); const o0 = S.modal && S.modal.onOk; if (!o0 || !p) return; S.modal.onOk = v => { const r = o0(v); if (r !== false) { const q = reqRow(SEED.varReqs, p.id); if (q) Object.assign(q, { status: 'Rejected', decidedBy: me(), decidedAt: nowS(), rejectReason: v.m_reason }); } return r; }; };
+  A.stResWd = id => { const s = M4.stById(id); const p = s.vh && s.vh.pending; if (!p || p.by !== me()) return; s.vh.pending = null; const q = reqRow(SEED.varReqs, p.id); if (q) Object.assign(q, { status: 'Withdrawn', decidedBy: me(), decidedAt: nowS() }); audit('Settlement', 'Variance resolution withdrawn', s.id, p.id || ''); toast(t('已撤回结清申请', 'Resolution request withdrawn.')); render(); };
+  /* formula versions */
+  const sfOk0 = A.stSfOk;
+  A.stSfOk = v => { const x = SEED.sfVersions.find(o => o.v === v); const prevAct = SEED.sfVersions.find(o => o.status === 'Active'); const start = String(x.effFrom).slice(0, 10);
+    if (x.by !== me() && dt(start + ' 00:00') <= S.now) { toast('This settlement period has already started. Ask the submitter to choose a later period.', 'err'); return; }
+    sfOk0(v); if (x.status === 'Active' && dt(start + ' 00:00') > S.now) { x.status = 'Scheduled'; if (prevAct && prevAct !== x) prevAct.status = 'Active'; const n = issueNotice({ type: 'Change', domain: 'Settlement Parameters', object: 'Settlement Formula', version: x.v, effectiveAt: start + ' 00:00' }); x.notice = n.id; toast(`${x.v} approved and Scheduled from ${start} 00:00. Notice ${n.id} sent to active E-Channels.`); render(); } };
+  A.stSfWd = v => { const x = SEED.sfVersions.find(o => o.v === v); if (!x) return; const ok = (x.status === 'Pending Approval' && x.by === me()) || (x.status === 'Scheduled' && hasRole('fin')); if (!ok) return;
+    ask({ title: `Withdraw · ${x.v}`, danger: true, ok: { zh: '撤回', en: 'Withdraw' }, reason: { zh: '原因', en: 'Reason', max: 500 }, onOk: m2 => { const was = x.status; x.status = 'Withdrawn'; x.wdBy = me(); x.wdAt = nowS(); x.wdReason = m2.m_reason.trim();
+      if (was === 'Scheduled') { const n = issueNotice({ type: 'Withdrawal', domain: 'Settlement Parameters', object: 'Settlement Formula', version: x.v, effectiveAt: nowS(), reason: x.wdReason }); n.reason = x.wdReason; x.wdNotice = n.id; }
+      audit('Settlement', 'Formula version withdrawn', x.v, x.wdReason); toast(was === 'Scheduled' ? `Withdrawn. Withdrawal notice sent to active E-Channels.` : t('已撤回', 'Withdrawn.')); } }); };
+  A.stSfCR = () => sfForm134();
+})();
+const MSG_SF_BUSY = 'A version is already pending or scheduled. Wait until it takes effect or withdraw it.';
+_toneMap['Scheduled'] = _toneMap['Scheduled'] || 'info';
+R134_COLS.sfList = cols => { const k = cols.length - 1; const r0 = cols[k].r; cols[k] = Object.assign({}, cols[k], { r: v => r0(v).replace('</span>', ((v.status === 'Pending Approval' && v.by === me()) || (v.status === 'Scheduled' && hasRole('fin')) ? ' ' + btn({ zh: '撤回', en: 'Withdraw' }, 'stSfWd', v.v, { cls: 'sm' }) : '') + '</span>') }); return cols; };
+const SF_COMPONENTS = ['Gross Receipts', 'Prizes Paid (Net)', 'Refunds And Voids', 'Adjustment Overpayment Add-back', 'Prior Period Adjustment', 'Taxes Withheld'];
+function sfForm134() {
+  if (!hasRole('fin')) return;
+  if (SEED.sfVersions.some(v => ['Pending Approval', 'Scheduled'].includes(v.status))) { toast(MSG_SF_BUSY, 'err'); return; }
+  const cur = SEED.sfVersions.find(v => v.status === 'Active') || SEED.sfVersions[0]; const p = cur.p;
+  const periods = []; for (let i = 1; i <= 12; i++) { const st = fmtD(dt('2026-10-12 00:00') + 7 * i * 864e5); periods.push(`${st} – ${fmtD(dt(st + ' 00:00') + 6 * 864e5)}`); }
+  const signs = {}; String(cur.formula).split(/\s+(?=[−+])/).forEach((x, i) => { const s = x.trim(); const sg = s.startsWith('−') ? '−' : s.startsWith('+') ? '+' : (i === 0 ? '+' : '+'); const name = s.replace(/^[−+]\s*/, '').replace('(Net Of Tax)', '(Net)'); signs[name] = sg; });
+  const vals0 = { m_eff: periods[0], m_pt: p.periodType === 'Week' ? 'Week' : p.periodType, m_gr: p.graceDays, m_du: p.dueDays, m_od: p.openDays, m_ca: p.crit[0], m_cp: p.crit[1], m_ha: p.high[0], m_hp: p.high[1], m_ma: p.med[0], m_mp: p.med[1], m_dt: false,
+    m_gtt: ['Bet', 'System Bet', 'Roll Bet'], m_pcc: ['Standard', 'Top-up'], m_rvc: ['Draw Cancellation', 'No-draw Day', 'Closure Record Exclusion', 'Channel Excluded', 'Transaction Adjustment Refund'] };
+  SF_COMPONENTS.forEach((c, i) => { vals0['m_c' + i] = signs[c] ? (signs[c] === '−' ? 'Subtract' : 'Add') : 'Not used'; });
+  openModal({ title: H('提交公式变更申请', 'Submit Change Request'), ok: H('提交', 'Submit Change Request'), size: 'lg', vals: vals0,
+    body: () => formHtml([
+      { k: 'm_eff', zh: '生效结算期', en: 'Effective From Period', ctl: 'select', req: true, opts: periods, hint: 'The next settlement period that has not started, or later.' },
+      { k: 'm_formula', zh: '公式表达式', en: 'Formula', ctl: 'html', req: true, html: () => `<div class="tiny">${t('组成项拼装（加 / 减），每项最多一次，须含销售总额', 'Built from the listed components (add / subtract), each at most once; must include Gross Receipts')}</div>` + SF_COMPONENTS.map((c, i) => `<label style="display:inline-flex;gap:6px;align-items:center;margin:2px 12px 2px 0">${esc(c)} <select data-k="m_c${i}">${['Add', 'Subtract', 'Not used'].map(o => `<option${fval('m_c' + i, 'Not used') === o ? ' selected' : ''}>${o}</option>`).join('')}</select></label>`).join('') + `<div class="m4-formula" id="sfPreview">${esc(sfFormulaText())}</div>` },
+      { k: 'm_gtt', zh: '销售总额包含的交易类型', en: 'Gross Receipts Transaction Types', ctl: 'checks', req: true, opts: ['Bet', 'System Bet', 'Roll Bet'] },
+      { k: 'm_pcc', zh: '渠道已付奖金包含的兑奖类别', en: 'Prizes Paid Claim Categories', ctl: 'checks', req: true, opts: ['Standard', 'Top-up', 'PCSO Main Office'] },
+      { k: 'm_rvc', zh: '退款 / 作废类别', en: 'Refund And Void Categories', ctl: 'checks', req: true, opts: ['Draw Cancellation', 'No-draw Day', 'Closure Record Exclusion', 'Channel Excluded', 'Transaction Adjustment Refund'] },
+      { k: 'm_tax', zh: '代扣税取数口径', en: 'Tax Basis', ctl: 'readonly', html: () => 'Registry tax rate bound to each draw, recomputed per ticket' },
+      { k: 'm_dt', zh: '是否扣减代扣税', en: 'Deduct Taxes Withheld', ctl: 'switch' },
+      { k: 'm_pt', zh: '结算期类型', en: 'Settlement Period Type', ctl: 'radio', req: true, opts: ['Calendar Month', 'Half-month', 'Week'] },
+      { k: 'm_gr', zh: '宽限期天数', en: 'Finalization Grace Days', ctl: 'number', req: true },
+      { k: 'm_du', zh: '汇款截止天数', en: 'Remittance Due Days', ctl: 'number', req: true },
+      { k: 'm_ca', zh: 'Critical 金额', en: 'Variance Severity Thresholds · Critical (₱)', ctl: 'money', req: true }, { k: 'm_cp', zh: 'Critical 百分比', en: 'Critical (%)', ctl: 'number', req: true },
+      { k: 'm_ha', zh: 'High 金额', en: 'High (₱)', ctl: 'money', req: true }, { k: 'm_hp', zh: 'High 百分比', en: 'High (%)', ctl: 'number', req: true },
+      { k: 'm_ma', zh: 'Medium 金额', en: 'Medium (₱)', ctl: 'money', req: true }, { k: 'm_mp', zh: 'Medium 百分比', en: 'Medium (%)', ctl: 'number', req: true },
+      { k: 'm_od', zh: '未结时长（天）', en: 'Unresolved Case Threshold', ctl: 'number', req: true },
+      { k: 'm_note', zh: '变更说明', en: 'Change Note', ctl: 'textarea', req: true },
+    ]) + '<p class="tiny">Needs approval by Senior Authorizer</p>',
+    onOk: v => {
+      const e = {}; const int = (k, lo, hi) => { const n = +v[k]; if (v[k] === '' || !Number.isInteger(n) || n < lo || n > hi) e[k] = `Enter a whole number from ${lo} to ${hi}.`; };
+      if (!v.m_eff) e.m_eff = 'Select the settlement period this version takes effect from.';
+      const comps = SF_COMPONENTS.map((c, i) => [c, v['m_c' + i]]).filter(x => x[1] !== 'Not used');
+      if (!comps.some(x => x[0] === 'Gross Receipts' && x[1] === 'Add')) e.m_formula = 'Build the formula from the listed components.';
+      if (empty(v.m_gtt)) e.m_gtt = 'Select at least one transaction type.'; if (empty(v.m_pcc)) e.m_pcc = 'Select at least one claim category.'; if (empty(v.m_rvc)) e.m_rvc = 'Select at least one category.';
+      int('m_gr', 0, 15); int('m_du', 1, 30); int('m_od', 1, 30);
+      const amts = [+v.m_ca, +v.m_ha, +v.m_ma], pcts = [+v.m_cp, +v.m_hp, +v.m_mp];
+      if (amts.some(a => !(a > 0)) || pcts.some(x => !(x >= 0.01 && x <= 100)) || !(amts[0] > amts[1] && amts[1] > amts[2] && pcts[0] > pcts[1] && pcts[1] > pcts[2])) e.m_ca = 'Thresholds must decrease from Critical to Medium.';
+      if (empty((v.m_note || '').trim())) e.m_note = 'Enter a change note.';
+      if (Object.keys(e).length) { setErr(e); return false; }
+      const formula = comps.map((x, i) => (i === 0 ? (x[1] === 'Subtract' ? '− ' : '') : (x[1] === 'Subtract' ? '− ' : '+ ')) + x[0]).join(' ');
+      const nv = { v: 'SF-v' + (SEED.sfVersions.length + 1), status: 'Pending Approval', formula, effFrom: v.m_eff, by: me(), at: nowS(), appr: '', apprAt: '', note: v.m_note.trim(),
+        p: Object.assign({}, p, { periodType: v.m_pt === 'Calendar Month' ? 'Month' : v.m_pt, graceDays: +v.m_gr, dueDays: +v.m_du, crit: [+v.m_ca, +v.m_cp], high: [+v.m_ha, +v.m_hp], med: [+v.m_ma, +v.m_mp], openDays: +v.m_od, sales: [].concat(v.m_gtt).join(', '), prizes: [].concat(v.m_pcc).join(', '), refunds: [].concat(v.m_rvc).join('; '), deductTax: (v.m_dt === true || v.m_dt === 'true') ? 'Yes' : 'No' }) };
+      SEED.sfVersions.push(nv); audit('Settlement', 'Formula version submitted', nv.v, nv.effFrom); toast(`${nv.v} submitted. Needs approval by Senior Authorizer.`);
+    } });
+}
+function sfFormulaText() { const comps = SF_COMPONENTS.map((c, i) => [c, fval('m_c' + i, 'Not used')]).filter(x => x[1] !== 'Not used'); return comps.map((x, i) => (i === 0 ? (x[1] === 'Subtract' ? '− ' : '') : (x[1] === 'Subtract' ? '− ' : '+ ')) + x[0]).join(' ') || '-'; }
+function stPendingView(m) {
+  const sts = mselVal('stPend', 'sts', ['Pending Approval']);
+  return pageH({ zh: '结清申请', en: 'Pending Requests' }, '6A.13.4', t('非零差异的结清申请：批准前结算单保持 Variance，只加「结清待批准」标记。', 'Resolution requests for non-zero variances. Until approved the statement stays in Variance and carries a Resolution pending marker.')) + subTabs(m)
+    + `<div class="filters">${msel('stPend', 'sts', { zh: '状态', en: 'Status' }, ['Pending Approval', 'Approved', 'Rejected', 'Withdrawn'], ['Pending Approval'])}</div>`
+    + table('stPendT', [{ h: 'Request ID', k: 'id', cls: 'mono' }, { h: 'Channel', k: 'channel' }, { h: 'Settlement Period', k: 'period' }, { h: 'Variance', cls: 'num', r: q => fmtP(q.amount) }, { h: 'Severity', r: q => badge(q.sev || '-') }, { h: 'Reason', k: 'reason' }, { h: 'Submitted By', r: q => `${esc(q.by)}<div class="tiny">${esc(q.at)}</div>` },
+      { h: 'Status', r: q => badge(q.status) }, { h: 'Decided By / At', r: q => q.decidedBy ? `${esc(q.decidedBy)}<div class="tiny">${esc(q.decidedAt)}</div>` : '-' },
+      { h: 'Actions', r: q => q.status !== 'Pending Approval' ? '' : `<span class="nowrap">${btn({ zh: '查看', en: 'View' }, 'stOpen', q.st, { cls: 'sm' })} ${hasRole('sa') && q.by !== me() ? btn({ zh: '批准', en: 'Approve' }, 'stResOk', q.st, { cls: 'sm ok' }) + ' ' + btn({ zh: '驳回', en: 'Reject' }, 'stResRej', q.st, { cls: 'sm' }) : ''} ${q.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'stResWd', q.st, { cls: 'sm' }) : ''}</span>` }],
+      SEED.varReqs.filter(q => sts.includes(q.status)), { empty: { zh: '没有申请', en: 'No requests.' } });
+}
+R134_COLS.stList = cols => { const i = 0; const r0 = cols[i].r; if (r0) cols[i] = Object.assign({}, cols[i], { r: (s, j) => r0(s, j) + (s.vh && s.vh.pending ? ` <span class="tag warn">Resolution pending</span>` : '') }); return cols; };
+R133_HOOKS.push(() => { if (S.page !== 'settlement' || !S.drawer) return; const f = document.querySelector('#ovl .drawer .foot, #ovl .df'); const s = SEED.settlements.find(x => S.drawer && (S.drawer.stId === x.id || (typeof S.drawer.title === 'function' ? String(S.drawer.title()) : String(S.drawer.title || '')).includes(x.id)));
+  if (!s || !s.vh || !s.vh.pending || s.vh.pending.by !== me() || document.getElementById('btnStResWd')) return; const host = document.querySelector('#ovl [data-act="stResolve"]'); if (host) host.insertAdjacentHTML('afterend', ' ' + btn({ zh: '撤回结清申请', en: 'Withdraw' }, 'stResWd', s.id, { id: 'btnStResWd' })); });
+
+/* =====================================================================
+ * P. 6A.14.4 exception closure requests · 6A.14.7 / 6A.15.4 Effective Time + Change Note + Withdraw + pending lists
+ * ===================================================================== */
+(function patchRecon134() {
+  const m = modById('recon'); if (!m) return; const A = m.acts;
+  if (!m.subs.some(s => s.id === 'pending')) m.subs.splice(2, 0, { id: 'pending', zh: '待批申请', en: 'Pending Requests' });
+  const v0 = m.view; m.view = () => S.sub === 'pending' ? excPendingView(m) : v0();
+  const e0 = A.rcExc;
+  A.rcExc = id => { const d = M4.dvById(id); if (d.excReq) { toast('A request is already awaiting approval.', 'err'); return; } e0(id); const o0 = S.modal && S.modal.onOk; if (!o0) return;
+    S.modal.onOk = v => { const r = o0(v); if (r !== false && d.excReq && !d.excReq.id) { const q = { id: nid('EX'), dv: d.id, channel: d.channel || d.ch, dom: d.dom || d.domain, sev: d.sev, reason: d.excReq.reason, by: me(), at: nowS(), status: 'Pending Approval' }; SEED.excReqs.unshift(q); d.excReq.id = q.id; } return r; }; };
+  const ok0 = A.rcExcOk; A.rcExcOk = id => { const d = M4.dvById(id); const p = d.excReq; ok0(id); if (p && !d.excReq) { const q = reqRow(SEED.excReqs, p.id); if (q) Object.assign(q, { status: 'Approved', decidedBy: me(), decidedAt: nowS() }); } };
+  const rj0 = A.rcExcRej; A.rcExcRej = id => { const d = M4.dvById(id); const p = d.excReq; if (p && p.by === me()) { toast('You cannot approve a request you submitted.', 'err'); return; } rj0(id); const o0 = S.modal && S.modal.onOk; if (!o0 || !p) return; S.modal.onOk = v => { const r = o0(v); if (r !== false) { const q = reqRow(SEED.excReqs, p.id); if (q) Object.assign(q, { status: 'Rejected', decidedBy: me(), decidedAt: nowS(), rejectReason: v.m_reason }); } return r; }; };
+  A.rcExcWd = id => { const d = M4.dvById(id); const p = d.excReq; if (!p || p.by !== me()) return; d.excReq = null; (d.tl = d.tl || []).push({ at: nowS(true), by: me(), act: 'Close as Exception withdrawn', note: p.id || '' }); const q = reqRow(SEED.excReqs, p.id); if (q) Object.assign(q, { status: 'Withdrawn', decidedBy: me(), decidedAt: nowS() }); audit('Reconciliation', 'Close as exception withdrawn', d.id, p.id || ''); toast(t('已撤回', 'Request withdrawn.')); render(); };
+  /* rules: Effective Time + Change Note + Withdraw */
+  const rc0 = A.rcRuleCR;
+  A.rcRuleCR = () => { if (SEED.divRuleCRs.some(x => x.status === 'Pending Approval')) { toast('A change request is already awaiting approval.', 'err'); return; } rc0(); crExtra(SEED.divRuleCRs, v => v.m_sw !== SEED.divParams.sweep || +v.m_rs !== SEED.divParams.resyncMin); };
+  A.rcRuleWd = id => { const cr = SEED.divRuleCRs.find(x => x.id === id); if (!cr || cr.by !== me() || cr.status !== 'Pending Approval') return; cr.status = 'Withdrawn'; audit('Reconciliation', 'Rule change withdrawn', id); toast(t('已撤回', 'Request withdrawn.')); render(); };
+  const rd0 = A.rcRuleOk; A.rcRuleOk = id => { const cr = SEED.divRuleCRs.find(x => x.id === id); rd0(id); if (cr && cr.status === 'Approved') { cr.apprAt = nowS(); if (cr.eff && (cr.params.sweep !== undefined)) copBump('Domain State Report Time / Re-sync Wait Timeout', cr.eff); } };
+})();
+(function patchHealthTh() {
+  const m = modById('health'); if (!m) return; const A = m.acts;
+  const t0 = A.thCR; A.thCR = () => { t0(); crExtra(SEED.thCRs, v => /Heartbeat/.test(v.m_metric || '')); };
+  A.thWd = id => { const cr = SEED.thCRs.find(x => x.id === id); if (!cr || cr.by !== me() || cr.status !== 'Pending Approval') return; cr.status = 'Withdrawn'; audit('Health Monitoring', 'Threshold change withdrawn', id); toast(t('已撤回', 'Request withdrawn.')); render(); };
+  const ok0 = A.thOk; A.thOk = id => { const cr = SEED.thCRs.find(x => x.id === id); ok0(id); if (cr && cr.status === 'Approved' && /Heartbeat/.test(cr.metric || '') && cr.eff) copBump('Heartbeat Interval and Grace Period', cr.eff); };
+})();
+/** add Effective Time + Change Note to the open change-request modal and store them on the new request */
+function crExtra(list, needsEff) {
+  if (!S.modal) return; const b0 = S.modal.body, o0 = S.modal.onOk;
+  S.modal.body = () => b0() + formHtml([{ k: 'm_eff134', zh: '生效时间', en: 'Effective Time', ctl: 'datetime', hint: t('改动含渠道运行参数时必填，须满足 72 小时提前期', 'Required when a Channel Operating Parameter changes (72-hour lead time); otherwise effective on approval') }, { k: 'm_cn134', zh: '变更说明', en: 'Change Note', ctl: 'textarea', req: true }]) + '<p class="tiny">Needs approval by Senior Authorizer</p>';
+  S.modal.onOk = v => {
+    const e = {}; const note = String(v.m_cn134 || '').trim(); if (!note) e.m_cn134 = 'Enter a change note.';
+    const eff = normDT(v.m_eff134 || ''); if (needsEff(v) && !eff) e.m_eff134 = 'This field is required.'; else if (eff && !leadOk({ critical: false, effectiveAt: eff })) e.m_eff134 = leadMsg({ critical: false });
+    const top = list[0]; const r = o0(v);
+    if (r === false) { if (Object.keys(e).length) { S.ferr = Object.assign(S.ferr || {}, e); render(); } return false; }
+    if (Object.keys(e).length) { if (list[0] && list[0] !== top) list.shift(); S.ferr = Object.assign(S.ferr || {}, e); render(); return false; }
+    if (list[0] && list[0] !== top) { list[0].eff = eff || ''; list[0].note = note; }
+    return r;
+  };
+  render();
+}
+function copBump(what, eff) { const n = +String(SEED.copVersion.v).replace(/\D/g, '') + 1; SEED.copVersion = Object.assign({}, SEED.copVersion, { v: 'COP-v' + n, eff }); const nt = issueNotice({ type: 'Change', domain: 'Channel Operating Parameters', object: what, version: 'COP-v' + n, effectiveAt: eff }); SEED.copVersion.notice = nt.id; }
+function crStatusCell(x) { return badge(x.status) + (x.appr ? `<div class="tiny">${esc(x.appr)}${x.apprAt ? ' · ' + esc(x.apprAt) : ''}</div>` : ''); }
+R134_COLS.rcRuleCRs = cols => [{ h: 'Request ID', k: 'id', cls: 'mono' }, { h: 'Change (Old → New)', k: 'summary' }, { h: 'Effective Time', r: x => esc(x.eff || 'On approval') }, { h: 'Change Note', r: x => esc(x.note || '-') }, { h: 'Submitted By', r: x => `${esc(x.by)}<div class="tiny">${esc(x.at || '')}</div>` }, { h: 'Status', r: crStatusCell },
+  { h: 'Actions', r: x => x.status === 'Pending Approval' ? `<span class="nowrap">${hasRole('sa') && x.by !== me() ? btn({ zh: '批准', en: 'Approve' }, 'rcRuleOk', x.id, { cls: 'sm ok' }) + ' ' + btn({ zh: '驳回', en: 'Reject' }, 'rcRuleRej', x.id, { cls: 'sm' }) : ''} ${x.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'rcRuleWd', x.id, { cls: 'sm' }) : ''}</span>` : '' }];
+R134_COLS.thCRs = cols => [{ h: 'Request ID', k: 'id', cls: 'mono' }, { h: 'Scope', r: x => esc(x.scope + (x.channel ? ' · ' + x.channel : '')) }, { h: 'Metric', r: x => esc(x.metric || '-') }, { h: 'Change (Old → New)', k: 'summary' }, { h: 'Effective Time', r: x => esc(x.eff || 'On approval') }, { h: 'Change Note', r: x => esc(x.note || '-') }, { h: 'Submitted By / At', r: x => `${esc(x.by)}<div class="tiny">${esc(x.at)}</div>` }, { h: 'Status', r: crStatusCell },
+  { h: 'Actions', r: x => x.status === 'Pending Approval' ? `<span class="nowrap">${hasRole('sa') && x.by !== me() ? btn({ zh: '批准', en: 'Approve' }, 'thOk', x.id, { cls: 'sm ok' }) + ' ' + btn({ zh: '驳回', en: 'Reject' }, 'thRej', x.id, { cls: 'sm' }) : ''} ${x.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'thWd', x.id, { cls: 'sm' }) : ''}</span>` : '' }];
+R134_COLS.rcDivs = cols => { const i = colIdx(cols, 'Status'); if (i >= 0) { const r0 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: (d, j) => (r0 ? r0(d, j) : badge(d.status)) + (d.excReq ? ` <span class="tag warn">Exception closure pending</span>` : '') }); } return cols; };
+R133_HOOKS.push(() => { if (S.page !== 'recon' || !S.drawer) return; const d = (SEED.divergences || []).find(x => x.excReq && x.excReq.by === me() && document.querySelector(`#ovl [data-act="rcExc"][data-a="${x.id}"]`)); if (d && !document.getElementById('btnExcWd')) document.querySelector(`#ovl [data-act="rcExc"][data-a="${d.id}"]`).insertAdjacentHTML('afterend', ' ' + btn({ zh: '撤回例外关闭申请', en: 'Withdraw' }, 'rcExcWd', d.id, { id: 'btnExcWd' })); });
+function excPendingView(m) {
+  const sts = mselVal('exPend', 'sts', ['Pending Approval']);
+  return pageH({ zh: '例外关闭申请', en: 'Pending Requests' }, '6A.14.4', t('例外关闭申请：批准前差异保持原状态，只加「例外关闭待批准」标记。', 'Close-as-exception requests. Until approved the divergence keeps its status and carries an Exception closure pending marker.')) + subTabs(m)
+    + `<div class="filters">${msel('exPend', 'sts', { zh: '状态', en: 'Status' }, ['Pending Approval', 'Approved', 'Rejected', 'Withdrawn'], ['Pending Approval'])}</div>`
+    + table('exPendT', [{ h: 'Request ID', k: 'id', cls: 'mono' }, { h: 'Divergence ID', r: q => `<span class="mono">${esc(q.dv)}</span>` }, { h: 'Channel', r: q => esc(q.channel || '-') }, { h: 'Data Domain', r: q => esc(q.dom || '-') }, { h: 'Severity', r: q => badge(q.sev || '-') }, { h: 'Reason', k: 'reason' }, { h: 'Submitted By', r: q => `${esc(q.by)}<div class="tiny">${esc(q.at)}</div>` },
+      { h: 'Status', r: q => badge(q.status) }, { h: 'Decided By / At', r: q => q.decidedBy ? `${esc(q.decidedBy)}<div class="tiny">${esc(q.decidedAt)}</div>` : '-' },
+      { h: 'Actions', r: q => q.status !== 'Pending Approval' ? '' : `<span class="nowrap">${hasRole('sa') && q.by !== me() ? btn({ zh: '批准', en: 'Approve' }, 'rcExcOk', q.dv, { cls: 'sm ok' }) + ' ' + btn({ zh: '驳回', en: 'Reject' }, 'rcExcRej', q.dv, { cls: 'sm' }) : ''} ${q.by === me() ? btn({ zh: '撤回', en: 'Withdraw' }, 'rcExcWd', q.dv, { cls: 'sm' }) : ''}</span>` }],
+      SEED.excReqs.filter(q => sts.includes(q.status)), { empty: { zh: '没有申请', en: 'No requests.' } });
+}
+TODO_PROVIDERS.push(u => !hasRole('sa', u) ? [] : [
+  { n: SEED.varReqs.filter(q => q.status === 'Pending Approval' && q.by !== u.id).length, zh: '条结清申请待批准', en: 'variance resolutions to approve', go: 'settlement/pending' },
+  { n: SEED.excReqs.filter(q => q.status === 'Pending Approval' && q.by !== u.id).length, zh: '条例外关闭待批准', en: 'exception closures to approve', go: 'recon/pending' },
+]);
+
+/* =====================================================================
+ * Q. 6A.4.2 / 6A.4.3 single-draw calendar changes: Effective At before cut-off (Reschedule) / sales open (Special Draw);
+ *    Add Draw lists Active games only
+ * ===================================================================== */
+(function wrapCalForms() {
+  const m = modById('calendar'); if (!m || !m.acts) return; const A = m.acts;
+  const wrap = (name, limit) => { const f0 = A[name]; if (!f0) return; A[name] = id => { const a0 = ask; ask = o => { const v0 = o.validate || (() => ({}));
+      a0(Object.assign({}, o, { fields: name === 'drawAdd' ? o.fields.map(f => f.k === 'm_game' ? Object.assign({}, f, { opts: SEED.games.filter(g => (gameDef(g) || {}).status === 'Active').map(g => g.code) }) : f) : o.fields,
+        validate: v => { const e = v0(v) || {}; const eff = normDT(v.m_eff || ''); if (!eff) { e.m_eff = 'This field is required.'; return e; } if (dt(eff) <= S.now) { e.m_eff = 'The effective time must be later than now.'; return e; }
+          const lim = limit(id, v); if (lim && dt(eff) >= dt(lim.at)) e.m_eff = lim.msg; return e; } })); };
+    try { f0(id); } finally { ask = a0; } }; };
+  wrap('drawAdd', (id, v) => { const at = normDT(v.m_at || ''); if (!at) return null; const g = gameDef(gameByCode(v.m_game)) || {}; const co = dt(at) - (g.cutoffMin || 30) * 60e3; return { at: fmtDT(co), msg: 'The effective time must be earlier than the cut-off of this draw.' }; });
+  wrap('drawResched', id => { const d = drawById(id); return d && d.cutoff ? { at: d.cutoff, msg: 'The effective time must be earlier than the cut-off of this draw.' } : null; });
+  wrap('drawSpecial', id => { const d = drawById(id); const op = d && (d.openAt || d.salesOpen); return op && dt(op) > S.now ? { at: op, msg: 'The effective time must be earlier than the sales opening of this draw.' } : (d && d.cutoff ? { at: d.cutoff, msg: 'The effective time must be earlier than the cut-off of this draw.' } : null); });
+})();
+
+/* =====================================================================
+ * R. 6A.16.8 Standards And Risk Rules · 6A.16.9 Compliance Parameters page · 6A.16.2 Flag Finding (Source System / Manual)
+ * ===================================================================== */
+const STD_ROWS_134 = [
+  ['KYC', 'Federation Rejection Rate', '>', '2', '%'], ['KYC', 'Pending Match Rate', '>', '5', '%'], ['KYC', 'Pending Match Rejections', '>', '0', ''], ['KYC', 'Candidate Key Ratio', '>', '10', ''],
+  ['PlaySafe', 'Exclusion Enforcement Time', '>', '5', 'min'], ['PlaySafe', 'Transactions For Excluded Players', '>', '0', ''], ['PlaySafe', 'Tool Activation And Utilization', '', '', '%'],
+  ['AMLA', 'Unresolved Compliance Exceptions', '>', '30', 'days'], ['AMLA', 'Suspicious Activity Flags', '', '', ''],
+  ['Wallet', 'Net Wallet Position Mismatch', '>', '0', ''], ['Wallet', 'Wallet Complaints And Disputes', '>', '10', ''],
+];
+SEED.compStds = SEED.compStds || STD_ROWS_134.map(([d, k, c, v, u]) => ({ id: k, domain: d, ind: k, cmp: c, val: v, unit: u, after: 3 }));
+SEED.compRules = SEED.compRules || [{ id: 'Unusual Velocity', on: true, p: [['Multiple of daily average', 3]], base: 30 }, { id: 'Structuring', on: true, p: [['Share of over-threshold count (%)', 50], ['Deposit amount multiple of daily average', 1]], base: 30 }, { id: 'Deposit Behavior Vs PlaySafe Risk', on: true, p: [['Multiple of daily average', 2]], base: 30 }, { id: 'Complaint Spike', on: true, p: [['Multiple of daily average', 3]], base: 30 }];
+SEED.compStdHist = SEED.compStdHist || [{ id: 'CSH-0001', at: '2026-09-20 10:12', by: 'comp.a', item: 'Pending Match Rate', from: '> 8%', to: '> 5%', note: 'PCSO memo 2026-118 standard', demo: true }];
+function stdText(s) { return s.cmp && s.val !== '' ? `${s.cmp} ${s.val}${s.unit === '%' ? '%' : s.unit ? ' ' + s.unit : ''}` : 'Display only'; }
+function stdOf(ind) { const s = SEED.compStds.find(x => x.ind === ind); return s ? stdText(s) : ''; }
+const CMP_OPTS = ['>', '≥', '<', '≤'];
+function standardsView(m) {
+  const ed = can('Compliance', 'E');
+  let h = pageH({ zh: '指标标准与风险规则', en: 'Standards And Risk Rules' }, '6A.16.8', t('全网统一，保存即生效，从下一个上报期的判定起适用；只供 Core 判定，不下发渠道。', 'One set for the whole network. Saving takes effect from the next reporting period; existing findings are not re-evaluated. Used by Core only and not sent to channels.'), ed ? btn({ zh: '历史', en: 'History' }, 'cs.hist', '', { id: 'btnStdHist' }) : btn({ zh: '历史', en: 'History' }, 'cs.hist', '', { id: 'btnStdHist' })) + subTabs(m);
+  h += card(t('指标标准', 'Indicator Standards'), table('stdT', [{ h: 'Domain', k: 'domain' }, { h: 'Indicator', k: 'ind' }, { h: 'Standard', r: s => esc(stdText(s)) }, { h: 'Auto-escalate After Periods', cls: 'num', k: 'after' }, { h: '', r: s => ed ? btn({ zh: '编辑', en: 'Edit' }, 'cs.std', s.id, { cls: 'sm' }) : '' }], SEED.compStds, { nopage: true }));
+  h += card(t('风险规则', 'Risk Rules'), table('ruleT', [{ h: 'Rule', k: 'id' }, { h: 'Enabled', r: r => r.on ? badge('Yes', 'ok') : badge('No') }, { h: 'Rule Parameters', r: r => esc(r.p.map(([k, v]) => `${k}: ${v}`).join(' · ')) }, { h: 'Baseline Days', cls: 'num', k: 'base' }, { h: '', r: r => ed ? btn({ zh: '编辑', en: 'Edit' }, 'cs.rule', r.id, { cls: 'sm' }) : '' }], SEED.compRules, { nopage: true }));
+  return h;
+}
+function compParamsView(m) {
+  return pageH({ zh: '合规参数', en: 'Compliance Parameters' }, '6A.16.9', t('参照数据域「合规参数」：Core 运营提交、参照审批人批准，经参照变更通知下发全部活跃渠道。', 'Reference data domain Compliance Parameters: submitted by Core Operations, approved by a Reference Approver and sent to every active channel as a reference change notice.')) + subTabs(m) + cpCard()
+    + card(t('版本历史', 'Version History'), table('cpHist', [{ h: 'Change Request', r: c => `<button class="btn link mono" data-act="crOpen" data-a="${c.id}">${c.id}</button>` }, { h: 'Version', k: 'version' }, { h: 'Changes', r: c => esc(c.fields.map(f => `${f.f}: ${f.cur} → ${f.pro}`).join('; ')) }, { h: 'Effective At', k: 'effectiveAt' }, { h: 'Status', r: c => badge(crStatus(c)) }], SEED.changes.filter(c => c.kind === 'compParams'), { nopage: true, empty: { zh: '暂无变更', en: 'No changes yet.' } }));
+}
+(function patchComp134() {
+  const m = modById('compliance'); if (!m) return;
+  if (!m.subs.some(s => s.id === 'standards')) m.subs = m.subs.concat([{ id: 'standards', zh: '指标标准', en: 'Standards And Risk Rules', roles: ['comp', 'aud'] }, { id: 'params', zh: '合规参数', en: 'Compliance Parameters' }]);
+  const v0 = m.view;
+  m.view = () => {
+    if (S.sub === 'standards') return standardsView(m);
+    if (S.sub === 'params') return compParamsView(m);
+    let h = v0();
+    if (S.sub === 'overview' && can('Compliance', 'C')) h = h.replace(/(<div class="page-acts">|<div class="pacts">)/, `$1${btn({ zh: '手动标记', en: 'Flag Finding' }, 'cf.flag', S.q.channel && S.q.channel !== 'All' ? S.q.channel : '', { cls: 'primary', id: 'btnFlag' })} `);
+    if (S.sub === 'overview' && can('Compliance', 'C') && !/id="btnFlag"/.test(h)) h = h.replace(/(<h4 style="margin-top:18px">)/, `<div style="margin:12px 0 0">${btn({ zh: '手动标记', en: 'Flag Finding' }, 'cf.flag', S.q.channel && S.q.channel !== 'All' ? S.q.channel : '', { cls: 'primary', id: 'btnFlag' })}</div>$1`);
+    return h;
+  };
+  const A = m.acts;
+  A['cs.std'] = id => { const s = SEED.compStds.find(x => x.id === id); if (!s || !can('Compliance', 'E')) return;
+    openModal({ title: `${s.domain} · ${s.ind}`, ok: { zh: '保存', en: 'Save' }, vals: { m_cmp: s.cmp, m_val: s.val, m_after: s.after },
+      body: () => formHtml([{ k: 'm_dom', en: 'Domain', zh: '领域', ctl: 'readonly', html: () => esc(s.domain) }, { k: 'm_ind', en: 'Indicator', zh: '指标', ctl: 'readonly', html: () => esc(s.ind) },
+        { k: 'm_cmp', zh: '比较方式', en: 'Comparison', ctl: 'select', opts: [['', '-']].concat(CMP_OPTS) }, { k: 'm_val', zh: '标准值', en: 'Standard Value', ctl: 'text', hint: s.unit === '%' ? '0–100%' : (s.unit || '') },
+        { k: 'm_after', zh: '自动升级期数', en: 'Auto-escalate After Periods', ctl: 'number', req: true }, { k: 'm_note', zh: '变更说明', en: 'Change Note', ctl: 'textarea', req: true }]),
+      onOk: v => { const e = {}; const val = String(v.m_val == null ? '' : v.m_val).trim();
+        if (val !== '' && !(/^\d+(\.\d{1,2})?$/.test(val) && (s.unit !== '%' || +val <= 100))) e.m_val = 'Enter a number of 0 or more.';
+        if (val !== '' && !v.m_cmp) e.m_cmp = 'Select a comparison.';
+        const n = +v.m_after; if (!(Number.isInteger(n) && n >= 1 && n <= 12)) e.m_after = 'Enter a whole number from 1 to 12.';
+        if (empty((v.m_note || '').trim())) e.m_note = 'Enter a change note.';
+        if (Object.keys(e).length) { setErr(e); return false; }
+        const from = `${stdText(s)} · ${s.after}`; Object.assign(s, { cmp: val === '' ? '' : v.m_cmp, val, after: n }); const to = `${stdText(s)} · ${s.after}`;
+        SEED.compStdHist.unshift({ id: nid('CSH'), at: nowS(), by: me(), item: s.ind, from, to, note: v.m_note.trim() }); audit('Compliance', 'Indicator standard saved', s.ind, `${from} → ${to}`); toast(t('已保存，从下一个上报期起适用', 'Saved. Applies from the next reporting period.')); } }); };
+  A['cs.rule'] = id => { const r = SEED.compRules.find(x => x.id === id); if (!r || !can('Compliance', 'E')) return; const vals = { m_on: r.on, m_base: r.base }; r.p.forEach((p, i) => { vals['m_p' + i] = p[1]; });
+    openModal({ title: r.id, ok: { zh: '保存', en: 'Save' }, vals, body: () => formHtml([{ k: 'm_on', zh: '启用', en: 'Enabled', ctl: 'switch' }].concat(r.p.map((p, i) => ({ k: 'm_p' + i, zh: p[0], en: p[0], ctl: 'text', req: true }))).concat([{ k: 'm_base', zh: '基期天数', en: 'Baseline Days', ctl: 'number', req: true }, { k: 'm_note', zh: '变更说明', en: 'Change Note', ctl: 'textarea', req: true }])),
+      onOk: v => { const e = {}; r.p.forEach((p, i) => { const x = +v['m_p' + i]; const pct = /%/.test(p[0]); if (!(pct ? Number.isInteger(x) && x >= 1 && x <= 100 : /^\d+(\.\d)?$/.test(String(v['m_p' + i])) && x >= 0.1 && x <= 100)) e['m_p' + i] = 'Enter a value within the allowed range.'; });
+        const b = +v.m_base; if (!(Number.isInteger(b) && b >= 7 && b <= 90)) e.m_base = 'Enter a whole number from 7 to 90.'; if (empty((v.m_note || '').trim())) e.m_note = 'Enter a change note.';
+        if (Object.keys(e).length) { setErr(e); return false; }
+        const from = `${r.on ? 'On' : 'Off'} · ${r.p.map(p => p[1]).join(' / ')} · ${r.base} d`; r.on = v.m_on === true || v.m_on === 'true'; r.p.forEach((p, i) => { p[1] = +v['m_p' + i]; }); r.base = b; const to = `${r.on ? 'On' : 'Off'} · ${r.p.map(p => p[1]).join(' / ')} · ${r.base} d`;
+        SEED.compStdHist.unshift({ id: nid('CSH'), at: nowS(), by: me(), item: r.id, from, to, note: v.m_note.trim() }); audit('Compliance', 'Risk rule saved', r.id, `${from} → ${to}`); toast(t('已保存，从下一个上报期起适用', 'Saved. Applies from the next reporting period.')); } }); };
+  A['cs.hist'] = () => openModal({ title: { zh: '变更历史', en: 'History' }, size: 'lg', cancel: false, ok: { zh: '关闭', en: 'Close' }, body: () => table('stdHist', [{ h: 'Changed At', k: 'at' }, { h: 'Changed By', k: 'by' }, { h: 'Item', k: 'item' }, { h: 'Old Value', k: 'from' }, { h: 'New Value', k: 'to' }, { h: 'Change Note', k: 'note' }], SEED.compStdHist, { nopage: true }) });
+  const IND = { KYC: ['Federation Rejection Rate', 'Pending Match Rate', 'Pending Match Rejections', 'Candidate Key Ratio'], PlaySafe: ['Exclusion Enforcement Time', 'Transactions For Excluded Players', 'Tool Activation And Utilization'], AMLA: ['Unresolved Compliance Exceptions', 'Suspicious Activity Flags'], Wallet: ['Net Wallet Position Mismatch', 'Over-Threshold Count / Value', 'Wallet Complaints And Disputes'] };
+  A['cf.flag'] = ch => { if (!can('Compliance', 'C')) return;
+    openModal({ title: { zh: '手动标记', en: 'Flag Finding' }, ok: { zh: '标记', en: 'Flag Finding' }, vals: { m_ch: ch || '' },
+      body: () => { const dom = fval('m_dom', ''); const ind = fval('m_ind', ''); return formHtml([
+        { k: 'm_ch', zh: '渠道', en: 'Channel', ctl: 'select', req: true, opts: [['', '-']].concat(SEED.channels.filter(c => ['Active', 'Partially Suspended', 'Fully Suspended'].includes(c.status)).map(c => c.code)) },
+        { k: 'm_dom', zh: '领域', en: 'Domain', ctl: 'select', req: true, chg: true, opts: [['', '-'], 'KYC', 'PlaySafe', 'AMLA', 'Wallet'] },
+        { k: 'm_ind', zh: '指标', en: 'Indicator', ctl: 'select', req: true, chg: true, opts: [['', '-']].concat(dom ? IND[dom].concat(['Other']) : []) },
+        { k: 'm_val', zh: '数值', en: 'Value', ctl: 'text', ph: 'Latest value' }, { k: 'm_std', zh: '标准', en: 'Standard', ctl: 'text', def: ind && ind !== 'Other' ? stdOf(ind) : '' },
+        { k: 'm_desc', zh: '说明', en: 'Description', ctl: 'textarea', req: true, ph: 'Why this is being flagged' }]); },
+      onOk: v => { const e = {}; if (!v.m_ch) e.m_ch = 'Select a channel.'; if (!v.m_dom) e.m_dom = 'Select a domain.'; if (!v.m_ind) e.m_ind = 'Select an indicator.'; if (empty((v.m_desc || '').trim())) e.m_desc = 'Enter a description.';
+        ['m_val', 'm_std'].forEach(k => { if (String(v[k] || '').length > 100) e[k] = 'Up to 100 characters.'; }); if (Object.keys(e).length) { setErr(e); return false; }
+        const f = { id: nid('CF'), channel: v.m_ch, area: v.m_dom, metric: v.m_ind, value: String(v.m_val || '-').trim() || '-', std: String(v.m_std || '-').trim() || '-', status: 'Flagged', flaggedAt: nowS(), due: '', source: 'Manual', by: me(), desc: v.m_desc.trim(), tl: [{ at: nowS(), by: me(), act: 'Flagged (Manual)', note: v.m_desc.trim() }] };
+        SEED.findings.unshift(f); audit('Compliance', 'Finding flagged manually', f.id, `${f.channel} · ${f.area} · ${f.metric}`); toast(t(`已标记 ${f.id}`, `Finding ${f.id} flagged.`)); } }); };
+})();
+(function () { const m = modById('compliance'); if (!m) return; const i0 = m.init; m.init = () => { if (i0) i0(); (SEED.findings || []).forEach(f => { if (!f.source) f.source = 'System'; }); }; })();
+R133_HOOKS.push(() => { (SEED.findings || []).forEach(f => { if (!f.source) f.source = 'System'; }); });
+R134_COLS.cfAll = R134_COLS.cfKYC = R134_COLS.cfPlaySafe = R134_COLS.cfAMLA = R134_COLS.cfWallet = cols => { const i = colIdx(cols, 'Standard'); if (i >= 0 && colIdx(cols, 'Source') < 0) cols.splice(i + 1, 0, { h: 'Source', r: f => badge(f.source || 'System', f.source === 'Manual' ? 'info' : '') }); return cols; };
+
+/* =====================================================================
+ * S. 6A.17 Obstruction Complaint · Mark PCSO Reviewed · Record Ruling · Recommendation fields · comment = Cases · C
+ * ===================================================================== */
+const REC_TYPE = 'E-Channel-Affecting Recommendation', ETD_TYPE = 'Equal Treatment Disparity', GOV_TYPE = 'Core-E-Channel Systems Governance/Network Issue';
+/* demo complaint case (Demo data) */
+(function seedComplaint() { if (SEED.cases.some(c => c.id === 'CASE-20261011-0021')) return; SEED.cases.push({ id: 'CASE-20261011-0021', title: 'EC2 complaint · delayed directive acknowledgement treated as obstruction', channel: 'EC2', severity: 'Medium', priority: 'P3', status: 'In Progress', source: 'Manual', srcModule: 'Cases', ctype: GOV_TYPE, obstruction: true, createdAt: '2026-10-11 15:20:00', createdBy: 'sa.b', assignee: 'sa.b', esc: 'L1', auto: false, links: [], desc: 'EC2 reports that Core operations repeatedly delayed its certification renewal.', tl: [{ at: '2026-10-11 15:20:00', by: 'sa.b', act: 'Created', note: 'Obstruction Complaint' }], demo: true }); })();
+/* the 6A.21.3 Equal Treatment Disparity seed case carried its type in the legacy `type` field (Case Type showed the default
+   Core-E-Channel Systems Governance/Network Issue), so Record Ruling never showed on it: move it to ctype; its PCSO conclusion
+   becomes the first ruling on record */
+(function fixEtdCases134() { SEED.cases.forEach(c => { if (c.type === ETD_TYPE && c.ctype !== ETD_TYPE) { c.ctype = ETD_TYPE; if (c.conclusion && !(c.rulings && c.rulings.length)) c.rulings = [{ by: c.assignee || 'comp.a', at: c.closedAt || c.createdAt, ruling: c.conclusion, note: 'Supplier explanation received (draw-night queue order).' }]; } }); })();
+/** Record Ruling (6A.17.3 / 6A.20.3 映射表): Equal Treatment Disparity or Obstruction Complaint cases; Conflict Of Interest · E and Cases · V */
+function canRuling(c, u = S.user) { return !!c && (c.ctype === ETD_TYPE || !!c.obstruction) && can('Conflict Of Interest', 'E', u) && can('Cases', 'V', u); }
+(function wrapCases134() {
+  const m = modById('cases'); if (!m) return; const A = m.acts;
+  const v0 = m.view;
+  m.view = () => { const hid = SEED.cases.filter(c => !caseVisible(c)); if (hid.length) SEED.cases = SEED.cases.filter(c => caseVisible(c)); try { return v0(); } finally { if (hid.length) SEED.cases = SEED.cases.concat(hid); } };
+  const c0 = A.csComment; A.csComment = id => { if (!can('Cases', 'C')) { toast('You do not have permission for this action.', 'err'); return; } c0(id); };
+  A.csPcsoRev = id => { const c = SEED.cases.find(x => x.id === id); if (!c || c.ctype !== REC_TYPE || !can('Cases', 'E')) return;
+    ask({ title: `Mark PCSO Reviewed · ${id}`, ok: { zh: '登记', en: 'Mark PCSO Reviewed' }, reason: { zh: '复核意见', en: 'Review Comments', max: 2000, err: 'Enter review comments.' }, onOk: v => { c.pcsoReviewed = { by: me(), at: nowS(), note: v.m_reason.trim() }; c.tl.push({ at: nowS(true), by: me(), act: 'PCSO Reviewed', note: v.m_reason.trim() }); audit('Cases', 'PCSO reviewed', id, v.m_reason.trim()); toast(t('已登记 PCSO 复核', 'Marked PCSO Reviewed.')); } }); };
+  A.csRuling = id => { const c = SEED.cases.find(x => x.id === id); if (!canRuling(c)) return; const opts = c.ctype === ETD_TYPE ? ['Explained', 'Treated As Hampering Conduct'] : ['Not Upheld', 'Treated As Hampering Conduct'];
+    ask({ title: `Record Ruling · ${id}`, ok: { zh: '登记', en: 'Record Ruling' }, fields: [{ k: 'm_rul', zh: '裁定结论', en: 'Ruling', ctl: 'select', req: true, opts: [['', '-']].concat(opts) }], reason: { zh: '说明', en: 'Description', max: 2000, err: 'Enter a description.' },
+      validate: v => v.m_rul ? {} : { m_rul: 'Select a ruling.' },
+      onOk: v => { (c.rulings = c.rulings || []).push({ by: me(), at: nowS(), ruling: v.m_rul, note: v.m_reason.trim() }); c.tl.push({ at: nowS(true), by: me(), act: `Ruling: ${v.m_rul}`, note: v.m_reason.trim() }); audit('Cases', 'Ruling recorded', id, `${v.m_rul} · ${v.m_reason.trim()}`); toast(t('已登记裁定', 'Ruling recorded.')); } }); };
+  const o0 = A.csOpenRow; const open = id => { const c = SEED.cases.find(x => x.id === id); if (c && !caseVisible(c)) { toast('This case was not found.', 'err'); return; } o0(id); if (!S.drawer || !c) return; const f = S.drawer.foot, b = S.drawer.body;
+    S.drawer.foot = () => { let h = f(); if (c.ctype === REC_TYPE && can('Cases', 'E') && c.status !== 'Closed') h += ' ' + btn({ zh: '登记 PCSO 复核', en: 'Mark PCSO Reviewed' }, 'csPcsoRev', c.id, { id: 'btnPcsoRev' }); if (canRuling(c)) h += ' ' + btn({ zh: '登记裁定', en: 'Record Ruling' }, 'csRuling', c.id, { id: 'btnRuling' }); return h; };
+    S.drawer.body = () => { let h = b(); const extra = []; if (c.obstruction) extra.push(['Obstruction Complaint', badge('Yes', 'warn')]); if (c.ctype === REC_TYPE) { extra.push(['Factual Basis', esc(c.factual || '-')], ['Supporting Data', esc(c.support || '-')], ['Target Is Affiliated E-Channel', c.affiliated == null ? '-' : c.affiliated ? 'Yes' : 'No'], ['Entered On Behalf By', esc(c.onBehalf || '-')], ['PCSO Reviewed', c.pcsoReviewed ? `${esc(c.pcsoReviewed.by)} · ${esc(c.pcsoReviewed.at)} · ${esc(c.pcsoReviewed.note)}` : (c.affiliated === false ? badge('Required before use', 'warn') : '-')]); }
+      if (c.rulings && c.rulings.length) { const r = c.rulings[c.rulings.length - 1]; extra.push(['Ruling', `${badge(r.ruling)} · ${esc(r.by)} · ${esc(r.at)}<div class="tiny">${esc(r.note)}</div>`]); }
+      return extra.length ? dl(extra) + h : h; };
+    render(); };
+  A.csOpenRow = open; A.viewCase = A.viewCase || undefined;
+})();
+R134_COLS.csList = cols => { if (!can('Conflict Of Interest', 'V')) return cols; const i = colIdx(cols, 'Assignee / Auto Generated'); cols.splice(i >= 0 ? i + 1 : cols.length, 0, { h: 'Obstruction Complaint', r: c => c._q ? '-' : c.obstruction ? badge('Yes', 'warn') : 'No' }); return cols; };
+(function wrapCreateCase134() {
+  const o0 = window.openCreateCase;
+  window.openCreateCase = function (ctx) {
+    o0(ctx); const mo = S.modal; if (!mo) return; const b0 = mo.body, ok0 = mo.onOk; ctx = ctx || {};
+    const showObs = () => can('Cases', 'C') && can('Conflict Of Interest', 'V');
+    mo.body = () => { const ty = fval('m_type', ctx.ctype || GOV_TYPE); const rec = ty === REC_TYPE; const ch = fval('m_ch', ctx.channel || '');
+      let h = b0().replace(/(<select[^>]*data-k="m_type")/, '$1 data-chg="1"');
+      const add = []; if (rec) add.push({ k: 'm_fact', zh: '事实依据', en: 'Factual Basis', ctl: 'textarea', req: true }, { k: 'm_sup', zh: '支撑数据', en: 'Supporting Data', ctl: 'textarea', req: true }, { k: 'm_aff', zh: '对象是否为关联 E-Channel', en: 'Target Is Affiliated E-Channel', ctl: 'radio', req: true, def: ch && typeof coiAffiliated === 'function' ? (coiAffiliated(ch) ? 'Yes' : 'No') : '', opts: ['Yes', 'No'] }, { k: 'm_orig', zh: '原始材料', en: 'Original Materials', ctl: 'text', req: true, ph: 'Up to 10 files, 10 MB each' }, { k: 'm_onb', zh: '代录人', en: 'Entered On Behalf By', ctl: 'readonly', html: () => esc(me()) });
+      if (ty === GOV_TYPE && showObs()) add.push({ k: 'm_obs', zh: '投诉标记', en: 'Obstruction Complaint', ctl: 'switch', hint: 'Only accounts that can see Conflict Of Interest records can see complaint cases.' });
+      return add.length ? h + formHtml(add) : h; };
+    mo.onOk = v => { const ty = v.m_type; const e = {};
+      if (ty === REC_TYPE) { if (empty((v.m_fact || '').trim())) e.m_fact = 'Enter the factual basis.'; if (empty((v.m_sup || '').trim())) e.m_sup = 'Enter the supporting data.'; if (!v.m_aff) e.m_aff = 'Select whether the target E-Channel is affiliated.'; if (empty((v.m_orig || '').trim())) e.m_orig = 'Upload the original materials.'; }
+      if (Object.keys(e).length) { setErr(e); return false; }
+      const top = SEED.cases[0], n0 = SEED.cases.length; const r = ok0(v); if (r === false) return r;
+      const c = SEED.cases.length > n0 ? (SEED.cases[0] !== top ? SEED.cases[0] : SEED.cases[SEED.cases.length - 1]) : null;
+      if (c) { if (ty === REC_TYPE) Object.assign(c, { factual: v.m_fact.trim(), support: v.m_sup.trim(), affiliated: v.m_aff === 'Yes', originals: v.m_orig.trim(), onBehalf: me() }); if (ty === GOV_TYPE && (v.m_obs === true || v.m_obs === 'true') && showObs()) c.obstruction = true; }
+      return r; };
+    render();
+  };
+})();
+
+/* =====================================================================
+ * T. 6A.19.2 Prizes Won (Gross) · Claimed (Gross) · 6A.19.3 External Recipients sub-table
+ * ===================================================================== */
+R133_HOOKS.push(() => { if (S.page !== 'reports') return; const w = document.createTreeWalker(document.querySelector('.view') || document.body, NodeFilter.SHOW_TEXT); const ns = []; while (w.nextNode()) ns.push(w.currentNode);
+  ns.forEach(n => { let v = n.nodeValue; const o = v; v = v.replace(/\bPrize Payouts\b/g, 'Prizes Won (Gross)').replace(/^Claimed By Channel$/, 'Claimed By Channel (Gross)').replace(/^Claimed At PCSO$/, 'Claimed At PCSO (Gross)'); if (v !== o) n.nodeValue = v; }); });
+(function seedExt() {
+  if (SEED.extRecips) return;
+  SEED.extRecips = (SEED.externalRecipients || []).map((em, i) => ({ id: em, email: em, org: i === 0 ? 'Commission on Audit' : 'PCSO Board Secretariat', purpose: i === 0 ? 'Monthly sales pack for COA audit' : 'Board reporting pack', status: 'Active', demo: true }));
+  SEED.extRecipReqs = [{ id: 'XR-20261011-0001', kind: 'Addition', email: 'dof.revenue@dof.gov.ph', org: 'Department of Finance', purpose: 'Monthly remittance summary', by: 'comp.a', at: '2026-10-11 16:40:00', status: 'Pending Approval', demo: true }];
+  SEED.extRecips.push({ id: 'dof.revenue@dof.gov.ph', email: 'dof.revenue@dof.gov.ph', org: 'Department of Finance', purpose: 'Monthly remittance summary', status: 'Pending', pendingReq: 'XR-20261011-0001', demo: true });
+  Object.defineProperty(SEED, 'externalRecipients', { configurable: true, get: () => SEED.extRecips.filter(r => r.status === 'Active').map(r => r.email), set: () => {} });
+})();
+function extPend(r) { return SEED.extRecipReqs.find(q => q.email === r.email && q.status === 'Pending Approval'); }
+function extView() {
+  const comp = can('Reports', 'C') && hasRole('comp');
+  return card(t('外部收件人', 'External Recipients'), `<div style="margin-bottom:8px">${comp ? btn({ zh: '新增', en: 'Add Recipient' }, 'ext.add', '', { cls: 'primary', id: 'btnExtAdd' }) : ''}</div>`
+    + table('extT', [{ h: 'Email', r: r => `<span class="mono">${esc(r.email)}</span>` }, { h: 'Organization', k: 'org' }, { h: 'Purpose', k: 'purpose' }, { h: 'Status', r: r => { const q = extPend(r); return (r.status === 'Pending' ? '-' : badge(r.status)) + (q ? ` <span class="tag warn">${q.kind === 'Addition' ? 'Addition pending' : 'Deactivation pending'}</span>` : ''); } },
+      { h: 'Actions', r: r => { const q = extPend(r); const b = []; if (q) { if (hasRole('sa') && can('Reports', 'A') && q.by !== me()) b.push(btn({ zh: '批准', en: 'Approve' }, 'ext.ok', q.id, { cls: 'sm ok' }), btn({ zh: '驳回', en: 'Reject' }, 'ext.rej', q.id, { cls: 'sm' })); if (q.by === me()) b.push(btn({ zh: '撤回', en: 'Withdraw' }, 'ext.wd', q.id, { cls: 'sm' })); } else if (comp && r.status === 'Active') b.push(btn({ zh: '停用', en: 'Deactivate' }, 'ext.deact', r.email, { cls: 'sm' })); return `<span class="nowrap">${b.join(' ')}</span>`; } }],
+      SEED.extRecips, { nopage: true }))
+    + card(t('申请', 'Requests'), table('extReqT', [{ h: 'Request ID', k: 'id', cls: 'mono' }, { h: 'Type', k: 'kind' }, { h: 'Email', r: q => `<span class="mono">${esc(q.email)}</span>` }, { h: 'Submitted By', r: q => `${esc(q.by)}<div class="tiny">${esc(q.at)}</div>` }, { h: 'Status', r: q => badge(q.status) }, { h: 'Decided By / At', r: q => q.decidedBy ? `${esc(q.decidedBy)}<div class="tiny">${esc(q.decidedAt)}</div>` : '-' }, { h: 'Reason', r: q => esc(q.reason || q.rejectReason || '-') }], SEED.extRecipReqs, { nopage: true }));
+}
+(function patchReports134() {
+  const m = modById('reports'); if (!m) return; const v0 = m.view;
+  m.view = () => { let h = v0(); if (S.sub !== 'schedules') return h; const tab = S.q.tab === 'ext' ? 'ext' : 'sch';
+    const tabs = `<div class="subtabs" id="schTabs" style="margin:8px 0">${btn({ zh: '定时任务', en: 'Schedules' }, 'sch.tab', 'sch', { cls: 'sm' + (tab === 'sch' ? ' primary' : '') })} ${btn({ zh: '外部收件人', en: 'External Recipients' }, 'sch.tab', 'ext', { cls: 'sm' + (tab === 'ext' ? ' primary' : ''), id: 'tabExt' })}</div>`;
+    const i = h.indexOf('<div class="tbl-wrap"'); const j = h.search(/<div class="banner/); const at = j >= 0 && (i < 0 || j < i) ? j : i;
+    if (tab === 'ext') { return (at >= 0 ? h.slice(0, at) : h) + tabs + extView(); }
+    return at >= 0 ? h.slice(0, at) + tabs + h.slice(at) : h + tabs; };
+  const A = m.acts;
+  A['sch.tab'] = x => { S.q.tab = x; render(); };
+  A['ext.add'] = () => { if (!hasRole('comp')) return; openModal({ title: { zh: '新增外部收件人', en: 'Add Recipient' }, ok: { zh: '提交', en: 'Submit' }, body: () => formHtml([{ k: 'm_em', zh: '邮箱', en: 'Email', ctl: 'text', req: true, ph: 'name@agency.gov.ph' }, { k: 'm_org', zh: '单位', en: 'Organization', ctl: 'text', req: true }, { k: 'm_pur', zh: '用途', en: 'Purpose', ctl: 'textarea', req: true, ph: 'What reports will this address receive?' }]) + '<p class="tiny">Needs approval by Senior Authorizer</p>',
+    onOk: v => { const e = {}; const em = String(v.m_em || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) e.m_em = 'Enter a valid email address.'; else if (SEED.extRecips.some(r => r.email === em && r.status !== 'Inactive')) e.m_em = 'This address is already on the list.';
+      if (empty((v.m_org || '').trim()) || v.m_org.length > 100) e.m_org = 'Enter 1 to 100 characters.'; if (empty((v.m_pur || '').trim()) || v.m_pur.length > 200) e.m_pur = 'Enter 1 to 200 characters.'; if (Object.keys(e).length) { setErr(e); return false; }
+      const q = { id: nid('XR'), kind: 'Addition', email: em, org: v.m_org.trim(), purpose: v.m_pur.trim(), by: me(), at: nowS(), status: 'Pending Approval' }; SEED.extRecipReqs.unshift(q); SEED.extRecips.push({ id: em, email: em, org: q.org, purpose: q.purpose, status: 'Pending', pendingReq: q.id });
+      audit('Reports', 'External recipient addition submitted', em, q.id); toast(`Request ${q.id} submitted. Needs approval by Senior Authorizer.`); } }); };
+  A['ext.deact'] = em => { const r = SEED.extRecips.find(x => x.email === em); if (!r || r.status !== 'Active' || extPend(r)) return; ask({ title: `Deactivate · ${em}`, danger: true, ok: { zh: '提交', en: 'Deactivate' }, reason: { zh: '原因', en: 'Reason', max: 500 }, onOk: v => { const q = { id: nid('XR'), kind: 'Deactivation', email: em, org: r.org, purpose: r.purpose, by: me(), at: nowS(), status: 'Pending Approval', reason: v.m_reason.trim() }; SEED.extRecipReqs.unshift(q); audit('Reports', 'External recipient deactivation submitted', em, q.id); toast(`Request ${q.id} submitted. Needs approval by Senior Authorizer.`); } }); };
+  const close = (q, st, extra) => { Object.assign(q, { status: st, decidedBy: me(), decidedAt: nowS() }, extra || {}); const r = SEED.extRecips.find(x => x.email === q.email && x.status !== 'Inactive');
+    if (q.kind === 'Addition' && r) { if (st === 'Approved') { r.status = 'Active'; delete r.pendingReq; } else SEED.extRecips.splice(SEED.extRecips.indexOf(r), 1); }
+    if (q.kind === 'Deactivation' && r && st === 'Approved') { r.status = 'Inactive'; (SEED.reportSchedules || []).forEach(s => { if ((s.ext || []).includes(q.email)) { s.ext = s.ext.filter(x => x !== q.email); s.notes.push(`${q.email} was removed from this schedule because the external recipient was deactivated.`); } }); } };
+  A['ext.ok'] = id => { const q = SEED.extRecipReqs.find(x => x.id === id); if (!q || q.status !== 'Pending Approval' || q.by === me() || !hasRole('sa')) return; close(q, 'Approved'); audit('Reports', 'External recipient request approved', q.email, id); toast(t('已批准', 'Approved.')); render(); };
+  A['ext.rej'] = id => { const q = SEED.extRecipReqs.find(x => x.id === id); if (!q || q.status !== 'Pending Approval' || q.by === me()) return; ask({ title: `Reject · ${id}`, danger: true, ok: { zh: '驳回', en: 'Reject' }, reason: { zh: '驳回原因', en: 'Reason', max: 500 }, onOk: v => { close(q, 'Rejected', { rejectReason: v.m_reason.trim() }); audit('Reports', 'External recipient request rejected', q.email, v.m_reason.trim()); } }); };
+  A['ext.wd'] = id => { const q = SEED.extRecipReqs.find(x => x.id === id); if (!q || q.by !== me() || q.status !== 'Pending Approval') return; close(q, 'Withdrawn'); audit('Reports', 'External recipient request withdrawn', q.email, id); toast(t('已撤回', 'Withdrawn.')); render(); };
+})();
+
+/* =====================================================================
+ * U. 6A.20.8 out-of-band back-fill: Awaiting Confirmation → Confirmed / Disputed (Confirm Out-of-band Use · Dispute)
+ * ===================================================================== */
+function oobParties2(r) { return [r.approvedBy].concat((r.releases || []).map(x => x.by)).filter(Boolean); }
+function oobState(r) { if (!r.oob || !r.confirm) return ''; if (r.confirm.disputed) return 'Disputed'; return oobParties2(r).every(p => r.confirm.done[p]) ? 'Confirmed' : 'Awaiting Confirmation'; }
+_toneMap['Awaiting Confirmation'] = 'warn'; _toneMap['Disputed'] = 'bad'; _toneMap['Confirmed'] = _toneMap['Confirmed'] || 'ok';
+(function wrapOob() {
+  const m = modById('users'); if (!m || !m.acts || !m.acts.emOob) return; const o0 = m.acts.emOob;
+  m.acts.emOob = id => { o0(id); const mo = S.modal; if (!mo) return; const ok0 = mo.onOk; mo.onOk = v => { const n = SEED.emReqs.length; const r = ok0(v); if (r !== false && SEED.emReqs.length > n) { const q = SEED.emReqs[0]; q.confirm = { done: {}, since: nowS() }; } return r; }; };
+  m.acts.emOobOk = id => { const r = SEED.emReqs.find(x => x.id === id); if (!r || oobState(r) !== 'Awaiting Confirmation' || !oobParties2(r).includes(me()) || r.confirm.done[me()]) return;
+    ask({ title: `Confirm Out-of-band Use · ${id}`, ok: { zh: '确认', en: 'Confirm Out-of-band Use' }, msg: esc(t('确认本人在补登记录中的批准或放行（MFA 已验证）。', 'Confirm your approval or release recorded in this back-fill (MFA verified).')), onOk: () => { r.confirm.done[me()] = nowS(); audit('Emergency Accounts', 'Out-of-band use confirmed', r.id, me()); toast(oobState(r) === 'Confirmed' ? t('三人均已确认', 'All three have confirmed. The record is Confirmed.') : t('已确认', 'Confirmed.')); } }); };
+  m.acts.emOobDispute = id => { const r = SEED.emReqs.find(x => x.id === id); if (!r || oobState(r) !== 'Awaiting Confirmation' || !oobParties2(r).includes(me())) return;
+    ask({ title: `Dispute · ${id}`, danger: true, ok: { zh: '不认可', en: 'Dispute' }, reason: { zh: '原因', en: 'Reason', max: 500 }, onOk: v => { r.confirm.disputed = { by: me(), at: nowS(), reason: v.m_reason.trim() };
+      SEED.alerts.unshift({ id: nid('ALT', { w: 6 }), sev: 'P1', type: 'Break-glass', event: `${r.account} out-of-band use disputed by ${me()} (${r.id})`, channel: 'Network', raisedAt: nowS(true), status: 'Open', ackBy: '', ackAt: '' });
+      const c = window.createCase ? window.createCase({ channel: 'Network', title: `Out-of-band use disputed · ${r.id}`, event: `Disputed by ${me()}: ${v.m_reason.trim()}`, ctype: 'Security Incident', priority: 'P1', srcModule: 'User Accounts', auto: true, key: 'OOB-' + r.id }) : null;
+      audit('Emergency Accounts', 'Out-of-band use disputed', r.id, v.m_reason.trim(), 'Disputed'); toast(`Disputed. SIEM alerted${c && c.id ? ` and case ${c.id} created` : ''}.`, 'warn'); } }); };
+})();
+R134_COLS.emReqs = cols => { const i = colIdx(cols, 'Status'); cols.splice(i + 1, 0, { h: 'Confirmation', r: r => { const s = oobState(r); if (!s) return '-'; const mine = s === 'Awaiting Confirmation' && oobParties2(r).includes(me()) && !r.confirm.done[me()];
+  return `${badge(s)}<div class="tiny">${oobParties2(r).map(p => `${esc(p)} ${r.confirm.done[p] ? '✓' : '·'}`).join(', ')}</div>${mine ? `<div class="nowrap" style="margin-top:4px">${btn({ zh: '确认', en: 'Confirm Out-of-band Use' }, 'emOobOk', r.id, { cls: 'sm ok', id: 'btnOobOk' })} ${btn({ zh: '不认可', en: 'Dispute' }, 'emOobDispute', r.id, { cls: 'sm', id: 'btnOobDispute' })}</div>` : ''}`; } }); return cols; };
+/* demo: one back-filled out-of-band use awaiting confirmation (Demo data) */
+(function seedOob() { if (SEED.emReqs.some(r => r.id === 'ER-20261011-007')) return; const a = SEED.emergencyAccounts.find(x => x.scope === 'Portal Access Recovery') || SEED.emergencyAccounts[0]; if (!a) return;
+  SEED.emReqs.push({ id: 'ER-20261011-007', account: a.id, by: a.id, at: '2026-10-11 23:10:00', reason: 'SSO outage; restore administrator access', caseNo: 'CASE-20261011-0014', memo: 'PCSO-MEMO-2026-129', doc: 'memo-129.pdf', window: 120, status: 'Ended', approvedBy: 'sa.a', approvedAt: '2026-10-11 23:05:00', releases: a.custodians.map(c => ({ by: c, at: '2026-10-11 23:08:00' })), rotations: [], review: null, oob: true, from: '2026-10-11 23:10:00', to: '2026-10-12 01:10:00', confirm: { done: { [a.custodians[0]]: '2026-10-12 08:40:00' }, since: '2026-10-11 23:12:00' }, demo: true }); })();
+/* G-section to-do uses the real data model */
+TODO_PROVIDERS.push(u => [{ n: (SEED.emReqs || []).filter(r => oobState(r) === 'Awaiting Confirmation' && oobParties2(r).includes(u.id) && !r.confirm.done[u.id]).length, zh: '条带外启用待本人确认', en: 'out-of-band uses awaiting your confirmation', go: 'users/emergency' }]);
+
+/* 6A.21.4 ledger: request status names follow 6A.2.5 (Pending Approval / Rejected / Withdrawn) */
+R133_HOOKS.push(() => { if (S.page !== 'coi') return; document.querySelectorAll('[data-table=ecaList] td').forEach(td => { if (/^\((Awaiting Authorization|Authorized|Rejected|Withdrawn)\)$/.test(td.textContent.trim())) td.textContent = `(${reqStatus(td.textContent.trim().slice(1, -1))})`; }); });
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
