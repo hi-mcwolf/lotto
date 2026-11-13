@@ -3962,6 +3962,36 @@ A.v134WdReject=()=>{const w=S.wdHold;if(!w)return toast('Submit a withdrawal of 
 {const _i=A.v133Invalidate;A.v133Invalidate=function(){if(S.tickets.some(x=>x.invPend))return _i.apply(this,arguments);const k=S.tickets.find(x=>x.st==='winPending'&&x.cv);if(!k)return _i.apply(this,arguments);
  k.cv=0;k.cvAt=0;v13Audit('core-claim-verification-invalidated');toast('Core: claim verification invalidated'+(S.wFrozen?' · wallet frozen: claim code voided, Start claim hidden':' · Start claim is back'));render()}}
 
+/* ---------- 6B.3.3 lotto current draw not on sale: "Closes in" follows the first draw actually bet on ----------
+   Confirm your bet: the first draw listed; Play: the next open draw. The cut-off functions are const arrows, so the
+   countdown, the draw time beside it and the cut-off checks are recomputed with g.nx moved to that draw. */
+const nx134=g=>{if(!g||g.t!=='lotto'||!curOff(g))return '';const P=S.play;
+ const d=P&&P.game===g.id?(betPlan().dates||[])[0]:drawList(g,16).find(x=>!dSusp(g,x));return d&&d!==curD(g)?d:''};
+const withNx=(g,d,fn)=>{const o=g.nx;g.nx=d+'T'+g.sess[0]+':00+08:00';try{return fn()}finally{g.nx=o}};
+const left134=g=>{const d=nx134(g);return d?withNx(g,d,()=>cdLeft(g)):cdLeft(g)};
+{const _pl=SC.play.html;SC.play.html=function(){let h=_pl.apply(this,arguments);const g=gm(PL().game),d=nx134(g);if(!d)return h;
+ const a=`<div class="gh-d mu">${dlab(sessMs(g),false)}`,b=withNx(g,d,()=>`<div class="gh-d mu" data-nx134="${d}">${dlab(sessMs(g),false)}`);
+ h=h.replace(a,b);const c0='<div class="row cdrow" id="cd">',i=h.indexOf(c0);if(i<0)return h;const j=h.indexOf('</div>',i);
+ return h.slice(0,i)+`<div class="row cdrow" id="cd" data-nx134="${d}">`+withNx(g,d,()=>cdHTML(g))+h.slice(j)}}
+{const _c=SC.betConfirm.html;SC.betConfirm.html=function(){const h=_c.apply(this,arguments);const g=gm(PL().game),d=nx134(g);if(!d)return h;
+ return h.replace(/(<div class="xs mu">[^<]*?)<b class="mono">[^<]*<\/b>/,(m,a)=>`${a}<b class="mono" id="cf_cd" data-nx134="${d}">${fcd(withNx(g,d,()=>cdLeft(g)))}</b>`)}}
+/* the 1-second ticker writes the countdown of the suspended draw into #cd: put the right one back before paint */
+function cd134(){if(!S.play)return;const g=gm(S.play.game),d=nx134(g);
+ if(S.screen==='play'){const e=document.getElementById('cd');if(!e||!d)return;const want=withNx(g,d,()=>cdHTML(g));
+  if(e._src134!==want||e.innerHTML!==e._ser134){e.innerHTML=want;e._src134=want;e._ser134=e.innerHTML;e.dataset.nx134=d}
+  const l=left134(g);e.dataset.c=l<=0?'1':'0';const bt=document.getElementById('bet');if(bt)bt.disabled=!plDone(g)||S.play.rolling||l<=0}
+ else if(S.screen==='betConfirm'&&d){const e=document.getElementById('cf_cd');if(e){const v=fcd(withNx(g,d,()=>cdLeft(g)));if(e.textContent!==v)e.textContent=v}}}
+new MutationObserver(()=>cd134()).observe(document.body,{childList:true,subtree:true});
+setInterval(cd134,1000);
+/* the suspended draw reaching its cut-off is not the draw being bet on */
+{const _t=toast;toast=function(m){if(S.play&&(m==='Cut-off reached'||m==='\u672c\u671f\u5df2\u5c01\u76d8')&&S.screen==='play'&&nx134(gm(S.play.game))&&left134(gm(S.play.game))>0)return;return _t.apply(this,arguments)}}
+{const _su=sumUp;sumUp=function(){const r=_su.apply(this,arguments);const P=S.play;if(!P)return r;const g=gm(P.game);if(nx134(g)){const b=$('#bet');if(b)b.disabled=!plDone(g)||P.rolling||left134(g)<=0}return r}}
+/* check: cut-off of the first draw bet on */
+{const _bc=betCheck;betCheck=function(){const P=S.play,g=P&&gm(P.game),d=g&&nx134(g);if(!d)return _bc.apply(this,arguments);const a=arguments;
+ return withNx(g,d,()=>_bc.apply(this,a))}}
+{const _nc=A.nearCut;A.nearCut=function(){const g=gm((S.play&&S.play.game)||'grand'),d=nx134(g);if(!d)return _nc.apply(this,arguments);
+ S.cdAdd=Math.max(0,Math.floor((withNx(g,d,()=>cutoffMs(g))-S.clock)/1000)-15);if(S.screen!=='play')A.go('play');else renderKeep();toast('Set to 15 s before cut-off')}}
+
 /* ---------- demo panel ---------- */
 function panel134(){const pb=(l,fn,c,id)=>`<button class="pb ${c||''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;
  return `<h4>Terms, exclusions and draw sales</h4>
