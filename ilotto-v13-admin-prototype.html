@@ -16919,6 +16919,450 @@ function v7cClick(e) {
 }
 window.addEventListener("click", v7cClick, true);
 /* ===== V13-137c END ===== */
+/* ===== V13-138 block: PRD 1.3.8 follow-up on the iLotto admin (6B.6.4, 6B.8.3, 6B.11.12, 6B.13.1, 6B.13.2, 6B.13.3, 6B.13.5, 6B.14.2) =====
+   Injected by patch_v138.py right after the V13-137c block. Acts start with "v138-" (window capture listener at the end). State S.v138.
+     6B.8.3   Wallet Status gains Withdrawal Hold (written only by a SOAR Withdrawal Hold; Frozen wins: a hold on a frozen wallet is
+              not applied, audited "Not applied - wallet frozen"); the Effective Restriction tier stays and gets a Withdrawal Hold tag;
+              the player list gets a Wallet Status filter
+     6B.13.2  PCSO direct change (rule 6): when the item has channel requests pending at any stage (Finance review or Pending PCSO
+     6B.6.4   Approval) the direct-change page lists them and PCSO Approver rejects them there (reason 1-500) before the change
+     6B.13.5  Pending PCSO Approval tab: Ops reviewer / Finance review see the requests their role approved; Compliance audit sees all;
+              System admin sees its own and can withdraw them
+     6B.13.3  Emergency accounts tab: Root Roles view with Request Assignment / Request Change / Request Revocation (System admin),
+              execution recorded after PCSO approval; PCSO Admin Accounts list with Request Account / Request Deactivation and the
+              Max PCSO Administrator Accounts limit
+     6B.11.12 Reports > Service Level > Outages: Critical Path prefilled from the three Core links, changed by Operations (audited)
+     6B.13.1  Help content: hotline Service Hours required, default 06:00-22:00 (UTC+8)
+     6B.14.2  Full Suspension: claim deadline follows the Claim Deadline Extension from Core; a Cash Bond Not Replenished automatic
+              suspension can get Allow prize claims in a new control version (demo)
+   UI text is English only; demo values are marked Demo data. */
+S.v138 = { f: {}, err: "", wst: "All", root: null, pacc: null, out: null, cb: null };
+function v8Btn(act, label, opt) { opt = opt || {}; return `<button type="button" class="btn btn-sm ${opt.cls || ""}" style="width:auto;flex:none" data-act="${act}"${opt.id != null ? ` data-id="${esc(opt.id)}"` : ""}${opt.arg != null ? ` data-arg="${esc(opt.arg)}"` : ""}${opt.pcso ? ` data-v138-pcso="1"` : ""}${opt.pcso && opt.dis ? ` data-v138-dis="1"` : ""}${opt.dis ? ` disabled title="${esc(opt.dis)}"` : ""}>${label}</button>`; }
+function v8Err() { return S.v138.err ? `<div class="err" data-v138="err">${esc(S.v138.err)}</div>` : ""; }
+function v8Note(to, txt) { S.v137.notes = (S.v137.notes || []).concat([{ at: v7Now(), to, txt }]); }
+function v8Why(v) { const s = String(v || "").trim(); return s.length >= 1 && s.length <= 500 ? s : ""; }
+
+/* =====================================================================================================
+   6B.8.3 Wallet Status: Withdrawal Hold
+   ===================================================================================================== */
+function v8Frozen(p) { return !!(p && p.wallet && p.wallet.st === "frozen"); }
+function v8Hold(p) { return !!(p && S.v137.hold && S.v137.hold[p.id] && !v8Frozen(p)); }
+function v8WalletSt(p) { return v8Frozen(p) ? "Frozen" : v8Hold(p) ? "Withdrawal Hold" : "Normal"; }
+const v8WalletLine0 = rsWalletLine;
+rsWalletLine = function (p) {
+  const h = v8WalletLine0.apply(this, arguments);
+  if (!v8Hold(p)) return h;
+  return v13Tpl(h, (c) => {
+    const el = c.querySelector("[data-wf=status]"); if (!el) return;
+    const ok = el.querySelector(".tag"); if (ok) ok.outerHTML = tag("rose", "Withdrawal Hold") + `<span data-v138="wst"></span>`;
+    el.insertAdjacentHTML("beforeend", `<br><span class="muted" data-v138="wst-note">Set by System (SOAR). New withdrawal requests are blocked; bets, deposits and prize credits continue; withdrawals already submitted follow the normal process.</span>`);
+  });
+};
+const v8PlCard0 = v13PlayerCard;
+v13PlayerCard = function (p) {
+  const h = v8PlCard0.apply(this, arguments);
+  if (!v8Hold(p)) return h;
+  return v13Tpl(h, (c) => {
+    const th = [...c.querySelectorAll("th")].find((x) => x.textContent.trim() === "Effective Restriction"); if (!th || !th.nextElementSibling) return;
+    th.nextElementSibling.insertAdjacentHTML("beforeend", ` ${tag("rose", "Withdrawal Hold")}<span data-v138="er-hold"></span>`);
+  });
+};
+const v8Players0 = viewPlayers;
+viewPlayers = function () {
+  const h = v8Players0.apply(this, arguments); if (S.playerId) return h;
+  const w = S.v138.wst;
+  return v13Tpl(h, (c) => {
+    const tools = c.querySelector(".tools"); if (!tools) return;
+    tools.insertAdjacentHTML("beforeend", `<label class="f">Wallet Status<select data-v138f="wst" data-v138="pl-wst">${["All", "Normal", "Withdrawal Hold", "Frozen"].map((x) => `<option ${w === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>`);
+    if (w === "All") return;
+    c.querySelectorAll("tr[data-act=open-player]").forEach((tr) => { const p = S.players.find((x) => x.id === tr.dataset.id); if (p && v8WalletSt(p) !== w) tr.remove(); });
+  });
+};
+const v8Decide0 = v7PaDecide;
+v7PaDecide = function (p, ok, why) {
+  const L = p.link || {};
+  const r = v8Decide0.apply(this, arguments);
+  if (ok && L.kind === "soar" && L.action === "Withdrawal Hold") {
+    const pl = S.players.find((x) => x.id === L.player);
+    if (v8Frozen(pl)) {
+      if (S.v137.hold) delete S.v137.hold[L.player];
+      const lg = S.v137.soarLog.find((x) => x.player === L.player && x.ref === p.id); if (lg) lg.res = "Not applied – wallet frozen";
+      v7Aud("Players", "SOAR Withdrawal Hold", L.player, "Frozen", "Not applied – wallet frozen", "Security");
+    } else v7Aud("Players", "Wallet status changed by System (SOAR)", L.player, "Normal", "Withdrawal Hold", "Security");
+  }
+  if (L.kind === "v8root" || L.kind === "v8pacc") v8AfterPa(p, ok);
+  return r;
+};
+
+/* =====================================================================================================
+   6B.13.2 rule 6 / 6B.6.4: PCSO direct change lists the pending channel requests and rejects them first
+   ===================================================================================================== */
+function v8GpPend(k) {
+  const out = [];
+  S.sysChg.filter((c) => c.param === "gp:" + k && c.st === "pending").forEach((c) => out.push({ src: "chg", id: c.id, stage: "Pending Finance Review", by: c.by, at: c.at, sum: `${c.old} → ${c.nw} from ${c.eff}` }));
+  S.v137.pa.filter((p) => p.st === "Pending Approval" && p.link && ((p.link.kind === "sysChg" && (S.sysChg.find((c) => c.id === p.link.id) || {}).param === "gp:" + k) || (p.link.kind === "gp" && p.link.key === k))).forEach((p) => out.push({ src: "pa", id: p.id, stage: p.stage === "finance" ? "Pending Finance Review" : "Pending PCSO Approval", by: p.by, at: p.at, sum: p.sum }));
+  return out;
+}
+function v8LnlPend(gid) { const p = v7cLPend(gid); return p ? [{ src: "pa", id: p.id, stage: p.stage === "finance" ? "Pending Finance Review" : "Pending PCSO Approval", by: p.by, at: p.at, sum: p.sum }] : []; }
+function v8PendOf(m) { return m.kind === "lnl" ? v8LnlPend(m.id) : v8GpPend(m.id); }
+const v8GpBtn0 = a2GpBtn;
+a2GpBtn = function (k, label) {
+  const h = v8GpBtn0.apply(this, arguments);
+  if (V7_DIRECT.indexOf(k) < 0 || !v7Is("pcsoapr") || demoAll() || !v8GpPend(k).length) return h;
+  return h.replace(/<button([^>]*)data-act="v137-direct"([^>]*)>/, `<button$1data-act="v138-direct" data-v138-pcso="1" data-v138="direct-pend"$2>`);
+};
+const v8Bl0 = viewBetLimits;
+viewBetLimits = function () {
+  const h = v8Bl0.apply(this, arguments);
+  if (!v7Is("pcsoapr") || demoAll()) return h;
+  return v13Tpl(h, (c) => {
+    c.querySelectorAll("[data-act=v137c-lnl-direct]").forEach((b) => {
+      const gid = b.dataset.id; if (!v8LnlPend(gid).length) return;
+      b.dataset.act = "v138-direct"; b.dataset.arg = "lnl"; b.disabled = false; b.removeAttribute("title"); b.setAttribute("data-v138-pcso", "1"); b.setAttribute("data-v138", "direct-pend");
+    });
+  });
+};
+function v8DirectModal() {
+  const m = S.modal, L = v8PendOf(m), f = S.v138.f;
+  const name = m.kind === "lnl" ? gname(gameBy(m.id)) + " · Lotto Number Limits" : A2_GP[m.id][0];
+  const rows = L.map((x) => `<tr data-v138-dp="${esc(x.id)}"><td class="mono">${esc(x.id)}</td><td>${tag("warn", x.stage)}</td><td class="tiny">${esc(x.sum)}</td><td class="mono">${esc(x.by)} · ${esc(x.at)}</td><td>${v8Btn("v138-dp-rej", "Reject", { id: x.id, arg: x.src, cls: "btn-rose", pcso: 1 })}</td></tr>`);
+  const body = `<p data-v138="direct-msg">${L.length ? "There is a pending request for this item. Reject it before making a direct change." : "No pending request for this item. You can make the direct change now."}</p>
+    ${L.length ? table(["Request ID", "Stage", "Change Summary", "Submitted", ""], rows) : ""}
+    ${S.v138.rej ? `<label class="f">Reason for rejecting ${esc(S.v138.rej.id)} (1–500 characters)</label><textarea data-v138f="why" maxlength="500" rows="3">${esc(f.why || "")}</textarea>` : ""}
+    <p class="tiny">Pending channel requests at any stage (Finance review or Pending PCSO Approval) are listed here. The rejection is audited as a PCSO rejection by your account and the submitter is notified.</p>${v8Err()}`;
+  const foot = `<button type="button" class="btn" data-act="close">Cancel</button>` + (S.v138.rej ? v8Btn("v138-dp-rej-ok", "Reject", { id: S.v138.rej.id, arg: S.v138.rej.src, cls: "btn-rose", pcso: 1 }) : v8Btn("v138-direct-go", "Continue", { cls: "btn-primary", pcso: 1, dis: L.length ? "There is a pending request for this item. Reject it before making a direct change." : "" }));
+  return dialog("Change Directly · " + name, body, foot);
+}
+function v8RejectPend(id, src, why) {
+  if (src === "chg") {
+    const c = S.sysChg.find((x) => x.id === id); if (!c) return;
+    c.st = "rejected"; c.appr = me0(); c.apprAt = v7Now(); c.rej = "Rejected by PCSO: " + why; c.v8pcso = true;
+    v7Aud("System", "PCSO reject", c.id + " · " + (c.pe || c.param), "Pending Finance Review", "Rejected · " + why + " · PCSO approver " + me0(), "Change");
+    v8Note(c.by, `${c.id} was rejected by PCSO (${me0()}): ${why}`);
+    return;
+  }
+  const p = S.v137.pa.find((x) => x.id === id); if (!p) return;
+  v7PaDecide(p, false, why);
+  v8Note(p.by, `${p.id} was rejected by PCSO (${me0()}): ${why}`);
+}
+
+/* =====================================================================================================
+   6B.13.5 / 6B.6.4: who sees which rows of Pending PCSO Approval
+   ===================================================================================================== */
+function v8RoleOf(acct) { const s = S.staff.find((x) => x.acct === String(acct || "").toLowerCase()); return s && s.roles[0] ? s.roles[0] : ""; }
+function v8PaVisible(p) {
+  if (demoAll()) return true;
+  const r = v7Role(), me = me0();
+  if (r === "pcsoapr" || r === "pcsosup" || r === "compliance") return true;
+  if (r === "finance" || r === "opsrev") return v8RoleOf(p.chAppr) === r || (r === "finance" && p.by === me);
+  return p.by === me;
+}
+const v8PaView0 = v7PaView;
+v7PaView = function () {
+  /* Ops reviewer is not in the inner list filter (own rows or Finance review only): render the full list read-only, then filter */
+  const u = S.login.user, swap = !demoAll() && v7Role() === "opsrev";
+  let h; if (swap) S.login.user = "amina.bautista"; try { h = v8PaView0.apply(this, arguments); } finally { S.login.user = u; }
+  return v13Tpl(h, (c) => {
+    c.querySelectorAll("tr[data-v137-pa]").forEach((tr) => { const p = S.v137.pa.find((x) => x.id === tr.dataset.v137Pa); if (p && !v8PaVisible(p)) tr.remove(); });
+    const n = c.querySelector("[data-v137=pa-note]");
+    if (n) n.insertAdjacentHTML("beforeend", ` <span data-v138="pa-vis">Ops reviewer and Finance review see the requests that came here after their own approval; Compliance audit sees all; Operations and System admin see their own submissions and can withdraw them before a decision. A request PCSO Approver rejects while it is still in Finance review is Rejected (by PCSO) and never comes here.</span>`);
+  });
+};
+(function v8SeedPa() {
+  if (S.v137.pa.some((p) => p.v8seed)) return;
+  S.v137.pa.push(Object.assign(v7PaAdd({ type: "PlaySafe Help Content", obj: "Help content · PlaySafe FAQ · Where can I get help with my play?", sum: "Answer text updated (Filipino / Visayan)", by: "mina.cruz", chAppr: "omar.reyes", at: "2026-10-08 14:00", st: "Approved", pBy: "ramon.sison", pAt: "2026-10-09 09:30" }), { demo: true, v8seed: true }));
+  S.v137.pa.shift();
+})();
+
+/* =====================================================================================================
+   6B.13.3 Emergency accounts tab: Root Roles and PCSO Admin Accounts
+   ===================================================================================================== */
+function v8Root() {
+  if (!S.v138.root) S.v138.root = V7_ROOT.map(([role, who], i) => ({ i, role, who, ref: "PA-ILT-20261001-" + String(i + 1).padStart(4, "0"), on: "2026-10-01", exBy: "iam.dizon", exAt: "2026-10-01 10:00", pa: "", wait: null }));
+  return S.v138.root;
+}
+function v8Pacc() {
+  if (!S.v138.pacc) S.v138.pacc = [{ id: "PAA-01", acct: "pcso.infra01", ref: "PA-ILT-20261005-0101", nom: "PCSO-NOM-2026-021", on: "2026-10-05", st: "Active", pa: "", wait: null, demo: true }];
+  return S.v138.pacc;
+}
+function v8MaxPcso() { const v = parseInt(String(a2Gp("acct.maxpcso")).replace(/[^\d]/g, ""), 10); return isNaN(v) ? 3 : v; }
+function v8PaccUsed() { return v8Pacc().filter((a) => a.st === "Active" || (a.op === "open" && /Pending|Awaiting/.test(a.st))).length; }
+function v8PaSt(id) { const p = S.v137.pa.find((x) => x.id === id); return p ? p.st : ""; }
+function v8RootCard() {
+  const adm = v7Is("admin"), R = v8Root(), rv = S.v137.rv;
+  const free = R.filter((r) => r.who === "-" && !r.pa && !r.wait);
+  const rows = R.map((r) => {
+    let st = "", act = "";
+    if (r.pa) st = tag("warn", "Pending PCSO approval") + `<div class="tiny mono">${r.pa}</div>`;
+    else if (r.wait) st = tag("cyan", "Approved – awaiting execution") + `<div class="tiny mono">${r.wait.pa}</div>`;
+    if (adm && !r.pa && !r.wait && r.who !== "-") act = v8Btn("v138-root-req", "Request Change", { id: String(r.i), arg: "change" }) + v8Btn("v138-root-req", "Request Revocation", { id: String(r.i), arg: "revoke", cls: "btn-rose" });
+    if (adm && r.wait) act = v8Btn("v138-root-exec", "Record Execution", { id: String(r.i), cls: "btn-primary" });
+    return `<tr data-v138-root="${r.i}"><td>${esc(r.role)}</td><td class="mono">${esc(r.who)}</td><td class="mono">${esc(r.ref || "-")}</td><td class="mono">${esc(r.on || "-")}</td><td class="mono">${esc(r.exBy || "-")}</td><td class="mono">${esc(r.exAt || "-")}</td><td class="mono">${rv && rv.done ? esc(rv.doneAt) : "-"}</td><td>${st || "-"}</td><td class="row-actions">${act}</td></tr>`;
+  });
+  return `<div class="card" data-v138="root" style="margin-top:12px"><div class="page-h" style="margin-bottom:6px"><h4 style="margin:0">Root Roles</h4>${adm ? v8Btn("v138-root-req", "Request Assignment", { arg: "assign", dis: free.length ? "" : "Every root role has a holder. Use Request Change or Request Revocation first." }) : ""}</div>
+    <p class="tiny">The infrastructure root permissions are split into 8 roles that do not overlap; one person cannot hold two roles. System admin submits an assignment, change or revocation; it goes to Pending PCSO Approval (Infrastructure Role Assignment); after PCSO Approver approves, the Identity and Access Administrator carries it out in the identity management system and System admin records who did it and when. The review runs with the periodic privileged access review (Privileged sessions).</p>
+    ${table(["Role", "Holder", "PCSO Approval Ref", "Assigned On", "Executed By", "Executed At", "Last Review", "Request", ""], rows)}<p class="tiny">${v13Demo()}</p></div>`;
+}
+function v8PaccCard() {
+  const adm = v7Is("admin"), max = v8MaxPcso(), used = v8PaccUsed();
+  const rows = v8Pacc().map((a) => {
+    let act = "";
+    if (adm && a.st === "Active" && !a.pa && !a.wait) act = v8Btn("v138-pacc-off", "Request Deactivation", { id: a.id, cls: "btn-rose" });
+    if (adm && a.wait) act = v8Btn("v138-pacc-exec", "Record Execution", { id: a.id, cls: "btn-primary" });
+    const st = a.st === "Active" ? tag("ok", "Active") : a.st === "Deactivated" ? tag("muted", "Deactivated") : /Rejected/.test(a.st) ? tag("rose", a.st) : tag("warn", a.st);
+    return `<tr data-v138-pacc="${a.id}"><td class="mono">${esc(a.acct)}</td><td class="mono">${esc(a.ref || "-")}</td><td class="mono">${esc(a.on || "-")}</td><td>${st}${a.pa ? `<div class="tiny mono">${a.pa}</div>` : ""}${a.wait ? `<div class="tiny mono">${a.wait.pa}</div>` : ""}</td><td class="row-actions">${act}</td></tr>`;
+  });
+  const closed = max === 0;
+  return `<div class="card" data-v138="pacc" style="margin-top:12px"><div class="page-h" style="margin-bottom:6px"><h4 style="margin:0">PCSO Admin Accounts <span class="mono tiny" data-v138="pacc-used">${used} / ${max}</span></h4>${adm ? v8Btn("v138-pacc-new", "Request Account", { dis: closed ? "Max PCSO Administrator Accounts is 0: PCSO does not open administrator accounts." : "" }) : ""}</div>
+    <p class="tiny">Administrator-level infrastructure accounts opened for PCSO in the identity management system on PCSO's written nomination, up to Max PCSO Administrator Accounts (global parameter, default 3; 0 closes the entry). System admin submits Request Account or Request Deactivation (Infrastructure Role Assignment, Pending PCSO Approval); after approval the Identity and Access Administrator carries it out and System admin records the result. The channel cannot deactivate these accounts by itself. Every use is a Security audit event reported to Core. This limit does not apply to the admin PCSO Supervisor / PCSO Approver accounts.</p>
+    ${closed ? `<div class="banner amber" data-v138="pacc-closed">Max PCSO Administrator Accounts is 0: the entry is closed.</div>` : ""}
+    ${table(["Account", "PCSO Approval Ref", "Opened On", "Status", ""], rows)}<p class="tiny">${v13Demo()}</p></div>`;
+}
+const v8Emerg0 = a2ViewEmerg;
+a2ViewEmerg = function () { return v8Emerg0.apply(this, arguments) + v8RootCard() + v8PaccCard(); };
+function v8AfterPa(p, ok) {
+  const L = p.link;
+  if (L.kind === "v8root") {
+    const r = v8Root()[L.i]; if (!r || r.pa !== p.id) return;
+    r.pa = ""; if (ok) r.wait = { pa: p.id, op: L.op, who: L.who };
+  }
+  if (L.kind === "v8pacc") {
+    const a = v8Pacc().find((x) => x.id === L.id); if (!a || a.pa !== p.id) return;
+    a.pa = "";
+    if (ok) { a.wait = { pa: p.id, op: L.op }; a.st = "Approved – Awaiting Execution"; }
+    else a.st = L.op === "open" ? "Rejected by PCSO" : "Active";
+  }
+}
+
+/* =====================================================================================================
+   6B.11.12 Reports > Service Level > Outages: Critical Path prefilled from the three Core links
+   ===================================================================================================== */
+const V8_LINKS = ["Transaction Reporting To Core", "Player Federation", "Draw Result Receipt"];
+function v8Out() {
+  if (!S.v138.out) S.v138.out = [ /* Demo data: outages generated from technical monitoring */
+    { id: "OUT-20261011-01", from: "2026-10-11 02:10", to: "2026-10-11 02:28", min: 18, fn: ["Transactions"], links: ["Transaction Reporting To Core"], cause: "Reporting service restart", attr: "Contractor", tx: "Demo data", inc: "-" },
+    { id: "OUT-20261008-01", from: "2026-10-08 03:00", to: "2026-10-08 03:20", min: 20, fn: ["Account"], links: ["Player Federation"], cause: "Federation service upgrade", attr: "Planned Maintenance", tx: "Demo data", inc: "-" },
+    { id: "OUT-20261005-01", from: "2026-10-05 14:02", to: "2026-10-05 14:09", min: 7, fn: ["Wallet", "Payments"], links: [], cause: "Payment gateway timeout", attr: "Third Party", tx: "Demo data", inc: "-" }
+  ].map((o) => Object.assign(o, { crit: o.links.length ? "Yes" : "No", pre: o.links.length ? "Yes" : "No", chBy: "", rev: "" }));
+  return S.v138.out;
+}
+function v8Counted(o) { return o.attr === "Contractor" || (o.attr === "Planned Maintenance" && o.crit === "Yes") ? "Yes" : "No"; }
+function v8SlaRole() { return v7Is("ops", "finance", "compliance", "pcsosup", "pcsoapr"); }
+function v8SlaView() {
+  const ops = v7Is("ops"), cmp = v7Is("compliance") && !v7Pcso();
+  const rows = v8Out().map((o) => `<tr data-v138-out="${o.id}"><td class="mono">${o.id}</td><td class="mono">${o.from} / ${o.to}</td><td class="mono">${o.min} min</td><td>${esc(o.fn.join(", "))}</td>
+    <td data-v138="crit">${o.crit === "Yes" ? tag("rose", "Yes") : tag("muted", "No")}<div class="tiny">${o.links.length ? "Affects " + esc(o.links.join(", ")) : "No Core link affected"}</div><div class="tiny" data-v138="crit-src">${o.chBy ? "Changed by " + esc(o.chBy) + " (prefilled " + o.pre + ")" : "Prefilled by the system"}</div></td>
+    <td>${esc(o.cause)}</td><td>${esc(o.attr)}</td><td data-v138="counted">${v8Counted(o)}</td><td class="tiny">${esc(o.tx)}</td><td class="mono">${esc(o.inc)}</td><td>${o.rev ? tag("ok", "Reviewed") + `<div class="tiny mono">${esc(o.rev)}</div>` : "-"}</td>
+    <td class="row-actions">${ops ? v8Btn("v138-out-edit", "Edit", { id: o.id }) : ""}${cmp && !o.rev ? v8Btn("v138-out-rev", "Mark Reviewed", { id: o.id }) : ""}</td></tr>`);
+  return `<div class="card" data-v138="sla"><div class="tabs" style="margin-bottom:10px"><button type="button" class="on" data-v138="sla-out">Outages</button></div>
+    <div class="banner" data-v138="crit-rule">Critical Path is Yes when the outage affects any of these links: ${V8_LINKS.map((x) => `<b>${x}</b>`).join(", ")} (Player Federation includes player account status and exclusion notices). Other local functions (betting, deposits, withdrawals, claims, sign-in, back office) are No. The system prefills it from the affected functions; Operations can change it (audited) and Compliance audit reviews it. A Critical Path outage is never exempt as planned maintenance: these three links need rolling, zero-downtime releases.</div>
+    <div class="table-wrap">${table(["Outage ID", "Start / End", "Duration", "Affected Functions", "Critical Path", "Cause", "Attribution", "Counted In SLA", "Affected Transactions", "Incident Report", "Review", ""], rows)}</div>
+    <p class="tiny">Incidents, Maintenance and SLA Monthly views are not shown in this prototype. ${v13Demo()}</p></div>`;
+}
+const v8Rep0 = viewReports0;
+viewReports0 = function () {
+  const sla = S.tab.report === "sla";
+  if (sla && !v8SlaRole()) S.tab.report = "hub";
+  if (sla && v8SlaRole()) S.tab.report = "hub";
+  const h = v8Rep0.apply(this, arguments);
+  if (sla && v8SlaRole()) S.tab.report = "sla";
+  if (!v8SlaRole()) return h;
+  return v13Tpl(h, (c) => {
+    const tb = [...c.querySelectorAll(".tabs")].find((x) => x.querySelector("[data-group=report]")); if (!tb) return;
+    tb.insertAdjacentHTML("beforeend", `<button type="button" data-act="tab" data-group="report" data-arg="sla" data-v138="sla-tab" class="${sla ? "on" : ""}">Service Level</button>`);
+    if (!sla) return;
+    tb.querySelectorAll("button").forEach((b) => { if (b.dataset.arg !== "sla") b.classList.remove("on"); });
+    const host = tb.parentElement; let el = host.nextElementSibling; while (el) { const nx = el.nextElementSibling; el.remove(); el = nx; }
+    v7Frag(c, v8SlaView());
+  });
+};
+
+/* =====================================================================================================
+   6B.13.1 Help content: hotline Service Hours (required, default 06:00-22:00 UTC+8)
+   ===================================================================================================== */
+const V8_HRS = "06:00–22:00";
+S.rc.help.hot.forEach((r) => { if (r.hrs == null && /hotline/i.test(r.type)) r.hrs = V8_HRS; });
+function v8HotLine(r) { return /hotline/i.test(r.type || ""); }
+function v8HrsOk(v) { const m = /^([01]\d|2[0-3]):([0-5]\d)\s*[–-]\s*([01]\d|2[0-4]):([0-5]\d)$/.exec(String(v || "").trim()); return m ? `${m[1]}:${m[2]}–${m[3]}:${m[4]}` : ""; }
+const v8HelpView0 = viewHelp;
+viewHelp = function () {
+  const h = v8HelpView0.apply(this, arguments); if (S.rc.helpSub !== "hot") return h;
+  return v13Tpl(h, (c) => {
+    const tb = c.querySelector(".card table"); if (!tb) return;
+    const ths = [...tb.querySelectorAll(":scope > thead > tr > th")]; const k = ths.findIndex((x) => x.textContent.trim() === "Number Or Link"); if (k < 0) return;
+    ths[k].insertAdjacentHTML("afterend", `<th data-v138="th-hrs">Service Hours (UTC+8)</th>`);
+    tb.querySelectorAll(":scope > tbody > tr[data-help]").forEach((tr) => { const r = S.rc.help.hot.find((x) => x.id === tr.dataset.help); const td = tr.children[k]; if (td) td.insertAdjacentHTML("afterend", `<td class="mono" data-v138="hrs">${r && v8HotLine(r) ? esc(r.hrs || "-") : "24 hours"}</td>`); });
+    tb.insertAdjacentHTML("afterend", `<p class="tiny" data-v138="hrs-note">Service Hours is required for a hotline (default ${V8_HRS}, UTC+8); other channels default to 24 hours. Outside its service hours the player app greys the hotline out and points to email, chatbot and messaging.</p>`);
+  });
+};
+const v8HelpModal0 = rcHelpModal;
+rcHelpModal = function () {
+  const m = S.modal, it = m && !m.csv ? rcHelpItem(m.id) : null;
+  if (!it || it[0] !== "hot" || !v8HotLine(it[1])) return v8HelpModal0.apply(this, arguments);
+  if (S.mf.hrs == null) S.mf.hrs = it[1].hrs || V8_HRS;
+  return v13Tpl(v8HelpModal0.apply(this, arguments), (c) => {
+    const st = [...c.querySelectorAll("label.f")].find((x) => x.textContent.trim() === "Status"); if (!st) return;
+    st.insertAdjacentHTML("beforebegin", `<label class="f">Service Hours (required, UTC+8)</label><input data-f="hrs" data-v138="hrs-in" value="${esc(S.mf.hrs || "")}" placeholder="${V8_HRS}" />`);
+  });
+};
+const v8HelpSum0 = rcHelpSummary;
+rcHelpSummary = function (k, r) { const s = v8HelpSum0.apply(this, arguments); return k === "hot" && v8HotLine(r) ? s + " · " + (r.hrs || "-") : s; };
+const v8HelpAct0 = rcHelpAct;
+rcHelpAct = function (act, arg, id) {
+  if (act === "rc-help-ok" && id !== "CSV") {
+    const it = rcHelpItem(id);
+    if (it && it[0] === "hot" && v8HotLine(it[1])) {
+      const v = S.mf.hrs == null ? it[1].hrs : S.mf.hrs, ok = v8HrsOk(v);
+      if (!String(v || "").trim()) { S.mf.err = "Enter the service hours of the hotline, for example " + V8_HRS + "."; render(); return true; }
+      if (!ok) { S.mf.err = "Enter the service hours as HH:MM–HH:MM, for example " + V8_HRS + "."; render(); return true; }
+      S.mf.hrs = ok;
+      const n0 = S.rc.helpReqs.length, r = v8HelpAct0.apply(this, arguments);
+      if (S.rc.helpReqs.length > n0) { const q = S.rc.helpReqs[0]; if (q.nr) { q.nr.hrs = ok; q.after = rcHelpSummary("hot", q.nr); } }
+      return r;
+    }
+  }
+  return v8HelpAct0.apply(this, arguments);
+};
+
+/* =====================================================================================================
+   6B.14.2 Full Suspension: Claim Deadline Extension; Allow prize claims for a Cash Bond Not Replenished suspension (demo)
+   ===================================================================================================== */
+const V8_CDE = "While prize claims are not allowed, a ticket whose original claim deadline passes is not treated as overdue; its claim deadline follows the Claim Deadline Extension sent by Core.";
+(function v8Dirs() { const d = S.v13a2.dirs.find((x) => x.id === "DIR-20261012-000142"); if (d && d.detail.indexOf("Claim Deadline Extension") < 0) d.detail = d.detail.replace(" Demo data", " " + V8_CDE + " Demo data"); })();
+const v8Dir0 = a2ViewDir;
+a2ViewDir = function () {
+  return v13Tpl(v8Dir0.apply(this, arguments), (c) => {
+    const card = c.querySelector("[data-v137=fs-card]"); if (!card) return;
+    const p = card.querySelector("p.tiny");
+    if (p) p.innerHTML = p.innerHTML.replace("Automatic Full Suspension (Cash Bond Not Replenished, Security Or Integrity Risk) never carries allowances.", "Automatic Full Suspension (Cash Bond Not Replenished, Security Or Integrity Risk) arrives without allowances; during a Cash Bond Not Replenished suspension Core can send a new control version with Allow prize claims (authorized each time by the PCSO senior authorizer; withdrawals stay blocked) and prize claims resume. A Security Or Integrity Risk suspension never gets allowances.") + ` <span data-v138="cde">${V8_CDE}</span>`;
+    const fs = S.v137.fs, cb = fs && fs.v8cb;
+    const box = cb ? `<div class="card" data-v138="cb" style="margin-top:8px"><h4>Automatic Full Suspension · Cash Bond Not Replenished ${v13Demo()}</h4>${v13KV([
+      ["Reason Code", "Cash Bond Not Replenished <span class=\"tiny\">(Core initiator: System; related deduction record in the directive)</span>"],
+      ["Control Version", `<span class="mono" data-v138="cb-ver">v${cb.ver}</span>`],
+      ["Withdrawals", tag("rose", "Blocked")],
+      ["Prize Claims", fs.claims ? tag("ok", "Allowed by PCSO") + ` <span class="tiny">Prize claims resumed; prizes held during the suspension are credited (credit day = the day claims resumed).</span>` : tag("rose", "Blocked")]
+    ])}</div>` : "";
+    const btn = cb ? (fs.claims ? "" : v8Btn("v138-cb-claims", "Demo: Core allows prize claims (new control version)")) : (fs ? "" : v8Btn("v138-cb-on", "Demo: Automatic Full Suspension (Cash Bond Not Replenished)"));
+    const ra = card.querySelector(".row-actions"); if (ra && btn) ra.insertAdjacentHTML("beforeend", btn);
+    if (box) card.insertAdjacentHTML("beforeend", box);
+  });
+};
+
+/* =====================================================================================================
+   modals, inputs, PCSO buttons after the read-only pass, clicks
+   ===================================================================================================== */
+const v8Lock0 = v7Lockdown;
+v7Lockdown = function () { v8Lock0.apply(this, arguments); document.querySelectorAll("[data-v138-pcso]").forEach((b) => { if (b.getAttribute("data-v137") === "ro") { b.disabled = !!b.getAttribute("data-v138-dis"); b.removeAttribute("data-v137"); if (!b.disabled) b.removeAttribute("title"); } }); };
+const v8Modal0 = renderModal;
+renderModal = function () {
+  const m = S.modal; if (!m || !/^v138-/.test(m.type)) return v8Modal0.apply(this, arguments);
+  const f = S.v138.f, cancel = `<button type="button" class="btn" data-act="close">Cancel</button>`;
+  if (m.type === "v138-direct") return v8DirectModal();
+  if (m.type === "v138-root") {
+    const R = v8Root(), r = m.id != null && m.id !== "" ? R[+m.id] : null;
+    const roleSel = r ? `<p><b>${esc(r.role)}</b> · current holder <span class="mono">${esc(r.who)}</span></p>` : `<label class="f">Role</label><select data-v138f="role">${R.filter((x) => x.who === "-" && !x.pa && !x.wait).map((x) => `<option value="${x.i}" ${String(f.role) === String(x.i) ? "selected" : ""}>${esc(x.role)}</option>`).join("")}</select>`;
+    const who = m.op === "revoke" ? "" : `<label class="f">${m.op === "change" ? "New holder" : "Holder"} (account)</label><input data-v138f="who" value="${esc(f.who || "")}" placeholder="it.ramos" />`;
+    return dialog({ assign: "Request Assignment", change: "Request Change", revoke: "Request Revocation" }[m.op] + " · Root Roles", `${roleSel}${who}<label class="f">Reason (1–500 characters)</label><textarea data-v138f="why" rows="2" maxlength="500">${esc(f.why || "")}</textarea><p class="tiny">Goes to Pending PCSO Approval (Infrastructure Role Assignment). After approval the Identity and Access Administrator carries it out.</p>${v8Err()}`, cancel + v8Btn("v138-root-ok", "Submit Request", { cls: "btn-primary" }));
+  }
+  if (m.type === "v138-exec") return dialog("Record Execution", `<p class="tiny">Carried out in the identity management system after PCSO approval (${esc(m.pa || "")}).</p><label class="f">Executed By (Identity and Access Administrator)</label><input data-v138f="exBy" value="${esc(f.exBy || "")}" placeholder="iam.dizon" /><label class="f">Executed At (YYYY-MM-DD HH:MM, UTC+8)</label><input data-v138f="exAt" value="${esc(f.exAt || "")}" />${v8Err()}`, cancel + v8Btn("v138-exec-ok", "Save", { cls: "btn-primary" }));
+  if (m.type === "v138-pacc") return dialog(m.id ? "Request Deactivation · " + m.id : "Request Account · PCSO Admin Accounts", `${m.id ? "" : `<label class="f">Account</label><input data-v138f="acct" value="${esc(f.acct || "")}" placeholder="pcso.infra02" />`}<label class="f">PCSO ${m.id ? "Request" : "Nomination"} Ref (required, 1–50 characters)</label><input data-v138f="nom" maxlength="50" value="${esc(f.nom || "")}" placeholder="PCSO-NOM-2026-030" /><p class="tiny">Goes to Pending PCSO Approval (Infrastructure Role Assignment). Limit: Max PCSO Administrator Accounts = ${v8MaxPcso()}.</p>${v8Err()}`, cancel + v8Btn("v138-pacc-ok", "Submit Request", { cls: "btn-primary", id: m.id || "" }));
+  if (m.type === "v138-out") {
+    const o = v8Out().find((x) => x.id === m.id);
+    return dialog("Edit Outage · " + o.id, `<label class="f">Critical Path</label><select data-v138f="crit">${["Yes", "No"].map((v) => `<option ${(f.crit || o.crit) === v ? "selected" : ""}>${v}</option>`).join("")}</select><p class="tiny">Prefilled by the system: ${o.pre}${o.links.length ? " (affects " + esc(o.links.join(", ")) + ")" : ""}.</p><label class="f">Cause</label><input data-v138f="cause" value="${esc(f.cause != null ? f.cause : o.cause)}" /><label class="f">Attribution</label><select data-v138f="attr">${["Contractor", "Third Party", "Force Majeure", "Planned Maintenance"].map((v) => `<option ${(f.attr || o.attr) === v ? "selected" : ""}>${v}</option>`).join("")}</select><label class="f">Reason for the change (1–500 characters)</label><textarea data-v138f="why" rows="2" maxlength="500">${esc(f.why || "")}</textarea>${v8Err()}`, cancel + v8Btn("v138-out-ok", "Save", { cls: "btn-primary", id: o.id }));
+  }
+  return v8Modal0.apply(this, arguments);
+};
+document.addEventListener("input", (e) => { const el = e.target; if (el && el.dataset && el.dataset.v138f) S.v138.f[el.dataset.v138f] = el.value; }, true);
+document.addEventListener("change", (e) => { const el = e.target; if (!el || !el.dataset || !el.dataset.v138f) return; S.v138.f[el.dataset.v138f] = el.value; if (el.dataset.v138f === "wst") { S.v138.wst = el.value; render(); } }, true);
+function v8Click(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id, arg = el.dataset.arg, f = S.v138.f;
+  if (!act || act.indexOf("v138-") !== 0) return;
+  e.stopPropagation(); e.preventDefault(); if (el.disabled) return;
+  const err = (m) => { S.v138.err = m; render(); return; };
+  const open = (o) => { S.v138.f = {}; S.v138.err = ""; S.v138.rej = null; S.modal = o; render(); };
+  const close = () => { S.modal = null; S.v138.f = {}; S.v138.err = ""; S.v138.rej = null; };
+  if (act === "v138-direct") { if (arg === "lnl") open({ type: "v138-direct", kind: "lnl", id }); else open({ type: "v138-direct", kind: "gp", id: arg }); return; }
+  if (act === "v138-dp-rej") { S.v138.rej = { id, src: arg }; S.v138.f = {}; S.v138.err = ""; render(); return; }
+  if (act === "v138-dp-rej-ok") {
+    const why = v8Why(f.why); if (!why) return err("Enter a reason of 1–500 characters.");
+    v8RejectPend(id, arg, why); S.v138.rej = null; S.v138.f = {}; S.v138.err = "";
+    toast("Rejected by PCSO. The submitter is notified."); render(); return;
+  }
+  if (act === "v138-direct-go") {
+    const m = S.modal; if (v8PendOf(m).length) return err("There is a pending request for this item. Reject it before making a direct change.");
+    if (m.kind === "lnl") {
+      const g = gameBy(m.id), L = v7cL(m.id), on = !L.on, obj = "Bet limits · " + gname(g) + " · Lotto Number Limits";
+      close(); v7Direct("Betting Limits", obj, L.on ? "On" : "Off", on ? "On" : "Off", () => { L.on = on; }); toast("Applied (Initiated By PCSO). The channel roles are notified."); render(); return;
+    }
+    S.v137.f = {}; S.v137.err = ""; const k = m.id; close(); S.modal = { type: "v137-direct", id: k }; render(); return;
+  }
+  if (act === "v138-root-req") { open({ type: "v138-root", id: id == null ? "" : id, op: arg }); if (arg === "assign") { const fr = v8Root().find((x) => x.who === "-" && !x.pa && !x.wait); S.v138.f.role = fr ? String(fr.i) : ""; } return; }
+  if (act === "v138-root-ok") {
+    const m = S.modal, R = v8Root(), i = m.op === "assign" ? +f.role : +m.id, r = R[i], why = v8Why(f.why), who = String(f.who || "").trim().toLowerCase();
+    if (!r) return err("Choose a role.");
+    if (m.op !== "revoke") { if (!/^[a-z0-9._-]{3,40}$/.test(who)) return err("Enter the holder's account."); if (R.some((x) => x !== r && x.who === who)) return err("This person already holds another root role."); if (who === r.who) return err("This person already holds this role."); }
+    if (!why) return err("Enter a reason of 1–500 characters.");
+    const sum = m.op === "revoke" ? `Revoke ${r.role} from ${r.who}` : m.op === "change" ? `${r.role}: ${r.who} → ${who}` : `Assign ${r.role} to ${who}`;
+    const p = v7PaAdd({ type: "Infrastructure Role Assignment", obj: "Root Roles · " + r.role, sum: sum + " · " + why, by: me0(), link: { kind: "v8root", i, op: m.op, who } });
+    r.pa = p.id; v7Aud("System", "Submit Infrastructure Role Assignment", "Root Roles · " + r.role, r.who, sum + " · Pending PCSO approval · " + p.id);
+    close(); toast("Request " + p.id + " sent to Pending PCSO Approval."); render(); return;
+  }
+  if (act === "v138-root-exec" || act === "v138-pacc-exec") {
+    const pa = act === "v138-root-exec" ? v8Root()[+id].wait.pa : v8Pacc().find((x) => x.id === id).wait.pa;
+    open({ type: "v138-exec", id, kind: act === "v138-root-exec" ? "root" : "pacc", pa }); S.v138.f.exBy = "iam.dizon"; S.v138.f.exAt = v7Now().slice(0, 16); render(); return;
+  }
+  if (act === "v138-exec-ok") {
+    const m = S.modal, by = String(f.exBy || "").trim(), at = String(f.exAt || "").trim();
+    if (!by) return err("Enter who carried it out."); if (!/^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(at)) return err("Enter the time as YYYY-MM-DD HH:MM.");
+    if (m.kind === "root") {
+      const r = v8Root()[+m.id], w = r.wait, old = r.who;
+      r.who = w.op === "revoke" ? "-" : w.who; r.ref = w.pa; r.on = w.op === "revoke" ? "-" : at.slice(0, 10); r.exBy = by; r.exAt = at; r.wait = null;
+      v7Aud("System", "Record execution · Infrastructure Role Assignment", "Root Roles · " + r.role, old, r.who + " · executed by " + by + " at " + at + " · " + w.pa, "Security");
+    } else {
+      const a = v8Pacc().find((x) => x.id === m.id), w = a.wait;
+      a.st = w.op === "open" ? "Active" : "Deactivated"; a.ref = w.pa; if (w.op === "open") a.on = at.slice(0, 10); a.exBy = by; a.exAt = at; a.wait = null;
+      v7Aud("System", "Record execution · PCSO Admin Account", a.acct, w.op === "open" ? "Approved" : "Active", a.st + " · executed by " + by + " at " + at + " · " + w.pa, "Security");
+    }
+    close(); toast("Execution recorded."); render(); return;
+  }
+  if (act === "v138-pacc-new") { const max = v8MaxPcso(); if (v8PaccUsed() >= max) { toast("PCSO administrator accounts are limited to " + max + "."); return; } open({ type: "v138-pacc", id: "" }); return; }
+  if (act === "v138-pacc-off") { open({ type: "v138-pacc", id }); return; }
+  if (act === "v138-pacc-ok") {
+    const m = S.modal, nom = String(f.nom || "").trim(), max = v8MaxPcso();
+    if (!nom || nom.length > 50) return err("Enter the PCSO reference (1–50 characters).");
+    if (!m.id) {
+      const acct = String(f.acct || "").trim().toLowerCase();
+      if (!/^[a-z0-9._-]{3,40}$/.test(acct)) return err("Enter the account name.");
+      if (v8Pacc().some((a) => a.acct === acct && a.st !== "Deactivated" && !/Rejected/.test(a.st))) return err("This account already exists.");
+      if (v8PaccUsed() >= max) return err("PCSO administrator accounts are limited to " + max + ".");
+      const nid = "PAA-" + String(v8Pacc().length + 1).padStart(2, "0");
+      const p = v7PaAdd({ type: "Infrastructure Role Assignment", obj: "PCSO Admin Accounts · " + acct, sum: "Open PCSO administrator account " + acct + " · nomination " + nom, by: me0(), link: { kind: "v8pacc", id: nid, op: "open" } });
+      v8Pacc().push({ id: nid, acct, ref: "", nom, on: "", st: "Pending PCSO Approval", op: "open", pa: p.id, wait: null });
+      v7Aud("System", "Request PCSO administrator account", acct, "-", "Pending PCSO approval · " + p.id);
+      close(); toast("Request " + p.id + " sent to Pending PCSO Approval."); render(); return;
+    }
+    const a = v8Pacc().find((x) => x.id === m.id);
+    const p = v7PaAdd({ type: "Infrastructure Role Assignment", obj: "PCSO Admin Accounts · " + a.acct, sum: "Deactivate PCSO administrator account " + a.acct + " · PCSO request " + nom, by: me0(), link: { kind: "v8pacc", id: a.id, op: "off" } });
+    a.pa = p.id; a.op = "off"; v7Aud("System", "Request deactivation of PCSO administrator account", a.acct, "Active", "Pending PCSO approval · " + p.id);
+    close(); toast("Request " + p.id + " sent to Pending PCSO Approval."); render(); return;
+  }
+  if (act === "v138-out-edit") { open({ type: "v138-out", id }); return; }
+  if (act === "v138-out-ok") {
+    const o = v8Out().find((x) => x.id === id), crit = f.crit || o.crit, attr = f.attr || o.attr, cause = f.cause != null ? String(f.cause).trim() : o.cause, why = v8Why(f.why);
+    if (!cause) return err("Enter the cause.");
+    if (!why) return err("Enter a reason of 1–500 characters.");
+    const before = `Critical Path ${o.crit} · ${o.attr} · ${o.cause}`;
+    o.crit = crit; o.attr = attr; o.cause = cause; o.chBy = me0(); o.rev = "";
+    v7Aud("Reports", "Edit outage", o.id, before, `Critical Path ${crit} · ${attr} · ${cause} · ${why}`);
+    close(); toast("Saved. Compliance audit reviews the change."); render(); return;
+  }
+  if (act === "v138-out-rev") { const o = v8Out().find((x) => x.id === id); o.rev = me0() + " · " + v7Now().slice(0, 16); v7Aud("Reports", "Review outage", o.id, "Not reviewed", "Reviewed · Critical Path " + o.crit + " · Counted In SLA " + v8Counted(o)); render(); return; }
+  if (act === "v138-cb-on") { S.v137.fs = { dir: "Automatic Full Suspension · Cash Bond Not Replenished (Demo data)", wd: false, claims: false, deposits: false, v8cb: { ver: 1 } }; v7Aud("Core integration", "Automatic Full Suspension executed (Demo)", "Cash Bond Not Replenished", "Active", "Suspended · control version v1"); render(); return; }
+  if (act === "v138-cb-claims") { const fs = S.v137.fs; if (!fs || !fs.v8cb) return; fs.claims = true; fs.v8cb.ver += 1; v7Aud("Core integration", "Full Suspension control version received (Demo)", "Cash Bond Not Replenished", "Prize claims blocked", "Allow prize claims · control version v" + fs.v8cb.ver); toast("Core: new control version v" + fs.v8cb.ver + " with Allow prize claims. Prize claims resume; withdrawals stay blocked (Demo data)."); render(); return; }
+}
+window.addEventListener("click", v8Click, true);
+/* ===== V13-138 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">

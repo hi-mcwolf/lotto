@@ -11757,6 +11757,572 @@ function keepDefFix(type) { return KEEP_DEF_FIX[type] || 12; }
 
 </script>
 <script>
+/* ===== p8m_138.js ===== */
+/* =====================================================================
+ * p8m_138.js - PRD 1.3.8 follow-up (loaded last, after p8l_fix.js). No CJK in this file.
+ *  A. 6A.13.5 Pool Sales Basis (Gross / Net of DST) + 6A.6.1 / 6A.6.4 computed pool basis;
+ *     6A.3.2 Prize Allocation % optional (game detail column, edit form, banner `Prize allocation not configured`)
+ *  B. 6A.7.4 Channel Resolution notes: `Set by System` (Above Threshold - Claim at PCSO), `Paused - Channel Suspended`
+ *  C. 6A.9.2 self-exclusion while Expired - Awaiting Reinstatement = extension (version Extended, back to In Effect,
+ *     open reinstatement request -> Withdrawn, reason Superseded By Extension); correction approval by
+ *     Compliance Officer (not the submitter) or Senior Authorizer; permanent reinstatement stays Senior Authorizer only
+ *  D. 6A.8.6 deletion request: Approve / Reject for Compliance Officer (not the submitter) and Senior Authorizer;
+ *     submitter sees neither button
+ *  E. 6A.13.3 reversed entries do not count for the reference number check; re-entry shows `Re-entry Of`
+ *  F. 6A.14.1 Wallet And Funds divergences: automatic re-compare on late Core data (`Auto Re-compared` -> Resolved)
+ *  G. 6A.2.5 full suspension allowances: manual full suspension -> Full Suspension again changes only the two
+ *     allowances; Cash Bond Not Replenished automatic suspension -> prize claims release (Senior Authorizer each time)
+ *  H. 6A.19.2 report catalogue 1.3.8 roles + AFASA and Fraud, Core Service Level, Sales Opportunity Loss entries
+ *  I. 6A.20 Personnel Type, SOL hidden for Privilege-Based roles, Service Levels Edit scope, preset factory cells,
+ *     SOD-01 exception Integration Registry V C E
+ *  J. 6A.12.3 Official Notices (Disclosure placement fixed; editor Bold and Link only)
+ * ===================================================================== */
+'use strict';
+const E138 = en => ({ zh: en, en });
+const D138 = () => '<span class="tiny muted" data-demo138="1">Demo data</span>';
+const floor2_138 = x => Math.floor(Math.round(x * 1000) / 10) / 100;
+
+/* =====================================================================
+ * A. Pool Sales Basis + Prize Allocation %
+ * ===================================================================== */
+const POOL_BASIS_138 = ['Gross', 'Net of DST'];
+function sfSeed138() {
+  (SEED.sfVersions || []).forEach(v => { v.p = v.p || {}; if (!v.p.poolBasis) v.p.poolBasis = 'Gross'; if (v.p.dstRate == null) v.p.dstRate = 20; if (!v.p.dstBasis) v.p.dstBasis = 'Gross × Rate'; });
+  // Demo data: one Prize Allocation % on Ultra Lotto 6/58 Jackpot; the other pool tiers stay Not configured (values pending PCSO)
+  const g = gameByCode('L658'); if (g) g.versions.forEach(v => { const tr = v.def.tiers.find(x => x.method !== 'Fixed'); if (tr && tr.alloc == null) { tr.alloc = 14; tr.allocDemo = true; } });
+}
+sfSeed138();
+function sfActive138() { sfSeed138(); return (SEED.sfVersions || []).find(v => v.status === 'Active') || (SEED.sfVersions || [])[0] || { p: {} }; }
+/** consolidated sales of the draw after the Pool Sales Basis of the version in effect (6A.6.1) */
+function poolSales138(d) {
+  const gross = drSales137(d); const p = sfActive138().p || {};
+  if (p.poolBasis !== 'Net of DST') return gross;
+  const r = (+p.dstRate || 0) / 100;
+  const dst = p.dstBasis === 'Tax-Inclusive' ? Math.round(gross / (1 + r) * r * 100) / 100 : Math.round(gross * r * 100) / 100;
+  return Math.round((gross - dst) * 100) / 100;
+}
+computedPool137 = function (d, tr) { const a = tr && tr.alloc; if (a == null || a === '') return null; return floor2_138(poolSales138(d) * a / 100); };
+function allocMissing138(def) { return (def.tiers || []).some(tr => tr.method !== 'Fixed' && (tr.alloc == null || tr.alloc === '')); }
+R134_COLS.prizeT = cols => {
+  cols.push({ h: 'Prize Allocation %', cls: 'num', r: x => x.method === 'Fixed' ? '-' : (x.alloc == null || x.alloc === '') ? '<span class="tiny muted">Not configured</span>' : `${(+x.alloc).toFixed(2)}%${x.allocDemo ? ' ' + demoTag() : ''}` });
+  return cols;
+};
+(function gameBody138() {
+  const b0 = gameBody;
+  gameBody = function (g) {
+    const h = b0(g); if (S.drawer && S.drawer.edit) return h;
+    const def = gameDef(g); if (!allocMissing138(def)) return h;
+    return banner(`<span id="allocBanner138"><b>Prize allocation not configured</b> · Some Pari-mutuel or Jackpot tiers have no Prize Allocation %. Their pools are entered by hand at prize entry until PCSO sets the values.</span>`, 'amber') + h;
+  };
+  const ev0 = gameEditVals;
+  gameEditVals = function (g) { const v = ev0(g); latestVersion(g).def.tiers.forEach((x, i) => { if (x.method !== 'Fixed') v['g_ta_' + i] = x.alloc == null ? '' : x.alloc; }); return v; };
+  const gd0 = gameDiff;
+  gameDiff = function (g, v) {
+    const set = gd0(g, v); const d = latestVersion(g).def;
+    d.tiers.forEach((x, i) => { if (x.method === 'Fixed' || !(('g_ta_' + i) in v)) return; const raw = v['g_ta_' + i]; const nv = raw === '' || raw == null ? null : +raw; const ov = x.alloc == null || x.alloc === '' ? null : +x.alloc; if (nv !== ov) set[`tiers.${i}.alloc`] = nv; });
+    return set;
+  };
+  const pl0 = pathLabel; pathLabel = function (p, def) { const m = String(p).match(/^tiers\.(\d+)\.alloc$/); return m ? `Prize tier ${+m[1] + 1} (${def.tiers[+m[1]].name}) Prize Allocation %` : pl0(p, def); };
+  const fv0 = fmtVal; fmtVal = function (p, v) { if (/\.alloc$/.test(p)) return v == null || v === '' ? 'Not configured' : (+v).toFixed(2) + '%'; return fv0(p, v); };
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'g_name') && S.drawer && S.drawer.code && S.drawer.edit && !fields.some(f => f && /^g_ta_/.test(f.k))) {
+      const g = gameByCode(S.drawer.code); const d = g && latestVersion(g).def;
+      if (d) {
+        const add = d.tiers.map((x, i) => x.method === 'Fixed' ? null : { k: 'g_ta_' + i, zh: '', en: `Prize tier ${i + 1} (${x.name}) Prize Allocation %`, ctl: 'number', step: '0.01', ph: 'Not configured', hint: { zh: '', en: 'Optional. Leave empty until PCSO sets the value; the pool is then entered by hand at prize entry.' } }).filter(Boolean);
+        let at = -1; fields.forEach((f, i) => { if (f && /^g_t[fm]_/.test(f.k)) at = i; }); if (at < 0) at = fields.findIndex(f => f && f.k === 'g_maxBet');
+        fields = fields.slice(); fields.splice(at + 1, 0, ...add);
+      }
+    }
+    return f0(fields, o);
+  };
+  const s0 = ACT.gameSubmit;
+  ACT.gameSubmit = code => {
+    const v = vals(); const e = {};
+    Object.keys(v).filter(k => /^g_ta_\d+$/.test(k)).forEach(k => { const raw = String(v[k] == null ? '' : v[k]).trim(); if (raw === '') return; if (!/^\d+(\.\d{1,2})?$/.test(raw) || +raw < 0.01 || +raw > 100) e[k] = 'Enter a value from 0.01 to 100 with up to 2 decimal places.'; });
+    if (Object.keys(e).length) { setErr(e); return; }
+    return s0(code);
+  };
+})();
+/* 6A.13.5 settlement formula: Pool Sales Basis row (view, compare, change request) */
+const SF_FIELDS_138 = [['periodType', 'Settlement Period Type'], ['graceDays', 'Grace Period (days)'], ['dueDays', 'Remittance Due (days after finalization)'], ['crit', 'Critical threshold (₱ / %)'], ['high', 'High threshold (₱ / %)'], ['med', 'Medium threshold (₱ / %)'], ['openDays', 'Unresolved Case Threshold (days)'], ['sales', 'Gross Receipts includes'], ['prizes', 'Prizes Paid includes'], ['refunds', 'Refunds And Voids categories'], ['tax', 'Taxes Withheld basis'], ['deductTax', 'Deduct Taxes Withheld'], ['dstRate', 'DST Rate'], ['dstBasis', 'DST Basis'], ['poolBasis', 'Pool Sales Basis']];
+const sfVal138 = (p, k) => Array.isArray(p[k]) ? `${fmtP(p[k][0], 0)} / ${p[k][1]}%` : k === 'dstRate' ? (p[k] == null ? '-' : (+p[k]).toFixed(2) + '%') : String(p[k] == null ? '-' : p[k]);
+const POOL_NOTE_138 = 'Used only for the system-computed prize pool (6A.6.1); it does not change the net remittable amount. Gross = consolidated sales before DST.';
+(function sfUi138() {
+  const m = modById('settlement'); if (!m || !m.acts) return; const A = m.acts;
+  const v0 = m.view;
+  m.view = () => { let h = v0(); if (S.sub !== 'formula') return h; const p = sfActive138().p || {};
+    return h + card('Pool Sales Basis', `<div id="sfPool138">${dl([['Pool Sales Basis', `<b>${esc(p.poolBasis || 'Gross')}</b>`], ['DST Rate', (+p.dstRate || 0).toFixed(2) + '%'], ['DST Basis', esc(p.dstBasis || '-')]])}<p class="tiny muted">${esc(POOL_NOTE_138)}</p></div>`); };
+  A.stSfOpen = v => { const x = SEED.sfVersions.find(o => o.v === v); if (!x) return; openModal({ title: `${x.v} · ${x.status}`, size: 'lg', cancel: false, ok: E138('Close'), body: () => `<div class="m4-formula">${esc(x.formula)}</div>` + dl(SF_FIELDS_138.map(([k, l]) => [l, esc(sfVal138(x.p, k))]).concat([['Effective From Period', esc(x.effFrom)], ['Note', esc(x.note || '-')]]).concat(x.rejectReason ? [['Rejection Reason', esc(x.rejectReason)]] : [])) }); };
+  A.stSfCmp = () => { const vs = SEED.sfVersions.map(v => v.v);
+    openModal({ title: E138('Compare'), size: 'lg', cancel: false, ok: E138('Close'),
+      body: () => { const a = SEED.sfVersions.find(o => o.v === fval('m_a', vs[0])), b = SEED.sfVersions.find(o => o.v === fval('m_b', vs[vs.length - 1])); return formHtml([{ k: 'm_a', en: 'Version A', zh: '', ctl: 'select', def: vs[0], opts: vs, chg: true }, { k: 'm_b', en: 'Version B', zh: '', ctl: 'select', def: vs[vs.length - 1], opts: vs, chg: true }]) + '<br>'
+        + `<div class="tbl-wrap"><table class="cmp-diff"><thead><tr><th>Item</th><th>${esc(a.v)}</th><th>${esc(b.v)}</th></tr></thead><tbody>${[['Formula', a.formula, b.formula], ['Effective From Period', a.effFrom, b.effFrom]].concat(SF_FIELDS_138.map(([k, l]) => [l, sfVal138(a.p, k), sfVal138(b.p, k)])).map(([l, x, y]) => `<tr><td>${esc(l)}</td><td${x !== y ? ' class="chg"' : ''}>${esc(x)}</td><td${x !== y ? ' class="chg"' : ''}>${esc(y)}</td></tr>`).join('')}</tbody></table></div>`; } }); };
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'm_eff') && fields.some(f => f && f.k === 'm_dt') && !fields.some(f => f && f.k === 'm_psb')) {
+      fields = fields.slice(); const i = fields.findIndex(f => f && f.k === 'm_dt');
+      fields.splice(i + 1, 0, { k: 'm_psb', zh: '', en: 'Pool Sales Basis', ctl: 'radio', req: true, opts: POOL_BASIS_138, hint: { zh: '', en: POOL_NOTE_138 } });
+    }
+    return f0(fields, o);
+  };
+  const s0 = sfForm134;
+  sfForm134 = function () {
+    s0(); const M = S.modal; if (!M || !S.fv || !('m_eff' in S.fv)) return;
+    const cur = sfActive138(); if (!S.fv.m_psb) S.fv.m_psb = cur.p.poolBasis || 'Gross';
+    const o0 = M.onOk; M.onOk = v => { const n0 = SEED.sfVersions.length; const res = o0(v); if (res !== false && SEED.sfVersions.length > n0) { const nv = SEED.sfVersions[SEED.sfVersions.length - 1]; nv.p = Object.assign({}, nv.p, { poolBasis: POOL_BASIS_138.includes(v.m_psb) ? v.m_psb : 'Gross', dstRate: cur.p.dstRate, dstBasis: cur.p.dstBasis }); } return res; };
+    render();
+  };
+  A.stSfCR = () => sfForm134();
+})();
+
+/* =====================================================================
+ * B. 6A.7.4 Channel Resolution notes
+ * ===================================================================== */
+const MSG_SYS_NA_138 = 'Above Threshold – Claim at PCSO';
+function claimsPaused138(code) { const ch = chByCode(code); const s = ch && ch.suspended; return !!(s && s.type !== 'Partial Suspension' && !(s.allow || []).includes('Prize Claims')); }
+/** rows that pause while the channel is fully suspended without prize claims: top-up rows and rows closed by a Standard claim */
+function pausable138(x) { return x.res === 'Pending' && ((x.claim === 'Claimed' && x.diff > 0) || x.type === 'Newly Won' || (x.crossed === 'Yes' && x.claim !== 'Claimed')); }
+/** rule 6: Newly Won rows whose new pre-tax prize is above the big prize threshold are closed by Core as Not Applicable */
+function adjSysNA138(a) {
+  if (!a || a.status !== 'Effective') return 0; const thr = (SEED.claimPolicy && (SEED.claimPolicy.enhancedThreshold || SEED.claimPolicy.bigPrizeThreshold)) || 300000; let n = 0;
+  (a.diffs || []).forEach(x => { const g1 = x.g1 != null ? x.g1 : x.adjusted; if (x.type === 'Newly Won' && x.res === 'Pending' && g1 > thr) { x.res = 'Not Applicable'; x.resBy = 'System'; x.resReason = MSG_SYS_NA_138; x.reportedAt = a.effectiveAt || nowS(true); n++; } });
+  return n;
+}
+(function adjSys138() {
+  const a0 = adjApply;
+  adjApply = function (a) {
+    const r = a0(a); adjSysNA138(a); return r;
+  };
+})();
+['adjDiffT', 'adjDiffD'].forEach(id => { R134_COLS[id] = cols => { const i = colIdx(cols, 'Channel Resolution'); if (i < 0) return cols; const r0 = cols[i].r;
+  cols[i] = Object.assign({}, cols[i], { r: x => r0(x) + (x.resBy === 'System' ? `<div class="tiny" data-r138="sys">Set by System · ${esc(x.resReason || MSG_SYS_NA_138)}</div>` : '') + (pausable138(x) && claimsPaused138(x.channel) ? `<div class="tiny" data-r138="paused">Paused – Channel Suspended</div>` : '') }); return cols; }; });
+
+/* =====================================================================
+ * C. 6A.9.2 exclusion register
+ * ===================================================================== */
+const AWAIT_138 = 'Expired – Awaiting Reinstatement';
+const SUPERSEDED_138 = 'Superseded By Extension';
+/** a new self-exclusion on an Expired - Awaiting Reinstatement record extends it (rule 2, 4) */
+function exExtend138(e, to, ch) {
+  const prevTo = e.to; e.versions = e.versions || []; e.versions.push({ to: prevTo, at: nowS(), fromStatus: AWAIT_138, ch });
+  e.to = to; e.status = 'In Effect'; e.earliest = '';
+  c2exNotify(e, 'Extended');
+  (SEED.rin137 || []).filter(x => x.exr === e.id && ['Pending Approval', 'Pending Senior Authorization'].includes(x.status)).forEach(x => {
+    x.status = 'Withdrawn'; x.wdReason = SUPERSEDED_138; x.decBy = 'System'; x.earliest = '';
+    issueDirective({ channel: x.ch, type: 'Reinstatement Request Decision', summary: `Withdrawn · ${SUPERSEDED_138} · ${e.id}`, reason: SUPERSEDED_138, by: 'System', ref: x.id });
+    audit('Exclusion Registry', 'Reinstatement request withdrawn', x.id, `${e.id} · ${SUPERSEDED_138}`);
+  });
+  const p = SEED.players.find(y => y.upid === e.upid); if (p) p.exclusion = e.id;
+  audit('Exclusion Registry', 'Self-exclusion extended', e.id, `${ch} · ${AWAIT_138} → In Effect · until ${to || 'Permanent'}`);
+}
+(function ex138() {
+  const m = modById('exclusions'); if (!m || !m.acts) return; const A = m.acts;
+  const s0 = A['ex.simSelf'];
+  A['ex.simSelf'] = () => { s0(); const ok0 = S.modal && S.modal.onOk; if (!ok0) return;
+    S.modal.onOk = v => {
+      const e = SEED.exclusions.find(x => x.upid === v.m_upid && x.type === 'Self-Exclusion' && x.status === AWAIT_138);
+      if (!e) return ok0(v);
+      const p = c2pl(v.m_upid); if (!c2creds(p).includes(v.m_ch)) { toast(`Rejected: ${v.m_ch} holds no credential for ${p.upid}.`, 'err'); return false; }
+      const mo = { '3 months': 3, '6 months': 6, '1 year': 12 }[v.m_dur]; const to = mo ? addMonthsClamp(fmtD(S.now), mo) : '';
+      exExtend138(e, to, v.m_ch);
+      toast(`Self-exclusion ${e.id} extended until ${to ? to : 'Permanent'}. The open reinstatement request was withdrawn (${SUPERSEDED_138}).`); render();
+    }; };
+  const b0 = m.badge; m.badge = () => (b0 ? b0() : 0) + (S.user && !hasRole('sa') && hasRole('comp') ? SEED.authReqs.filter(r => r.kind === 'exclusion' && r.status === 'Awaiting Authorization' && r.by !== me()).length : 0);
+})();
+(function exVer138() {
+  const v0 = exVersions;
+  exVersions = function (e) { const out = v0(e); (e.versions || []).forEach((x, i) => { if (!x.fromStatus) return; const row = out.find(o => o.v === i + 2); if (row) row.fields = `${row.fields} · Status ${x.fromStatus} → In Effect`; }); return out; };
+})();
+R134_COLS.rin137 = cols => { const i = colIdx(cols, 'Status'); if (i < 0) return cols; cols[i] = Object.assign({}, cols[i], { r: x => badge(x.status) + (x.wdReason ? `<div class="tiny" data-r138="wd">${esc(x.wdReason)}</div>` : '') }); return cols; };
+/* correction approval: Compliance Officer (not the submitter) or Senior Authorizer, Exclusion Registry A */
+function exCorrCan138(u = S.user) { return can('Exclusion Registry', 'A', u) && (hasRole('sa', u) || hasRole('comp', u)); }
+['exCorrP', 'exCorrAll'].forEach(id => { R134_COLS[id] = cols => { const i = colIdx(cols, 'Actions'); if (i < 0) return cols;
+  cols[i] = { h: 'Actions', r: r => r.status !== 'Awaiting Authorization' ? '' : `<span class="nowrap">${r.by === me() ? btn({ zh: '', en: 'Withdraw' }, 'authWd', r.id, { cls: 'sm' }) : exCorrCan138() ? btn({ zh: '', en: 'Approve correction' }, 'authOk', r.id, { cls: 'sm ok' }) + ' ' + btn({ zh: '', en: 'Reject correction' }, 'authRej', r.id, { cls: 'sm' }) : ''}</span>` };
+  return cols; }; });
+(function authEx138() {
+  const a0 = authorizeReq;
+  window.authorizeReq = function (r) {
+    if (!r || r.kind !== 'exclusion') return a0(r);
+    if (r.by === me()) { toast('You cannot authorize a request you initiated.', 'err'); audit('Access', 'SoD block', r.id, 'DSOD-01 · initiator = approver', 'Rejected'); return false; }
+    if (!exCorrCan138()) { toast('You do not have permission for this action.', 'err'); return false; }
+    r.status = 'Authorized'; r.authBy = me(); r.authAt = nowS();
+    const fn = AUTH_APPLY[r.type]; if (fn) fn(r);
+    audit('Exclusion Registry', 'Correction approved', r.id, `${r.type} · ${r.target} · submitter ${r.by}`); return true;
+  };
+  const rj0 = ACT.authRej;
+  ACT.authRej = id => { const r = SEED.authReqs.find(x => x.id === id); if (r && r.kind === 'exclusion') { if (r.by === me()) { toast('You cannot authorize a request you initiated.', 'err'); return; } if (!exCorrCan138()) { toast('You do not have permission for this action.', 'err'); return; } } return rj0(id); };
+})();
+TODO_PROVIDERS.push(u => [{ n: !hasRole('sa', u) && hasRole('comp', u) && can('Exclusion Registry', 'A', u) ? SEED.authReqs.filter(r => r.kind === 'exclusion' && r.status === 'Awaiting Authorization' && r.by !== u.id).length : 0, zh: 'exclusion corrections to approve', en: 'exclusion corrections to approve', go: 'exclusions' }]);
+
+/* =====================================================================
+ * D. 6A.8.6 deletion request: Compliance Officer (not the submitter) or Senior Authorizer
+ * ===================================================================== */
+(function del138() {
+  const f0 = c2plFoot;
+  c2plFoot = function (p) {
+    let h = f0(p);
+    if (p.delReq && p.delReq.status === 'Pending Approval' && p.delReq.by === me()) h = h.replace(/<button[^>]*data-act="pl\.del(Ok|Rej)"[\s\S]*?<\/button>/g, '');
+    return h;
+  };
+  const m = modById('players'); if (!m || !m.acts) return; const A = m.acts;
+  ['pl.delOk', 'pl.delRej'].forEach(k => { const g0 = A[k]; if (!g0) return; A[k] = upid => { const p = c2pl(upid); const r = p && p.delReq;
+    if (!r || r.status !== 'Pending Approval') return;
+    if (!can('Player Registry', 'A')) { toast('You do not have permission for this action.', 'err'); return; }
+    if (r.by === me()) { toast('The submitter cannot decide this request.', 'err'); audit('Access', 'SoD block', r.id || upid, 'DSOD-01 · submitter = approver', 'Rejected'); return; }
+    return g0(upid); }; });
+})();
+
+/* =====================================================================
+ * E. 6A.13.3 remittance records: reversed entries leave the reference check; Re-entry Of
+ * ===================================================================== */
+const MSG_REF_DUP_138 = 'This reference number has already been recorded for this channel.';
+function drsRefTaken138(channel, ref) { return SEED.drs137.some(x => x.channel === channel && (x.rem || []).some(r => r.ref === ref && r.src === 'Manual' && !r.reversed && r.kind !== 'Reversal')); }
+function drsReversedOf138(channel, ref) { for (const s of SEED.drs137) { if (s.channel !== channel) continue; const r = (s.rem || []).find(x => x.ref === ref && x.reversed && x.kind !== 'Reversal'); if (r) return r; } return null; }
+const nextRm138 = () => 'RM-' + pad(SEED.drs137.reduce((n, x) => n + (x.rem || []).length, 0) + 1, 4);
+ACT.drs137Rec = id => { const s = SEED.drs137.find(x => x.id === id); if (!s || !can('Settlement', 'C')) return;
+  ask({ title: `Record Remittance · ${s.id}`, ok: E138('Save'), fields: [{ k: 'm_cat', zh: '', en: 'Payment Category', ctl: 'radio', req: true, opts: ['Sales Remittance', 'Penalty'], def: 'Sales Remittance' }, { k: 'm_amt', zh: '', en: 'Remittance Amount', ctl: 'money', req: true, ph: 'Amount as shown on the bank document', def: String(Math.max(0, r2(s.net - drsRemitted137(s)))) }, { k: 'm_date', zh: '', en: 'Remittance Date', ctl: 'date', req: true, def: today137() }, { k: 'm_ref', zh: '', en: 'Reference No', ctl: 'text', req: true, ph: 'Bank or deposit reference' }],
+    validate: v => { const e = {}; const a = +String(v.m_amt || '').replace(/[^\d.]/g, ''); if (!(a > 0)) e.m_amt = 'Enter the remittance amount.'; else if (!/^\d+(\.\d{1,2})?$/.test(String(v.m_amt).replace(/[,₱\s]/g, ''))) e.m_amt = 'Up to 2 decimal places.'; if (!v.m_date) e.m_date = 'Select the remittance date.'; else if (v.m_date > today137()) e.m_date = 'The remittance date cannot be after today.'; const ref = (v.m_ref || '').trim(); if (!ref) e.m_ref = 'Enter the reference number.'; else if (ref.length > 64) e.m_ref = 'Up to 64 characters.'; else if (drsRefTaken138(s.channel, ref)) e.m_ref = MSG_REF_DUP_138; return e; },
+    onOk: v => { const a = r2(+String(v.m_amt).replace(/[^\d.]/g, '')); const ref = v.m_ref.trim(); const old = drsReversedOf138(s.channel, ref);
+      const rec = { id: nextRm138(), amount: a, date: v.m_date, ref, src: 'Manual', by: me(), cat: v.m_cat }; if (old) rec.reentryOf = old.id; s.rem.push(rec);
+      audit('Settlement', 'Remittance recorded', s.id, `${fmtP(a)} · ${v.m_date} · ${ref}${old ? ' · re-entry of ' + old.id : ''}`); toast(`Remittance recorded${old ? ` (re-entry of ${old.id})` : ''}. Status: ${drsState137(s)}.`); } }); };
+ACT.drs138Rev = arg => { const [sid, rid] = String(arg).split('|'); const s = SEED.drs137.find(x => x.id === sid); const r = s && (s.rem || []).find(x => x.id === rid); if (!r || !can('Settlement', 'C')) return;
+  if (r.reversed) { toast('This entry has already been reversed.', 'err'); return; }
+  if (r.by === me()) { toast('You cannot reverse an entry you recorded.', 'err'); audit('Settlement', 'Reverse refused', r.id, 'recorder = reverser', 'Rejected'); return; }
+  ask({ title: `Reverse Entry · ${r.id}`, msg: `${fmtP(r.amount)} · ${esc(r.ref)}`, danger: true, ok: E138('Reverse Entry'), reason: { zh: '', en: 'Reason', max: 500 },
+    onOk: v => { r.reversed = true; r.reversedBy = me(); s.rem.push({ id: nextRm138(), kind: 'Reversal', of: r.id, amount: r.amount, date: today137(), ref: r.ref, src: 'Reversal', by: me(), reversed: true, reason: v.m_reason });
+      audit('Settlement', 'Remittance reversed', r.id, `${s.id} · ${v.m_reason}`); toast(`Entry reversed. Status: ${drsState137(s)}.`); } }); };
+R134_COLS.drsRem137 = cols => {
+  const a = colIdx(cols, 'Amount'); if (a >= 0) cols[a] = Object.assign({}, cols[a], { r: x => (x.kind === 'Reversal' ? '−' : '') + fmtP(x.amount) });
+  const i = colIdx(cols, 'Status'); if (i >= 0) cols[i] = { h: 'Status', r: x => x.kind === 'Reversal' ? badge('Reversal', 'info') + `<div class="tiny">of ${esc(x.of)}${x.reason ? ' · ' + esc(x.reason) : ''}</div>` : (x.reversed ? badge('Reversed') + `<div class="tiny">by ${esc(x.reversedBy || '-')}</div>` : '-') + (x.reentryOf ? `<div class="tiny" data-r138="reentry">Re-entry Of ${esc(x.reentryOf)}</div>` : '') };
+  const sid = () => { const d = S.drawer; return d && d.drs137; };
+  cols.push({ h: 'Actions', r: x => can('Settlement', 'C') && x.src === 'Manual' && !x.reversed && x.kind !== 'Reversal' && sid() ? btn(E138('Reverse Entry'), 'drs138Rev', sid() + '|' + x.id, { cls: 'sm' }) : '' });
+  return cols;
+};
+/* the older settlement statement page (Remittances tab) follows the same rule */
+(function stRec138() {
+  const m = modById('settlement'); if (!m || !m.acts || !m.acts.stRecord) return; const r0 = m.acts.stRecord;
+  m.acts.stRecord = a => { r0(a); const M = S.modal; if (!M || !M.onOk) return; const o0 = M.onOk;
+    M.onOk = v => { const rev = []; SEED.settlements.forEach(s => (s.rem || []).forEach(r => { if (r.reversedBy && r.kind !== 'Reversal') { rev.push([r, r.ref]); r.ref = r.ref + '\u0000'; } }));
+      const before = new Set(); SEED.settlements.forEach(s => (s.rem || []).forEach(r => before.add(r)));
+      let res; try { res = o0(v); } finally { rev.forEach(([r, ref]) => { r.ref = ref; }); }
+      SEED.settlements.forEach(s => (s.rem || []).forEach(r => { if (before.has(r)) return; const old = rev.find(([o, ref]) => ref === r.ref && s.rem.includes(o)) || rev.find(([o, ref]) => ref === r.ref); if (old) r.reentryOf = old[0].id; }));
+      return res; }; };
+})();
+R134_COLS.stRem = cols => { const i = colIdx(cols, 'Status'); if (i < 0) return cols; const r0 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: r => r0(r) + (r.reentryOf ? `<div class="tiny" data-r138="reentry">Re-entry Of ${esc(r.reentryOf)}</div>` : '') }); return cols; };
+
+/* =====================================================================
+ * F. 6A.14.1 Wallet And Funds divergences: automatic re-compare on late Core data
+ * ===================================================================== */
+const WALLET_DOM_138 = 'Wallet And Funds';
+const AUTO_RECMP_138 = 'Auto Re-compared';
+function walletDiv138() {
+  if (!SEED.divergences || SEED.divergences.some(d => d.id === 'DIV-20261011-000031')) return;
+  SEED.divergences.push(
+    { id: 'DIV-20261011-000031', channel: 'ILT', domain: WALLET_DOM_138, dom: WALLET_DOM_138, dtype: 'Value Mismatch', object: 'Wallet and Funds Report · sales day 2026-10-10', type: 'Prize Credits', sev: 'High', defSev: 'High', status: 'Resolved', pst: 'Resolved', src: 'Daily Sweep', attempts: 0, raisedAt: '2026-10-11 03:05:12', closedAt: '2026-10-11 09:42:10', resolution: AUTO_RECMP_138,
+      fields: [{ f: 'Prize Credits (sales day 2026-10-10)', core: '₱1,204,300.00', ch: '₱1,204,300.00' }],
+      tl: [{ at: '2026-10-11 03:05:12', by: 'System', act: 'Detected', note: 'Prize Credits: Core ₱1,203,300.00 / Channel ₱1,204,300.00' }, { at: '2026-10-11 09:42:10', by: 'System', act: 'Resolved', note: `Handling Method: ${AUTO_RECMP_138} · late Top-up claim records for sales day 2026-10-10 received; re-compare consistent` }], demo: true },
+    { id: 'DIV-20261012-000032', channel: 'EC2', domain: WALLET_DOM_138, dom: WALLET_DOM_138, dtype: 'Value Mismatch', object: 'Wallet and Funds Report · sales day 2026-10-11', type: 'Prize Credits', sev: 'High', defSev: 'High', status: 'Open', pst: 'Open', src: 'Daily Sweep', attempts: 0, raisedAt: '2026-10-12 03:04:40',
+      fields: [{ f: 'Prize Credits (sales day 2026-10-11)', core: '₱986,150.00', ch: '₱987,650.00' }],
+      tl: [{ at: '2026-10-12 03:04:40', by: 'System', act: 'Detected', note: 'Prize Credits: Core ₱986,150.00 / Channel ₱987,650.00 · 24-hour resolution limit' }], demo: true });
+}
+/** Core receives late data for the reporting period: re-compare; consistent -> Resolved (Auto Re-compared), else unchanged */
+function walletRecompare138(d, consistent) {
+  if (!d || d.dom !== WALLET_DOM_138 || d.dtype !== 'Value Mismatch' || !['Open', 'Re-pushing', 'Escalated'].includes(d.pst)) return false;
+  if (!consistent) { d.tl.push({ at: nowS(true), by: 'System', act: 'Re-compared', note: 'Late Core data received; still different. Resolution limit not reset.' }); audit('Reconciliation', 'Automatic re-compare', d.id, 'still different'); return false; }
+  (d.fields || []).forEach(f => { f.core = f.ch; });
+  d.pst = 'Resolved'; d.status = 'Resolved'; d.closedAt = nowS(true); d.resolution = AUTO_RECMP_138;
+  d.tl.push({ at: d.closedAt, by: 'System', act: 'Resolved', note: `Handling Method: ${AUTO_RECMP_138} · late Core data received; re-compare consistent` });
+  audit('Reconciliation', 'Divergence resolved', d.id, `Handling Method: ${AUTO_RECMP_138}`); return true;
+}
+const walletSee138 = () => hasRole('finrep') || hasRole('fin') || hasRole('aud');
+(function recon138() {
+  const m = modById('recon'); if (!m || !m.acts) return;
+  const v0 = m.view; m.view = () => { if (walletSee138()) return v0(); const keep = SEED.divergences; SEED.divergences = keep.filter(d => d.dom !== WALLET_DOM_138); try { return v0(); } finally { SEED.divergences = keep; } };
+  const o0 = m.acts.rcOpen;
+  m.acts.rcOpen = id => { o0(id); const d = SEED.divergences.find(x => x.id === id); const D = S.drawer; if (!d || !D || d.dom !== WALLET_DOM_138) return;
+    const b0 = D.body, f0 = D.foot;
+    D.body = () => b0().replace('<h4>Timeline</h4>', (d.resolution ? dl([['Handling Method', badge(d.resolution, 'info')]]) : '') + '<p class="tiny muted">Amounts follow the Wallet and Funds Report. Late Core data for the period triggers an automatic re-compare; Core never changes either side automatically.</p><h4>Timeline</h4>');
+    D.foot = () => f0() + (['Open', 'Re-pushing', 'Escalated'].includes(d.pst) ? ' ' + btn(E138('Simulate late Core data'), 'rcWallet138', d.id, { cls: 'dev', dev: true, id: 'btnWallet138' }) : '');
+    render(); };
+})();
+ACT.rcWallet138 = id => { const d = SEED.divergences.find(x => x.id === id); if (walletRecompare138(d, true)) toast(`Re-compare consistent. ${d.id} Resolved (${AUTO_RECMP_138}).`); render(); };
+R134_COLS.rcDivs = cols => { const i = colIdx(cols, 'Auto-Applicable'); if (i >= 0) { const r0 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: d => d.dom === WALLET_DOM_138 ? badge('No', 'warn') : r0(d) }); }
+  const s = colIdx(cols, 'Status'); if (s >= 0) { const r1 = cols[s].r; cols[s] = Object.assign({}, cols[s], { r: d => r1(d) + (d.resolution ? `<div class="tiny" data-r138="autorc">${esc(d.resolution)}</div>` : '') }); } return cols; };
+
+/* =====================================================================
+ * G. 6A.2.5 full suspension allowances
+ * ===================================================================== */
+const CASH_CODE_138 = 'Cash Bond Not Replenished';
+const RISK_CODE_138 = 'Security Or Integrity Risk';
+function suspMode138(ch) { const s = ch && ch.suspended; if (!s) return ''; if (s.type === 'Full Suspension') return 'manual';
+  if (s.type === 'Automatic Full Suspension') { const c = s.codes || []; if (c.includes(RISK_CODE_138)) return 'risk'; if (c.length && c.every(x => x === CASH_CODE_138)) return 'cash'; return 'auto'; } return ''; }
+const MSG_ALLOW_SAME_138 = 'Change at least one allowance.';
+const MSG_CASH_SA_138 = 'Only a Senior Authorizer can authorize a prize claims release.';
+openSuspForm = function (code) {
+  const ch = chByCode(code); const mode = suspMode138(ch); const compOnly = !hasRole('nop') && (hasRole('comp') || hasRole('finrep') || hasRole('fin'));
+  let acts = compOnly ? [['Partial Suspension', 'Partial suspension'], ['Full Suspension', 'Full suspension']] : [['Partial Suspension', 'Partial suspension'], ['Full Suspension', 'Full suspension']].concat(ch.status !== 'Active' ? [['Restore', 'Restore']] : []).concat(ch.actions.length ? [['Roll Back', 'Roll back last action']] : []);
+  if (mode === 'risk' || mode === 'auto') acts = acts.filter(a => a[0] !== 'Full Suspension');
+  const cashBlock = ch.suspended && (ch.suspended.codes || []).includes(CASH_CODE_138) && !bondFunded137(code);
+  const curAllow = (ch.suspended && ch.suspended.allow) || [];
+  const openDraws = SEED.draws.filter(d => d.status === 'Open for Betting' && gameChannels(d.game).includes(code)).length;
+  const bigClaims = SEED.claims.filter(c => c.channel === code && c.status === 'FOR CLAIMING').length;
+  const allowMode = a => a === 'Full Suspension' && (mode === 'manual' || mode === 'cash');
+  openModal({ title: `Suspend or restore ${code}`, size: 'lg', ok: E137('Submit for Authorization'),
+    body: () => { const a = fval('m_action', acts[0][0]);
+      const scopeOpts = a === 'Restore' ? (ch.suspended ? (ch.suspended.type === 'Partial Suspension' ? ch.suspended.scope.filter(s => SCOPES.includes(s)) : ['All']) : []) : SCOPES;
+      const allowHtml = () => { const v = fval('m_allow', []) || []; const box = (val, lbl, dis) => `<label${dis ? ' style="opacity:.5"' : ''}><input type="checkbox" data-multi="1" data-k="m_allow" value="${val}"${v.includes(val) ? ' checked' : ''}${dis ? ' disabled' : ''}>${lbl}</label>`;
+        return `<div class="opts" id="allow138">${box('Withdrawals', 'Allow withdrawals', mode === 'cash')}${box('Prize Claims', 'Allow prize claims', false)}</div>`
+          + (mode === 'cash' ? `<div class="hint" id="cashRelease138">Automatic suspension (${CASH_CODE_138}): only prize claims can be allowed; withdrawals stay blocked. A Senior Authorizer must authorize each release. Prizes are paid from the PCSO-designated account, not the cash bond.</div>`
+            : `<div class="hint" id="allowOnly138">This channel is already fully suspended. Only the allowances change: scope stays All, the control version goes up by one. This is not a restore: no open-divergence check and no re-synchronization.</div>`); };
+      return formHtml([
+        { k: 'm_action', zh: 'Action', en: 'Action', ctl: 'html', req: true, html: () => `<div class="opts">${acts.map(([v, l]) => { const dis = (v === 'Restore' || v === 'Roll Back') && (!restoreAllowed(ch) || cashBlock); return `<label${dis ? ' style="opacity:.5"' : ''}><input type="radio" name="r_m_action" data-k="m_action" value="${v}"${a === v ? ' checked' : ''}${dis ? ' disabled' : ''} data-chg="rerender">${esc(l)}</label>`; }).join('')}</div>${cashBlock ? `<div class="hint" id="cashBlock137">Restore is available after the cash bond is replenished.</div>` : (ch.status !== 'Active' && !restoreAllowed(ch) ? `<div class="hint" id="restoreTip">${esc(RESTORE_TIP)}</div>` : '')}${mode === 'risk' ? '<div class="hint" id="riskNoRelease138">Automatic suspension for a security or integrity risk: allowances cannot be changed.</div>' : ''}` },
+        { k: 'm_scope', zh: 'Scope', en: 'Scope', ctl: 'checks', req: true, opts: scopeOpts, show: () => a === 'Partial Suspension' || (a === 'Restore' && ch.suspended && ch.suspended.type === 'Partial Suspension') },
+        { k: 'm_scopeAll', zh: 'Scope', en: 'Scope', ctl: 'readonly', show: () => a === 'Full Suspension', html: () => '<b id="scopeAll137">All</b>' },
+        { k: 'm_allow', zh: 'Allowed During Suspension', en: 'Allowed During Suspension', ctl: 'checks', opts: [['Withdrawals', 'Allow withdrawals'], ['Prize Claims', 'Allow prize claims']], show: () => a === 'Full Suspension' && !allowMode(a), hint: { zh: '', en: 'Not ticked by default: everything is blocked except reporting, reconciliation and incident report endpoints.' } },
+        { k: 'm_allow2', zh: 'Allowed During Suspension', en: 'Allowed During Suspension', ctl: 'html', show: () => allowMode(a), html: allowHtml },
+        { k: 'm_pay', zh: 'Payment Channels', en: 'Payment Channels', ctl: 'checks', opts: ch.payProviders || [], show: () => a === 'Partial Suspension' && (fval('m_scope', []) || []).includes('Payment channels') },
+        { k: 'm_code', zh: 'Reason Code', en: 'Reason Code', ctl: 'select', req: true, opts: [['', '-']].concat(MANUAL_CODES_137), show: () => (a === 'Partial Suspension' || a === 'Full Suspension') && !allowMode(a), chg: true },
+        { k: 'm_codeCur', zh: 'Reason Code', en: 'Reason Code', ctl: 'readonly', show: () => allowMode(a), html: () => `<span id="codeCur138">${esc(((ch.suspended && ch.suspended.codes) || ['-']).join(', '))}</span> <span class="tiny muted">unchanged</span>` },
+        { k: 'm_party', zh: 'Responsible Party', en: 'Responsible Party', ctl: 'radio', opts: ['Core Contractor', 'E-Channel Operator'], show: () => fval('m_code', '') === 'Contractor Fault' && !allowMode(a) },
+        { k: 'm_reason', zh: 'Reason', en: 'Reason', ctl: 'textarea', req: true, ph: 'Why is this action needed?' },
+        { k: 'm_case', zh: 'Related Case', en: 'Related Case', ctl: 'select', opts: [['', '-']].concat(SEED.cases.filter(c => c.status !== 'Closed').map(c => [c.id, c.id + ' · ' + c.title])) },
+        { k: 'm_impact', zh: 'Impact', en: 'Impact', ctl: 'readonly', html: () => `Open draws: ${openDraws} · Pending large-prize claims: ${bigClaims} · Store-and-forward in transit: 0` },
+      ]); },
+    onOk: v => { const e = {}; const a = v.m_action || acts[0][0];
+      if (allowMode(a)) {
+        const allow = [].concat(v.m_allow || []).filter(x => mode === 'cash' ? x === 'Prize Claims' : true);
+        if (allow.slice().sort().join() === curAllow.slice().sort().join()) e.m_allow2 = MSG_ALLOW_SAME_138;
+        if (empty((v.m_reason || '').trim())) e.m_reason = 'Enter a reason.';
+        if (Object.keys(e).length) { S.ferr = e; return false; }
+        const sum = 'All · ' + (allow.length ? 'Allowed: ' + allow.join(' / ') : 'Allowed: none') + (mode === 'cash' ? ' · prize claims release' : ' · allowances only');
+        const r = submitAuth({ kind: 'channel', type: 'Full Suspension', target: code, summary: sum, reason: v.m_reason.trim(), payload: { scope: ['All'], allow, allowOnly: true, cashRelease: mode === 'cash', code: ((ch.suspended && ch.suspended.codes) || []).join(', '), case: v.m_case } });
+        if (!r) return false; toast(mode === 'cash' ? 'Submitted. A Senior Authorizer must authorize this release.' : 'Submitted for authorization.'); return;
+      }
+      if (a === 'Partial Suspension' && empty(v.m_scope)) e.m_scope = 'Select at least one function.';
+      if (a === 'Restore' && ch.suspended && ch.suspended.type === 'Partial Suspension' && empty(v.m_scope)) e.m_scope = 'Select at least one function.';
+      if (a === 'Partial Suspension' && (v.m_scope || []).includes('Payment channels') && empty(v.m_pay)) e.m_pay = 'Select at least one payment channel.';
+      if ((a === 'Partial Suspension' || a === 'Full Suspension') && !v.m_code) e.m_code = 'Select a reason code.';
+      if (v.m_code === 'Contractor Fault' && !v.m_party) e.m_party = 'Select the responsible party.';
+      if (empty((v.m_reason || '').trim())) e.m_reason = 'Enter a reason.';
+      if ((a === 'Restore' || a === 'Roll Back') && cashBlock) e.m_action = 'Restore is available after the cash bond is replenished.';
+      else if (a === 'Restore' && !restoreAllowed(ch)) e.m_action = RESTORE_TIP;
+      if (Object.keys(e).length) { S.ferr = e; return false; }
+      const allow = a === 'Full Suspension' ? (v.m_allow || []) : [];
+      const sum = a === 'Full Suspension' ? 'All' + (allow.length ? ' · Allowed: ' + allow.join(' / ') : '') : (v.m_scope || []).join(', ') || a;
+      const r = submitAuth({ kind: 'channel', type: a, target: code, summary: sum, reason: v.m_reason.trim(), payload: { scope: a === 'Full Suspension' ? ['All'] : (v.m_scope || []), allow, pay: v.m_pay || [], code: v.m_code || '', party: v.m_party || '', case: v.m_case } });
+      if (!r) return false; toast('Submitted for authorization.'); } });
+  setFv({ m_action: acts[0][0], m_allow: curAllow.slice() }); render();
+};
+(function fullAllow138() {
+  const c0 = AUTH_CHECK['Full Suspension'];
+  AUTH_CHECK['Full Suspension'] = r => { const p = r.payload || {}; if (p.allowOnly) { if (p.cashRelease && !hasRole('sa')) return MSG_CASH_SA_138; const ch = chByCode(r.target); const md = suspMode138(ch); if (!(md === 'manual' || md === 'cash')) return 'This channel is no longer in a state where only the allowances can change.'; if (p.cashRelease && md !== 'cash') return 'Prize claims can be released only for a suspension with reason code Cash Bond Not Replenished alone.'; } return c0 ? c0(r) : null; };
+  const f0 = AUTH_APPLY['Full Suspension'];
+  AUTH_APPLY['Full Suspension'] = r => {
+    const p = r.payload || {}; if (!p.allowOnly) return f0(r);
+    const ch = chByCode(r.target); const s = ch.suspended; const from = (s.allow || []).join(' / ') || 'none';
+    s.allow = (p.allow || []).slice(); ch.ctlVer = (ch.ctlVer || 0) + 1; r.ctlVer = ch.ctlVer;
+    if (s.allow.includes('Prize Claims') && !s.claimsSince) s.claimsSince = nowS(true); if (!s.allow.includes('Prize Claims')) delete s.claimsSince;
+    const d = issueDirective({ channel: ch.code, type: 'Full Suspension', summary: `All · Allowed: ${s.allow.join(' / ') || 'none'} · control version ${ch.ctlVer}`, reason: r.reason, by: r.by, authBy: me(), deadlineMin: SEED.policy.directiveDeadlineMin, ref: r.id });
+    d.objv = `${ch.code} · control version ${ch.ctlVer}`; s.dir = d.id; s.pending = true;
+    audit('Channel Control', p.cashRelease ? 'Prize claims release authorized' : 'Suspension allowances changed', ch.code, `${from} → ${s.allow.join(' / ') || 'none'} · control version ${ch.ctlVer} · ${r.id}`);
+  };
+})();
+/* Suspended Functions column already shows "Allowed: ..." (p8i_137); a release on an automatic suspension keeps the Auto badge */
+
+/* =====================================================================
+ * H. 6A.19.2 report catalogue (1.3.8)
+ * ===================================================================== */
+(function reports138() {
+  if (typeof REPORTS === 'undefined') return;
+  const VIS = { player: ['comp', 'finrep', 'case', 'aud', 'reg'], perf: ['nop', 'finrep', 'case', 'aud', 'sa', 'cccv', 'ccc'], equal: ['comp', 'finrep', 'aud', 'sa'],
+    afasa: ['comp', 'finrep', 'case', 'aud'], coresla: ['finrep', 'nop', 'case', 'aud', 'sa', 'soc', 'cccv', 'ccc'], sol: ['finrep', 'case', 'aud', 'sa', 'fin'] };
+  if (!REPORTS.some(r => r.id === 'afasa')) REPORTS.push(
+    { id: 'afasa', en: 'AFASA and Fraud Report', zh: '', content: 'Channel-reported fraud indicators and incidents, Core fraud indicators, AFASA temporary holds and Fraud case handling', sens: 'Restricted', roles: {}, drill: false,
+      cols: [['ato', 'Suspected Account Takeovers', 'num'], ['mule', 'Suspected Money Mule Accounts', 'num'], ['scam', 'Scam Reports', 'num'], ['susp', 'Suspicious Transactions And Payments', 'num'], ['dup', 'Suspected Duplicate Accounts', 'num'], ['unauth', 'Unauthorized Access Attempts', 'num'], ['holds', 'AFASA Temporary Holds', 'num'], ['cases', 'Fraud Cases', 'num']] },
+    { id: 'coresla', en: 'Core Service Level Report', zh: '', content: 'Monthly availability by tier, outage events and attribution, degradation, failure counts, planned maintenance, SLA attainment', sens: 'Internal', roles: {}, drill: false,
+      cols: [['target', 'Target', 'text'], ['actual', 'Actual', 'text'], ['counted', 'Counted Downtime (min)', 'num'], ['events', 'Events', 'num'], ['status', 'SLA Attainment', 'text']] },
+    { id: 'sol', en: 'Sales Opportunity Loss Estimate', zh: '', content: 'Contractor-attributed outage windows, affected games and channels, baseline sales, estimated loss, PCSO notice and due dates', sens: 'Restricted', roles: {}, drill: false,
+      cols: [['win', 'Outage Window', 'text'], ['base', 'Baseline Sales', 'money'], ['actual', 'Actual Sales', 'money'], ['loss', 'Estimated SOL', 'money'], ['status', 'Status', 'text']] });
+  REPORTS.forEach(r => { const v = VIS[r.id]; if (!v) return; r.roles = {}; v.forEach(id => { r.roles[id] = (PERM['Reports'][id] || '').includes('X') ? 'VX' : 'V'; }); });
+  const g0 = repGroups;
+  repGroups = function (rep, q) {
+    if (rep.id === 'afasa') return (SEED.fraud137 || []).filter(x => q.ch === 'All' || x.ch === q.ch).map(x => ({ key: x.ch, label: x.ch, m: { ato: x.ato, mule: x.mule, scam: x.scam, susp: x.susp, dup: x.dup, unauth: x.unauth, holds: x.holds, cases: x.cases } }));
+    if (rep.id === 'coresla') { const mins = 43200; return [['Critical Path', 99.95], ['Other – Critical Functions', 99.9], ['All Other Functions', 99.9]].map(([tier, tg]) => { const ev = (SEED.sla137 || []).filter(e => e.tier === tier); const cd = ev.filter(e => ['Contractor', 'DDoS Within Declared Capacity'].includes(e.attr)).reduce((a, e) => a + e.min, 0); const act = Math.floor((mins - cd) / mins * 10000) / 100; return { key: tier, label: tier, m: { target: tg.toFixed(2) + '%', actual: act.toFixed(2) + '%', counted: cd, events: ev.length, status: act >= tg ? 'Met' : 'Breached' } }; }); }
+    if (rep.id === 'sol') return (SEED.sol137 || []).filter(x => q.ch === 'All' || x.ch === q.ch).map(x => ({ key: x.id, label: `${x.id} · ${x.ch} · ${x.game}`, m: { win: x.win, base: x.base, actual: x.actual, loss: Math.max(0, x.base - x.actual), status: x.status } }));
+    return g0(rep, q);
+  };
+})();
+
+/* =====================================================================
+ * I. 6A.20 roles and accounts
+ * ===================================================================== */
+const PERSONNEL_138 = ['PCSO Staff', 'Contractor Staff', 'Designated Agency Staff'];
+const MSG_PERSONNEL_138 = 'This role cannot be assigned to this personnel type.';
+const FACTORY_138 = JSON.parse(JSON.stringify(PERM));
+const PRIV_GROUP_138 = ['User Accounts', 'Roles And SoD', 'Security Policy', 'Emergency Accounts', 'Channel Credentials', 'Platform Settings', 'Access Allowlist'];
+const PRIV_EXTRA_138 = { 'Change Requests': 'VC', 'Service Levels': 'V', 'Audit Trail': 'V', 'Documentation Register': 'VCE', 'Integration Registry': 'VCE' };
+const MSG_MIX_138 = 'Privilege-based and operations-based permissions cannot be mixed in one role.';
+const SL_SCOPES_138 = ['Outage Events', 'Sales Opportunity Loss'];
+const MSG_SL_SCOPE_138 = 'Select the edit scope for Service Levels.';
+function roleHasCEA138(id) { return Object.values(rolePerms(id)).some(s => /[CEA]/.test(s)); }
+function personnelErr138(pt, roleIds) {
+  const ids = roleIds || [];
+  if (pt === 'Contractor Staff' && ids.some(id => roleCat137(id) !== 'Privilege-Based')) return MSG_PERSONNEL_138;
+  if (pt === 'Designated Agency Staff' && ids.some(id => id !== 'ccc' && (roleCat137(id) === 'Privilege-Based' || roleHasCEA138(id)))) return MSG_PERSONNEL_138;
+  return '';
+}
+(function users138() {
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'u_roles') && !fields.some(f => f && f.k === 'u_personnel')) {
+      const u = S.drawer && S.drawer.edit ? userById(S.drawer.edit) : null; fields = fields.slice(); const i = fields.findIndex(f => f && f.k === 'u_roles');
+      fields.splice(i, 0, u ? { k: 'u_personnel', zh: '', en: 'Personnel Type', ctl: 'readonly', html: () => `<span id="uPers138">${esc(u.personnel || 'PCSO Staff')}</span>` }
+        : { k: 'u_personnel', zh: '', en: 'Personnel Type', ctl: 'radio', req: true, def: 'PCSO Staff', opts: PERSONNEL_138, hint: { zh: '', en: 'Contractor Staff: Privilege-Based roles only. Designated Agency Staff: read-only roles, or the CCC Duty template.' } });
+    }
+    return f0(fields, o);
+  };
+  const v0 = usrValidate;
+  usrValidate = function (v, u) { const e = v0(v, u); if (!e.u_roles && !empty(v.u_roles)) { const pt = u ? (u.personnel || 'PCSO Staff') : (v.u_personnel || 'PCSO Staff'); const pe = personnelErr138(pt, v.u_roles); if (pe) e.u_roles = pe; } return e; };
+  const m = modById('users'); if (!m || !m.acts || !m.acts.usrSave) return; const s0 = m.acts.usrSave;
+  m.acts.usrSave = () => { const v = vals(); const isNew = !(S.drawer && S.drawer.edit); s0(); if (isNew) { const n = userById(String(v.u_id || '').trim()); if (n && !n.personnel) n.personnel = PERSONNEL_138.includes(v.u_personnel) ? v.u_personnel : 'PCSO Staff'; } };
+})();
+(function roles138() {
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'r_perm') && !fields.some(f => f && f.k === 'r_slScope')) {
+      const r = S.drawer && S.drawer.edit ? roleById(S.drawer.edit) : null;
+      if (!r || r.type !== 'Preset') { fields = fields.slice(); const i = fields.findIndex(f => f && f.k === 'r_perm'); fields.splice(i + 1, 0, { k: 'r_slScope', zh: '', en: 'Service Levels Edit Scope', ctl: 'select', opts: [['', '-']].concat(SL_SCOPES_138), hint: { zh: '', en: 'Required when Service Levels · Edit is ticked: outage events or Sales Opportunity Loss.' } }); }
+    }
+    return f0(fields, o);
+  };
+  const v0 = roleValidate;
+  roleValidate = function (v, editId) {
+    const e = v0(v, editId); const p = roleDraft(v); const r = editId ? roleById(editId) : null; const priv = v.r_cat === 'Privilege-Based';
+    if (priv && e.r_perm === MSG_MIX_138) { // 1.3.8 category rule: privileged group + Change Requests V C, Service Levels V, Audit Trail V, Documentation / Integration Registry V C E
+      const ok = Object.keys(p).every(mod => PRIV_GROUP_138.includes(mod) || (PRIV_EXTRA_138[mod] && [...p[mod]].every(l => PRIV_EXTRA_138[mod].includes(l))));
+      if (ok) { delete e.r_perm; const id = editId || '__new'; const c = sodCheck([id], { [id]: { perms: p, audit: !!(v.r_audit === true || v.r_audit === 'true') } }); if (c) e.r_perm = sodRoleMsg(c); }
+    }
+    if (!e.r_perm && r && r.type === 'Preset') { // 6A.20.3: a preset can only narrow inside its factory cells
+      const bad = Object.keys(p).find(mod => [...p[mod]].some(l => !((FACTORY_138[mod] || {})[r.id] || '').includes(l)));
+      if (bad) e.r_perm = `This preset role cannot include ${bad}. Use a template or custom role.`;
+    }
+    if (!e.r_perm && (!r || r.type !== 'Preset') && (p['Service Levels'] || '').includes('E') && !SL_SCOPES_138.includes(v.r_slScope)) e.r_slScope = MSG_SL_SCOPE_138;
+    return e;
+  };
+  const m = modById('users'); if (!m || !m.acts || !m.acts.roleSave) return; const s0 = m.acts.roleSave;
+  m.acts.roleSave = () => { const v = vals(); const before = new Set(SEED.accessChanges); s0(); const ac = SEED.accessChanges.find(a => !before.has(a)); if (ac && ac.payload && ac.payload.perms && (ac.payload.perms['Service Levels'] || '').includes('E')) ac.payload.slScope = v.r_slScope; };
+})();
+/* SOD-01 exception text: Integration Registry V C E (1.3.8) */
+(function sod138() {
+  const r = (SEED.sodRules || []).find(x => x.id === 'SOD-01'); if (r) r.b = 'Any permission outside the privileged module group (except Change Requests V C, Documentation Register V C E, Integration Registry V C E, Audit Trail V of access and security events)';
+})();
+/* SOL page and SOL report: hidden for every Privilege-Based role (presets and custom) */
+function solSee138(u = S.user) { return !!u && (u.roles || []).some(id => roleCat137(id) !== 'Privilege-Based' && (rolePerms(id)['Service Levels'] || '').includes('V')); }
+(function sol138() {
+  const m = modById('sla'); if (!m) return; const sub = (m.subs || []).find(s => s.id === 'sol');
+  if (sub) Object.defineProperty(sub, 'roles', { get: () => [...new Set((SEED.roles || []).map(r => r.id).concat(ROLES.map(r => r.id)))].filter(id => roleCat137(id) !== 'Privilege-Based' && (rolePerms(id)['Service Levels'] || '').includes('V')), configurable: true });
+  const v0 = m.view; m.view = () => { if (S.sub === 'sol' && !solSee138()) S.sub = 'core'; return v0(); };
+})();
+
+/* =====================================================================
+ * J. 6A.12.3 Official Notices
+ * ===================================================================== */
+const ON_TYPES_138 = ['Official Notice', 'Disclosure', 'PlaySafe Material', 'Regulatory Notice'];
+const ON_PLACES_138 = { 'Official Notice': ['Notices'], 'Disclosure': ['Help Center · PCSO Disclosures'], 'PlaySafe Material': ['PlaySafe Page'], 'Regulatory Notice': ['E-Ticket', 'Transaction Confirmation', 'Wallet', 'Player Dashboard'] };
+const RN_DEFAULT_138 = { 'E-Ticket': 'This ticket is valid only as recorded in the PCSO I-Lotto Core System.', 'Transaction Confirmation': 'Your bet is valid once it is recorded in the PCSO I-Lotto Core System. Please play responsibly.', 'Wallet': 'Player funds are held in trust by PCSO in a designated Land Bank of the Philippines account.', 'Player Dashboard': 'This service is operated under the authority of the Philippine Charity Sweepstakes Office.' };
+const MSG_ON_SCHED_138 = 'A scheduled version already exists. Wait until it takes effect or withdraw it.';
+SEED.offNotices138 = Object.entries(RN_DEFAULT_138).map(([place, body], i) => ({ id: 'RN-' + place.toUpperCase().replace(/[^A-Z]/g, ''), ver: 'v1', type: 'Regulatory Notice', title: place + ' notice', place, body, eff: '2026-10-01 00:00', until: '', ref: 'PCSO-MEMO-2026-101', urgent: false, status: 'Current', by: 'comp.a', at: '2026-09-20 10:00', appr: 'sa.a', demo: true }))
+  .concat([{ id: 'ON-20261201-01', ver: 'v1', type: 'Official Notice', title: 'Holiday draw schedule', place: 'Notices', body: 'There are no draws on <b>25 December</b> and <b>1 January</b>. Details: <a href="https://www.pcso.gov.ph">pcso.gov.ph</a>', eff: '2026-12-01 00:00', until: '2026-12-31 23:59', ref: 'PCSO-MEMO-2026-188', urgent: false, status: 'Scheduled', by: 'comp.a', at: '2026-10-09 15:00', appr: 'sa.b', demo: true },
+    { id: 'DS-20261005-01', ver: 'v1', type: 'Disclosure', title: 'Prize tax disclosure', place: 'Help Center · PCSO Disclosures', body: 'Prizes above <b>₱10,000.00</b> are subject to the 20% final tax under the law. See <a href="https://www.pcso.gov.ph">pcso.gov.ph</a>.', eff: '2026-10-05 00:00', until: '', ref: 'PCSO-MEMO-2026-150', urgent: false, status: 'Current', by: 'comp.a', at: '2026-10-01 09:00', appr: 'sa.a', demo: true }]);
+function onTick138() { const now = S.now; SEED.offNotices138.forEach(x => { if (x.status === 'Scheduled' && dt(x.eff) <= now) { if (x.type === 'Regulatory Notice') SEED.offNotices138.filter(y => y !== x && y.place === x.place && y.status === 'Current').forEach(y => { y.status = 'Superseded'; }); x.status = 'Current'; } if (x.status === 'Current' && x.until && dt(x.until) < now) x.status = 'Expired'; }); }
+function onShown138(x) { const n = activeChannels().length; return `${x.status === 'Current' ? (x.shown != null ? x.shown : (x.demo ? n : 0)) : 0}/${n}`; }
+function onView138() {
+  onTick138(); const ty = fv('onf', 'type', 'All'), pl = fv('onf', 'place', 'All'), st = fv('onf', 'status', 'All');
+  const rows = SEED.offNotices138.filter(x => (ty === 'All' || x.type === ty) && (pl === 'All' || x.place === pl) && (st === 'All' || x.status === st));
+  return pageH(E138('Official Notices'), '6A.12.3', 'PCSO official notices, disclosures, PlaySafe materials and the four regulatory notices. Channels show them exactly as published.', can('Terms Of Service', 'C') ? btn(E138('New content'), 'on138New', '', { cls: 'primary', id: 'btnOnNew' }) : '')
+    + filterBar('onf', [{ k: 'type', zh: '', en: 'Content Type', type: 'select', def: 'All', opts: ['All'].concat(ON_TYPES_138) }, { k: 'place', zh: '', en: 'Placement', type: 'select', def: 'All', opts: ['All'].concat(...Object.values(ON_PLACES_138)) }, { k: 'status', zh: '', en: 'Status', type: 'select', def: 'All', opts: ['All', 'Pending Approval', 'Scheduled', 'Current', 'Superseded', 'Expired', 'Taken Down', 'Rejected'] }])
+    + table('on138', [{ h: 'Content ID', r: x => `<span class="mono">${esc(x.id)}</span>${x.ver !== 'v1' || x.type === 'Regulatory Notice' ? ` <span class="tiny">${esc(x.ver)}</span>` : ''}` }, { h: 'Type', k: 'type' }, { h: 'Title', k: 'title' }, { h: 'Placement', k: 'place' }, { h: 'Effective From', k: 'eff' }, { h: 'Until', r: x => esc(x.until || '-') }, { h: 'Status', r: x => badge(x.status) + (x.urgent ? ' ' + badge('Urgent', 'warn') : '') }, { h: 'Channels', r: x => onShown138(x) },
+      { h: 'Actions', r: x => { const b = [btn(E138('View'), 'on138Open', x.id, { cls: 'sm' })];
+        if (x.status === 'Pending Approval' && onCanApprove138(x)) b.push(btn(E138('Approve'), 'on138Ok', x.id, { cls: 'sm ok' }), btn(E138('Reject'), 'on138Rej', x.id, { cls: 'sm' }));
+        if (x.status === 'Scheduled' && can('Terms Of Service', 'C')) b.push(btn(E138('Withdraw'), 'on138Wd', x.id, { cls: 'sm' }));
+        if (x.status === 'Current' && x.type !== 'Regulatory Notice' && can('Terms Of Service', 'C')) b.push(btn(E138('Take down'), 'on138Down', x.id, { cls: 'sm danger' }));
+        return `<span class="nowrap">${b.join(' ')}</span>`; } }], rows, { nopage: true, empty: E138('No content.') })
+    + `<p class="tiny muted">Channels = channels that reported this version as shown / active channels. ${D138()}</p>`;
+}
+function onCanApprove138(x, u = S.user) { if (!u || x.by === u.id) return false; return x.urgent ? hasRole('sa', u) : (hasRole('ra', u) || hasRole('comp', u)) && can('Terms Of Service', 'A', u); }
+function onBodyHtml138(x) { return x.type === 'Regulatory Notice' ? esc(x.body) : String(x.body).replace(/<(?!\/?(b|a)(\s|>))[^>]*>/gi, ''); }
+ACT.on138Open = id => { const x = SEED.offNotices138.find(y => y.id === id); if (!x) return;
+  openDrawer({ title: () => `${x.id} · ${x.ver}`, sub: () => `${esc(x.type)} · ${badge(x.status)}`, size: 'md',
+    body: () => dl([['Content Type', esc(x.type)], ['Placement', esc(x.place)], ['Title', esc(x.title)], ['Content', `<div class="card" id="onBody138">${onBodyHtml138(x)}</div>`], ['Effective From', esc(x.eff)], ['Until', esc(x.until || '-')], ['PCSO Reference', esc(x.ref)], ['Submitted By', `${esc(x.by)} · ${esc(x.at)}`], ['Approved By', esc(x.appr || '-')]].concat(x.downReason ? [['Take Down Reason', esc(x.downReason)]] : []).concat(x.rejectReason ? [['Rejection Reason', esc(x.rejectReason)]] : [])) + (x.demo ? D138() : ''),
+    foot: () => btn(E138('Close'), 'closeDrawer') });
+};
+ACT.on138Fmt = kind => { const ta = document.querySelector('[data-k="m_body"]'); if (!ta) return; const s = ta.selectionStart || 0, e = ta.selectionEnd || 0; const sel = ta.value.slice(s, e) || (kind === 'bold' ? 'bold text' : 'link text');
+  const ins = kind === 'bold' ? `<b>${sel}</b>` : `<a href="https://">${sel}</a>`; ta.value = ta.value.slice(0, s) + ins + ta.value.slice(e); S.fv.m_body = ta.value; ta.focus(); };
+function onFields138() {
+  const ty = fval('m_type', 'Official Notice'); const places = ON_PLACES_138[ty] || []; const rn = ty === 'Regulatory Notice';
+  return [
+    { k: 'm_type', zh: '', en: 'Content Type', ctl: 'select', req: true, opts: ON_TYPES_138, chg: true },
+    ty === 'Disclosure' ? { k: 'm_place', zh: '', en: 'Placement', ctl: 'readonly', html: () => `<b id="onPlaceFixed138">Help Center · PCSO Disclosures</b><div class="tiny muted">Fixed for disclosures. To use a regulatory notice position, publish a separate Regulatory Notice.</div>` }
+      : { k: 'm_place', zh: '', en: 'Placement', ctl: 'select', req: true, opts: [['', '-']].concat(places), chg: true },
+    { k: 'm_title', zh: '', en: 'Title', ctl: 'text', req: true, ph: 'Holiday draw schedule' },
+    { k: 'm_body', zh: '', en: 'Content', ctl: 'html', req: true, html: () => (rn ? '<div class="tiny muted" id="onPlain138">Plain text, up to 300 characters.</div>' : `<div class="opts" id="onToolbar138" style="margin-bottom:4px">${btn(E138('Bold'), 'on138Fmt', 'bold', { cls: 'sm' })} ${btn(E138('Link'), 'on138Fmt', 'link', { cls: 'sm' })}</div>`) + `<textarea data-k="m_body" rows="6" style="width:100%">${esc(fval('m_body', ''))}</textarea>` + (rn ? '' : '<div class="tiny muted">Plain text, bold and https links only; no images.</div>') },
+    { k: 'm_eff', zh: '', en: 'Effective From', ctl: 'datetime', req: true },
+    rn ? null : { k: 'm_until', zh: '', en: 'Until', ctl: 'datetime' },
+    { k: 'm_ref', zh: '', en: 'PCSO Reference', ctl: 'text', req: true, ph: 'e.g. memo or order number' },
+    { k: 'm_urgent', zh: '', en: 'Urgent', ctl: 'switch', chg: true },
+    { k: 'm_urgentReason', zh: '', en: 'Urgent Reason', ctl: 'text', req: true, show: v => v.m_urgent === true || v.m_urgent === 'true' },
+  ].filter(Boolean);
+}
+ACT.on138New = () => { if (!can('Terms Of Service', 'C')) return;
+  openModal({ title: E138('New content'), size: 'lg', ok: E138('Submit change request'), vals: { m_type: 'Official Notice' },
+    body: () => { const ty = fval('m_type', 'Official Notice'); return formHtml(onFields138()) + `<p class="tiny" id="onApprHint138">${fval('m_urgent', false) === true || fval('m_urgent', false) === 'true' ? 'Needs approval by Senior Authorizer' : 'Needs approval by Reference Approver'}</p>`; },
+    onOk: v => {
+      const e = {}; const ty = v.m_type || 'Official Notice'; const rn = ty === 'Regulatory Notice'; const place = ty === 'Disclosure' ? ON_PLACES_138.Disclosure[0] : v.m_place; const body = String(v.m_body || ''); const urgent = v.m_urgent === true || v.m_urgent === 'true';
+      if (!place || !(ON_PLACES_138[ty] || []).includes(place)) e.m_place = 'Select a placement.';
+      const title = String(v.m_title || '').trim(); if (!title) e.m_title = 'Enter a title.'; else if (title.length > 100) e.m_title = 'Up to 100 characters.';
+      if (!body.trim()) e.m_body = 'Enter the content.'; else if (body.length > (rn ? 300 : 20000)) e.m_body = 'The content is too long for this placement.';
+      else if (/<img\b/i.test(body)) e.m_body = 'Images are not supported. Use bold text and links only.';
+      else if (rn && /<[^>]+>/.test(body)) e.m_body = 'Regulatory notices are plain text.';
+      else if (/href="(?!https:\/\/)/i.test(body)) e.m_body = 'Links must start with https://.';
+      if (!v.m_eff) e.m_eff = 'Select the effective time.'; else if (!urgent && dt(normDT(v.m_eff)) < S.now + LEAD_H.other * 36e5) e.m_eff = 'The effective time must allow the minimum notice period.';
+      if (!rn && v.m_until && v.m_eff && dt(normDT(v.m_until)) <= dt(normDT(v.m_eff))) e.m_until = 'The end time must be after the effective time.';
+      const ref = String(v.m_ref || '').trim(); if (!ref) e.m_ref = 'Enter the PCSO reference.'; else if (ref.length > 100) e.m_ref = 'Up to 100 characters.';
+      if (urgent && !String(v.m_urgentReason || '').trim()) e.m_urgentReason = 'Enter the reason for the urgent change.';
+      if (!e.m_place && rn && SEED.offNotices138.some(x => x.place === place && ['Pending Approval', 'Scheduled'].includes(x.status))) e.m_place = MSG_ON_SCHED_138;
+      if (Object.keys(e).length) { S.ferr = e; return false; }
+      const prev = rn ? SEED.offNotices138.filter(x => x.place === place).length : 0;
+      const x = { id: rn ? 'RN-' + place.toUpperCase().replace(/[^A-Z]/g, '') : nid(ty === 'Disclosure' ? 'DS' : ty === 'PlaySafe Material' ? 'PM' : 'ON', { w: 2 }), ver: 'v' + (prev + 1), type: ty, title, place, body, eff: normDT(v.m_eff), until: rn ? '' : normDT(v.m_until || ''), ref, urgent, urgentReason: urgent ? String(v.m_urgentReason).trim() : '', status: 'Pending Approval', by: me(), at: nowS(), appr: '' };
+      SEED.offNotices138.unshift(x); audit('Terms Of Service', 'Official content submitted', x.id, `${x.type} · ${x.place} · ${x.ver}`);
+      toast(`Submitted. ${urgent ? 'Needs approval by Senior Authorizer' : 'Needs approval by Reference Approver'}.`);
+    } });
+};
+ACT.on138Ok = id => { const x = SEED.offNotices138.find(y => y.id === id && y.status === 'Pending Approval'); if (!x) return;
+  if (x.by === me()) { toast('You cannot approve your own request.', 'err'); return; }
+  if (!onCanApprove138(x)) { toast(x.urgent ? 'This change needs approval by a Senior Authorizer.' : 'You do not have permission for this action.', 'err'); return; }
+  x.appr = me(); x.apprAt = nowS(); x.status = dt(x.eff) <= S.now ? 'Current' : 'Scheduled'; if (x.status === 'Current' && x.type === 'Regulatory Notice') SEED.offNotices138.filter(y => y !== x && y.place === x.place && y.status === 'Current').forEach(y => { y.status = 'Superseded'; });
+  const n = issueNotice({ type: 'Change', domain: 'Official Information', object: x.id, version: x.ver, effectiveAt: x.eff }); x.notice = n.id;
+  audit('Terms Of Service', 'Official content approved', x.id, `${x.status} · ${n.id}`); toast(`Approved. ${x.status} from ${x.eff}. Notice ${n.id} sent to active E-Channels.`); render(); };
+ACT.on138Rej = id => { const x = SEED.offNotices138.find(y => y.id === id && y.status === 'Pending Approval'); if (!x) return; if (!onCanApprove138(x)) { toast('You do not have permission for this action.', 'err'); return; }
+  ask({ title: `Reject · ${x.id}`, danger: true, ok: E138('Reject'), reason: { zh: '', en: 'Rejection Reason', max: 500 }, onOk: v => { x.status = 'Rejected'; x.rejectReason = v.m_reason; x.appr = me(); audit('Terms Of Service', 'Official content rejected', x.id, v.m_reason); toast('Request rejected.'); } }); };
+ACT.on138Wd = id => { const x = SEED.offNotices138.find(y => y.id === id && y.status === 'Scheduled'); if (!x || !can('Terms Of Service', 'C')) return;
+  ask({ title: `Withdraw · ${x.id}`, danger: true, ok: E138('Withdraw'), reason: { zh: '', en: 'Reason', max: 500 }, onOk: v => { x.status = 'Draft'; x.wdReason = v.m_reason; issueNotice({ type: 'Withdrawal', domain: 'Official Information', object: x.id, version: x.ver, effectiveAt: nowS() }); audit('Terms Of Service', 'Official content withdrawn', x.id, v.m_reason); toast('Withdrawn. Withdrawal notice sent to active E-Channels.'); } }); };
+ACT.on138Down = id => { const x = SEED.offNotices138.find(y => y.id === id && y.status === 'Current'); if (!x || x.type === 'Regulatory Notice' || !can('Terms Of Service', 'C')) return;
+  ask({ title: `Take down · ${x.id}`, danger: true, ok: E138('Take down'), reason: { zh: '', en: 'Reason', max: 500 }, onOk: v => { x.status = 'Taken Down'; x.downReason = v.m_reason; x.downBy = me(); issueNotice({ type: 'Withdrawal', domain: 'Official Information', object: x.id, version: x.ver, effectiveAt: nowS() }); audit('Terms Of Service', 'Official content taken down', x.id, v.m_reason); toast('Taken down. Channels remove it at once.'); } }); };
+(function tos138() {
+  const m = modById('tos'); if (!m) return;
+  m.subs = [{ id: 'terms', zh: '', en: 'Terms of Service' }, { id: 'official', zh: '', en: 'Official Notices' }];
+  const v0 = m.view; m.view = () => S.sub === 'official' ? subTabs(m) + onView138() : subTabs(m) + v0();
+})();
+
+/* seeds that depend on module init data (settlement versions, divergences) run after boot */
+(function boot138() {
+  const b0 = boot;
+  boot = function () { b0(); sfSeed138(); walletDiv138(); render(); };
+})();
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>

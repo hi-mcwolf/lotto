@@ -4427,6 +4427,178 @@ function panel137c(){const pb=(l,fn,on,id)=>`<button class="pb ${on?'on':''}" id
 {const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
  const old=el.querySelector('[data-v137c]');if(old)old.remove();const v=el.querySelector('[data-v137]');const html=`<div data-v137c="1">${panel137c()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
 render();
+/* ===== PRD follow-up, player side (batch138/proto.md, player part) =====
+   Loaded after p7z2_cfg.js (build.sh). Default state = previous behaviour except the button wording and the usage-notice sentence.
+     6B.1.2   Web Push explainer card on the H5 / PWA home after sign-in: Turn On (then the browser permission) / Not Now
+              (not shown again on this device for 30 days); not shown when the browser has blocked notifications
+     6B.1.6   Add your address page: button Save Address (Title Case)
+     6B.1.8   usage notice under the sign-in / registration terms links: the full bot and automation sentence, shown in English
+              whatever the display language (English, Filipino, Visayan)
+     6B.2.4   resume-play request: Submit Request; while Expired - Awaiting Reinstatement a new self-exclusion can still be
+              submitted in PlaySafe: Core treats it as an extension, the pending request turns Withdrawn (Superseded By
+              Extension), the banner goes back to the active exclusion, MSG_SELF_EXCLUSION_CORRECTED is sent
+     6B.3.3   High-Value Bet MFA: Use Biometrics; after the lock, Confirm shows the remaining minutes; a large order split into
+              batches is verified once. Batches: vouchers are used ticket by ticket in issue order; each batch re-checks sales
+              closing, account restriction and balance; a blocked batch stops the later ones, unissued tickets get their
+              voucher share back as a returned voucher; result lists issued / not issued tickets and the reason
+     6B.4.2   claimed ticket kept until the later of draw date + 1 year + 1 day and the day after the (extended) claim deadline
+     6B.4.3   wallet status Withdrawal Hold: Withdraw greyed with the PRD message
+     6B.5.5   Help: PCSO Disclosures entry (list + full text), hidden when there is none; Contact Us block, hotline greyed
+              outside its service hours with the times in the sentence
+     6B.5.7   disclosures never appear in Notices or in the regulatory notice slots
+   Values marked Demo data in the demo panel are illustration values, not PRD values. */
+const P138=()=>S.p138||(S.p138={pushAns:'',pushNo:0,pushDen:0,pushDue:0,wdHold:0,disc:0,hot:0,msg:0,bx:null,riWd:null});
+{const _f=fresh;fresh=function(){_f.apply(this,arguments);S.p138={pushAns:'',pushNo:0,pushDen:0,pushDue:0,wdHold:0,disc:0,hot:0,msg:0,bx:null,riWd:null}}}
+P138();
+const DAY138=864e5;
+const MSG_PUSH138='Turn on notifications to get draw results and account alerts.';
+const MSG_WDHOLD138='Withdrawals are on hold while we check your account. Please contact customer support.';
+const MSG_HVLOCK138='Too many failed verification attempts. Try again in {n} minutes.';
+const MSG_USAGE138='Accessing iLotto, placing bets, topping up or withdrawing through any bot, script, macro, auto-clicker, automation service, modified application, or direct call to platform interfaces outside the official iLotto web and mobile apps is prohibited and may result in account restriction or suspension and other consequences prescribed by PCSO.';
+const MSG_DISC138='Published by PCSO. Shown as received from PCSO.';
+const MSG_PHONE138='Phone support is available from {start} to {end}.';
+const MSG_ANYTIME138=' You can reach us by email, chatbot or messaging at any time.';
+const hvLockMsg138=()=>MSG_HVLOCK138.replace('{n}',String(Math.max(1,Math.ceil((S.wd.lock-Date.now())/60000))));
+
+/* ---------- 6B.1.6 / 6B.2.4 / 6B.3.3 / 6B.1.2 buttons in Title Case ---------- */
+{const _h=SC.addr137.html;SC.addr137.html=function(){return _h.apply(this,arguments).replace('>Save address</button>','>Save Address</button>')}}
+{const _h=SC.ri137.html;SC.ri137.html=function(){return _h.apply(this,arguments).replace('>Submit request</button>','>Submit Request</button>')}}
+{const _hv=hvModal137;hvModal137=function(){const r=_hv.apply(this,arguments);if(S.modal&&S.modal.fn){const f=S.modal.fn;S.modal.fn=()=>f().replace('>Use biometrics</button>','>Use Biometrics</button>');drawModal()}return r}}
+
+/* ---------- 6B.3.3 High-Value Bet MFA: lock message, one verification per order ---------- */
+A.hvGo137=()=>{if(!fCheck([['hv_code',V('hv_code').length<4?'Enter the 4-digit code':'']]))return;
+ if(V('hv_code')!=='1234'){S.wd.fail=(S.wd.fail||0)+1;v13Audit('high-value-bet-mfa-failed');if(S.wd.fail>=3){S.wd.fail=0;S.wd.lock=Date.now()+30*60000;A.close();return toast(hvLockMsg138())}return toast(`Incorrect code. ${3-S.wd.fail} attempts left.`)}
+ S.wd.fail=0;A.close();v13Audit('high-value-bet-mfa-passed');S.hvOk137=1;A.betGo()};
+
+/* ---------- 6B.3.3 large orders: batches re-checked one by one, vouchers ticket by ticket ---------- */
+const BX_WHY138={bal:'Insufficient balance.',close:'Betting for this draw is closed.',rst:'Your account was restricted while your tickets were being issued.'};
+{const _bg=A.betGo;A.betGo=function(){const pl=betPlan();const lockHv=S.hv137&&!S.hvOk137&&!(pl.P&&pl.P.busy)&&pl.tot>=S.hv137&&!preKey(pl.g)&&S.wd.lock-Date.now()>0;
+ if(lockHv){if(!betCheck(vPlan(pl.tot).pay))return;v13Audit('high-value-bet-mfa-locked');return toast(hvLockMsg138())}
+ const b=(S.tk137||{}).batch,bx=P138().bx;
+ if(!bx||!b||pl.tickets<=b||(pl.P&&pl.P.busy))return _bg.apply(this,arguments);
+ if(S.hv137&&!S.hvOk137&&pl.tot>=S.hv137)return _bg.apply(this,arguments);
+ S.hvOk137=0;return bxRun138(pl,b,bx)}}
+function bxRun138(pl,b,bx){const {P,g,tot,tickets,dates,times}=pl;
+ if(S.ruleSplit&&dates.length>1)return toast('These draws use different rules. Buy them separately.');
+ if(tickets>MAX_TK)return toast(MAX_TK_MSG());
+ const vp=vPlan(tot);if(vp.forf>0&&!S.vfor){toast(V_FORF_ERR);return}
+ if(!betCheck(vp.pay))return; /* the whole order passes every pre-bet check once */
+ const sel=posG(g)?P.picks:[...P.picks].sort((a,b2)=>a-b2);
+ const all=makeOrder(g,pl.pl.c,sel,P.qp,P.mult,dates,S.clock,'await');all.forEach(k=>{k.qp=isQpBet(g,pl.pl,P)});if(times)all.forEach((k,i)=>{k.dtime=times[i]});
+ const ord=all.slice().sort((a,c)=>{const x=a.draw+(a.dtime||''),y=c.draw+(c.dtime||'');return x<y?-1:x>y?1:0});
+ const nb=Math.ceil(ord.length/b);let vr=vp.ded,done=[],paid=0,used=0,stop='',i=0;const v=vp.v;
+ P.busy=true;modal(()=>`<div style="text-align:center;padding:10px 0"><div class="spin"></div><h3 style="margin-top:18px">Processing — do not resubmit</h3><div class="mu sm mt3" id="batch137">Issuing your tickets (0 of ${ord.length})…</div></div>`,true,true);
+ const step=()=>{const part=ord.slice(i*b,i*b+b);
+  if(bx.at===i+1){if(bx.why==='bal'){const sp=Math.min(S.bal.bet,bx.spend||100);S.bal.bet=r2(S.bal.bet-sp);addTx('bet',-sp,'ok','Another order (Demo data)');v13Audit('concurrent-order-during-batches')}else stop=BX_WHY138[bx.why]}
+  let vt=vr;const ded=part.map(k=>{const d=Math.min(vt,k.amt);vt=r2(vt-d);return d});const need=r2(part.reduce((a,k,j)=>a+k.amt-ded[j],0));
+  if(!stop&&totBal()<need)stop=BX_WHY138.bal;
+  if(stop){v13Audit('batch-blocked-'+bx.why);return finish()}
+  const fb=Math.min(S.bal.bet,need);S.bal.bet=r2(S.bal.bet-fb);S.bal.prize=r2(S.bal.prize-(need-fb));paid=r2(paid+need);vr=vt;used=r2(used+ded.reduce((a,x)=>a+x,0));
+  let fbl=fb;part.forEach((k,j)=>{const pay=r2(k.amt-ded[j]);const b1=Math.min(fbl,pay);fbl=r2(fbl-b1);k.vd=ded[j];k.pb=b1;k.pp=r2(pay-b1);k.pd=pay;if(v)k.vid=v.id});
+  done=done.concat(part);v13Audit('batch-issued-'+(i+1));i++;
+  const el=document.getElementById('batch137');if(el)el.textContent=`Issuing your tickets (${done.length} of ${ord.length})…`;
+  if(i<nb)T(step,260);else finish()};
+ const finish=()=>{tick(1);P.busy=false;P138().bx=null;const not=ord.length-done.length;let ret=null;
+  if(done.length){S.tickets.unshift(...done);S.lastTk=done[0].id;addTx('bet',-paid,'ok',gname(g)+' · '+done.length+' tickets');Object.assign(S.tx[0],{bet:r2(done.reduce((a,k)=>a+k.amt,0)),vd:used,vid:v?v.id:undefined});msgBetPlaced(g,done)}
+  if(v){v.st='used';v.ord=done.length?done[0].ord:all[0].ord;if(not&&vr>0){vSeed();ret={id:v.id+'-R',face:r2(vr),exp:v.exp,st:'active',from:v.id};S.vouchers.unshift(ret);v13Audit('voucher-returned-unissued-tickets')}}
+  S.vuse=false;S.vsel=null;S.vfor=false;if(done.length){S.j.bet=1;S.rcB=(S.rcB||0)+1}
+  if(S.screen==='betConfirm'){S.stack.pop();S.screen='play'}
+  A.close();modal(()=>`<div style="text-align:center"><div style="width:90px;height:90px;margin:0 auto">${illo('shield')}</div><h3 style="margin-top:6px" id="bx_title138">${done.length?(not?'Bet partly placed':'Bet placed'):'Bet not placed'}</h3>
+<div class="sm mt3" id="bx_res138" style="line-height:1.6">${gname(g)} · ${done.length} of ${ord.length} tickets issued</div>
+${not?`<div class="sm mt3" id="bx_not138" style="line-height:1.6;color:var(--am)">${not} tickets were not issued: ${stop}</div>`:''}</div>
+<div class="card c2 mt" style="padding:6px 14px">${rowKV('Charged To Your Wallet',`<span id="bx_wal138">${fm2(paid)}</span>`)}${v?rowKV('Voucher Deduction',`<span id="bx_vd138">${fm2(used)}</span>`):''}${ret?rowKV('Returned Voucher',`<span id="bx_ret138">${fm2(ret.face)}</span><div class="xs mu" style="font-weight:400">${ret.id} · expires ${ret.exp}</div>`):''}</div>
+${done.length?`<div class="card c2 mt" style="max-height:130px;overflow:auto">${done.map(k=>`<div class="row sp sm" style="padding:4px 0"><span class="mu">Ticket</span><b style="font-family:ui-monospace,monospace">${k.id}</b></div>`).join('')}</div>`:''}
+<div class="xs mu mt3" style="line-height:1.55">Tickets already issued stay valid. Tickets not issued were not charged.</div><button class="btn c mt2" onclick="A.close()">OK</button>`,true,true);render()};
+ T(step,200)}
+/* demo: the PRD example (3 batches of ₱1,000.00, voucher ₱2,500.00, wallet ₱400.00 when batch 3 is issued) */
+A.bxDemo138=()=>{if(!S.logged)seedDemo();S.ptsOn=1;vSeed();S.vouchers=S.vouchers.filter(x=>x.id!=='VC-20261012-0001');S.vouchers.unshift({id:'VC-20261012-0001',face:2500,exp:'2027-01-09',st:'active'});
+ S.tk137=S.tk137||{};S.tk137.batch=2;S.bal.bet=500;S.limits.single=Math.max(S.limits.single,3000);['d','w','m'].forEach(k=>{S.limits.bet[k]=Math.max(S.limits.bet[k],betAccum(k)+3000)});S.bal.prize=0;P138().bx={at:3,why:'bal',spend:100};A.playGame('ultra');S.play.picks=[1,2,3,4,5,6];PL().draws=6;PL().mult=20;
+ A.go('betConfirm');S.vuse=true;S.vsel='VC-20261012-0001';v13Audit('demo-large-order-batches');toast('Demo data: 6 tickets of ₱500.00, Ticket Batch Size 2, voucher ₱2,500.00, bet balance ₱500.00, PlaySafe limits raised to fit; another order spends ₱100.00 before batch 3');render()};
+A.bxArm138=w=>{P138().bx=P138().bx&&P138().bx.why===w?null:{at:2,why:w};toast(P138().bx?'Next large order: batch 2 is blocked ('+BX_WHY138[w]+')':'Batch block demo off');render()};
+
+/* ---------- 6B.2.4 new self-exclusion while Expired - Awaiting Reinstatement ---------- */
+{const _x=A.exclDo;A.exclDo=function(l,perm){const e=S.excl;const aw=!!(e&&!e.pcso&&e.expired);const ri=aw?riOf137(e):null;const n0=S.notifs.length;
+ const r=_x.apply(this,arguments);if(!aw)return r;
+ for(let k=S.notifs.length-n0-1;k>=0;k--){if(/^MSG_SELF_EXCLUSION_START/.test(S.notifs[k].tpl||''))S.notifs.splice(k,1)}
+ const x=S.excl;nfV13('shield','Self-exclusion updated',`Your self-exclusion was updated by PCSO. It now runs ${x.label}${x.perm?'':', ending '+fts(x.endTs)}.`,'MSG_SELF_EXCLUSION_CORRECTED','playsafe');
+ P138().riWd=ri&&ri.st==='pending'?{at:S.clock,why:'Superseded By Extension'}:null;
+ v13Audit('core-self-exclusion-extended-from-awaiting-reinstatement');if(P138().riWd)v13Audit('core-reinstatement-request-withdrawn-superseded-by-extension');return r}}
+{const _ps=SC.playsafe.html;SC.playsafe.html=function(){let h=_ps.apply(this,arguments);const w=P138().riWd;const e=S.excl;
+ if(w&&e&&!e.expired){const n=`<div class="card mt" id="ri_wd138" style="border:1px solid rgba(100,116,139,.35)"><div class="row sp"><b>Request to resume play</b>${badge('b-gy','Withdrawn')}</div><div class="mu sm mt3" style="line-height:1.6">Your request to resume play was withdrawn because you extended your self-exclusion.</div></div>`;
+  const i=h.indexOf('<h3 id="ps_excl"');h=i>=0?h.slice(0,i)+n+h.slice(i):h+n}
+ return h}}
+
+/* ---------- 6B.4.2 claimed ticket retention ---------- */
+const keep138=d=>{const a=dayAdd(claimBase137(d),1),b=dayAdd(claimExp(d),1);return a>b?a:b};
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){let h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!k||k.st!=='claimed')return h;
+ const n=`<div class="xs mu" id="keep138" style="margin:12px 4px 0;line-height:1.6">Ticket kept until ${keep138(k.draw)}</div>`;const i=h.indexOf('<div class="xs mu" id="tk_valid137"');return i>=0?h.slice(0,i)+n+h.slice(i):h+n}}
+
+/* ---------- 6B.4.3 wallet status Withdrawal Hold ---------- */
+RMSG.wdhold138=MSG_WDHOLD138;
+{const _rk=rstKey;rstKey=function(k,g){const r=_rk.apply(this,arguments);if(r)return r;if(k==='wd'&&S.logged&&P138().wdHold)return 'wdhold138';return null}}
+{const _w=A.wd1;A.wd1=function(){if(S.logged&&P138().wdHold)return toast(MSG_WDHOLD138);return _w.apply(this,arguments)}}
+A.wdHold138=()=>{if(!S.logged)seedDemo();P138().wdHold=P138().wdHold?0:1;v13Audit(P138().wdHold?'wallet-status-withdrawal-hold':'wallet-status-normal');toast(P138().wdHold?'Wallet status: Withdrawal Hold (System (SOAR))':'Wallet status: Normal');render()};
+
+/* ---------- 6B.1.8 usage notice: the full sentence in English for every display language ---------- */
+['login','register'].forEach(s=>{const _h=SC[s].html;SC[s].html=function(){return _h.apply(this,arguments).split(MSG_BOTS).join(`<span id="usage138_${s}">${MSG_USAGE138}</span>`)}});
+
+/* ---------- 6B.5.5 Help: PCSO Disclosures, Contact Us with hotline service hours ---------- */
+const DISC138=[ /* Demo data: disclosures published by PCSO through Core (Official Notices, type Disclosure) */
+ {id:'DSC-2026-001',title:'Player funds held in trust',eff:'2026-09-01 00:00'},
+ {id:'DSC-2026-002',title:'Prize fund and charity fund allocation',eff:'2026-10-05 00:00'}];
+const discList138=()=>P138().disc?DISC138.slice().sort((a,b)=>a.eff<b.eff?1:-1):[];
+const hm138=m=>{const h=Math.floor(m/60)%24,mm=String(m%60).padStart(2,'0');return (h%12||12)+':'+mm+' '+(h<12?'AM':'PM')};
+const hotHrs138=()=>P138().hot?[480,1200]:[360,1320]; /* default 06:00-22:00 (UTC+8); alternative 08:00-20:00 is Demo data */
+const msgHrs138=()=>P138().msg?[480,1320]:null; /* Demo data: messaging with non-24-hour service hours */
+const nowMin138=()=>{const d=new Date(S.clock+8*3600e3);return d.getUTCHours()*60+d.getUTCMinutes()};
+const hotOff138=()=>{const [a,b]=hotHrs138(),n=nowMin138();return !(n>=a&&n<b)};
+const hotMsg138=()=>{const [a,b]=hotHrs138();return MSG_PHONE138.replace('{start}',hm138(a)).replace('{end}',hm138(b))+(msgHrs138()?'':MSG_ANYTIME138)};
+const contact138=()=>{const off=hotOff138(),[a,b]=hotHrs138(),mh=msgHrs138();
+ const row=(ic,name,sub,act,id,dis)=>`<div id="${id}" ${dis?'aria-disabled="true" style="opacity:.45"':''}><span class="ico">${I(ic,22)}</span><div class="fl1"><div class="b" style="font-size:14px">${name}</div><div class="xs mu">${sub}</div></div>${act}</div>`;
+ return `<div class="card mt" id="contact138"><h3>Contact Us</h3><div class="list">
+${row('phone','PCSO support hotline',`${HOTLINE} · ${hm138(a)} – ${hm138(b)}`,'','hot138',off)}
+${row('list','Email','support@ilotto.ph · 24 hours','','mail138',false)}
+${row('help','Chat with us','Chatbot · 24 hours',`<button class="btn d s" id="chat138" style="height:30px;padding:0 12px;flex:none;width:auto" onclick="toast('Chatbot (Demo)')">Chat with us</button>`,'bot138',false)}
+${row('mega','Messaging','iLotto on messaging apps (Demo data) · '+(mh?hm138(mh[0])+' – '+hm138(mh[1]):'24 hours'),'','msg138',false)}</div>
+${off?`<div class="xs mt3" id="hot_off138" style="line-height:1.6;color:var(--am)">${hotMsg138()}</div>`:''}</div>`};
+{const _hp=SC.help.html;SC.help.html=function(){let h=_hp.apply(this,arguments);const L=discList138();
+ if(L.length){const ent=`<button class="card mt row sp" id="help_disc138" style="width:100%" onclick="A.go('disc138')"><div class="row g12"><span style="color:var(--cy)">${I('list',22)}</span><div style="text-align:left"><div class="b">PCSO Disclosures</div><div class="xs mu">${L.length} from PCSO</div></div></div>${I('chev',18)}</button>`;
+  const k='<button class="card mt row sp" style="width:100%" onclick="A.rules()">';const i=h.indexOf(k);h=i>=0?h.slice(0,i)+ent+h.slice(i):h+ent}
+ if(hotOff138()){const k=HOTLINE+'</div></div></div>';const i=h.indexOf(k);if(i>=0){const s=h.lastIndexOf('<div><span class="ico">',i);if(s>=0)h=h.slice(0,s)+'<div aria-disabled="true" id="hot_old138" style="opacity:.45"><span class="ico">'+h.slice(s+'<div><span class="ico">'.length)}}
+ return h+contact138()}}
+SC.disc138={back:true,title:()=>'PCSO Disclosures',html:()=>{const L=discList138();
+ return `<div class="fade" id="disc_list138">${L.length?L.map(d=>`<button class="card mt row sp" id="disc_${d.id}" style="width:100%" onclick="A.go('discv138',{id:'${d.id}'})"><div style="text-align:left"><div class="row g8"><span class="badge b-cy">PCSO Official</span><span class="xs mu">Effective ${d.eff}</span></div><div class="b" style="margin-top:6px">${d.title}</div></div>${I('chev',18)}</button>`).join(''):'<div class="card mt mu sm">No disclosures.</div>'}<div class="xs mu mt3">Demo data</div></div>`}};
+SC.discv138={back:true,title:()=>'PCSO Disclosures',html:()=>{const d=DISC138.find(x=>x.id===(S.p&&S.p.id))||DISC138[0];
+ return `<div class="fade"><div class="card" id="disc_page138"><span class="badge b-cy">PCSO Official</span><h1 style="font-size:22px;margin-top:8px">${d.title}</h1><div class="row g8 mt3"><span class="badge b-gy">Effective ${d.eff}</span></div><div class="xs mu mt" style="line-height:1.6">${MSG_DISC138}</div>
+<div class="card c2 mt" style="font-size:13px;line-height:1.7"><span class="badge b-am">Demo data</span><div class="mt3">The disclosure text published by PCSO appears here exactly as received.</div></div></div></div>`}};
+A.disc138=()=>{if(!S.logged)seedDemo();P138().disc=P138().disc?0:1;v13Audit(P138().disc?'core-disclosures-online':'core-disclosures-taken-down');toast(P138().disc?'Core: PCSO disclosures published (Demo data)':'Core: PCSO disclosures taken down');render()};
+A.hot138=()=>{P138().hot=P138().hot?0:1;toast('Hotline service hours '+(P138().hot?'08:00–20:00 (Demo data)':'06:00–22:00 (default)'));render()};
+A.msg138=()=>{P138().msg=P138().msg?0:1;toast(P138().msg?'Messaging service hours 08:00–22:00 (Demo data)':'Messaging 24 hours');render()};
+A.time138=()=>{const d=fdt(S.clock);S.clock=Date.parse(d+'T22:30:00+08:00');toast('Time set to '+d+' 22:30 (UTC+8)');render()};
+
+/* ---------- 6B.1.2 Web Push explainer card ---------- */
+{const _ld=A.loginDone;A.loginDone=function(){const r=_ld.apply(this,arguments);if(S.logged&&S.term!=='app')P138().pushDue=1;return r}}
+const pushShow138=()=>{const p=P138();return !!(S.logged&&S.term!=='app'&&S.screen==='home'&&p.pushDue&&!p.pushAns&&!p.pushDen&&!(p.pushNo&&S.clock-p.pushNo<30*DAY138))};
+const pushCard138=()=>`<div class="card c2" id="push138" style="margin-bottom:12px"><div style="display:flex;gap:12px;align-items:center"><div style="width:40px;height:40px;flex:none;border-radius:12px;background:var(--bt);display:grid;place-items:center;color:var(--cy)">${I('bell',22)}</div><div class="sm" style="flex:1;line-height:1.5">${MSG_PUSH138}</div></div><div style="display:flex;gap:12px;align-items:center;justify-content:flex-end;margin-top:10px"><button class="xs mu" id="push_no138" onclick="A.pushNo138()">Not Now</button><button class="btn c s" id="push_on138" style="height:32px;padding:0 14px;width:auto;flex:none" onclick="A.pushOn138()">Turn On</button></div></div>`;
+A.pushNo138=()=>{const p=P138();p.pushNo=S.clock;p.pushDue=0;v13Audit('web-push-explainer-not-now');render()};
+A.pushOn138=()=>{v13Audit('web-push-explainer-turn-on');modal(()=>`<div id="push_perm138"><div class="xs mu">Browser permission (Demo)</div><h3 style="margin-top:6px">iLotto wants to show notifications</h3><div class="row g8 mt2"><button class="btn d" id="push_block138" onclick="A.pushPerm138(0)">Block</button><button class="btn c" id="push_allow138" onclick="A.pushPerm138(1)">Allow</button></div></div>`,true)};
+A.pushPerm138=ok=>{const p=P138();A.close();p.pushDue=0;if(ok){p.pushAns='granted';toast('Notifications are on.')}else{p.pushAns='denied';p.pushDen=1}v13Audit('web-push-permission-'+(ok?'granted':'denied'));render()};
+A.pushDue138=()=>{if(!S.logged)seedDemo();const p=P138();p.pushDue=1;p.pushAns='';p.pushNo=0;p.pushDen=0;A.reset('home')};
+A.pushDen138=()=>{const p=P138();p.pushDen=p.pushDen?0:1;toast(p.pushDen?'Browser has blocked notifications for iLotto':'Browser notification permission not decided');render()};
+{const _r=render;render=function(){const r=_r.apply(this,arguments);const sc=document.getElementById('sc');if(!sc)return r;
+ document.querySelectorAll('#phone [data-rst="wdhold138"]').forEach(e=>{e.style.opacity='.45'});
+ const pn=document.getElementById('pwa_no137');if(pn&&pn.textContent==='Not now')pn.textContent='Not Now';
+ if(pushShow138()&&!document.getElementById('push138')){const bs=sc.querySelectorAll('.rstbar');if(bs.length)bs[bs.length-1].insertAdjacentHTML('afterend',pushCard138());else sc.insertAdjacentHTML('afterbegin',pushCard138())}
+ return r}}
+
+/* ---------- demo panel ---------- */
+function panel138(){const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;const p=P138(),bx=p.bx;
+ return `<h4>Bet order: large orders in batches</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('PRD example: 3 batches of ₱1,000.00, voucher ₱2,500.00 (Demo data)','A.bxDemo138()',bx&&bx.why==='bal','v138_bx')}${pb('Next large order: batch 2 hits the sales close','A.bxArm138(\'close\')',bx&&bx.why==='close','v138_bx_close')}${pb('Next large order: account restricted during batch 2','A.bxArm138(\'rst\')',bx&&bx.why==='rst','v138_bx_rst')}</div>
+<h4>Wallet and help</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Wallet status Withdrawal Hold (System (SOAR))','A.wdHold138()',p.wdHold,'v138_hold')}${pb('Core: PCSO disclosures (Demo data)','A.disc138()',p.disc,'v138_disc')}${pb('Hotline service hours 08:00–20:00 (Demo data)','A.hot138()',p.hot,'v138_hot')}${pb('Messaging service hours 08:00–22:00 (Demo data)','A.msg138()',p.msg,'v138_msg')}${pb('Set time to 22:30','A.time138()','','v138_time')}</div>
+<h4>Web Push (H5 / PWA)</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Show the notification card on the next home visit','A.pushDue138()','','v138_push')}${pb('Browser has blocked notifications','A.pushDen138()',p.pushDen,'v138_pushden')}</div>`}
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-v138]');if(old)old.remove();const v=el.querySelector('[data-v137c]')||el.querySelector('[data-v137]');const html=`<div data-v138="1">${panel138()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
 </script>
 </body>
 </html>
