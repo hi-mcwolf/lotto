@@ -4599,6 +4599,213 @@ function panel138(){const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?
 {const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
  const old=el.querySelector('[data-v138]');if(old)old.remove();const v=el.querySelector('[data-v137c]')||el.querySelector('[data-v137]');const html=`<div data-v138="1">${panel138()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
 render();
+/* ===== PRD items not built in the earlier player batches (V137_NOTES "PRD has it, not built") =====
+   Loaded after p7z3_138.js (build.sh). Default state = previous behaviour, except the wallet note now carries the
+   Learn more link because the demo Core has published Mandatory Disclosures (S.mdV), and the regulatory notice folds
+   after 3 lines when it is longer.
+     6B.3.4 / 6B.3.3  Number Stats tab on Results (last N shown Core results, lotto by number, digit games by position,
+                      sort by number or by times drawn, fixed footer) and the Number Stats entry on the pick panel;
+                      both hidden while the Number Stats Draw Count parameter is not set
+     6B.3.7           Mock selling: a test account buys Mock draws only (draw ID + "-M", MOCK badges on game cards,
+                      Play, bet confirmation, tickets, results), pays from the Mock Balance, wins go to the Mock Balance
+                      (no claim code), deposit / withdraw / payment accounts hidden, [MOCK] in-app messages only (no SMS,
+                      no email), Core Mock Data Purge deletes the Mock draws, tickets, balance and its records
+     6B.5.5           outlets: Outlet Category (Accredited Outlet / PCSO Branch Office) on each row and as a filter
+     6B.1.3           App: device biometrics turned off or every fingerprint / face removed -> this device loses its
+                      trusted status at once (other devices keep theirs), no pop-up, next sign-in goes to the SMS step;
+                      Trust this device is offered again once biometrics are back on
+     6B.4.4           channel real-time account-name check: below the Name Match Threshold or not available -> manual review
+     6B.5.7           regulatory notice longer than 3 lines folds with Read more; slot on the bet-placed pop-up and on the
+                      deposit result
+     6B.4.3           Learn more on the wallet note opens the Mandatory Disclosures (hidden while Core has not published
+                      them); short trust sentence on the deposit result
+     6B.1.2 / 6B.5.4  Web Push: after the browser permission every in-app message is also delivered as a system
+                      notification (simulated); PWA icon unread badge = bell count (navigator.setAppBadge when available)
+   Values marked Demo data in the demo panel are illustration values, not PRD values. */
+const pfNew=()=>({ns:0,nsSort:'num',bioOff:'',nchk:'',regLong:0,regOpen:{},pushLog:[],badge:null,badgeApi:'',badgeLast:-1,mdSaved:null,
+ mock:{test:0,bal:0,tx:[],draws:[],open:{},saved:null}});
+const PF=()=>S.pf||(S.pf=pfNew());
+{const _f=fresh;fresh=function(){_f.apply(this,arguments);S.pf=pfNew()}}
+PF();
+const NS_N_PF=5; /* Demo data: Number Stats Draw Count has no default in the PRD (value from PCSO) */
+const NS_FOOT_PF='Past results do not affect future draws. Every number has the same chance in each draw.';
+const MOCK_TK_PF='Mock ticket for testing only. It is not valid for any prize.';
+const MOCK_ONLY_PF='Test accounts can only buy Mock draws.';
+const MOCK_FUNDS_PF='Deposits, withdrawals and payment accounts are not available for test accounts.';
+const MOCK_PERIOD_PF='MS-0001'; /* Demo data */
+const MOCK_GAMES_PF=['grand','ez2']; /* Demo data: games in the mock selling period */
+const MOCK_FUND_PF=1000; /* Demo data */
+const REGN_LONG_PF='Buy PCSO games only through PCSO-authorized outlets and e-channels. Never share your password or one-time codes. PCSO and iLotto will never ask for your password, PIN or one-time code by phone, SMS, email or social media. Report suspicious messages through the PCSO hotline. Players must be 18 years old or above. Play within your means.';
+/* Mock draws take no PCSO draw number (6A.4.6 rule 1): drop the PCSO Draw No. tag after a -M draw ID */
+const noPcsoNo=(h,no)=>h.split(no+'<span class="pcso132"').map((x,i)=>i?x.slice(x.indexOf('</span>')+7):x).join(no);
+const mockBadge=()=>'<span class="badge b-am" data-mock="1" style="font-weight:800;letter-spacing:.3px">MOCK</span>';
+
+/* ---------- 6B.3.4 Number Stats (Results tab) and 6B.3.3 entry on the pick panel ---------- */
+function nsDraws(g){latestDraw(g);return (S.draws[g.id]||[]).filter(d=>!d.mock&&!d.cancel&&!d.voided).slice(0,PF().ns)}
+function nsData(g){const L=nsDraws(g),n=L.length;const pct=c=>n?(c/n*100).toFixed(2)+'%':'0.00%';
+ if(g.t==='lotto'){const rows=Array.from({length:g.n},(_,i)=>({k:String(i+1),c:0}));L.forEach(d=>{new Set(d.nums.map(Number)).forEach(x=>{if(rows[x-1])rows[x-1].c++})});rows.forEach(r=>r.p=pct(r.c));return {n,L,groups:[{lb:'',rows}]}}
+ const pos=(L[0]&&L[0].nums.length)||g.k||3;const letters=L.some(d=>d.nums.some(x=>isNaN(Number(x))));
+ const sym=letters?'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''):g.t==='ez2'?Array.from({length:31},(_,i)=>String(i+1)):'0123456789'.split('');
+ const groups=Array.from({length:pos},(_,p)=>{const rows=sym.map(s=>({k:s,c:L.filter(d=>String(d.nums[p])===s).length}));rows.forEach(r=>r.p=pct(r.c));return {lb:'Position '+(p+1),rows}});
+ return {n,L,groups}}
+const nsHtml=g=>{const D=nsData(g),srt=PF().nsSort;if(!D.n)return `<div class="card mt" id="ns_card" style="text-align:center;padding:30px"><div class="b">No result yet</div></div>`;
+ const grp=x=>{const rows=srt==='cnt'?x.rows.slice().sort((a,b)=>b.c-a.c||(isNaN(a.k)?a.k<b.k?-1:1:a.k-b.k)):x.rows;const mx=Math.max(1,...x.rows.map(r=>r.c));
+  return `${x.lb?`<div class="b sm" style="margin-top:14px">${x.lb}</div>`:''}${rows.map(r=>`<div class="row g12 nsrow" data-k="${r.k}" data-c="${r.c}" style="margin-top:7px"><span class="ball mini ${r.c?'on':''}" style="flex:none">${r.k}</span><div class="bar fl1"><i style="width:${r.c/mx*100}%"></i></div><span class="xs" style="min-width:92px;text-align:right"><b>${r.c}</b> · ${r.p}</span></div>`).join('')}`};
+ return `<div class="card mt" id="ns_card"><div class="row sp"><h3>Number Stats</h3><span class="badge b-gy" id="ns_n">Last ${D.n} draws</span></div>
+<div class="xs mu mt3" id="ns_head" style="line-height:1.6">${gname(g)} · last ${D.n} draws up to ${D.L[0].no}. Share = draws in which it was drawn ÷ ${D.n} draws.</div>
+<div class="chips mt3" id="ns_sort"><button class="chip ${srt==='num'?'on':''}" id="ns_by_num" onclick="A.nsSort('num')">By Number</button><button class="chip ${srt==='cnt'?'on':''}" id="ns_by_cnt" onclick="A.nsSort('cnt')">By Times Drawn</button></div>
+<div id="ns_rows">${D.groups.map(grp).join('')}</div>
+<div class="xs mu mt2" id="ns_foot" style="line-height:1.6">${NS_FOOT_PF}</div></div>`};
+{const _r=SC.result.html;SC.result.html=function(){let h=_r.apply(this,arguments);const g=gm(S.res.game);
+ if(!PF().ns){if(S.res.view==='stats')S.res.view='';return h}
+ const a=h.indexOf('<div class="chips mt">');if(a<0)return h;const b=h.indexOf('</div>',a)+6;const st=S.res.view==='stats';
+ const tabs=`<div class="seg mt" id="rs_tabs"><button class="${st?'':'on'}" id="rs_tab_res" onclick="A.rsView('')">Draw Results</button><button class="${st?'on':''}" id="rs_tab_ns" onclick="A.rsView('stats')">Number Stats</button></div>`;
+ return st?h.slice(0,b)+tabs+nsHtml(g)+'</div>':h.slice(0,b)+tabs+h.slice(b)}}
+A.rsView=v=>{S.res.view=v;renderKeep()};
+A.nsSort=s=>{PF().nsSort=s;renderKeep()};
+A.nsOpen=gid=>{S.res.game=gid;S.res.view='stats';S.res.date=null;A.tab('result')};
+A.nsSet=()=>{PF().ns=PF().ns?0:NS_N_PF;if(!PF().ns)S.res.view='';toast(PF().ns?'Number Stats Draw Count '+NS_N_PF+' (Demo data)':'Number Stats Draw Count not set: no Number Stats entry');render()};
+{const _p=SC.play.html;SC.play.html=function(){let h=_p.apply(this,arguments);if(!PF().ns||!S.play)return h;const g=gm(PL().game);if(!g)return h;
+ const ent=`<div class="row sp mt" id="ns_entry"><span class="xs mu">For reference only.</span><button class="lnk b sm" id="ns_go" style="color:var(--cy)" onclick="A.nsOpen('${g.id}')">${I('list',14)} Number Stats</button></div>`;
+ let i=h.indexOf('<div class="seg mt"><button class="');if(i<0)i=h.indexOf('<div class="card mt"><div class="row sp"><span class="b">');return i<0?h+ent:h.slice(0,i)+ent+h.slice(i)}}
+
+/* ---------- 6B.3.7 Mock selling (test account) ---------- */
+const MK=()=>PF().mock;
+const mockOn=()=>!!(S.logged&&MK().test);
+const mockNew=gid=>{const g=gm(gid);const n=MK().open[gid]?MK().open[gid].n||0:0;const ms=Date.parse(g.nx)+n*864e5;const date=fdt(ms),time=new Date(ms+8*3600e3).toISOString().slice(11,16);
+ return {g:gid,date,time,no:dno(g,date,time)+'-M',ms,n}};
+const mockDraw=g=>{if(!mockOn()||!g||!MOCK_GAMES_PF.includes(g.id))return null;const M=MK();if(!M.open[g.id])M.open[g.id]=mockNew(g.id);return M.open[g.id]};
+const mockCard=(g,id)=>{const d=mockDraw(g);return d?`<div class="card c2" id="${id}" style="margin:10px 0;border:1px solid rgba(245,158,11,.45)"><div class="row g8">${mockBadge()}<b class="sm">Mock draw ${d.no}</b></div><div class="xs mu" style="margin-top:4px;line-height:1.6">${fts(d.ms).slice(0,16)} · Test accounts can only buy Mock draws. Paid from your Mock Balance (${fm2(MK().bal)}).</div></div>`
+ :`<div class="card c2" id="${id}" style="margin:10px 0">${mockBadge()} <span class="xs mu">${MOCK_ONLY_PF} This game has no Mock draw.</span></div>`};
+{const _g=A.go;A.go=function(s){if(mockOn()&&['deposit','withdraw','bind'].includes(s))return toast(MOCK_FUNDS_PF);
+ if(mockOn()&&s==='betConfirm'&&S.play){const g=gm(PL().game);if(!mockDraw(g))return toast(MOCK_ONLY_PF);PL().draws=1}return _g.apply(this,arguments)}}
+{const _bg=A.betGo;A.betGo=function(){if(!mockOn())return _bg.apply(this,arguments);const M=MK(),P=PL(),g=gm(P.game),d=mockDraw(g);if(!d)return toast(MOCK_ONLY_PF);if(P.busy)return;
+ const sv=[S.bal.bet,S.bal.prize];S.bal.bet=M.bal;S.bal.prize=0;let ok=false;try{ok=betCheck()}finally{S.bal.bet=sv[0];S.bal.prize=sv[1]}if(!ok)return;
+ const pl=betPlan();const sel=posG(g)?P.picks:[...P.picks].sort((a,b)=>a-b);const ts=makeOrder(g,pl.pl.c,sel,P.qp,P.mult,[d.date],S.clock,'await');
+ ts.forEach(k=>{k.mock=1;k.mdn=d.no;k.dtime=d.time;k.qp=isQpBet(g,pl.pl,P)});const tot=r2(ts.reduce((a,k)=>a+k.amt,0));
+ if(tot>M.bal)return toast('Not enough Mock Balance for this bet.');
+ M.bal=r2(M.bal-tot);M.tx.unshift({ty:'Mock bet',amt:-tot,at:fts(S.clock),ref:ts[0].id});S.tickets.unshift(...ts);S.lastTk=ts[0].id;
+ nfV13('ticket','[MOCK] Bet placed',`Your ${gname(g)} bet for draw ${d.no} has been placed. See your tickets.`,'MSG_BET_PLACED','tickets');S.notifs[0].mock=1;
+ v13Audit('mock-bet-issued-reported-with-mock-flag');if(S.screen==='betConfirm'){S.stack.pop();S.screen='play'}
+ modal(()=>`<div style="text-align:center"><div style="width:90px;height:90px;margin:0 auto">${illo('shield')}</div>${mockBadge()}<h3 style="margin-top:6px" id="mock_ok_t">Bet placed</h3><div class="mu sm mt3">${gname(g)} · ${d.no} · ${ts.length} ticket(s) · ${fm2(tot)} from your Mock Balance</div></div><div class="card c2 mt" style="max-height:130px;overflow:auto">${ts.map(k=>`<div class="row sp sm" style="padding:4px 0"><span class="mu">Ticket</span><b style="font-family:ui-monospace,monospace">${k.id}</b></div>`).join('')}</div><div class="row g8 mt2"><button class="btn d" onclick="A.close();A.tab('tickets')">My tickets</button><button class="btn c" onclick="A.close();S.play.picks=[];renderKeep()">Bet again</button></div>`,true,true);render()}}
+{const _c=tkCard;tkCard=function(k){let h=_c.apply(this,arguments);if(!k||!k.mock)return h;const off=dno(gm(k.g),k.draw,k.dtime);h=noPcsoNo(h.split(off).join(k.mdn),k.mdn);const i=h.indexOf('<span class="badge');return i<0?h:h.slice(0,i)+mockBadge()+' '+h.slice(i)}}
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){let h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!k||!k.mock)return h;
+ const off=dno(gm(k.g),k.draw,k.dtime);h=noPcsoNo(h.split(off).join(k.mdn),k.mdn).split('Auto-credited to wallet (prize balance)').join('Credited to your Mock Balance');
+ return `<div class="card c2" id="mock_tk" style="border:1px solid rgba(245,158,11,.45);margin-bottom:10px">${mockBadge()}<div class="sm b" style="margin-top:6px;line-height:1.5">${MOCK_TK_PF}</div></div>`+h}}
+{const _w=SC.wallet.html;SC.wallet.html=function(){const h=_w.apply(this,arguments);if(!mockOn())return h;const M=MK();
+ return `<div class="card" id="mock_bal" style="border:1px solid rgba(245,158,11,.45);margin-bottom:12px"><div class="row sp"><span class="b">Mock Balance</span><span class="badge b-am" id="mock_bal_tag">Mock</span></div><div class="b" id="mock_bal_amt" style="font-size:26px;margin-top:4px">${fm2(M.bal)}</div><div class="xs mu" style="line-height:1.6">Test account · for mock selling ${MOCK_PERIOD_PF} only. Not real money.</div>${M.tx.slice(0,4).map(x=>`<div class="row sp xs" style="margin-top:6px"><span class="mu">${x.ty} · ${x.at.slice(0,16)}</span><b>${x.amt<0?'-':'+'}${fm2(Math.abs(x.amt))}</b></div>`).join('')}</div>`+h}}
+{const _r=SC.result.html;SC.result.html=function(){const h=_r.apply(this,arguments);if(!mockOn()||S.res.view==='stats')return h;const g=gm(S.res.game);const L=MK().draws.filter(d=>d.g===g.id);if(!L.length)return h;
+ const c=`<div class="card mt" id="mock_res" style="border:1px solid rgba(245,158,11,.45)"><div class="row sp"><h3>Mock results</h3>${mockBadge()}</div>${L.map(d=>`<div style="margin-top:10px"><div class="row sp"><span class="b sm">${d.no}</span><span class="xs mu">${d.date} ${d.time}</span></div><div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${balls(d.nums)}</div></div>`).join('')}</div>`;
+ const i=h.indexOf('<h3 style="margin-top:22px">');return i<0?h.slice(0,-6)+c+'</div>':h.slice(0,i)+c+h.slice(i)}}
+const mockDom=()=>{if(!mockOn())return;const sc=document.getElementById('sc');if(!sc)return;
+ sc.querySelectorAll('[onclick]').forEach(e=>{const o=e.getAttribute('onclick')||'';if(/A\.go\('(deposit|withdraw|bind)'/.test(o)&&!e.dataset.mockHide){e.dataset.mockHide='1';e.style.display='none'}});
+ sc.querySelectorAll('[onclick^="A.playGame("],[onclick^="A.pgame("]').forEach(e=>{if(e.dataset.mockDone)return;e.dataset.mockDone='1';const gid=(/\('([^']+)'\)/.exec(e.getAttribute('onclick'))||[])[1];const d=mockDraw(gm(gid));
+  if(!d){e.style.opacity='.4';e.setAttribute('aria-disabled','true');e.setAttribute('onclick',`toast('${MOCK_ONLY_PF}')`);return}
+  if(/^A\.pgame/.test(e.getAttribute('onclick')||'')||!e.querySelector('.gn'))return;
+  e.insertAdjacentHTML('afterbegin','<span class="mockpin" style="position:absolute;margin:4px 0 0 4px;z-index:2">'+mockBadge()+'</span>');if(getComputedStyle(e).position==='static')e.style.position='relative';
+  const gd=e.querySelector('.gd');if(gd)gd.textContent='Mock draw '+d.no;else{const gn=e.querySelector('.gn');if(gn)gn.insertAdjacentHTML('afterend',`<div class="xs b" data-mockdraw="1" style="color:var(--am);margin:2px 0 4px">Mock draw ${d.no}</div>`)}})};
+{const _r=render;render=function(){const r=_r.apply(this,arguments);try{if(mockOn()){const sc=document.getElementById('sc');
+  if(sc&&['play','betConfirm'].includes(S.screen)&&S.play&&!document.getElementById('mock_play')){const gh=sc.querySelector('.ghead');const c=mockCard(gm(PL().game),'mock_play');if(gh)gh.insertAdjacentHTML('afterend',c);else sc.insertAdjacentHTML('afterbegin',c)}
+  if(sc&&S.screen==='betConfirm'){const g=gm(PL().game),d=mockDraw(g);if(d){const off=dno(g,d.date,d.time);sc.querySelectorAll('*').forEach(n=>{if(n.children.length===0&&n.textContent.includes(off)&&!n.textContent.includes(off+'-M'))n.textContent=n.textContent.split(off).join(d.no)})}}
+  if(sc&&['play','betConfirm','tkDetail','tickets'].includes(S.screen)){const tw=document.createTreeWalker(document.getElementById('screen'),NodeFilter.SHOW_TEXT);const ns=[];while(tw.nextNode())ns.push(tw.currentNode);
+   ns.forEach(n=>{let v=n.nodeValue;if(/-M\s*·\s*PCSO Draw No\. \d+/.test(v))v=v.replace(/(-M)\s*·\s*PCSO Draw No\. \d+/g,'$1');if(/Bet balance first, then prize balance/.test(v)&&S.play&&mockDraw(gm(PL().game)))v=v.replace(/Bet balance first, then prize balance\.?/,'Paid from your Mock Balance.');if(v!==n.nodeValue)n.nodeValue=v;
+    if(S.screen==='betConfirm'&&/^\s*From (bet|prize) balance\s*$/.test(v)){const row=n.parentElement&&n.parentElement.closest('div');if(row&&row.parentElement&&row.parentElement!==sc)row.style.display='none'}})}
+  mockDom()}}catch(e){console.error(e)}return r}}
+A.mockTest=()=>{if(!S.logged)seedDemo();const M=MK();
+ if(M.test){if(M.bal>0||M.tx.length||M.draws.length||S.tickets.some(k=>k.mock))return toast('Demo: run the Core Mock Data Purge first');const sv=M.saved;if(sv){S.bal.bet=sv.bet;S.bal.prize=sv.prize;S.tickets=sv.tickets;S.tx=sv.tx}M.saved=null;M.test=0;M.open={};v13Audit('test-account-removed-pcso-approver-approved');toast('Test account removed (PCSO Approver approved) · back to the regular demo player');return A.reset('home')}
+ M.saved={bet:S.bal.bet,prize:S.bal.prize,tickets:S.tickets,tx:S.tx};S.bal.bet=0;S.bal.prize=0;S.tickets=[];S.tx=[];M.test=1;M.open={};
+ v13Audit('test-account-marked-pcso-approver-approved');toast('Test account (PCSO Approver approved) · ₱0.00 balance, no tickets (Demo data account)');A.reset('home')};
+A.mockFund=()=>{const M=MK();if(!mockOn())return toast('Mark the account as a test account first');M.bal=r2(M.bal+MOCK_FUND_PF);M.tx.unshift({ty:'Mock Balance issued',amt:MOCK_FUND_PF,at:fts(S.clock),ref:MOCK_PERIOD_PF});v13Audit('mock-balance-issued');toast('Back office: Mock Balance '+fm2(MOCK_FUND_PF)+' issued (Demo data)');render()};
+A.mockRes=kind=>{const M=MK();const ks=S.tickets.filter(k=>k.mock&&k.st==='await');if(!ks.length)return toast('No Mock ticket waiting for a draw: place a Mock bet first');
+ const no=ks[0].mdn,g=gm(ks[0].g),grp=ks.filter(k=>k.mdn===no);const lvl=kind==='lose'?0:kind==='big'?4:1;const k0=grp[0];k0.pt=pcOf(k0);const win=craftWin(k0,lvl);let won=0,net=0;
+ grp.forEach(k=>{k.pt=pcOf(k);const R=settleTicket(k,win);k.dn=R.win;k.res=R;const top=R.tiers[0];k.tier=top?tierLbl(g,top.tier)+(R.tiers.length>1?' +'+(R.tiers.length-1):''):'';k.prize=R.gross;
+  if(R.gross>0){k.st='claimed';k.paid='auto';k.mockPaid=1;won++;net=r2(net+R.net)}else k.st='lost'});
+ const d=M.open[g.id]||{date:k0.draw,time:k0.dtime};M.draws.unshift({g:g.id,no,date:d.date,time:d.time,nums:win,mock:1});
+ if(net>0){M.bal=r2(M.bal+net);M.tx.unshift({ty:'Mock prize',amt:net,at:fts(S.clock),ref:no})}
+ nfV13('trophy','[MOCK] Draw result',`${gname(g)} draw ${no}: ${won?`you won. ${fm2(net)} was credited to your Mock Balance.`:'no win this time.'}`,'MSG_DRAW_RESULT','tickets');S.notifs[0].mock=1;S.notifs[0].sms137=1;
+ const o=M.open[g.id];if(o){M.open[g.id]={n:o.n+1};M.open[g.id]=mockNew(g.id)} /* next Mock draw one day later (Demo data) */
+ v13Audit('mock-result-received');toast('Core: Mock result '+no+(won?' · '+fm2(net)+' to the Mock Balance':' · no win'));render()};
+A.mockPurge=()=>{const M=MK();const tk=S.tickets.filter(k=>k.mock).length,dr=M.draws.length,tx=M.tx.length,bal=M.bal;
+ S.tickets=S.tickets.filter(k=>!k.mock);M.draws=[];M.tx=[];M.bal=0;M.open={};
+ v13Audit(`core-mock-data-purge-${MOCK_PERIOD_PF}: tickets ${tk}, mock draws ${dr}, mock balance records ${tx}, mock balance ${bal}`);
+ toast(`Core: Mock Data Purge ${MOCK_PERIOD_PF} · ${tk} tickets, ${dr} Mock results, ${tx} Mock Balance records deleted · test account flag kept`);render()};
+
+/* ---------- 6B.5.5 outlets: Outlet Category ---------- */
+const OCAT_PF={a:'Accredited Outlet',b:'PCSO Branch Office'};
+OUT.forEach(o=>{if(!o.cat)o.cat=/Authorized Outlet/.test(o.n)?'a':'b'}); /* PCSO Main Office and branches = PCSO Branch Office */
+{const _ol=outList;outList=function(){const L=_ol.apply(this,arguments);const c=S.ol&&S.ol.cat;return c?L.filter(x=>x.cat===c):L}}
+A.olCat=v=>{v=v||'';if((S.ol.cat||'')===v)return;S.ol.cat=v;renderKeep()};
+{const _h=SC.outlets.html;SC.outlets.html=function(){let h=_h.apply(this,arguments);const c=(S.ol&&S.ol.cat)||'';
+ const sel=`<select class="inp mt3" id="ol_cat" onchange="A.olCat(this.value)"><option value="">All outlet categories</option>${Object.keys(OCAT_PF).map(k=>`<option value="${k}" ${c===k?'selected':''}>${OCAT_PF[k]}</option>`).join('')}</select>`;
+ const a=h.indexOf('id="ol_reg"');if(a>=0){const b=h.indexOf('</select>',a)+9;h=h.slice(0,b)+sel+h.slice(b)}
+ const L=outList();const parts=h.split('<div class="olrow">');
+ for(let i=1;i<parts.length;i++){const x=L[i-1];if(!x)continue;const k='</div>';const j=parts[i].indexOf(k);if(j<0)continue;
+  const p=parts[i].indexOf(k,parts[i].indexOf('<div class="b"'))+k.length;parts[i]=parts[i].slice(0,p)+`<div class="xs" data-ocat="${x.cat}" style="color:var(--cy);font-weight:700">${OCAT_PF[x.cat]}</div>`+parts[i].slice(p)}
+ return parts.join('<div class="olrow">')}}
+
+/* ---------- 6B.1.3 trusted device revoked when device biometrics are off ---------- */
+A.bioPf=w=>{if(S.term!=='app')return toast('Switch the terminal to App first');const F=PF();
+ if(w==='on'){F.bioOff='';toast('Device biometrics turned on again · Trust this device is offered after the next SMS sign-in');return render()}
+ F.bioOff=w==='chg'?'':w;const why=w==='chg'?'Biometrics Changed':'Biometrics Disabled';const had=(S.trusted||[]).some(d=>d.cur);
+ S.trusted=(S.trusted||[]).filter(d=>!d.cur);if(had){S.audit=S.audit||[];S.audit.push({ev:'security:trusted-device-revoked:'+why,at:S.clock})}
+ toast((w==='off'?'Device biometrics turned off':w==='none'?'All fingerprints / faces removed':'New fingerprint / face enrolled')+(had?' · this device is no longer trusted ('+why+')':' · this device was not trusted'));render()};
+{const _ta=A.trustAsk;A.trustAsk=function(){if(PF().bioOff)return;return _ta.apply(this,arguments)}}
+{const _bs=A.bioStart;A.bioStart=function(ctx){if(PF().bioOff&&ctx==='login'){S.bioFell=false;return A.go('otp2fa')}return _bs.apply(this,arguments)}}
+
+/* ---------- 6B.4.4 channel real-time account-name check ---------- */
+{const _bd=A.bindDo;A.bindDo=function(k,no,nm){const c=PF().nchk;if(c){v13Audit('channel-name-check-'+(c==='low'?'below-threshold':'unavailable')+'-manual-review');return A.nameReview(k,no,nm)}v13Audit('channel-name-check-passed');return _bd.apply(this,arguments)}}
+A.nchk=w=>{PF().nchk=PF().nchk===w?'':w;toast(!PF().nchk?'Channel name check: match':w==='low'?'Channel name check: match below the Name Match Threshold':'Channel name check: not available for this institution');render()};
+
+/* ---------- 6B.5.7 regulatory notice: Read more over 3 lines; bet-placed and deposit-result slots; 6B.4.3 ---------- */
+function regFold(){document.querySelectorAll('#screen [id^="regn_"]').forEach(el=>{if(el.dataset.fold)return;el.dataset.fold='1';const head=el.firstElementChild;if(!head)return;
+ const tx=document.createElement('div');tx.className='regtx';while(head.nextSibling)tx.appendChild(head.nextSibling);el.appendChild(tx);
+ let lv=PF().regLong?2:1;if(el.id==='regn_tk137'){const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(k&&k.regv)lv=k.regv} /* e-ticket: the version in force when the ticket was issued */
+ tx.textContent=lv===2?REGN_LONG_PF:REGN137;
+ if(PF().regOpen[el.id])return;const lh=parseFloat(getComputedStyle(tx).lineHeight)||20;
+ if(tx.scrollHeight>lh*3+2){tx.style.cssText='display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden';const b=document.createElement('button');b.className='xs b';b.id=el.id+'_more';b.style.cssText='color:var(--cy);margin-top:4px';b.textContent='Read more';
+  b.onclick=ev=>{ev.stopPropagation();PF().regOpen[el.id]=1;tx.style.cssText='';b.remove()};el.appendChild(b)}})}
+{const _dm=drawModal;drawModal=function(){const r=_dm.apply(this,arguments);try{const sh=document.querySelector('#ovl .sheet');if(sh){const h3=sh.querySelector('h3');const tt=h3?h3.textContent.trim():'';
+ const before=()=>sh.querySelector('.row.g8.mt2')||[...sh.querySelectorAll('button.btn')].pop();
+ if(/^Bet (partly )?placed$/.test(tt)&&S.reg137&&!sh.querySelector('#regn_ok_pf')){const t=before();if(t)t.insertAdjacentHTML('beforebegin',regBox137('regn_ok_pf'))}
+ if(tt==='Deposit successful'&&!sh.querySelector('#trust_dres_pf')){const t=before();if(t)t.insertAdjacentHTML('beforebegin',`<div class="xs mu" id="trust_dres_pf" style="margin:12px 4px 0;line-height:1.6;text-align:center">${MSG_TRUST_S137}</div>`+regBox137('regn_dres_pf'))}}
+ regFold()}catch(e){console.error(e)}return r}}
+A.regLong=()=>{if(!S.reg137)A.reg137();PF().regLong=PF().regLong?0:1;PF().regOpen={};toast(PF().regLong?'Core: longer regulatory notice (Demo data)':'Core: short regulatory notice');render()};
+{const _w=SC.wallet.html;SC.wallet.html=function(){const h=_w.apply(this,arguments);if(!S.mdV)return h;return h.replace(MSG_TRUST137+'</div>',MSG_TRUST137+` <a id="trust_more_pf" style="color:var(--cy);cursor:pointer;font-weight:700" onclick="A.mdMore()">Learn more</a></div>`)}}
+A.mdMore=()=>{if(!S.mdV)return;v13Audit('wallet-learn-more-mandatory-disclosures');if(S.termsNA&&S.termsNA.tos)return A.go('mdisc');A.terms('tos');setTimeout(()=>{const e=document.getElementById('terms_md');if(e)e.scrollIntoView({block:'start'})},60)};
+A.mdOff=()=>{const F=PF();if(S.mdV){F.mdSaved=S.mdV;S.mdV=null}else S.mdV=F.mdSaved||{ver:'MD-2026-01',eff:'2026-09-01'};toast(S.mdV?'Core: Mandatory Disclosures published':'Core: Mandatory Disclosures not published · no Learn more link');render()};
+
+/* ---------- 6B.1.2 / 6B.5.4 Web Push delivery and PWA icon badge ---------- */
+const pushOk=()=>!!(S.logged&&S.term!=='app'&&P138().pushAns==='granted');
+{const _an=addNotif;addNotif=function(){const r=_an.apply(this,arguments);if(pushOk())setTimeout(pushDeliver,0);return r}}
+function pushDeliver(){const n=S.notifs[0];if(!n||n.pushed||!pushOk())return;n.pushed=1;PF().pushLog.unshift({ti:n.en,be:n.be,tpl:n.tpl||'',at:fts(S.clock)});
+ const ph=document.getElementById('screen');if(!ph)return;const o=document.getElementById('wpush_pf');if(o)o.remove();
+ ph.insertAdjacentHTML('beforeend',`<div id="wpush_pf" style="position:absolute;left:10px;right:10px;top:44px;z-index:60;background:rgba(255,255,255,.97);border-radius:16px;box-shadow:0 8px 28px rgba(10,17,72,.25);padding:10px 12px;font-size:12.5px;line-height:1.45"><div class="row g8 xs mu"><b style="color:var(--nv)">iLotto</b><span>Web Push (simulated system notification)</span></div><div class="b" style="margin-top:3px">${n.en}</div><div>${n.be}</div></div>`);
+ setTimeout(()=>{const e=document.getElementById('wpush_pf');if(e)e.remove()},5000)}
+const badgeOn=()=>!!(S.logged&&S.term!=='app'&&S.p137&&S.p137.inst&&P138().pushAns==='granted');
+function badgeSync(){const F=PF(),on=badgeOn(),n=on?unread():0;F.badge=on?n:null;F.badgeApi=('setAppBadge' in navigator)?'setAppBadge':'';
+ if(n===F.badgeLast)return;F.badgeLast=n;try{if(F.badgeApi){if(n>0)navigator.setAppBadge(n).catch(()=>{});else if(navigator.clearAppBadge)navigator.clearAppBadge().catch(()=>{})}}catch(e){}}
+/* 6B.5.7 rule 1: each ticket keeps the regulatory notice version in force when it was issued (tickets issued before the
+   notice was published by the demo Core show the current version) */
+const regStamp=()=>{const F=PF();if(!S.reg137){F.regAt=null;return}if(F.regAt==null)F.regAt=S.clock;(S.tickets||[]).forEach(k=>{if(k.regv==null&&(k.ms||0)>=F.regAt)k.regv=F.regLong?2:1})};
+{const _r=render;render=function(){try{regStamp()}catch(e){}const r=_r.apply(this,arguments);try{regFold();badgeSync()}catch(e){console.error(e)}return r}}
+A.pushRevoke=()=>{const p=P138();if(p.pushAns==='granted'){p.pushAns='denied';p.pushDen=1;toast('Browser: notification permission revoked · in-app messages continue')}else{p.pushAns='granted';p.pushDen=0;p.pushDue=0;toast('Browser: notifications allowed for iLotto')}render()};
+
+/* ---------- demo panel ---------- */
+function panelPf(){const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;const F=PF(),M=F.mock;
+ const cur=(S.trusted||[]).find(d=>d.cur);const bdg=badgeOn()?unread():null;
+ const why=!S.logged?'not signed in':S.term==='app'?'App (native icon badge)':!(S.p137&&S.p137.inst)?'PWA not added to the home screen':P138().pushAns!=='granted'?'notifications not allowed':'';
+ const log=F.pushLog.slice(0,3).map(x=>`<div class="xs" style="color:#444;margin:2px 0">${x.at.slice(11,16)} · ${x.ti}</div>`).join('')||'<div class="xs" style="color:#888">None yet</div>';
+ return `<h4>Results: Number Stats</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Number Stats Draw Count '+NS_N_PF+' (Demo data)','A.nsSet()',F.ns,'pf_ns')}</div><div class="xs" style="color:#666;margin:4px 0">Not set (PRD: no default) = no Number Stats tab on Results and no entry on the pick panel.</div>
+<h4>Mock selling (test account)</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Test account (PCSO Approver approved)','A.mockTest()',M.test,'pf_mock')}${pb('Back office: issue Mock Balance '+fm2(MOCK_FUND_PF)+' (Demo data)','A.mockFund()','','pf_mock_fund')}${pb('Core: Mock result · no win','A.mockRes(\'lose\')','','pf_mock_lose')}${pb('Core: Mock result · lowest tier','A.mockRes(\'win\')','','pf_mock_win')}${pb('Core: Mock result · above the big-prize threshold','A.mockRes(\'big\')','','pf_mock_big')}${pb('Core: Mock Data Purge '+MOCK_PERIOD_PF,'A.mockPurge()','','pf_mock_purge')}</div><div class="xs" style="color:#666;margin:4px 0">Mock selling period ${MOCK_PERIOD_PF} (Demo data): Grand Lotto 6/55 and 2D Lotto; Mock draw = next draw time, ID + -M. Mock Balance ${fm2(M.bal)}.</div>
+<h4>App: device biometrics and trusted device</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Device biometrics turned off','A.bioPf(\'off\')',F.bioOff==='off','pf_bio_off')}${pb('All fingerprints / faces removed','A.bioPf(\'none\')',F.bioOff==='none','pf_bio_none')}${pb('New fingerprint / face enrolled','A.bioPf(\'chg\')','','pf_bio_chg')}${pb('Device biometrics turned on again','A.bioPf(\'on\')','','pf_bio_on')}</div><div class="xs" style="color:#666;margin:4px 0" id="pf_trust_st">This device: ${S.term!=='app'?'H5 (no trusted devices)':cur?'trusted':'not trusted'}${F.bioOff?' · biometrics off':''}</div>
+<h4>Linking: channel account-name check</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Below the Name Match Threshold','A.nchk(\'low\')',F.nchk==='low','pf_nchk_low')}${pb('Check not available (timeout / institution not connected)','A.nchk(\'na\')',F.nchk==='na','pf_nchk_na')}</div>
+<h4>Regulatory notices and disclosures</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Longer regulatory notice, over 3 lines (Demo data)','A.regLong()',F.regLong,'pf_reglong')}${pb('Core: Mandatory Disclosures not published','A.mdOff()',!S.mdV,'pf_mdoff')}</div>
+<h4>Web Push and PWA icon badge</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Browser notification permission granted','A.pushRevoke()',P138().pushAns==='granted','pf_push_perm')}${pb('PWA added to the home screen','A.pwaAdd137()',S.p137&&S.p137.inst,'pf_pwa_inst')}</div>
+<div class="row g8" style="margin:6px 0;align-items:center"><span style="position:relative;display:inline-grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#004bc9;color:#fff;font-weight:800;font-size:11px">iL${bdg?`<i id="pf_badge" style="position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:#d60021;color:#fff;font-style:normal;font-size:10px;line-height:18px;text-align:center;padding:0 4px">${bdg}</i>`:''}</span><span class="xs" id="pf_badge_st" style="color:#444">Home screen icon badge: ${bdg?bdg+' unread (same as the bell)'+(F.badgeApi?' · navigator.setAppBadge('+bdg+') called':' · Badging API not available in this browser'):why?'not shown ('+why+'; the bell count is used)':'cleared (0 unread)'}</span></div>
+<div class="xs" style="color:#666">Web Push delivered (last 3):</div><div id="pf_push_log">${log}</div>`}
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-vpf]');if(old)old.remove();const v=el.querySelector('[data-v138]')||el.querySelector('[data-v137c]');const html=`<div data-vpf="1">${panelPf()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
 </script>
 </body>
 </html>

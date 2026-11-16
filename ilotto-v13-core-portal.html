@@ -12323,6 +12323,871 @@ ACT.on138Down = id => { const x = SEED.offNotices138.find(y => y.id === id && y.
 
 </script>
 <script>
+/* ===== p8n_fill.js ===== */
+/* =====================================================================
+ * p8n_fill.js - fill-up of the 1.3.7 / 1.3.8 "PRD has, not done" lists (loaded last). No CJK in this file.
+ *  A. 6A.19.2 report catalogue: Weekly Settlement Report and Schedules A-G (+ monthly summary), Funds Coverage,
+ *     Daily Operations, Monthly Service Report, Monthly Case SLA Performance, SLA Breach Register Report,
+ *     Security Operations Metrics; 6A.19.3 ten factory schedules
+ *  B. 6A.17.9 breach dispute (contractor, DEV) + Senior Authorizer ruling; 6A.17.8 typed per-field editor + versions
+ *  C. 6A.1.5 SAS Export Log (record, cycle overdue alert)
+ *  D. 6A.2.8 Integration Registry edit / status change (retire) with history, Contract Version, auto entries
+ *  E. 6A.10.3 Fraud Indicators (Core transaction data) + 6A.16.10 AFASA monthly report
+ *  F. 6A.15.4 Risk Suspension Rules + real triggers of the 6A.2.5 risk automatic suspension
+ *  G. 6A.13.6 cash bond: automatic suspension at the replenishment deadline, 24-hour warning, additional bond
+ *  H. 6A.7.4 rule 6 resolution deadline countdown (paused rows), overdue alert + case; Set by System demo row
+ *  I. 6A.9.2 channel reinstatement submission (DEV channel) + cooling / permanent minimum period checks
+ *  J. 6A.20.3 note 10 Reconciliation C / E domain scope for custom roles; scope gating for Reconciliation and
+ *     Service Levels (Edit Attribution for outage events)
+ *  K. 6A.2.2 wind-down: request form, Winding Down state, checklist, fund turnover, decommission gating
+ *  L. 6A.11.2 claims desk uses the claim policy version bound to the draw; claim deadline extension while claims paused
+ *  M. 6A.15.7 SLA parameters: Effective At, versions, month segments, typed editing per row
+ *  N. 6A.12.3 Official Notices: drafts, edit, preview, channel execution results, declaration comparison, expiry tick
+ *  O. 6A.6.1 Pool Sales Basis of the version in force at the draw closure
+ *  P. 6A.14 Wallet And Funds column in the overview matrix + Data Domain filter; counts for other roles (Restricted)
+ *  Q. 6A.20 Personnel Type change by access change request
+ *  R. 6A.2.5 rule 7 prize claims release submitters
+ * ===================================================================== */
+'use strict';
+const E139 = en => ({ zh: en, en });
+const D139 = () => '<span class="tiny muted" data-demo139="1">Demo data</span>';
+const WALLET139 = 'Wallet And Funds';
+function alert139(type, sev, channel, event, extra) { const a = Object.assign({ id: nid('ALT', { w: 6 }), sev, type, event, channel: channel || 'Network', raisedAt: nowS(true), status: 'Open', ackBy: '', ackAt: '', caseId: '' }, extra || {}); SEED.alerts.unshift(a); return a; }
+function roleType139(id) { const r = ROLES.find(x => x.id === id); if (r) return r.type; const c = roleById(id); return c ? (c.type || 'Custom') : ''; }
+const TICKS139 = [];
+(function render139() { const r0 = render; render = function () { if (!S._tick139) { S._tick139 = true; try { TICKS139.forEach(f => { try { f(); } catch (e) { console.warn(e); } }); } finally { S._tick139 = false; } } return r0.apply(this, arguments); }; })();
+
+/* =====================================================================
+ * A. Reports
+ * ===================================================================== */
+const REP139 = {
+  weekly: { en: 'Weekly Settlement Report and Schedules', content: 'Weekly main report and Schedules A–G (daily remittance, commission, late penalty, cash bond, result adjustment add-backs and top-ups, gateway settlement and channel-borne fees, proof of remittance); monthly summary', sens: 'Restricted', first: 'Settlement Week · E-Channel',
+    cols: [['gross', 'Gross Receipts', 'money'], ['prizes', 'Prizes Paid (Net)', 'money'], ['comm', 'Agent Commission', 'money'], ['wo', 'Balance Write-offs To PCSO', 'money'], ['net', 'Net Remittable Amount', 'money'], ['rem', 'Actual Remitted', 'money'], ['out', 'Outstanding Accountability', 'var'], ['pen', 'Late Penalty', 'money'], ['bond', 'Cash Bond Balance', 'money'], ['status', 'Status', 'badge']] },
+  fundcov: { en: 'Funds Coverage Report', content: 'Closing deposit and winnings balances, withdrawals in process, designated account balance and funds coverage ratio from the daily Wallet and Funds Reports', sens: 'Restricted', first: 'Sales Day · E-Channel',
+    cols: [['dep', 'Closing Deposit Balance', 'money'], ['win', 'Closing Winnings Balance', 'money'], ['wip', 'Withdrawals In Process', 'money'], ['obl', 'Player Fund Obligations', 'money'], ['bal', 'Designated Account Balance', 'money'], ['ratio', 'Funds Coverage Ratio', 'text'], ['nr', 'Not Reported', 'text']] },
+  dailyops: { en: 'Daily Operations Report', content: 'Previous day: network and channel online status, Core availability and performance, alerts by type and severity, cases new / closed / open by priority', sens: 'Internal', first: 'Report Date · E-Channel',
+    cols: [['online', 'Online Status', 'text'], ['avail', 'Core Availability', 'text'], ['lat', 'Receipt Latency P95 / P99', 'text'], ['alerts', 'Alerts', 'text'], ['cases', 'Cases', 'text'], ['items', 'Open Critical / High Items', 'text']] },
+  msr: { en: 'Monthly Service Report', content: 'Cases by priority, E-Channel and support category with SLA attainment, Core service level and availability, CCC and RAMT connectivity, recurring problems, corrective actions; equal treatment report and security operations metrics attached', sens: 'Restricted', first: 'Month · Section',
+    cols: [['item', 'Item', 'text'], ['val', 'Value', 'text']] },
+  casesla: { en: 'Monthly Case SLA Performance Report', content: 'Received / resolved / open by priority and type, response and resolution SLA attainment, breaches with root cause, recurring incidents, remediation tracking', sens: 'Internal', first: 'Priority · Case Type',
+    cols: [['rec', 'Received', 'num'], ['res', 'Resolved', 'num'], ['open', 'Open', 'num'], ['resp', 'Response SLA Met', 'text'], ['resol', 'Resolution SLA Met', 'text']] },
+  brcrep: { en: 'SLA Breach Register Report', content: 'All records of the case SLA breach register (6A.17.9), the basis for SLA penalties', sens: 'Internal', first: 'Breach ID',
+    cols: [['caseId', 'Case ID', 'text'], ['pri', 'Priority', 'text'], ['ctype', 'Case Type', 'text'], ['btype', 'Breach Type', 'text'], ['date', 'Breach Date', 'text'], ['dur', 'Breach Duration', 'text'], ['comp', 'Affected Component', 'text'], ['dispute', 'Dispute Status', 'text']] },
+  secops: { en: 'Security Operations Metrics', content: 'MTTD, MTTA, MTTC, MTTR, false positive rate, playbook success / failure rate, automation rate, incidents handled, playbook changes, threat intelligence highlights (from SOAR)', sens: 'Restricted', first: 'Month',
+    cols: [['mttd', 'MTTD', 'text'], ['mtta', 'MTTA', 'text'], ['mttc', 'MTTC', 'text'], ['mttr', 'MTTR', 'text'], ['fp', 'False Positive Rate', 'text'], ['pb', 'Playbook Success / Failure Rate', 'text'], ['auto', 'Automation Rate', 'text'], ['inc', 'Incidents Handled', 'text'], ['pbc', 'Playbook Changes', 'text'], ['ti', 'Threat Intelligence Highlights', 'text']] },
+};
+const REP_VIS139 = { weekly: ['finrep', 'case', 'aud', 'sa', 'fin'], fundcov: ['finrep', 'comp', 'case', 'aud', 'sa', 'fin'], dailyops: ['nop', 'finrep', 'case', 'aud', 'sa', 'soc', 'cccv', 'ccc'],
+  msr: ['nop', 'comp', 'finrep', 'case', 'aud', 'sa'], casesla: ['finrep', 'case', 'aud', 'sa'], brcrep: ['finrep', 'case', 'aud', 'sa'], secops: ['finrep', 'case', 'aud', 'sa', 'soc'] };
+const M139 = { wk: null, wkTab: 'A', wkMonthly: false };
+function weekStart139(s) { const d = new Date(day137(s)); const wd = (d.getUTCDay() + 6) % 7; return ymd137(day137(s) - wd * 864e5); }
+function bondAt139(code, end) { const b = (SEED.bond137 || []).find(x => x.channel === code); if (!b) return null; return r2(b.flows.filter(f => f.at.slice(0, 10) <= end).reduce((a, f) => a + (['Deduction', 'Release'].includes(f.type) ? -f.amount : f.amount), 0)); }
+function weekRow139(ch, from, to) {
+  const L = SEED.drs137.filter(s => s.channel === ch && s.sales >= from && s.sales <= to && s.final);
+  if (!L.length) return null; const sum = f => r2(L.reduce((a, s) => a + (+f(s) || 0), 0));
+  const out = r2(L.filter(s => s.due <= to).reduce((a, s) => a + Math.max(0, r2(s.net - (s.rem || []).filter(x => !x.reversed && x.date <= to).reduce((b, x) => b + x.amount, 0))), 0));
+  return { gross: sum(s => s.gross), prizes: sum(s => s.prizes), comm: sum(s => s.commission), wo: sum(s => s.writeOff), net: sum(s => s.net), rem: sum(s => drsRemitted137(s)), out, pen: sum(s => drsPenalty137(s)), bond: bondAt139(ch, to), status: out === 0 ? 'Fully Remitted' : 'Outstanding', list: L };
+}
+function weekRows139(q) {
+  const out = []; const chs = [...new Set(SEED.drs137.map(s => s.channel))].filter(c => q.ch === 'All' || c === q.ch);
+  if (M139.wkMonthly) { const months = [...new Set(SEED.drs137.filter(s => s.sales >= q.from.slice(0, 8) + '01' && s.sales <= q.to).map(s => s.sales.slice(0, 7)))];
+    months.forEach(mo => chs.forEach(c => { const r = weekRow139(c, mo + '-01', mo + '-31'); if (r) out.push({ key: `M|${c}|${mo}`, label: `${mo} (monthly summary) · ${c}`, m: r, ch: c, from: mo + '-01', to: mo + '-31' }); })); return out; }
+  for (let w = day137(weekStart139(q.from)); w <= day137(q.to); w += 7 * 864e5) {
+    const from = ymd137(w), to = ymd137(w + 6 * 864e5); if (to >= today137()) continue; // a week is reported after its Sunday
+    chs.forEach(c => { const r = weekRow139(c, from, to); if (r) out.push({ key: `W|${c}|${from}`, label: `${from} → ${to} · ${c}`, m: r, ch: c, from, to }); });
+  }
+  return out;
+}
+function schedHtml139(row) {
+  const tabs = ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map(id => ({ id, zh: 'Schedule ' + id, en: 'Schedule ' + id }));
+  const T = M139.wkTab; const L = row.m.list; let body = '';
+  const names = { A: 'Schedule A – Daily Remittance', B: 'Schedule B – Agent Commission', C: 'Schedule C – Late Remittance Penalty', D: 'Schedule D – Cash Bond Movements', E: 'Schedule E – Result Adjustment Add-backs And Top-ups', F: 'Schedule F – Gateway Settlement Tracking And Channel-borne Fees', G: 'Schedule G – Proof Of Remittance' };
+  if (T === 'A') body = table('wkA139', [{ h: 'Sales Day', k: 'sales' }, { h: 'Net Remittable Amount', cls: 'num', r: s => fmtP(s.net) }, { h: 'Remittance Due Date', k: 'due' }, { h: 'Actual Remitted', cls: 'num', r: s => fmtP(drsRemitted137(s)) }, { h: 'Received Date', r: s => esc(((s.rem || []).filter(x => !x.reversed).map(x => x.date).sort().slice(-1)[0]) || '-') }, { h: 'Unremitted', cls: 'num', r: s => { const u = Math.max(0, r2(s.net - drsRemitted137(s))); return u > 0 ? `<span class="red">${fmtP(u)}</span>` : fmtP(0); } }, { h: 'Days Overdue', cls: 'num', r: s => { const st = drsState137(s); return st === 'Overdue' ? String(Math.round((day137(today137()) - day137(s.due)) / 864e5)) : '0'; } }], L, { nopage: true });
+  else if (T === 'B') body = table('wkB139', [{ h: 'Sales Day', k: 'd' }, { h: 'Games', k: 'g' }, { h: 'Gross Receipts', cls: 'num', r: x => fmtP(x.sales) }, { h: 'Refunds And Voids', cls: 'num', r: x => fmtP(x.ref) }, { h: 'Jackpot-Bearing', k: 'jb' }, { h: 'DST', cls: 'num', r: x => x.dst == null ? '-' : fmtP(x.dst) }, { h: 'Commission Rate', r: x => esc(x.rate) }, { h: 'Agent Commission', cls: 'num', r: x => fmtP(x.comm) }],
+    [].concat(...L.map((s, i) => [{ id: i + 'a', d: s.sales, g: 'Jackpot-Bearing games', sales: s.commBase, ref: 0, jb: 'Yes', dst: s.dstAmt, rate: `${(DRS137.commission * 100).toFixed(2)}% (${s.formula})`, comm: s.commission }, { id: i + 'b', d: s.sales, g: 'Other games', sales: r2(s.gross - s.commBase), ref: s.refunds, jb: 'No', dst: null, rate: '-', comm: 0 }])), { nopage: true }) + `<p class="tiny muted">Grouped by Jackpot-Bearing flag in the prototype; the report lists every game. ${D139()}</p>`;
+  else if (T === 'C') body = table('wkC139', [{ h: 'Statement', k: 'id', cls: 'mono' }, { h: 'Overdue Amount', cls: 'num', r: s => fmtP(Math.max(0, r2(s.net - drsRemitted137(s)))) }, { h: 'Start Date', r: s => ymd137(day137(s.due) + 864e5) }, { h: 'Received Date', r: s => esc(((s.rem || []).filter(x => !x.reversed && x.date > s.due).map(x => x.date).sort().slice(-1)[0]) || '-') }, { h: 'Days', cls: 'num', r: s => String(Math.max(0, Math.round((day137(today137()) - day137(s.due)) / 864e5))) }, { h: 'Daily Rate', r: () => (DRS137.rate * 100).toFixed(2) + '%' }, { h: 'Late Penalty', cls: 'num', r: s => fmtP(drsPenalty137(s)) }], L.filter(s => drsPenalty137(s) > 0), { nopage: true, empty: E139('No late remittance in this week.') });
+  else if (T === 'D') { const b = (SEED.bond137 || []).find(x => x.channel === row.ch); const fl = b ? b.flows.filter(f => f.at.slice(0, 10) >= row.from && f.at.slice(0, 10) <= row.to) : [];
+    body = dl([['Opening Balance', b ? fmtP(bondAt139(row.ch, ymd137(day137(row.from) - 864e5))) : '-'], ['Deductions', fmtP(fl.filter(f => f.type === 'Deduction').reduce((a, f) => a + f.amount, 0))], ['Replenishments', fmtP(fl.filter(f => f.type === 'Replenishment').reduce((a, f) => a + f.amount, 0))], ['Additional Requirement', b && b.addl ? `${fmtP(b.addl.amount)} · due ${esc(b.addl.due)}` : '-'], ['Closing Balance', b ? fmtP(bondAt139(row.ch, row.to)) : '-'], ['Replenish By', b ? esc(bondBy137(b)) : '-'], ['Automatic Suspension Triggered', b && b.autoFor139 ? 'Yes' : 'No']])
+      + table('wkD139', [{ h: 'Movement', k: 'id', cls: 'mono' }, { h: 'Type', k: 'type' }, { h: 'Amount', cls: 'num', r: f => fmtP(f.amount) }, { h: 'Deduction Reason', r: f => esc(f.reason || '-') }, { h: 'Reference No', k: 'ref' }, { h: 'At', k: 'at' }], fl, { nopage: true, empty: E139('No movements in this week.') }); }
+  else if (T === 'E') { const rows = []; (SEED.resultAdj || []).forEach(a => (a.diffs || []).forEach(x => { if (x.channel !== row.ch || !x.reportedAt) return; const dd = String(x.reportedAt).slice(0, 10); if (dd < row.from || dd > row.to) return; const ab = typeof adjAddBack === 'function' ? adjAddBack(x) : null; if (ab || (x.res === 'Topped Up')) rows.push({ id: a.id + x.id, draw: a.drawId, ver: `v${a.fromV} → v${a.toV}`, tx: x.tx, type: x.res === 'Topped Up' ? 'Top-up' : 'Add-back', amt: x.res === 'Topped Up' ? (x.resAmt || x.diff) : ab, at: x.reportedAt }); }));
+    body = table('wkE139', [{ h: 'Draw ID', k: 'draw' }, { h: 'Result Version', k: 'ver' }, { h: 'Transaction Reference', k: 'tx', cls: 'mono' }, { h: 'Type', k: 'type' }, { h: 'Amount', cls: 'num', r: x => fmtP(x.amt || 0) }, { h: 'Received By Core', k: 'at' }], rows, { nopage: true, empty: E139('No add-backs or top-ups received in this week.') }); }
+  else if (T === 'F') { const days = []; for (let d = day137(row.from); d <= day137(row.to); d += 864e5) days.push(ymd137(d)); const r = rng(m5Hash('gw' + row.ch + row.from));
+    body = table('wkF139', [{ h: 'Sales Day', k: 'd' }, { h: 'Payment Settlement Received', cls: 'num', r: x => fmtP(x.v) }, { h: 'Gateway Divergences', k: 'div' }], days.map(d => ({ id: d, d, v: Math.round((row.ch === 'ILT' ? 140000 : 20000) * (0.8 + r() * 0.4)), div: String(SEED.divergences.filter(x => x.channel === row.ch && x.dom === WALLET139 && String(x.raisedAt).slice(0, 10) === d).length) })), { nopage: true })
+      + `<p class="tiny muted">From the daily Wallet and Funds Report totals. Gateway shortfalls and delays are recorded as reasons only; they are not a late-remittance waiver. Per-batch amounts and channel-borne fees (gateway fees, MDR, transaction fees) are on the channel side and are not deducted. ${D139()}</p>`; }
+  else body = table('wkG139', [{ h: 'Remittance', k: 'id', cls: 'mono' }, { h: 'Statement', k: 'st' }, { h: 'Amount', cls: 'num', r: x => fmtP(x.amount) }, { h: 'Remittance Date', k: 'date' }, { h: 'Reference No', k: 'ref' }, { h: 'Source', k: 'src' }, { h: 'Proof', r: x => x.src === 'Manual' ? 'Deposit slip (PDF)' : x.src === 'Cash Bond' ? 'Cash bond deduction notice' : '-' }],
+    [].concat(...L.map(s => (s.rem || []).filter(x => !x.reversed).map(x => Object.assign({ st: s.id }, x)))), { nopage: true, empty: E139('No remittances.') });
+  return card(`Schedules · ${esc(row.label)}`, tabsBar(tabs, T, 'wk139Tab') + `<h4 id="wkSchName139">${esc(names[T])}</h4>` + body, '');
+}
+ACT.wk139Tab = id => { M139.wkTab = id; render(); };
+ACT.wk139Pick = key => { M139.wk = key; render(); };
+ACT.wk139Monthly = () => { M139.wkMonthly = !M139.wkMonthly; M139.wk = null; render(); };
+function dayOps139(q) {
+  const day = ymd137(day137(today137()) - 864e5); const chs = activeChannels().map(c => c.code).filter(c => q.ch === 'All' || c === q.ch);
+  const alertsOf = c => SEED.alerts.filter(a => String(a.raisedAt).slice(0, 10) === day && (c === 'Network' || a.channel === c));
+  const casesOf = c => SEED.cases.filter(x => c === 'Network' || x.channel === c);
+  const ev = (SEED.sla137 || []).filter(e => String(e.from).slice(0, 10) === day && ['Contractor', 'DDoS Within Declared Capacity'].includes(e.attr));
+  const cp = Math.floor((1440 - ev.filter(e => e.tier === 'Critical Path').reduce((a, e) => a + e.min, 0)) / 1440 * 10000) / 100;
+  const ot = Math.floor((1440 - ev.filter(e => e.tier !== 'Critical Path').reduce((a, e) => a + e.min, 0)) / 1440 * 10000) / 100;
+  const mk = c => { const al = alertsOf(c); const cs = casesOf(c); const pri = x => x.priority || ({ Critical: 'P1', High: 'P2', Medium: 'P3', Low: 'P4' })[x.severity] || 'P3';
+    const items = al.filter(a => a.status === 'Open' && ['P1', 'P2'].includes(a.sev)).map(a => a.id).concat(cs.filter(x => x.status !== 'Closed' && ['P1', 'P2'].includes(pri(x))).map(x => x.id));
+    const ch = chByCode(c); const off = ch ? (ch.link === 'Online' ? 0 : 1) : SEED.channels.filter(x => ACTIVE_STATES.includes(x.status) && x.link !== 'Online').length;
+    return { key: c, label: `${day} · ${c === 'Network' ? 'Network total' : c}`, m: { online: `${off ? '98.90' : '100.00'}% · Offline ${off}`, avail: `Critical Path ${cp.toFixed(2)}% · Other ${ot.toFixed(2)}%`, lat: c === 'EC2' ? '410 ms / 980 ms' : '180 ms / 420 ms',
+      alerts: `New ${al.length} · Acknowledged ${al.filter(a => a.status !== 'Open').length} · Open ${al.filter(a => a.status === 'Open').length}`, cases: ['P1', 'P2', 'P3', 'P4'].map(p => `${p} ${cs.filter(x => pri(x) === p && String(x.createdAt).slice(0, 10) === day).length}/${cs.filter(x => pri(x) === p && x.status === 'Closed' && String(x.closedAt || '').slice(0, 10) === day).length}/${cs.filter(x => pri(x) === p && x.status !== 'Closed').length}`).join(' · '), items: items.slice(0, 6).join(', ') || '-' } }; };
+  return [mk('Network')].concat(chs.map(mk));
+}
+function caseSla139() {
+  const pri = x => x.priority || ({ Critical: 'P1', High: 'P2', Medium: 'P3', Low: 'P4' })[x.severity] || 'P3';
+  const groups = {}; SEED.cases.forEach(c => { const k = pri(c) + '|' + (c.ctype || c.type || 'Incident'); (groups[k] = groups[k] || []).push(c); });
+  return Object.keys(groups).sort().map(k => { const L = groups[k]; const br = (SEED.brc137 || []).filter(b => L.some(c => c.id === b.caseId)); const res = L.filter(c => c.status === 'Closed').length;
+    return { key: k, label: k.replace('|', ' · '), m: { rec: L.length, res, open: L.length - res, resp: `${(100 * (L.length - br.filter(b => b.btype === 'Initial Response').length) / L.length).toFixed(2)}%`, resol: `${(100 * (L.length - br.filter(b => b.btype !== 'Initial Response').length) / L.length).toFixed(2)}%` } }; });
+}
+(function rep139() {
+  if (typeof REPORTS === 'undefined') return;
+  Object.entries(REP139).forEach(([id, r]) => { if (!REPORTS.some(x => x.id === id)) REPORTS.push({ id, en: r.en, zh: '', content: r.content, sens: r.sens, roles: {}, drill: false, cols: r.cols, fill139: true }); });
+  REPORTS.forEach(r => { const v = REP_VIS139[r.id]; if (!v) return; r.roles = {}; v.forEach(id => { r.roles[id] = (PERM['Reports'][id] || '').includes('X') ? 'VX' : 'V'; }); });
+  const g0 = repGroups;
+  repGroups = function (rep, q) {
+    if (rep.id === 'weekly') return weekRows139(q);
+    if (rep.id === 'fundcov') { const out = []; const chs = activeChannels().map(c => c.code).filter(c => q.ch === 'All' || c === q.ch);
+      for (let d = Math.max(day137(q.from), day137(today137()) - 6 * 864e5); d < day137(today137()); d += 864e5) chs.forEach(c => { const day = ymd137(d); const r = rng(m5Hash('fc' + c + day)); const nr = c === 'EC2' && day === ymd137(day137(today137()) - 864e5);
+        const dep = Math.round((c === 'ILT' ? 3200000 : 410000) * (0.9 + r() * 0.2)), win = Math.round(dep * 0.28), wip = Math.round(dep * 0.05), obl = dep + win + wip, bal = Math.round(obl * (c === 'EC2' && day === ymd137(day137(today137()) - 2 * 864e5) ? 0.985 : 1.02 + r() * 0.03)); const ratio = Math.floor(bal / obl * 10000) / 100;
+        out.push({ key: c + day, label: `${day} · ${c}`, m: nr ? { dep: null, win: null, wip: null, obl: null, bal: null, ratio: null, nr: 'Yes' } : { dep, win, wip, obl, bal, ratio, nr: 'No' } }); });
+      return out; }
+    if (rep.id === 'dailyops') return dayOps139(q);
+    if (rep.id === 'msr') { const mo = ymd137(day137(today137().slice(0, 8) + '01') - 864e5).slice(0, 7); const cs = caseSla139(); const tier = (SEED.sla137 || []).filter(e => ['Contractor', 'DDoS Within Declared Capacity'].includes(e.attr));
+      const rows = [['Cases By Priority, E-Channel And Category', ['P1', 'P2', 'P3', 'P4'].map(p => `${p} ${SEED.cases.filter(c => (c.priority || ({ Critical: 'P1', High: 'P2', Medium: 'P3', Low: 'P4' })[c.severity]) === p).length}`).join(' · ') + ' · by E-Channel: ' + [...new Set(SEED.cases.map(c => c.channel))].map(ch => `${ch} ${SEED.cases.filter(c => c.channel === ch).length}`).join(', ')],
+        ['SLA Attainment', cs.map(x => `${x.label}: response ${x.m.resp}, resolution ${x.m.resol}`).join('; ')], ['Core Service Level', `Counted downtime ${tier.reduce((a, e) => a + e.min, 0)} min · see Core Service Level Report`], ['CCC / RAMT Connectivity', 'Availability 99.98% · latency 35 ms (entered by Network Operations)'],
+        ['Recurring Problems', (SEED.cases.filter(c => c.recurring).map(c => c.id).join(', ')) || 'None'], ['Corrective Actions', 'From case root cause and resolution notes'], ['Attachments', 'Equal Treatment Report (6A.21.3); Security Operations Metrics']];
+      return rows.map(([k, v], i) => ({ key: 'msr' + i, label: `${mo} · ${k}`, m: { item: k, val: v } })); }
+    if (rep.id === 'casesla') return caseSla139();
+    if (rep.id === 'brcrep') return (SEED.brc137 || []).map(b => ({ key: b.id, label: b.id, m: { caseId: b.caseId, pri: b.pri, ctype: b.ctype, btype: b.btype, date: b.rec, dur: b.dur, comp: b.comp, dispute: brcDisp139(b) } }));
+    if (rep.id === 'secops') { const mo = ymd137(day137(today137().slice(0, 8) + '01') - 864e5).slice(0, 7); return [{ key: mo, label: mo, m: { mttd: '12 min', mtta: '6 min', mttc: '48 min', mttr: '3 h 20 min', fp: '7.40%', pb: 'Account lockout 98% / 2%; IP block 100% / 0%', auto: '61.00%', inc: 'Critical 0 · High 2 · Medium 9 · Low 31', pbc: 'New 1 · Changed 2 · Retired 0', ti: 'Credential stuffing campaigns against lottery logins in the region' } }]; }
+    return g0(rep, q);
+  };
+  R134_COLS.repTbl = cols => { const q = M5R.q || {}; const r = REP139[q.rep]; if (!r || !cols.length) return cols; cols[0] = { h: r.first, r: x => `<span class="mono">${esc(x.r.label)}</span>` };
+    if (q.rep === 'fundcov') { const i = colIdx(cols, 'Funds Coverage Ratio'); if (i >= 0) cols[i] = Object.assign({}, cols[i], { cls: 'num', r: x => x.r.m.ratio == null ? '-' : x.r.m.ratio < 100 ? `<span class="red">${x.r.m.ratio.toFixed(2)}%</span>` : x.r.m.ratio.toFixed(2) + '%' }); }
+    return cols; };
+  const c0 = repCatalogView;
+  repCatalogView = function () {
+    let h = c0(); const q = M5R.q || {}; if (!REP139[q.rep]) return h;
+    h = h.replace(/<p class="m5-note">Drill down[\s\S]*?<\/p>/, '');
+    h = h.replace(/(<span class="tiny" id="repAsOf">)/, `<span class="tiny muted" id="repDemo139">Amounts and counts in this report are demo data except where taken from Core records.</span> $1`);
+    if (q.rep === 'weekly') {
+      const rows = weekRows139(q); const pick = rows.find(r => r.key === M139.wk) || rows[0];
+      let x = `<div class="filters" style="margin:8px 0">${btn(M139.wkMonthly ? E139('Weekly Reports') : E139('Monthly Summary'), 'wk139Monthly', '', { cls: 'sm', id: 'btnWkMonthly139' })} ${rows.map(r => btn(E139('Schedules ' + r.label), 'wk139Pick', r.key, { cls: 'sm' + (pick && r.key === pick.key ? ' primary' : '') })).join(' ')}</div>`;
+      x += pick ? schedHtml139(pick) : banner('No complete settlement week in the selected period.');
+      x += `<p class="tiny">One report per E-Channel per settlement week (Monday to Sunday); all values come from the daily remittance statements, commission, penalties, cash bond and result adjustment records (6A.13). Outstanding Accountability must be zero at the end of Sunday.</p>`;
+      const i = h.indexOf('<div class="card"><h4>My Reports'); h = i < 0 ? h + x : h.slice(0, i) + x + h.slice(i);
+    }
+    if (q.rep === 'casesla') { const br = SEED.brc137 || []; const x = card('Breaches, Recurring Incidents And Remediation', table('csla139', [{ h: 'Breach ID', k: 'id', cls: 'mono' }, { h: 'Case ID', k: 'caseId' }, { h: 'Breach Type', k: 'btype' }, { h: 'Root Cause Summary', r: b => esc(b.root || 'Added by the contractor supervisor in the draft') }, { h: 'Remediation Status', r: b => esc(b.remed || 'Open') }, { h: 'Dispute Status', r: b => esc(brcDisp139(b)) }], br, { nopage: true }) + `<p class="tiny">Draft generated on the first working day for the previous month; distributed before the fifth working day.</p>`); const i = h.indexOf('<div class="card"><h4>My Reports'); h = i < 0 ? h + x : h.slice(0, i) + x + h.slice(i); }
+    return h;
+  };
+  // 6A.19.3 factory schedules (created by System, recipients set by Finance/Reporting at go-live)
+  const F = [['Daily remittance report', 'settle', 'Daily', '02:00', 'XLSX'], ['Weekly settlement pack', 'weekly', 'Weekly', '06:00', 'PDF + XLSX'], ['Monthly settlement summary', 'weekly', 'Monthly', '06:00', 'XLSX'], ['Daily fund coverage', 'fundcov', 'Daily', '10:00', 'XLSX'],
+    ['Monthly Core SLA report', 'coresla', 'Monthly', '06:00', 'PDF + XLSX'], ['Monthly fraud report', 'afasa', 'Monthly', '06:00', 'PDF + XLSX'], ['Daily operations report', 'dailyops', 'Daily', '07:00', 'PDF + XLSX'], ['Monthly case SLA report', 'casesla', 'Monthly', '06:00', 'PDF + XLSX'],
+    ['Monthly security operations metrics', 'secops', 'Monthly', '06:00', 'PDF + XLSX'], ['Monthly service report', 'msr', 'Monthly', '06:00', 'PDF']];
+  if (SEED.reportSchedules && !SEED.reportSchedules.some(s => s.factory139)) F.forEach(([name, report, freq, time, fmt], i) => SEED.reportSchedules.push({ id: 'SCH-F' + pad(i + 1, 2), name, report, filters: 'E-Channel = All', freq, time, fmt, delivery: 'Secure Download', recips: ['fin.a'], ext: [], status: 'Active', by: 'System', at: '2026-09-01 00:00', runs: [], notes: [], factory139: true }));
+})();
+
+/* =====================================================================
+ * B. 6A.17.9 dispute and ruling; 6A.17.8 escalation rules editor
+ * ===================================================================== */
+function workDays139(from, n) { let d = day137(String(from).slice(0, 10)); let k = 0; while (k < n) { d += 864e5; const wd = new Date(d).getUTCDay(); if (wd >= 1 && wd <= 5 && !(DRS137.holidays || []).includes(ymd137(d))) k++; } return ymd137(d) + ' 23:59:59'; }
+function brcDisp139(b) { const r = (b.rulings139 || []).slice(-1)[0]; if (r) return r.result; return (b.disputes139 || []).length ? 'Disputed' : '-'; }
+(function brc139() {
+  (SEED.brc137 || []).forEach(b => { b.disputes139 = b.disputes139 || []; b.rulings139 = b.rulings139 || []; });
+  brcView137 = function () {
+    const rows = SEED.brc137;
+    return pageH(E137('SLA Breach Register'), '6A.17.9', 'Every SLA breach is recorded automatically when the deadline passes. Records cannot be changed or deleted; disputes are ruled by a Senior Authorizer.', can('Cases', 'X') ? btn(E137('Export'), 'brc137Exp', '', { cls: 'sm' }) : '')
+      + table('brc137', [{ h: 'Breach ID', k: 'id', cls: 'mono' }, { h: 'Case ID', k: 'caseId' }, { h: 'Priority', k: 'pri' }, { h: 'Case Type', k: 'ctype' }, { h: 'Breach Type', k: 'btype' }, { h: 'Deadline', k: 'deadline' }, { h: 'Recorded At', k: 'rec' }, { h: 'Breach Duration', k: 'dur' }, { h: 'Affected Component', k: 'comp' }, { h: 'Resolver Party', k: 'party' },
+        { h: 'Dispute Status', r: b => { const s = brcDisp139(b); return s === '-' ? '-' : badge(s, s === 'Upheld' ? 'ok' : s === 'Rejected' ? 'bad' : 'warn'); } }, { h: 'Counts Toward Penalties', r: b => brcDisp139(b) === 'Upheld' ? 'No' : 'Yes' },
+        { h: 'Actions', r: b => { const x = [btn(E139('View'), 'brc139Open', b.id, { cls: 'sm' })]; if (brcDisp139(b) === 'Disputed' && hasRole('sa') && can('Cases', 'A')) x.push(btn(E139('Rule'), 'brc139Rule', b.id, { cls: 'sm primary', id: 'btnBrcRule_' + b.id })); if (brcDisp139(b) === '-' && b.party === 'Contractor') x.push(btn(E139('Simulate contractor dispute'), 'brc139Dispute', b.id, { cls: 'sm', dev: true, dis: S.now > dt(workDays139(b.rec, 5).slice(0, 16)), tip: 'Disputes can be filed within 5 working days of the breach record.' })); return `<span class="nowrap">${x.join(' ')}</span>`; } }], rows, { nopage: true })
+      + `<p class="tiny muted">Disputes are filed by the contractor supervisor in the case system with timestamp evidence within 5 working days; the original record never changes and each ruling is added as a separate record. ${DEMO137()}</p>`;
+  };
+  const cm = modById('cases'); if (cm) { const v0 = cm.view; cm.view = () => S.sub === 'breaches' ? subTabs(cm) + brcView137() : v0(); }
+})();
+ACT.brc139Dispute = id => { const b = SEED.brc137.find(x => x.id === id); if (!b) return; if (S.now > dt(workDays139(b.rec, 5).slice(0, 16))) { toast('Disputes can be filed within 5 working days of the breach record.', 'err'); return; }
+  ask({ title: `Dispute · ${id} (contractor supervisor)`, ok: E139('Submit Dispute'), fields: [{ k: 'm_ev', zh: '', en: 'Evidence', ctl: 'text', req: true, ph: 'Timestamp log reference' }], reason: { zh: '', en: 'Dispute Reason', max: 500 },
+    validate: v => !(v.m_ev || '').trim() ? { m_ev: 'Attach timestamp evidence.' } : {},
+    onOk: v => { b.disputes139.push({ at: nowS(), by: 'Contractor supervisor', reason: v.m_reason, evidence: v.m_ev.trim() }); audit('Cases', 'SLA breach disputed', id, `${v.m_ev.trim()} · ${v.m_reason}`); toast('Dispute recorded. A Senior Authorizer rules on it.'); } }); };
+ACT.brc139Rule = id => { const b = SEED.brc137.find(x => x.id === id); if (!b || !hasRole('sa')) { toast('Only a Senior Authorizer can rule on a dispute.', 'err'); return; }
+  ask({ title: `Rule · ${id}`, ok: E139('Save Ruling'), fields: [{ k: 'm_res', zh: '', en: 'Ruling', ctl: 'radio', req: true, opts: [['Upheld', 'Upheld (not counted toward penalties)'], ['Rejected', 'Rejected']] }], reason: { zh: '', en: 'Ruling Note', max: 500 },
+    validate: v => !v.m_res ? { m_res: 'Select a ruling.' } : {},
+    onOk: v => { b.rulings139.push({ at: nowS(), by: me(), result: v.m_res, note: v.m_reason }); audit('Cases', 'SLA breach dispute ruled', id, `${v.m_res} · ${v.m_reason}`); toast(`Ruling saved: ${v.m_res}. The breach record is unchanged.`); } }); };
+ACT.brc139Open = id => { const b = SEED.brc137.find(x => x.id === id); openDrawer({ title: () => b.id, size: 'md', body: () => dl([['Case ID', esc(b.caseId)], ['Breach Type', esc(b.btype)], ['Deadline', esc(b.deadline)], ['Recorded At', esc(b.rec)], ['Breach Duration', esc(b.dur)], ['Dispute Status', esc(brcDisp139(b))]])
+  + '<h4>Disputes</h4>' + table('brcD139', [{ h: 'At', k: 'at' }, { h: 'By', k: 'by' }, { h: 'Evidence', k: 'evidence' }, { h: 'Reason', k: 'reason' }], b.disputes139.map((x, i) => Object.assign({ id: i }, x)), { nopage: true, empty: E139('No disputes.') })
+  + '<h4>Rulings</h4>' + table('brcR139', [{ h: 'At', k: 'at' }, { h: 'By', k: 'by' }, { h: 'Ruling', k: 'result' }, { h: 'Note', k: 'note' }], b.rulings139.map((x, i) => Object.assign({ id: i }, x)), { nopage: true, empty: E139('No rulings.') }), foot: () => btn(E139('Close'), 'closeDrawer') }); };
+
+/* 6A.17.8 escalation rules: typed per-field editor */
+const ESC_F139 = [
+  ['respP1', 'P1 Response Target', 15, 'minutes'], ['resP1', 'P1 Resolution Target', 4, 'hours'], ['respP2', 'P2 Response Target', 1, 'hours'], ['resP2', 'P2 Resolution Target', 24, 'hours'],
+  ['respP3', 'P3 Response Target', 4, 'hours'], ['resP3', 'P3 Resolution Target', 3, 'calendar days'], ['respP4', 'P4 Response Target', 1, 'calendar days'], ['resP4', 'P4 Resolution Target', 10, 'calendar days'],
+  ['l2', 'L2 Trigger', 50, '% of the resolution target'], ['l3', 'L3 Trigger', 75, '% of the resolution target'], ['updP1', 'P1 Status Update Interval Until Service Restored', 30, 'minutes'], ['updP1b', 'P1 Status Update Interval Until Resolved', 2, 'hours'], ['updP2', 'P2 Status Update Interval', 2, 'hours'],
+  ['atRisk', 'At-Risk Threshold', '', 'minutes'], ['dispute', 'Priority Dispute Timeout', 30, 'minutes'], ['accept', 'Resolution Acceptance Period', 5, 'working days'], ['incRep', 'Incident Report Due', 24, 'hours after resolution'],
+  ['rca', 'RCA Due', 5, 'working days'], ['rcaSec', 'RCA Due For Security Incidents', 5, 'calendar days'], ['secC', 'Security Incident Notification – Critical', 1, 'hours'], ['secH', 'Security Incident Notification – High', 4, 'hours'], ['secM', 'Security Incident Notification – Medium', 24, 'hours'],
+  ['vulC', 'Vulnerability Remediation – Critical', 72, 'hours'], ['vulH', 'Vulnerability Remediation – High', 7, 'calendar days'], ['vulM', 'Vulnerability Remediation – Medium', 30, 'calendar days'], ['vulL', 'Vulnerability Remediation – Low', 90, 'calendar days'], ['hotline', 'Hotline Case Creation (P1 / P2)', 15, 'minutes after the call'],
+];
+SEED.esc139 = SEED.esc139 || { version: 'ESC-v1', eff: '2026-09-01 00:00', vals: Object.fromEntries(ESC_F139.map(f => [f[0], f[2]])), pending: null, hist: [{ version: 'ESC-v1', eff: '2026-09-01 00:00', by: 'case.a', appr: 'sa.a', note: 'Initial rules' }] };
+const escShow139 = (f, v) => v === '' || v == null ? 'Not set (PCSO to prescribe)' : `${v} ${f[3]}`;
+escView137 = function () {
+  const E = SEED.esc139; const p = E.pending; const canSub = can('Cases', 'E') && hasRole('case');
+  return pageH(E137('Escalation Rules'), '6A.17.8', 'Set by PCSO only: submitted by the Case Manager, approved by a Senior Authorizer. New versions apply to cases created after they take effect; recipients and notifications follow the new version at once.', canSub ? btn(E137('Submit Change'), 'esc137Edit', '', { cls: 'primary', id: 'btnEscEdit', dis: !!p, tip: 'A change is already awaiting approval.' }) : '')
+    + dl([['Version', `<span id="escVer139">${esc(E.version)}</span>`], ['Effective From', esc(E.eff)], ['L4 Trigger', 'Resolution target breached, or PCSO manual'], ['Level Recipients', 'L1 handler; L2–L4 from the Support Directory by level, L4 adds the PCSO contract manager; PCSO-handled cases: Case Manager and Senior Authorizer'], ['P1 / P2 Notifications', 'Case created, each escalation and resolution · Email + SMS']])
+    + table('esc139', [{ h: 'Parameter', r: f => esc(f[1]) }, { h: 'Current Value', r: f => `<span data-esc="${f[0]}">${esc(escShow139(f, E.vals[f[0]]))}</span>` }, { h: 'Proposed Value', r: f => p && p.vals[f[0]] !== E.vals[f[0]] ? `<b class="amber">${esc(escShow139(f, p.vals[f[0]]))}</b>` : '-' }], ESC_F139.map(f => Object.assign(f.slice(), { id: f[0] })), { nopage: true })
+    + (p ? card('Pending Change', dl([['Submitted By', esc(p.by)], ['Submitted At', esc(p.at)], ['Change Note', esc(p.note)]]) + (can('Cases', 'A') && hasRole('sa') ? btn(E137('Approve'), 'esc137Ok', '', { cls: 'ok', id: 'btnEscOk', dis: p.by === me(), tip: 'You cannot approve your own request.' }) + ' ' + btn(E139('Reject'), 'esc139Rej', '', { cls: '' }) : '') + (p.by === me() ? ' ' + btn(E139('Withdraw'), 'esc139Wd', '', { cls: 'sm' }) : '')) : '')
+    + card('Version History', table('escH139', [{ h: 'Version', k: 'version' }, { h: 'Effective From', k: 'eff' }, { h: 'Submitted By', k: 'by' }, { h: 'Approved By', k: 'appr' }, { h: 'Change Note', k: 'note' }], E.hist.map((x, i) => Object.assign({ id: i }, x)).reverse(), { nopage: true }));
+};
+ACT.esc137Edit = () => { const E = SEED.esc139; if (!(can('Cases', 'E') && hasRole('case'))) { toast('Only the Case Manager can submit escalation rule changes.', 'err'); return; } if (E.pending) { toast('A change is already awaiting approval.', 'err'); return; }
+  const vals0 = {}; ESC_F139.forEach(f => { vals0['m_e_' + f[0]] = E.vals[f[0]] === '' ? '' : String(E.vals[f[0]]); });
+  openModal({ title: E139('Submit Change · Escalation Rules'), size: 'lg', ok: E139('Submit'), vals: vals0,
+    body: () => formHtml(ESC_F139.map(f => ({ k: 'm_e_' + f[0], zh: f[1], en: f[1], ctl: 'number', hint: f[3] })).concat([{ k: 'm_note', zh: '', en: 'Change Note', ctl: 'textarea', req: true }])) + '<p class="tiny">Needs approval by Senior Authorizer. Cases created before the new version keep their deadlines.</p>',
+    onOk: v => { const e = {}; const nv = {}; ESC_F139.forEach(f => { const s = String(v['m_e_' + f[0]] == null ? '' : v['m_e_' + f[0]]).trim(); if (s === '' && f[0] === 'atRisk') { nv[f[0]] = ''; return; } if (!/^\d+(\.\d+)?$/.test(s) || +s <= 0) e['m_e_' + f[0]] = 'Enter a number greater than 0.'; else nv[f[0]] = +s; });
+      if (!e.m_e_l2 && !e.m_e_l3 && nv.l2 >= nv.l3) e.m_e_l3 = 'The L3 trigger must be later than the L2 trigger.';
+      if (!e.m_e_l3 && nv.l3 >= 100) e.m_e_l3 = 'Enter a value below 100.';
+      if (!Object.keys(e).length && ESC_F139.every(f => nv[f[0]] === E.vals[f[0]])) e.m_note = 'Change at least one value.';
+      if (!(v.m_note || '').trim()) e.m_note = 'Enter a change note.';
+      if (Object.keys(e).length) { setErr(e); return false; }
+      E.pending = { by: me(), at: nowS(), note: v.m_note.trim(), vals: nv }; audit('Cases', 'Escalation rule change submitted', E.version, ESC_F139.filter(f => nv[f[0]] !== E.vals[f[0]]).map(f => `${f[1]}: ${escShow139(f, E.vals[f[0]])} → ${escShow139(f, nv[f[0]])}`).join('; ')); toast('Submitted. Needs approval by Senior Authorizer.'); } }); };
+ACT.esc137Ok = () => { const E = SEED.esc139; const p = E.pending; if (!p) return; if (p.by === me()) { toast('You cannot approve your own request.', 'err'); return; } if (!(hasRole('sa') && can('Cases', 'A'))) { toast('This request must be approved by a Senior Authorizer.', 'err'); return; }
+  E.version = 'ESC-v' + (+E.version.slice(5) + 1); E.vals = Object.assign({}, p.vals); E.eff = nowS(); E.hist.push({ version: E.version, eff: E.eff, by: p.by, appr: me(), note: p.note }); E.pending = null; if (SEED.esc137) SEED.esc137.version = E.version; audit('Cases', 'Escalation rule change approved', E.version); toast('Approved. New cases use the new version.'); render(); };
+ACT.esc139Rej = () => { const E = SEED.esc139; if (!E.pending) return; ask({ title: E139('Reject'), danger: true, ok: E139('Reject'), reason: { zh: '', en: 'Reason', max: 500 }, onOk: v => { audit('Cases', 'Escalation rule change rejected', E.version, v.m_reason); E.pending = null; toast('Request rejected.'); } }); };
+ACT.esc139Wd = () => { const E = SEED.esc139; if (!E.pending || E.pending.by !== me()) return; E.pending = null; audit('Cases', 'Escalation rule change withdrawn', E.version); toast('Request withdrawn.'); render(); };
+
+/* =====================================================================
+ * C. 6A.1.5 SAS Export Log
+ * ===================================================================== */
+SEED.sas139 = SEED.sas139 || [
+  { id: 'SAS-20261001-01', at: '2026-10-01 02:10', batch: 'CORE-2026-W40', src: 'Core', cutoff: '2026-09-30 23:59:59', files: [['core-backup-20260930.tar.gpg', 1, m5Sha('sas1a')], ['core-transactions-20260930.csv.gpg', 1203350, m5Sha('sas1b')]], manifest: m5Sha('sas1m'), by: 'sys.a', demo: true },
+  { id: 'SAS-20261008-01', at: '2026-10-08 02:05', batch: 'CORE-2026-W41', src: 'Core', cutoff: '2026-10-07 23:59:59', files: [['core-backup-20261007.tar.gpg', 1, m5Sha('sas2a')], ['core-transactions-20261007.csv.gpg', 1188410, m5Sha('sas2b')]], manifest: m5Sha('sas2m'), by: 'sys.a', demo: true },
+  { id: 'SAS-20261008-02', at: '2026-10-08 03:20', batch: 'ILOTTO-2026-W41', src: 'iLotto', cutoff: '2026-10-07 23:59:59', files: [['ilotto-tickets-20261007.csv.gpg', 1101200, m5Sha('sas3a')], ['ilotto-wallet-20261007.csv.gpg', 2304512, m5Sha('sas3b')]], manifest: m5Sha('sas3m'), by: 'sys.a', demo: true },
+];
+SEED.sasCycle139 = SEED.sasCycle139 || { days: 7, demo: true };
+function sasDue139(src) { const last = SEED.sas139.filter(x => x.src === src).map(x => x.at).sort().slice(-1)[0]; return last ? fmtDT(dt(last) + SEED.sasCycle139.days * 864e5) : '-'; }
+function sasCard139() {
+  const canC = can('Change Requests', 'C');
+  return `<div class="card" id="sasLog139"><h4>Export Log (SAS) <span class="sec">6A.1.5</span></h4><p class="tiny">The contractor logs every export for the stand-alone system (SAS): batch, source system, data cut-off, file list and hashes. PCSO portal roles are read only. The SAS has no network connection to the main platform; import results are checked inside the SAS.</p>`
+    + dl([['Export Cycle', `Every ${SEED.sasCycle139.days} days ${D139()} <span class="tiny muted">(value pending PCSO, Operating Parameters)</span>`], ['Next Export Due', `Core ${esc(sasDue139('Core'))} · iLotto ${esc(sasDue139('iLotto'))}`]])
+    + table('sas139', [{ h: 'Export ID', k: 'id', cls: 'mono' }, { h: 'Exported At', k: 'at' }, { h: 'Batch No', k: 'batch' }, { h: 'Source System', k: 'src' }, { h: 'Data Cut-off', k: 'cutoff' }, { h: 'Files', r: x => x.files.map(f => `<div class="tiny mono">${esc(f[0])} · ${fmtN(f[1])} records · ${esc(String(f[2]).slice(0, 12))}…</div>`).join('') }, { h: 'Manifest Hash', r: x => `<span class="mono tiny">${esc(String(x.manifest).slice(0, 16))}…</span>` }, { h: 'Logged By', k: 'by' }], SEED.sas139.slice().reverse(), { nopage: true })
+    + `<div style="margin-top:6px">${canC ? btn(E139('Record Export'), 'sas139Rec', '', { cls: 'primary sm', id: 'btnSasRec' }) : ''} ${btn(E139('Simulate export cycle passed'), 'sas139Sim', '', { cls: 'sm', dev: true })} ${D139()}</div></div>`;
+}
+(function sas139() {
+  const m = modById('cmr'); if (!m) return; const v0 = m.view;
+  m.view = () => { let h = v0(); const i = h.lastIndexOf('<div class="card"><h4>Export Log (SAS)'); if (i >= 0) { const j = h.indexOf('</div>', h.indexOf('</p>', i)) + 6; h = h.slice(0, i) + sasCard139() + h.slice(j); } else h += sasCard139(); return h; };
+})();
+ACT.sas139Rec = () => { if (!can('Change Requests', 'C')) return;
+  ask({ title: E139('Record Export'), ok: E139('Save'), fields: [{ k: 'm_at', zh: '', en: 'Exported At', ctl: 'datetime', req: true, def: nowS() }, { k: 'm_batch', zh: '', en: 'Batch No', ctl: 'text', req: true, ph: 'CORE-2026-W42' }, { k: 'm_src', zh: '', en: 'Source System', ctl: 'radio', req: true, def: 'Core', opts: ['Core', 'iLotto'] }, { k: 'm_cut', zh: '', en: 'Data Cut-off', ctl: 'datetime', req: true },
+    { k: 'm_files', zh: '', en: 'File List', ctl: 'textarea', req: true, ph: 'file name | records | SHA-256, one file per line' }, { k: 'm_man', zh: '', en: 'Manifest Hash', ctl: 'text', req: true, ph: 'SHA-256' }],
+    validate: v => { const e = {}; if (!(v.m_batch || '').trim()) e.m_batch = 'Enter the batch number.'; else if (SEED.sas139.some(x => x.batch === v.m_batch.trim())) e.m_batch = 'This batch number is already logged.'; if (!v.m_cut) e.m_cut = 'Select the data cut-off.';
+      const lines = String(v.m_files || '').split('\n').map(s => s.trim()).filter(Boolean); if (!lines.length || lines.some(l => { const p = l.split('|').map(s => s.trim()); return p.length !== 3 || !p[0] || !/^\d+$/.test(p[1]) || !/^[0-9a-fA-F]{64}$/.test(p[2]); })) e.m_files = 'Enter one file per line: file name | records | 64-character SHA-256.';
+      if (!/^[0-9a-fA-F]{64}$/.test(String(v.m_man || '').trim())) e.m_man = 'Enter a 64-character SHA-256 hash.'; return e; },
+    onOk: v => { const x = { id: nid('SAS', { w: 2 }), at: normDT(v.m_at), batch: v.m_batch.trim(), src: v.m_src, cutoff: normDT(v.m_cut), files: String(v.m_files).split('\n').map(s => s.trim()).filter(Boolean).map(l => { const p = l.split('|').map(s => s.trim()); return [p[0], +p[1], p[2].toLowerCase()]; }), manifest: v.m_man.trim().toLowerCase(), by: me() };
+      SEED.sas139.push(x); audit('Change Requests', 'SAS export logged', x.id, `${x.batch} · ${x.src} · ${x.files.length} files`); toast(`${x.id} logged.`); } }); };
+ACT.sas139Sim = () => { const old = fmtDT(S.now - (SEED.sasCycle139.days + 1) * 864e5); SEED.sas139.filter(x => x.src === 'Core' && x.at > old).forEach(x => { x.at = old; }); sasTick139(); render(); toast('Export cycle passed without a logged Core export. Alert sent to Network Operations.', 'warn'); };
+function sasTick139() { ['Core', 'iLotto'].forEach(src => { const due = sasDue139(src); if (due === '-' || dt(due) > S.now) return; const key = src + '|' + due; SEED.sasAl139 = SEED.sasAl139 || []; if (SEED.sasAl139.includes(key)) return; SEED.sasAl139.push(key); const a = alert139('SAS Export Not Logged', 'P2', 'Network', `No ${src} export logged for the stand-alone system since ${due}`); a.roles139 = ['nop']; audit('Change Requests', 'SAS export overdue', src, due); }); }
+TICKS139.push(sasTick139);
+
+/* =====================================================================
+ * D. 6A.2.8 Integration Registry edit / status change
+ * ===================================================================== */
+(SEED.int137 || []).forEach(x => { x.hist = x.hist || []; if (x.contract == null) x.contract = /^(ILT|EC2)$/.test(x.src) ? 'ICD-2026-01' : '-'; });
+const INT_ST139 = ['Active', 'Inactive', 'Decommissioned'];
+function intCrOpts139() { return [['', '-']].concat(SEED.cmr137.filter(r => ['Approved', 'In Progress'].includes(r.status)).map(r => [r.id, `${r.id} · ${r.type} · ${r.status}`])); }
+function intCrErr139(id) { const r = SEED.cmr137.find(x => x.id === id); return !r || !['Approved', 'In Progress'].includes(r.status) ? 'Link an approved change request.' : ''; }
+intView137 = function () {
+  const canE = can('Integration Registry', 'E');
+  return pageH(E137('Integration Registry'), '6A.2.8', 'All integration points between Core and the E-Channels and PCSO internal systems. Changes must link an approved change request (6A.1.4).', can('Integration Registry', 'C') ? btn(E137('Add Integration'), 'int137Add', '', { cls: 'primary', id: 'btnIntAdd' }) : '')
+    + table('int137', [{ h: 'Integration ID', k: 'id', cls: 'mono' }, { h: 'Integration Name', k: 'name' }, { h: 'Source / Target System', r: x => `${esc(x.src)} / ${esc(x.tgt)}` }, { h: 'Integration Method', k: 'method' }, { h: 'Direction', k: 'dir' }, { h: 'Data Classification', k: 'cls' }, { h: 'Data Elements', k: 'data' }, { h: 'Frequency / Trigger', k: 'freq' }, { h: 'Authentication', k: 'auth' }, { h: 'Encryption', k: 'enc' },
+      { h: 'Certificate Expiry', r: x => x.exp !== '-' && dt(x.exp + ' 00:00') - S.now < 60 * 864e5 ? `<span class="tag warn">${esc(x.exp)}</span>` : esc(x.exp) }, { h: 'Contract Version', r: x => esc(x.contract || '-') }, { h: 'Status', r: x => badge(x.status) }, { h: 'Change Request', k: 'cr' },
+      { h: 'Actions', r: x => `<span class="nowrap">${[btn(E139('History'), 'int139Hist', x.id, { cls: 'sm' }), canE && x.status !== 'Decommissioned' ? btn(E139('Edit'), 'int139Edit', x.id, { cls: 'sm', id: 'btnIntEdit_' + x.id }) : '', canE && x.status !== 'Decommissioned' ? btn(E139('Change Status'), 'int139Status', x.id, { cls: 'sm', id: 'btnIntSt_' + x.id }) : ''].join(' ')}</span>` }], SEED.int137, { nopage: true })
+    + (can('Integration Registry', 'X') ? btn(E137('Export'), 'int137Exp', '', { cls: 'sm' }) : '') + ' ' + DEMO137();
+};
+const INT_EDIT139 = [['name', 'Integration Name', 'text'], ['tgt', 'Target System', 'text'], ['method', 'Integration Method', ['API', 'File Transfer', 'Message Queue', 'Other']], ['dir', 'Direction', ['Inbound', 'Outbound', 'Bidirectional']], ['cls', 'Data Classification', ['Public', 'Internal', 'Confidential', 'Restricted']], ['data', 'Data Elements', 'text'], ['freq', 'Frequency / Trigger', 'text'], ['auth', 'Authentication', 'text'], ['enc', 'Encryption', 'text'], ['exp', 'Certificate Expiry', 'text']];
+ACT.int139Edit = id => { const x = SEED.int137.find(y => y.id === id); if (!x || !can('Integration Registry', 'E')) return; const vals0 = { m_cr: '' }; INT_EDIT139.forEach(([k]) => { vals0['m_i_' + k] = x[k]; });
+  openModal({ title: `Edit · ${x.id}`, size: 'lg', ok: E139('Save'), vals: vals0, body: () => formHtml(INT_EDIT139.map(([k, en, ty]) => Array.isArray(ty) ? { k: 'm_i_' + k, zh: en, en, ctl: 'select', req: true, opts: ty } : { k: 'm_i_' + k, zh: en, en, ctl: 'text', req: k === 'name' }).concat([{ k: 'm_cr', zh: '', en: 'Change Request', ctl: 'select', req: true, opts: intCrOpts139() }])),
+    onOk: v => { const e = {}; if (!(v.m_i_name || '').trim()) e.m_i_name = 'This field is required.'; const ce = intCrErr139(v.m_cr); if (ce) e.m_cr = ce; const ch = INT_EDIT139.filter(([k]) => String(v['m_i_' + k] || '').trim() !== String(x[k] || '')); if (!ch.length && !Object.keys(e).length) e.m_i_name = 'No changes to save.'; if (Object.keys(e).length) { setErr(e); return false; }
+      ch.forEach(([k, en]) => x.hist.push({ at: nowS(), by: me(), f: en, from: x[k], to: String(v['m_i_' + k]).trim(), cr: v.m_cr })); ch.forEach(([k]) => { x[k] = String(v['m_i_' + k]).trim(); }); x.cr = v.m_cr; audit('Integration Registry', 'Integration changed', x.id, ch.map(([, en]) => en).join(', ') + ' · ' + v.m_cr); toast(`${x.id} updated.`); } }); };
+ACT.int139Status = id => { const x = SEED.int137.find(y => y.id === id); if (!x || !can('Integration Registry', 'E')) return;
+  ask({ title: `Change Status · ${x.id}`, ok: E139('Save'), danger: true, fields: [{ k: 'm_st', zh: '', en: 'New Status', ctl: 'radio', req: true, opts: INT_ST139.filter(s => s !== x.status) }, { k: 'm_cr', zh: '', en: 'Change Request', ctl: 'select', req: true, opts: intCrOpts139() }], reason: { zh: '', en: 'Reason', max: 500 },
+    validate: v => { const e = {}; if (!v.m_st) e.m_st = 'Select a status.'; const ce = intCrErr139(v.m_cr); if (ce) e.m_cr = ce; return e; },
+    onOk: v => { x.hist.push({ at: nowS(), by: me(), f: 'Status', from: x.status, to: v.m_st, cr: v.m_cr, note: v.m_reason }); x.status = v.m_st; x.cr = v.m_cr; audit('Integration Registry', v.m_st === 'Decommissioned' ? 'Integration retired' : 'Integration status changed', x.id, `${v.m_st} · ${v.m_cr} · ${v.m_reason}`); toast(`${x.id}: ${v.m_st}.`); } }); };
+ACT.int139Hist = id => { const x = SEED.int137.find(y => y.id === id); openDrawer({ title: () => `${x.id} · History`, size: 'md', body: () => table('intH139', [{ h: 'At', k: 'at' }, { h: 'By', k: 'by' }, { h: 'Field', k: 'f' }, { h: 'Before', k: 'from' }, { h: 'After', k: 'to' }, { h: 'Change Request', k: 'cr' }], x.hist.map((h, i) => Object.assign({ id: i }, h)).reverse(), { nopage: true, empty: E139('No changes yet.') }), foot: () => btn(E139('Close'), 'closeDrawer') }); };
+(function intAuto139() {
+  const a0 = AUTH_APPLY['Activation']; AUTH_APPLY['Activation'] = r => { a0(r); const code = r.target; if (!SEED.int137.some(x => x.src === code)) { const x = { id: 'INT-' + pad(SEED.int137.length + 1, 4), name: `${code} transaction reporting`, src: code, tgt: 'Core', method: 'API', dir: 'Inbound', cls: 'Confidential', data: 'Transaction, Receipt', freq: 'Real-time', auth: 'Mutual TLS + client certificate', enc: 'TLS 1.2+', exp: '-', contract: 'ICD-2026-01', status: 'Active', cr: '-', hist: [{ at: nowS(), by: 'System', f: 'Status', from: '-', to: 'Active', cr: r.id }] }; SEED.int137.push(x); audit('Integration Registry', 'Integration added', x.id, 'Channel activation'); } };
+  const d0 = AUTH_APPLY['Decommission']; AUTH_APPLY['Decommission'] = r => { d0(r); SEED.int137.filter(x => x.src === r.target || x.tgt === r.target).forEach(x => { x.hist.push({ at: nowS(), by: 'System', f: 'Status', from: x.status, to: 'Decommissioned', cr: r.id }); x.status = 'Decommissioned'; }); };
+})();
+
+/* =====================================================================
+ * E. 6A.10.3 Fraud Indicators + 6A.16.10 AFASA monthly
+ * ===================================================================== */
+SEED.fiPar139 = SEED.fiPar139 || { nearMin: 10, nearPct: 40, nearMinSales: 10000, hfWinMin: 60, hfN: 50, selAmt: 100000, demo: true };
+SEED.fiGw139 = SEED.fiGw139 || { ILT: { dup: 3, conflict: 0, replay: 1 }, EC2: { dup: 6, conflict: 0, replay: 4 } };
+SEED.fiCases139 = SEED.fiCases139 || [];
+function fiCalc139(code, day) {
+  const P = SEED.fiPar139; const tx = SEED.transactions.filter(x => x.channel === code && String(x.confirmedAt).slice(0, 10) === day && x.type !== 'Synthetic');
+  const near = {}; tx.forEach(x => { const d = drawById(x.drawId); if (!d) return; const k = x.drawId; near[k] = near[k] || [0, 0]; near[k][1] += x.amount; if (dt(d.cutoff) - dt(String(x.confirmedAt).slice(0, 16)) <= P.nearMin * 60e3) near[k][0] += x.amount; });
+  const nearPct = Math.max(0, ...Object.values(near).map(([a, b]) => b >= P.nearMinSales ? a / b * 100 : 0));
+  const byP = {}; tx.forEach(x => { (byP[x.upid] = byP[x.upid] || []).push(dt(String(x.confirmedAt).slice(0, 16))); });
+  const hf = Object.values(byP).filter(ts => ts.sort((a, b) => a - b).some((t0, i) => ts.filter(t1 => t1 >= t0 && t1 - t0 < P.hfWinMin * 60e3).length > P.hfN)).length;
+  const sel = {}; SEED.transactions.filter(x => String(x.confirmedAt).slice(0, 10) === day && x.selection).forEach(x => { const k = x.drawId + '|' + x.selection; sel[k] = (sel[k] || 0) + x.amount; });
+  const selN = Object.entries(sel).filter(([k, v]) => v > P.selAmt && SEED.transactions.some(x => x.channel === code && x.drawId + '|' + x.selection === k)).length;
+  const nc = tx.filter(x => x.nonconf); const gw = (SEED.fiGw139[code] || {});
+  const fr = (SEED.inc137 || []).filter(i => i.by === code && ['Suspected Fraud', 'Suspicious Fund Activity'].includes(i.type)).length;
+  return { dup: gw.dup || 0, conflict: gw.conflict || 0, replay: gw.replay || 0, near: Math.round(nearPct * 10) / 10, hf, sel: selN, player: nc.filter(x => ['Player Unknown', 'Player Not Active', 'Player Excluded'].includes(x.nonconf.code)).length, outside: nc.filter(x => x.nonconf.code === 'Outside Selling Period').length, fraud: fr };
+}
+const FI_COLS139 = [['dup', 'Duplicate Submissions'], ['conflict', 'Conflicting Resubmissions'], ['replay', 'Replay Rejections'], ['near', 'Near Cut-off Concentration'], ['hf', 'High-Frequency Players'], ['sel', 'Selection Concentration'], ['player', 'Player-Related Non-Conformance'], ['outside', 'Outside Selling Period'], ['fraud', 'Channel Fraud Incidents']];
+function fiOver139(k, v) { const P = SEED.fiPar139; if (k === 'near') return v > P.nearPct; if (k === 'hf' || k === 'sel' || k === 'conflict') return v > 0; return false; }
+function fiEval139(code, day, m) { FI_COLS139.forEach(([k, en]) => { if (!fiOver139(k, m[k])) return; const key = `${code}|${k}|${day}`; if (SEED.fiCases139.some(x => x.key === key)) return;
+  const a = alert139('Fraud Indicator Threshold Exceeded', 'P2', code, `${en} · ${code} · ${day}`); const c = createCase({ source: 'FI-' + key, channel: code, event: `Fraud indicator ${en} over threshold · ${day}`, severity: 'High', auto: true, type: 'Fraud' }); a.caseId = c.id; SEED.fiCases139.push({ key, caseId: c.id, alert: a.id }); audit('Transactions', 'Fraud indicator over threshold', code, `${en} · ${day} · ${c.id}`); }); }
+function fiView139() {
+  const day = fv('fi139', 'day', today137()); const rows = activeChannels().map(c => { const m = fiCalc139(c.code, day); return Object.assign({ id: c.code, ch: c.code }, m); });
+  rows.forEach(r => fiEval139(r.ch, day, r));
+  const P = SEED.fiPar139;
+  return pageH(E139('Fraud Indicators'), '6A.10.3', 'Fraud-related indicators Core derives from transaction data, by E-Channel and day, beside channel-reported fraud incidents. Over-threshold indicators raise an alert and one Fraud case per channel, indicator and day.', can('Transactions', 'X') ? btn(E139('Export Fraud Indicators Report'), 'fi139Exp', '', { cls: 'sm' }) : '')
+    + filterBar('fi139', [{ k: 'day', zh: '', en: 'Day', type: 'date', def: today137() }])
+    + table('fi139', [{ h: 'E-Channel', k: 'ch' }].concat(FI_COLS139.map(([k, en]) => ({ h: en, cls: 'num', r: x => { const v = k === 'near' ? x[k].toFixed(1) + '%' : String(x[k]); const over = fiOver139(k, x[k]); const cs = SEED.fiCases139.find(c => c.key === `${x.ch}|${k}|${day}`); return (over ? `<span class="red" data-fi-over="${k}">${v}</span>` : v) + (cs ? `<div class="tiny"><button class="btn link" data-act="viewCase" data-a="${cs.caseId}">${cs.caseId}</button></div>` : ''); } }))), rows, { nopage: true })
+    + `<p class="tiny muted">Thresholds (compliance parameters, values pending PCSO): near cut-off window ${P.nearMin} minutes over ${P.nearPct}% of the draw sales (draws with at least ${fmtP(P.nearMinSales)} channel sales); high frequency over ${P.hfN} transactions in ${P.hfWinMin} minutes; selection concentration over ${fmtP(P.selAmt)} per combination per draw; any conflicting resubmission. ${D139()} Duplicate submissions and replay rejections come from the API gateway counters. Wallet-side fraud is reported by channels (Fraud Oversight).</p>`
+    + `<div>${btn(E139('Simulate high-frequency player (EC2)'), 'fi139Sim', 'EC2', { cls: 'sm', dev: true, id: 'btnFiSim139' })}</div>`;
+}
+ACT.fi139Exp = () => exp137('Fraud Indicators Report', activeChannels().length, 'Transactions');
+ACT.fi139Sim = code => { const base = dt(today137() + ' 15:00'); for (let i = 0; i < SEED.fiPar139.hfN + 1; i++) SEED.transactions.push({ id: `${code}-FI${pad(i, 4)}`, channel: code, upid: 'UP-000104490', game: '3D', drawId: (SEED.draws.find(d => d.game === '3D' && d.drawAt.slice(0, 10) === today137()) || {}).id || '', betType: 'Standard', amount: 10, units: 1, confirmedAt: fmtDT(base + i * 30e3, true), receivedAt: fmtDT(base + i * 30e3 + 3e3, true), latency: 3, status: 'Accepted', nonconf: null, tax: 0, type: 'Sale', selection: pad(i % 1000, 3), demo: true }); setF('fi139', 'day', today137()); render(); toast(`${code}: high-frequency player detected. Alert and Fraud case created.`, 'warn'); };
+(function fiTab139() { const m = modById('tx'); if (!m) return; m.subs = (m.subs || []).concat([{ id: 'fraudind', zh: 'Fraud Indicators', en: 'Fraud Indicators' }]); const v0 = m.view; m.view = () => S.sub === 'fraudind' ? subTabs(m) + fiView139() : v0(); })();
+/* AFASA monthly report (6A.16.10) + Core indicators in the AFASA and Fraud report */
+(SEED.fraud137 || []).forEach(x => { if (x.holdAmt == null) x.holdAmt = x.holds ? 18400 : 0; });
+function afasaRows139() { const mo = today137().slice(0, 7); return (SEED.fraud137 || []).map(x => { const cs = SEED.cases.filter(c => c.channel === x.ch && (c.ctype === 'Fraud' || c.type === 'Fraud')); return { id: x.ch + mo, mo, ch: x.ch, holds: x.holds, holdAmt: x.holdAmt, filed: x.filed, inc: (SEED.inc137 || []).filter(i => i.by === x.ch && ['Suspected Fraud', 'Suspicious Fund Activity'].includes(i.type)).length, open: cs.filter(c => c.status !== 'Closed').length, closed: cs.filter(c => c.status === 'Closed').length }; }); }
+(function afasa139() {
+  const m = modById('compliance'); if (!m) return; const v0 = m.view;
+  m.view = () => { let h = v0(); if (S.sub !== 'fraud') return h; const money = hasRole('comp') || hasRole('aud');
+    return h + card('AFASA Report (monthly)', table('afasa139', [{ h: 'Month', k: 'mo' }, { h: 'E-Channel', k: 'ch' }, { h: 'AFASA Temporary Holds (Accounts)', cls: 'num', r: x => String(x.holds) }, { h: 'AFASA Temporary Holds (Amount)', cls: 'num', r: x => money ? fmtP(x.holdAmt) : 'Restricted' }, { h: 'AFASA Reports Filed', cls: 'num', r: x => String(x.filed) }, { h: 'Linked Fraud Incidents', cls: 'num', r: x => String(x.inc) }, { h: 'Fraud Cases Open / Closed', cls: 'num', r: x => `${x.open} / ${x.closed}` }], afasaRows139(), { nopage: true })
+      + `<p class="tiny muted">Generated monthly by channel and distributed by the Monthly fraud report schedule (6A.19.3). Core fraud signals: see Transactions › Fraud Indicators. ${D139()}</p>`); };
+  if (typeof REPORTS === 'undefined') return; const r = REPORTS.find(x => x.id === 'afasa'); if (r && !r.cols.some(c => c[0] === 'coreFi')) r.cols.push(['coreFi', 'Core Fraud Indicators Over Threshold', 'num'], ['holdAmt', 'AFASA Hold Amount', 'money']);
+  const g0 = repGroups; repGroups = function (rep, q) { const rows = g0(rep, q); if (rep.id !== 'afasa') return rows; return rows.map(x => { const f = (SEED.fraud137 || []).find(y => y.ch === x.key) || {}; x.m.coreFi = SEED.fiCases139.filter(c => c.key.startsWith(x.key + '|')).length; x.m.holdAmt = f.holdAmt || 0; return x; }); };
+})();
+
+/* =====================================================================
+ * F. 6A.15.4 Risk Suspension Rules + triggers
+ * ===================================================================== */
+SEED.riskRules139 = SEED.riskRules139 || [
+  { id: 'RSR-01', name: 'Channel Audit Hash Chain Break', cond: 'The hash chain of the channel audit digests fails verification (6A.18.4)', thr: 'Any break', win: '-', on: true, pending: null },
+  { id: 'RSR-02', name: 'Suspected Credential Compromise', cond: 'A Critical security incident reports a suspected leak of this channel’s integration credentials (6A.17.7)', thr: '1 incident', win: '-', on: true, pending: null },
+  { id: 'RSR-03', name: 'Critical Non-Conformance Burst', cond: 'Critical non-conformant transactions of the channel within the window (6A.10.4)', thr: '20 transactions', win: '10 minutes', on: true, pending: null, demo: true },
+];
+function riskFire139(code, ruleId, evidence) {
+  const r = SEED.riskRules139.find(x => x.id === ruleId); if (!r || !r.on) { audit('Health Monitoring', 'Risk rule not applied', code, `${ruleId} disabled`); return null; }
+  const ch = autoSuspend137(code, 'Security Or Integrity Risk', `${r.id} ${r.name} · ${evidence}`); audit('Health Monitoring', 'Risk suspension rule triggered', code, `${r.id} · ${evidence}`); return ch;
+}
+function riskView139() {
+  const canC = can('Health Monitoring', 'C') && hasRole('nop'); const canA = hasRole('sa') && can('Health Monitoring', 'A');
+  return pageH(E139('Risk Suspension Rules'), '6A.15.4', 'Rules that trigger the automatic full suspension of an E-Channel for a security or integrity risk (6A.2.5). Network Operations submits changes; a Senior Authorizer approves. Network-wide, not per channel.', '')
+    + table('risk139', [{ h: 'Rule ID', k: 'id', cls: 'mono' }, { h: 'Rule Name', k: 'name' }, { h: 'Trigger Condition', k: 'cond' }, { h: 'Threshold', r: x => esc(x.thr) + (x.demo ? ' ' + D139() : '') }, { h: 'Window', k: 'win' }, { h: 'Status', r: x => badge(x.on ? 'Active' : 'Disabled') + (x.pending ? ' ' + badge('Pending Approval', 'warn') : '') },
+      { h: 'Pending Change', r: x => x.pending ? `<div class="tiny">${esc(x.pending.thr)} · ${esc(x.pending.win)} · ${x.pending.on ? 'Active' : 'Disabled'} · ${esc(x.pending.by)}</div>` : '-' },
+      { h: 'Actions', r: x => `<span class="nowrap">${[canC && !x.pending ? btn(E139('Edit Rule'), 'risk139Edit', x.id, { cls: 'sm', id: 'btnRiskEdit_' + x.id }) : '', canA && x.pending ? btn(E139('Approve'), 'risk139Ok', x.id, { cls: 'sm ok', id: 'btnRiskOk_' + x.id, dis: x.pending.by === me(), tip: 'You cannot approve your own request.' }) : '', canA && x.pending ? btn(E139('Reject'), 'risk139Rej', x.id, { cls: 'sm' }) : ''].join(' ')}</span>` }], SEED.riskRules139, { nopage: true })
+    + `<p class="tiny muted">A hit suspends the channel at once without prior authorization; two people confirm or reverse afterwards (6A.2.5). Thresholds pending PCSO.</p>`
+    + `<div class="card"><h4>DEV</h4>${btn(E139('Simulate channel audit chain break (EC2)'), 'risk139Sim', 'RSR-01', { cls: 'sm', dev: true, id: 'btnRiskSim1' })} ${btn(E139('Simulate credential compromise incident (EC2)'), 'risk139Sim', 'RSR-02', { cls: 'sm', dev: true, id: 'btnRiskSim2' })} ${btn(E139('Simulate Critical non-conformance burst (EC2)'), 'risk139Sim', 'RSR-03', { cls: 'sm', dev: true, id: 'btnRiskSim3' })}</div>`;
+}
+ACT.risk139Edit = id => { const x = SEED.riskRules139.find(r => r.id === id); if (!x) return;
+  ask({ title: `Edit Rule · ${x.id}`, ok: E139('Submit'), fields: [{ k: 'm_thr', zh: '', en: 'Threshold', ctl: 'text', req: true, def: x.thr }, { k: 'm_win', zh: '', en: 'Window', ctl: 'text', req: true, def: x.win }, { k: 'm_on', zh: '', en: 'Status', ctl: 'radio', req: true, def: x.on ? 'Active' : 'Disabled', opts: ['Active', 'Disabled'] }], reason: { zh: '', en: 'Change Note', max: 500 },
+    validate: v => { const e = {}; if (!(v.m_thr || '').trim()) e.m_thr = 'Enter a threshold.'; if (!(v.m_win || '').trim()) e.m_win = 'Enter a window.'; if (!e.m_thr && v.m_thr.trim() === x.thr && v.m_win.trim() === x.win && (v.m_on === 'Active') === x.on) e.m_thr = 'Change at least one value.'; return e; },
+    onOk: v => { x.pending = { thr: v.m_thr.trim(), win: v.m_win.trim(), on: v.m_on === 'Active', by: me(), at: nowS(), note: v.m_reason }; audit('Health Monitoring', 'Risk suspension rule change submitted', x.id, `${x.pending.thr} · ${x.pending.win} · ${v.m_on}`); toast('Submitted. Needs approval by Senior Authorizer.'); } }); };
+ACT.risk139Ok = id => { const x = SEED.riskRules139.find(r => r.id === id); if (!x || !x.pending) return; if (x.pending.by === me()) { toast('You cannot approve your own request.', 'err'); return; } Object.assign(x, { thr: x.pending.thr, win: x.pending.win, on: x.pending.on, demo: false }); audit('Health Monitoring', 'Risk suspension rule change approved', x.id, `${x.thr} · ${x.win} · ${x.on ? 'Active' : 'Disabled'}`); x.pending = null; toast('Approved. The rule applies network-wide.'); render(); };
+ACT.risk139Rej = id => { const x = SEED.riskRules139.find(r => r.id === id); if (!x || !x.pending) return; ask({ title: `Reject · ${x.id}`, danger: true, ok: E139('Reject'), reason: { zh: '', en: 'Reason', max: 500 }, onOk: v => { x.pending = null; audit('Health Monitoring', 'Risk suspension rule change rejected', x.id, v.m_reason); toast('Request rejected.'); } }); };
+function burstCount139(code, r) { const n = parseInt(r.win, 10) || 10; return SEED.transactions.filter(x => x.channel === code && x.nonconf && x.nonconf.sev === 'Critical' && S.now - dt(String(x.receivedAt).slice(0, 16)) <= n * 60e3).length; }
+ACT.risk139Sim = id => { const code = 'EC2'; let ev = '';
+  if (id === 'RSR-01') ev = 'audit digest chain break at digest ' + hexOf(m5Hash('dg' + nowS()), 8);
+  if (id === 'RSR-02') { const x = { id: nid('INC-EC2'), by: code, type: 'Unauthorized Access', sev: 'Critical', occurred: nowS(), aware: nowS(), reported: nowS(), impact: 'Suspected leak of integration credentials', players: 0, stage: 'Initial', status: 'Open', credLeak: true }; const c = createCase({ source: x.id, channel: code, event: `${x.type} · ${x.impact}`, severity: 'Critical', type: 'Security Incident' }); x.caseId = c.id; SEED.inc137.unshift(x); ev = x.id; }
+  if (id === 'RSR-03') { const r = SEED.riskRules139.find(y => y.id === id); const need = parseInt(r.thr, 10) || 20; for (let i = 0; i < need; i++) SEED.transactions.push({ id: `${code}-NC${nowS().replace(/\D/g, '').slice(-6)}${pad(i, 3)}`, channel: code, upid: 'UP-000104490', game: '4D', drawId: '4D-20261012-1', betType: 'Standard', amount: 10, units: 1, confirmedAt: fmtDT(S.now - 5 * 60e3, true), receivedAt: fmtDT(S.now - 4 * 60e3, true), latency: 60, status: 'Rejected', nonconf: { code: 'After Cut-off', sev: 'Critical', note: 'Demo burst', status: 'Open' }, tax: 0, type: 'Sale', demo: true });
+    const n = burstCount139(code, r); if (n < need) { toast(`${n} Critical non-conformant transactions: below the threshold.`); render(); return; } ev = `${n} Critical non-conformant transactions in ${r.win}`; }
+  const ch = riskFire139(code, id, ev); toast(ch ? `${code} automatically fully suspended (${id}).` : `${code}: rule ${id} hit; channel already fully suspended or the rule is disabled.`, 'warn'); render(); };
+(function riskTab139() { const m = modById('health'); if (!m) return; const sub = { id: 'riskrules', zh: 'Risk Suspension Rules', en: 'Risk Suspension Rules' }; Object.defineProperty(sub, 'roles', { get: () => { const t0 = (m.subs || []).find(s => s.id === 'thresholds'); return t0 && t0.roles ? t0.roles : rolesOf('Health Monitoring').filter(r => r !== 'fin'); }, configurable: true }); m.subs = (m.subs || []).concat([sub]); const v0 = m.view; m.view = () => S.sub === 'riskrules' ? subTabs(m) + riskView139() : v0(); })();
+
+/* =====================================================================
+ * G. 6A.13.6 cash bond automation + additional bond
+ * ===================================================================== */
+SEED.bondAdd139 = SEED.bondAdd139 || [];
+(function bond139() {
+  const s0 = bondState137;
+  bondState137 = function (b) { const s = s0(b); if (s === 'Fully Funded' || !b.addl || b.addl.status !== 'Open') return s; const lastDed = b.flows.filter(f => f.type === 'Deduction').slice(-1)[0]; const dedShort = lastDed && bondBal137(b) < (b.addl.prevRequired || b.required); return dedShort ? s : 'Additional Bond Due'; };
+  const v0 = bondView137;
+  bondView137 = function () {
+    let h = v0(); const canC = can('Settlement', 'C'); const canA = can('Settlement', 'A') && hasRole('sa');
+    h = h.replace(/(data-act="bond137Deduct" data-a="([A-Z0-9]+)"[^>]*>[\s\S]*?<\/button>)/g, (s, a, code) => a + (canC ? ' ' + btn(E139('Require Additional Bond'), 'bond139Add', code, { cls: 'sm', id: 'btnBondAdd_' + code }) : ''));
+    const reqs = SEED.bondAdd139;
+    if (reqs.length) h = h.replace('<div class="card"><h4>DEV</h4>', card('Additional Bond Requests', table('bondAdd139', [{ h: 'Request ID', k: 'id', cls: 'mono' }, { h: 'Channel', k: 'channel' }, { h: 'New Required Amount', cls: 'num', r: r => fmtP(r.amount) }, { h: 'Due Date', k: 'due' }, { h: 'PCSO Approval Reference', k: 'ref' }, { h: 'Submitted By', k: 'by' }, { h: 'Status', r: r => badge(r.status) },
+      { h: 'Actions', r: r => r.status !== 'Pending Approval' ? '' : [canA ? btn(E139('Approve'), 'bond139AddOk', r.id, { cls: 'sm ok', dis: r.by === me(), tip: 'You cannot approve your own request.' }) : '', canA ? btn(E139('Reject'), 'bond139AddRej', r.id, { cls: 'sm' }) : '', r.by === me() ? btn(E139('Withdraw'), 'bond139AddWd', r.id, { cls: 'sm' }) : ''].join(' ') }], reqs, { nopage: true })) + '<div class="card"><h4>DEV</h4>');
+    return h.replace('<div class="card"><h4>DEV</h4>', `<p class="tiny">Automatic: a High alert 24 hours before Replenish By while a shortfall remains; at Replenish By the channel is fully suspended automatically (Cash Bond Not Replenished), without approval. Additional bond requirements not met by the due date raise a High alert and a case; they do not suspend the channel.</p><div class="card"><h4>DEV</h4>`);
+  };
+})();
+ACT.bond139Add = code => { const b = SEED.bond137.find(x => x.channel === code); if (!b || !can('Settlement', 'C')) return;
+  ask({ title: `Require Additional Bond · ${code}`, ok: E139('Submit'), msg: 'Needs approval by Senior Authorizer', fields: [{ k: 'm_amt', zh: '', en: 'New Required Amount', ctl: 'money', req: true }, { k: 'm_due', zh: '', en: 'Due Date', ctl: 'date', req: true }, { k: 'm_ref', zh: '', en: 'PCSO Approval Reference', ctl: 'text', req: true }], reason: { zh: '', en: 'Remarks', max: 500 },
+    validate: v => { const e = {}; const a = +String(v.m_amt || '').replace(/[^\d.]/g, ''); if (!(a > b.required)) e.m_amt = 'The new required amount must be higher than the current required amount.'; if (!v.m_due) e.m_due = 'Select the due date.'; else if (v.m_due <= today137()) e.m_due = 'The deadline must be later than today.'; if (!(v.m_ref || '').trim()) e.m_ref = 'Enter the PCSO approval reference.'; return e; },
+    onOk: v => { const r = { id: nid('CBA'), channel: code, amount: r2(+String(v.m_amt).replace(/[^\d.]/g, '')), due: v.m_due, ref: v.m_ref.trim(), remarks: v.m_reason, by: me(), at: nowS(), status: 'Pending Approval' }; SEED.bondAdd139.unshift(r); audit('Settlement', 'Additional cash bond submitted', code, `${r.id} · ${fmtP(r.amount)} · due ${r.due}`); toast(`Submitted ${r.id}. Needs approval by Senior Authorizer.`); } }); };
+ACT.bond139AddOk = id => { const r = SEED.bondAdd139.find(x => x.id === id); if (!r || r.status !== 'Pending Approval') return; if (r.by === me()) { toast('You cannot approve your own request.', 'err'); return; } if (!hasRole('sa')) { toast('This request must be approved by a Senior Authorizer.', 'err'); return; }
+  const b = SEED.bond137.find(x => x.channel === r.channel); r.status = 'Approved'; r.appr = me(); b.addl = { amount: r.amount, due: r.due, status: 'Open', prevRequired: b.required, req: r.id }; b.required = r.amount;
+  issueDirective({ channel: r.channel, type: 'Cash Bond Deduction Notice', summary: `Additional cash bond · required ${fmtP(r.amount)} · due ${r.due}`, reason: r.remarks || 'Additional bond', by: r.by, authBy: me() }); audit('Settlement', 'Additional cash bond approved', r.channel, `${r.id} · ${fmtP(r.amount)}`); toast('Approved. The channel was notified.'); render(); };
+ACT.bond139AddRej = id => { const r = SEED.bondAdd139.find(x => x.id === id); ask({ title: `Reject · ${id}`, danger: true, ok: E139('Reject'), reason: { zh: '', en: 'Reason', max: 500 }, onOk: v => { r.status = 'Rejected'; r.rejReason = v.m_reason; audit('Settlement', 'Additional cash bond rejected', r.channel, v.m_reason); toast('Request rejected.'); } }); };
+ACT.bond139AddWd = id => { const r = SEED.bondAdd139.find(x => x.id === id); if (r && r.by === me()) { r.status = 'Withdrawn'; audit('Settlement', 'Additional cash bond withdrawn', r.channel, r.id); toast('Request withdrawn.'); render(); } };
+function bondTick139() {
+  (SEED.bond137 || []).forEach(b => {
+    const d = b.flows.filter(f => f.type === 'Deduction').slice(-1)[0]; const by = bondBy137(b);
+    if (d && by !== '-' && bondShort137(b) > 0) {
+      const due = dt(by.slice(0, 16)) + 59e3;
+      if (S.now >= due - 24 * 36e5 && S.now < due && b.warn139 !== d.id) { b.warn139 = d.id; alert139('Cash Bond Replenishment Due', 'P2', b.channel, `${b.channel} cash bond shortfall ${fmtP(bondShort137(b))} · replenish by ${by}`); audit('Settlement', 'Cash bond replenishment reminder', b.channel, by); }
+      if (S.now >= due && b.autoFor139 !== d.id) { b.autoFor139 = d.id; const ch = autoSuspend137(b.channel, 'Cash Bond Not Replenished', d.id); audit('Settlement', 'Cash bond replenishment overdue', b.channel, `${d.id} · ${ch ? 'automatic full suspension executed' : 'already fully suspended; reason code added'}`); }
+    }
+    if (b.addl && b.addl.status === 'Open') { if (bondBal137(b) >= b.required) b.addl.status = 'Met'; else if (today137() > b.addl.due && !b.addl.alerted) { b.addl.alerted = true; const a = alert139('Additional Cash Bond Overdue', 'P2', b.channel, `${b.channel} additional cash bond not posted by ${b.addl.due}`); const c = createCase({ source: 'CBA-' + b.addl.req, channel: b.channel, event: `Additional cash bond overdue · ${b.channel}`, severity: 'High', auto: true, type: 'Settlement' }); a.caseId = c.id; } }
+  });
+}
+TICKS139.push(bondTick139);
+(function bondSim139() { const s0 = ACT.bond137Sim; ACT.bond137Sim = code => { const b = SEED.bond137.find(x => x.channel === code); const d = b && b.flows.filter(f => f.type === 'Deduction').slice(-1)[0]; s0(code); if (d) b.autoFor139 = d.id; }; })();
+
+/* =====================================================================
+ * H. 6A.7.4 resolution deadline countdown, overdue alert + case; Set by System demo row
+ * ===================================================================== */
+SEED.chResume139 = SEED.chResume139 || {}; SEED.adjOver139 = SEED.adjOver139 || [];
+const pausedNow139 = {};
+function adjDlH139() { const p = (SEED.opParams || []).find(x => x.id === 'adjResDl'); return parseInt(p && p.val, 10) || 24; }
+function adjStart139(x) { const a = (SEED.resultAdj || []).find(y => y.id === x.adj); let st = a ? dt(String(a.effectiveAt).slice(0, 16)) : S.now; const d = (SEED.directives || []).find(z => z.type === 'Result Adjustment' && z.channel === x.channel && a && (z.ref === a.id || String(z.summary || '').includes(a.drawId))); if (d && d.ackAt) st = dt(String(d.ackAt).slice(0, 16)); const rs = SEED.chResume139[x.channel]; if (rs && pausable138(x) && dt(rs) > st) st = dt(rs); return st; }
+function adjDlCell139(x) {
+  if (x.res !== 'Pending') return '-';
+  if (pausable138(x) && claimsPaused138(x.channel)) return '<span class="tiny" data-dl139="paused">Paused – Channel Suspended</span>';
+  const due = adjStart139(x) + adjDlH139() * 36e5; const left = due - S.now;
+  if (left <= 0) return `<span class="tag bad" data-dl139="over">Overdue</span><div class="tiny">${esc(fmtDT(due))}</div>`;
+  const h = Math.floor(left / 36e5), mi = Math.floor(left % 36e5 / 60e3); return `<span data-dl139="left">${h}h ${mi}m left</span><div class="tiny">${esc(fmtDT(due))}</div>`;
+}
+['adjDiffT', 'adjDiffD'].forEach(id => { R134_COLS[id] = cols => { const i = colIdx(cols, 'Channel Resolution'); if (i < 0) return cols; cols.splice(i + 1, 0, { h: 'Resolution Deadline', cls: 'nowrap', r: adjDlCell139 }); return cols; }; });
+function adjTick139() {
+  if (!S._booted139) return; const init = !S._adjInit139; S._adjInit139 = true;
+  activeChannels().forEach(c => { const p = claimsPaused138(c.code); if (pausedNow139[c.code] && !p) SEED.chResume139[c.code] = nowS(); pausedNow139[c.code] = p; });
+  (SEED.resultAdj || []).filter(a => a.status === 'Effective').forEach(a => {
+    const groups = {}; (a.diffs || []).forEach(x => { if (x.res !== 'Pending' || (pausable138(x) && claimsPaused138(x.channel))) return; if (adjStart139(x) + adjDlH139() * 36e5 > S.now) return; (groups[x.channel] = groups[x.channel] || []).push(x); });
+    Object.entries(groups).forEach(([ch, L]) => { const key = `${a.id}|v${a.toV}|${ch}`; if (SEED.adjOver139.includes(key)) return; SEED.adjOver139.push(key); if (init) return; // seeded overdue rows count as already escalated
+      const ex = L.find(x => x.caseId); if (ex) return; // seeded rows already escalated
+      const al = alert139('Adjustment Resolution Overdue', 'P2', ch, `${a.id} · v${a.toV} · ${ch} · ${L.length} rows past the resolution deadline`); const c = createCase({ source: 'ADJ-DL-' + key, channel: ch, event: `Adjustment resolution overdue · ${a.drawId} v${a.toV}`, severity: 'High', auto: true, type: 'Incident' }); al.caseId = c.id; L.forEach(x => { x.caseId = c.id; }); audit('Result Adjustment', 'Resolution overdue', a.id, `${ch} · ${L.length} rows · ${c.id}`); });
+  });
+}
+TICKS139.push(adjTick139);
+(function sysRow139() { const b0 = boot; boot = function () { b0(); const a = (SEED.resultAdj || []).find(x => x.status === 'Effective'); if (a && !a.diffs.some(x => x.sys139)) { const thr = (SEED.claimPolicy && (SEED.claimPolicy.enhancedThreshold || SEED.claimPolicy.bigPrizeThreshold)) || 300000; const base = a.diffs.find(x => x.channel === 'ILT') || a.diffs[0];
+  a.diffs.push(Object.assign({}, base, { id: 'ILT-T0080021399#1', tx: 'ILT-T0080021399', line: 1, type: 'Newly Won', origTier: '-', newTier: '2nd Prize', orig: 0, adjusted: thr + 52000, diff: thr + 52000, g0: 0, g1: thr + 52000, origNet: 0, newNet: thr + 52000, netDiff: thr + 52000, claim: 'Unclaimed', crossed: 'Yes', res: 'Not Applicable', resBy: 'System', resReason: MSG_SYS_NA_138, resAmt: null, reportedAt: a.effectiveAt, caseId: '', sys139: true, demo: true })); } render(); }; })();
+
+/* =====================================================================
+ * I. 6A.9.2 channel reinstatement submission + minimum period checks
+ * ===================================================================== */
+SEED.exPar139 = SEED.exPar139 || { coolDays: COOL_DAYS_137, permYears: 2, demo: true };
+function addYears139(s, n) { const d = new Date(day137(s.slice(0, 10))); d.setUTCFullYear(d.getUTCFullYear() + n); return ymd137(d.getTime()) + ' 00:00'; }
+function rinEarliest139(e) { if (/Perm/.test(String(e.to || '')) || !e.to || e.perm139) return addYears139(e.from, SEED.exPar139.permYears); return e.earliest || (ymd137(day137(e.to.slice(0, 10)) + 864e5 + SEED.exPar139.coolDays * 864e5) + ' 00:00'); }
+(function exPerm139() { if (!SEED.exclusions.some(e => e.id === 'EXR-20240101-0001')) SEED.exclusions.push({ id: 'EXR-20240101-0001', upid: 'UP-000187220', type: 'Self-Exclusion', from: '2024-01-01 00:00', to: '', perm139: true, source: 'EC2', by: 'EC2', status: 'In Effect', reason: 'Player request · Permanent', demo: true }); })();
+(function rinView139() {
+  const v0 = rinView137;
+  rinView137 = function () {
+    const P = SEED.exPar139;
+    return v0().replace(/<p class="tiny muted">Cooling interval shown as 7 days\.[\s\S]*?<\/p>/, '')
+      + dl([['Reinstatement Cooling Interval', `${P.coolDays} days ${D139()}`], ['Permanent Exclusion Minimum Period', `${P.permYears} years ${D139()}`]]) + `<p class="tiny muted">Compliance parameters (6A.16.9), values pending PCSO. Earliest Application Date = expiry (24:00) + cooling interval, or rejection time + cooling interval; permanent = effective time + minimum period. Earlier submissions are refused and not retried.</p>`
+      + `<div class="card"><h4>DEV · channel side</h4>${btn(E139('Simulate channel reinstatement request'), 'rin139Sub', '', { cls: 'sm', dev: true, id: 'btnRinSub139' })} ${btn(E139('Simulate channel withdrawal'), 'rin139Wd', '', { cls: 'sm', dev: true, id: 'btnRinWd139' })}</div>`;
+  };
+})();
+function rinCreate139(v) {
+  const e = SEED.exclusions.find(x => x.id === v.exr); if (!e) return { err: 'This exclusion was not found.' };
+  if (v.idv !== 'Passed') return { err: 'Refused: identity re-verification did not pass. The channel must not submit the request.' };
+  const open = SEED.rin137.find(x => x.exr === e.id && ['Pending Approval', 'Pending Senior Authorization'].includes(x.status)); if (open) return { dup: open };
+  const same = SEED.rin137.find(x => x.chReq === v.req && x.ch === v.ch); if (v.req && same) return { dup: same };
+  const perm = !!e.perm139 || /Permanent/.test(e.reason || '');
+  if (!perm && e.status !== 'Expired – Awaiting Reinstatement') return { err: 'Refused: only a self-exclusion in Expired – Awaiting Reinstatement can be reinstated.' };
+  if (perm && !/Self/.test(e.type)) return { err: 'Refused: only a self-exclusion can be reinstated.' };
+  const earliest = perm ? rinEarliest139(e) : (e.earliest || rinEarliest139(e));
+  if (S.now < dt(earliest)) return { err: `Refused (not retried): the earliest application date is ${earliest}.`, earliest };
+  const x = { id: nid('RIN', { w: 4 }), exr: e.id, upid: e.upid, term: perm ? 'Permanent' : `${e.type} · until ${String(e.to).slice(0, 10)}`, ch: v.ch, idv: `Verified · ${nowS()}`, risk: `${v.risk} · ${nowS()}`, earliest, status: 'Pending Approval', perm, chReq: v.req };
+  SEED.rin137.unshift(x); audit('Exclusion Registry', 'Reinstatement request received', e.id, `${x.id} · ${v.ch} · ${v.req}`); return { ok: x };
+}
+ACT.rin139Sub = () => { const cands = SEED.exclusions.filter(e => /Self/.test(e.type) && (e.status === 'Expired – Awaiting Reinstatement' || e.perm139));
+  ask({ title: E139('Channel reinstatement request (DEV)'), ok: E139('Submit'), fields: [{ k: 'm_exr', zh: '', en: 'Exclusion ID', ctl: 'select', req: true, opts: [['', '-']].concat(cands.map(e => [e.id, `${e.id} · ${e.upid} · ${e.status}`])) }, { k: 'm_ch', zh: '', en: 'Submitting Channel', ctl: 'select', req: true, def: 'ILT', opts: activeChannels().map(c => c.code) }, { k: 'm_idv', zh: '', en: 'Identity Re-verification', ctl: 'radio', req: true, def: 'Passed', opts: ['Passed', 'Failed'] }, { k: 'm_risk', zh: '', en: 'Risk Acknowledgement Version', ctl: 'text', req: true, def: 'v1' }, { k: 'm_req', zh: '', en: 'Channel Request ID', ctl: 'text', req: true, def: 'REQ-' + nowS().replace(/\D/g, '').slice(-8) }],
+    validate: v => !v.m_exr ? { m_exr: 'Select an exclusion.' } : {},
+    onOk: v => { const r = rinCreate139({ exr: v.m_exr, ch: v.m_ch, idv: v.m_idv, risk: v.m_risk, req: v.m_req }); if (r.err) { audit('Exclusion Registry', 'Reinstatement request refused', v.m_exr, r.err, 'Rejected'); toast(r.err, 'err'); return; } if (r.dup) { toast(`Already submitted: ${r.dup.id}.`, 'warn'); return; } toast(`${r.ok.id} received. ${r.ok.perm ? 'Permanent: Registry Officer submits for senior authorization.' : 'Pending approval by Registry Officer or Compliance Officer.'}`); } }); };
+ACT.rin139Wd = () => { const open = SEED.rin137.filter(x => x.status === 'Pending Approval');
+  ask({ title: E139('Channel withdrawal (DEV)'), ok: E139('Withdraw'), fields: [{ k: 'm_id', zh: '', en: 'Reinstatement Request ID', ctl: 'select', req: true, opts: [['', '-']].concat(open.map(x => [x.id, `${x.id} · ${x.upid}`])) }], validate: v => !v.m_id ? { m_id: 'Select a request.' } : {},
+    onOk: v => { const x = SEED.rin137.find(y => y.id === v.m_id); x.status = 'Withdrawn'; x.wdReason = 'Withdrawn by the channel at the player’s request'; audit('Exclusion Registry', 'Reinstatement request withdrawn', x.exr, x.id); toast(`${x.id} withdrawn.`); } }); };
+(function rinOkPerm139() { const o0 = ACT.rin137Ok; ACT.rin137Ok = id => { const x = SEED.rin137.find(y => y.id === id); if (x && x.perm && !hasRole('sa')) { toast('Permanent exclusion reinstatement needs Senior Authorizer approval.', 'err'); return; } if (x) { const e = SEED.exclusions.find(y => y.id === x.exr); const earliest = e ? (x.perm ? rinEarliest139(e) : e.earliest) : ''; if (earliest && dt(String(x.at || nowS()).slice(0, 16)) < dt(earliest) && S.now < dt(earliest)) { toast(`The earliest application date is ${earliest}.`, 'err'); return; } } return o0(id); }; })();
+
+/* =====================================================================
+ * J. Reconciliation C / E domain scope + scope gating (Reconciliation, Service Levels)
+ * ===================================================================== */
+const REC_SCOPES139 = [WALLET139, 'Other Domains'];
+const MSG_REC_SCOPE139 = 'Select the data domain scope for Reconciliation.';
+const MSG_REC_DENY139 = 'Your role cannot handle divergences in this data domain.';
+function recScopeOk139(dom, u = S.user) { if (!u) return false; const w = dom === WALLET139; return (u.roles || []).some(id => { const p = rolePerms(id)['Reconciliation'] || ''; if (!/[CE]/.test(p)) return false; if (id === 'finrep' || id === 'fin') return w; const r = roleById(id); if (r && r.recScope) return r.recScope === WALLET139 ? w : !w; return !w; }); }
+function slScopeOk139(scope, u = S.user) { if (!u) return false; return (u.roles || []).some(id => { const p = rolePerms(id)['Service Levels'] || ''; if (!p.includes('E')) return false; if (id === 'nop') return scope === 'Outage Events'; if (id === 'finrep' || id === 'fin') return scope === 'Sales Opportunity Loss'; const r = roleById(id); return !!(r && r.slScope === scope); }); }
+(function roles139() {
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    const er139 = S.drawer && S.drawer.edit ? roleById(S.drawer.edit) : null;
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'r_perm') && !fields.some(f => f && f.k === 'r_recScope') && (!er139 || er139.type !== 'Preset')) { fields = fields.slice(); const i = fields.findIndex(f => f && f.k === 'r_perm'); fields.splice(i + 1, 0, { k: 'r_recScope', zh: '', en: 'Reconciliation Domain Scope', ctl: 'select', opts: [['', '-']].concat(REC_SCOPES139), hint: { zh: '', en: 'Required when Reconciliation · Create or Edit is ticked: Wallet And Funds or the other data domains.' } }); }
+    if (Array.isArray(fields) && fields.some(f => f && f.k === 'r_perm') && S.drawer && S.drawer.edit && S.fv && S.fv.r_slScope == null) { const r = roleById(S.drawer.edit); if (r) { if (r.slScope) S.fv.r_slScope = r.slScope; if (r.recScope) S.fv.r_recScope = r.recScope; } }
+    return f0(fields, o);
+  };
+  const v0 = roleValidate;
+  roleValidate = function (v, editId) { const e = v0(v, editId); const p = roleDraft(v); const r = editId ? roleById(editId) : null; if (!e.r_perm && (!r || r.type !== 'Preset') && /[CE]/.test(p['Reconciliation'] || '') && !REC_SCOPES139.includes(v.r_recScope)) e.r_recScope = MSG_REC_SCOPE139; return e; };
+  const m = modById('users'); if (!m || !m.acts || !m.acts.roleSave) return; const s0 = m.acts.roleSave;
+  m.acts.roleSave = () => { const v = vals(); const before = new Set(SEED.accessChanges); s0(); const ac = SEED.accessChanges.find(a => !before.has(a)); if (ac && ac.payload && ac.payload.perms) { if (/[CE]/.test(ac.payload.perms['Reconciliation'] || '')) ac.payload.recScope = v.r_recScope; if ((ac.payload.perms['Service Levels'] || '').includes('E')) ac.payload.slScope = v.r_slScope; } };
+  const ap0 = acApply; acApply = function (a) { const res = ap0(a); if (['Create Role', 'Edit Role'].includes(a.type) && a.payload) { const r = roleById(a.payload.id); if (r) { r.recScope = a.payload.recScope || ''; r.slScope = a.payload.slScope || ''; } } return res; }; acApply.toString = () => ap0.toString();
+})();
+(function recGate139() {
+  const m = modById('recon'); if (!m || !m.acts) return;
+  ['rcRepush', 'rcVerify', 'rcAdj', 'rcExc', 'rcRaise', 'rcFurther', 'rcExcOk', 'rcExcRej'].forEach(k => { const f = m.acts[k]; if (!f) return; m.acts[k] = (a, el, ev) => { const id = String(a).split('|')[0]; const d = SEED.divergences.find(x => x.id === id); if (d && !['rcExcOk', 'rcExcRej'].includes(k) && !recScopeOk139(d.dom)) { toast(MSG_REC_DENY139, 'err'); return; } return f(a, el, ev); }; });
+  const o0 = m.acts.rcOpen;
+  m.acts.rcOpen = id => { o0(id); const d = SEED.divergences.find(x => x.id === id); const D = S.drawer; if (!d || !D) return;
+    if (d.dom === WALLET139 && !walletSee138()) { const b0 = D.body; D.body = () => { const f = d.fields; d.fields = (f || []).map(x => ({ f: x.f, core: 'Restricted', ch: 'Restricted' })); try { return b0().replace(/-?₱[\d,]+(\.\d{2})?/g, 'Restricted'); } finally { d.fields = f; } }; }
+    if (d.dom === WALLET139 && walletSee138() && ['Open', 'Re-pushing', 'Escalated'].includes(d.pst)) { const f1 = D.foot; D.foot = () => f1() + ' ' + btn(E139('Simulate late Core data (still different)'), 'rcWallet139', d.id, { cls: 'dev', dev: true, id: 'btnWallet139' }); }
+    if (d.dom !== 'Settlement' && !recScopeOk139(d.dom)) { const f0 = D.foot; D.foot = () => { const h = f0().replace(/<button[^>]*data-act="rc(Repush|Verify|Adj|Exc|Raise|Further)"[^>]*>[\s\S]*?<\/button>/g, ''); return h + (can('Reconciliation', 'C') || can('Reconciliation', 'E') ? `<span class="tiny muted" id="recScopeNote139" style="margin-left:8px">${esc(MSG_REC_DENY139)}</span>` : ''); }; }
+    render(); };
+})();
+ACT.rcWallet139 = id => { const d = SEED.divergences.find(x => x.id === id); walletRecompare138(d, false); toast('Re-compare still different. The divergence stays open; the resolution limit is not reset.', 'warn'); render(); };
+(function slGate139() {
+  const gate = (k, scope) => { const f = ACT[k]; if (!f) return; ACT[k] = (a, el, ev) => { if (!slScopeOk139(scope)) { toast('Your role cannot edit this Service Levels scope.', 'err'); return; } return f(a, el, ev); }; };
+  gate('sol137Confirm', 'Sales Opportunity Loss'); gate('sol137Notice', 'Sales Opportunity Loss');
+  const m = modById('sla'); if (!m) return; const v0 = m.view;
+  m.view = () => { let h = v0(); if (S.sub === 'sol') { if (!slScopeOk139('Sales Opportunity Loss')) h = h.replace(/<button[^>]*data-act="sol137(Confirm|Notice)"[^>]*>[\s\S]*?<\/button>/g, ''); return h; }
+    if (slScopeOk139('Outage Events')) h = h.replace(/(<tr[^>]*data-row="(SLA-[^"]+)"[\s\S]*?)(<\/tr>)/g, (s, a, id, c) => { const e = (SEED.sla137 || []).find(x => x.id === id); return e ? a.replace(/<\/td>(?![\s\S]*<\/td>)/, ' ' + btn(E139('Edit Attribution'), 'sla139Attr', id, { cls: 'sm', id: 'btnSlaAttr_' + id }) + '</td>') + c : s; });
+    return h; };
+})();
+ACT.sla139Attr = id => { const e = (SEED.sla137 || []).find(x => x.id === id); if (!e) return; if (!slScopeOk139('Outage Events')) { toast('Your role cannot edit this Service Levels scope.', 'err'); return; }
+  ask({ title: `Edit Attribution · ${id}`, ok: E139('Save'), fields: [{ k: 'm_attr', zh: '', en: 'Attribution', ctl: 'select', req: true, def: e.attr, opts: ['Contractor', 'Force Majeure', 'PCSO Directive', 'Approved Maintenance', 'E-Channel Own', 'DDoS Within Declared Capacity', 'DDoS Beyond Declared Capacity'] }, { k: 'm_min', zh: '', en: 'Duration (min)', ctl: 'number', req: true, def: e.min }], reason: { zh: '', en: 'Reason', max: 500 },
+    validate: v => !(+v.m_min > 0) ? { m_min: 'Enter a duration greater than 0.' } : (v.m_attr === e.attr && +v.m_min === e.min ? { m_attr: 'Change at least one value.' } : {}),
+    onOk: v => { audit('Service Levels', 'Attribution edited', id, `${e.attr} ${e.min} min → ${v.m_attr} ${v.m_min} min · ${v.m_reason}`); e.attr = v.m_attr; e.min = +v.m_min; e.status = 'Pending'; e.by = me(); toast('Saved. Pending confirmation by Senior Authorizer.'); } }); };
+
+/* =====================================================================
+ * K. 6A.2.2 wind-down
+ * ===================================================================== */
+const WD_CODES139 = ['Contract Expiry', 'Material Breach', 'Under-remittance', 'Cash Bond Not Replenished', 'Reports Not Submitted', 'Non-compliance With Directives', 'Unjustified Stoppage', 'Other PCSO Grounds'];
+const WD = 'Winding Down';
+if (!ACTIVE_STATES.includes(WD)) ACTIVE_STATES.push(WD);
+if (typeof CH_STATES !== 'undefined' && !CH_STATES.includes(WD)) CH_STATES.splice(CH_STATES.indexOf('Decommissioned'), 0, WD);
+if (typeof PEND_MARK !== 'undefined') PEND_MARK['Wind-down'] = 'Wind-down pending';
+const WD_ITEMS139 = [['remit', 'Remittances Settled', 'fin'], ['prize', 'Prize Obligations Settled', 'fin'], ['register', 'Player Balance Register', 'fin'], ['turnover', 'Fund Turnover', 'fin'], ['reports', 'Final Reports', 'ops'], ['data', 'Records And Data Turnover', 'ops']];
+function wdItem139(ch, id) { return ch.windDown.items.find(x => x.id === id); }
+function wdReady139(ch, it) {
+  const code = ch.code;
+  if (it.id === 'remit') return outstanding137(code) === 0 && SEED.drs137.filter(s => s.channel === code).every(s => drsPenalty137(s) === 0 || s.resolved);
+  if (it.id === 'prize') { const n = SEED.claims.filter(c => c.channel === code && c.status === 'FOR CLAIMING').length; return n === 0 || !!it.handling; }
+  if (it.id === 'register') return !!(ch.windDown.register && ch.windDown.register.match);
+  if (it.id === 'turnover') return !!ch.windDown.turnover;
+  if (it.id === 'reports') return !!ch.windDown.reportsOk;
+  if (it.id === 'data') return !!ch.windDown.dataOk;
+  return false;
+}
+function wdDone139(ch) { return !!(ch.windDown && ch.windDown.items && ch.windDown.items.every(x => x.state === 'Done')); }
+(function wdBody139() {
+  const w0 = windBody_K;
+  windBody_K = function (ch) {
+    let h = w0(ch); const wd = ch.windDown; if (!wd || !wd.items) { const pend = SEED.authReqs.find(r => r.type === 'Wind-down' && r.target === ch.code && /Pending|Awaiting/.test(r.status)); return h + (pend ? banner(`Wind-down pending · ${esc(pend.id)}`, 'amber') : ''); }
+    const unpaid = SEED.claims.filter(c => c.channel === ch.code && c.status === 'FOR CLAIMING');
+    h = dl([['Reason Code', esc(wd.code)], ['PCSO Decision Reference', esc(wd.ref)], ['Turnover Deadline', esc(wd.deadline) + (today137() > wd.deadline && !wdDone139(ch) ? ' <span class="tag bad">Passed</span>' : '')], ['Approved', `${esc(wd.approvedAt || '-')} · ${esc(wd.approvedBy || '-')}`]])
+      + (can('E-Channels', 'E') ? `<div style="margin:4px 0">${btn(E139('Record Snapshot Time'), 'wd139Snap', ch.code, { cls: 'sm', id: 'btnWdSnap' })}</div>` : '') + h;
+    h += '<h4>Wind-down Checklist</h4>' + table('wd139', [{ h: 'Item', r: it => esc(WD_ITEMS139.find(x => x[0] === it.id)[1]) }, { h: 'Completion Check', r: it => {
+      if (it.id === 'remit') return `Unremitted ${fmtP(outstanding137(ch.code))}`;
+      if (it.id === 'prize') return `${unpaid.length} unpaid · ${fmtP(unpaid.reduce((a, c) => a + c.net, 0))}` + (it.handling ? `<div class="tiny">Handling: ${esc(it.handling)}</div>` : '');
+      if (it.id === 'register') return wd.register ? `${fmtN(wd.register.players)} players · ${fmtP(wd.register.total)} · ${wd.register.match ? 'totals match the daily report' : '<span class="red">totals differ from the daily report</span>'}` : 'Not submitted';
+      if (it.id === 'turnover') return wd.turnover ? `${fmtP(wd.turnover.amount)} · ${esc(wd.turnover.date)} · ${esc(wd.turnover.ref)}` + (wd.turnover.diffNote ? `<div class="tiny">${esc(wd.turnover.diffNote)}</div>` : '') : 'Not recorded';
+      if (it.id === 'reports') return wd.reportsOk ? 'All final reports accepted' : 'Data submission requests not yet accepted';
+      return wd.dataOk ? 'Migration package received by PCSO' : 'Not received'; } },
+      { h: 'Status', r: it => badge(it.state === 'Done' ? 'Done' : wdReady139(ch, it) ? 'Ready' : 'Pending', it.state === 'Done' ? 'ok' : wdReady139(ch, it) ? 'info' : 'warn') + (it.by ? `<div class="tiny">${esc(it.by)} · ${esc(it.at)}</div>` : '') },
+      { h: 'Actions', r: it => { if (it.state === 'Done') return ''; const b = []; const fin = WD_ITEMS139.find(x => x[0] === it.id)[2] === 'fin';
+        if (it.id === 'prize' && unpaid.length && !it.handling && can('Settlement', 'E')) b.push(btn(E139('Record Handling'), 'wd139Handle', ch.code, { cls: 'sm' }));
+        if (it.id === 'register' && !wd.register) b.push(btn(E139('Simulate balance register'), 'wd139Reg', ch.code, { cls: 'sm', dev: true, id: 'btnWdReg' }));
+        if (it.id === 'turnover' && !wd.turnover && can('Settlement', 'C')) b.push(btn(E139('Record Fund Turnover'), 'wd139Turn', ch.code, { cls: 'sm', id: 'btnWdTurn' }));
+        if (it.id === 'reports' && !wd.reportsOk) b.push(btn(E139('Simulate final reports accepted'), 'wd139Dev', ch.code + '|reportsOk', { cls: 'sm', dev: true }));
+        if (it.id === 'data' && !wd.dataOk) b.push(btn(E139('Simulate data package received'), 'wd139Dev', ch.code + '|dataOk', { cls: 'sm', dev: true }));
+        if ((fin ? can('Settlement', 'E') : can('E-Channels', 'E'))) b.push(btn(E139('Confirm'), 'wd139Confirm', ch.code + '|' + it.id, { cls: 'sm ok', id: `btnWdOk_${it.id}`, dis: !wdReady139(ch, it), tip: 'This item is not ready yet.' }));
+        return `<span class="nowrap">${b.join(' ')}</span>`; } }], wd.items.map(x => Object.assign(x, {})), { nopage: true })
+      + `<p class="tiny">Finance items are confirmed by Finance/Reporting or PCSO Finance (Settlement · Edit); report and data items by Network Operations (E-Channels · Edit). Decommission can be requested when every item is Done. ${btn(E139('Simulate turnover deadline passed'), 'wd139Late', ch.code, { cls: 'sm', dev: true })}</p>`;
+    return h;
+  };
+})();
+(function wdFoot139() {
+  const f0 = chDrawerFoot;
+  chDrawerFoot = function (ch) {
+    let h = f0(ch);
+    if (ch.status === WD) { h = h.replace(/<button[^>]*data-act="chSusp"[^>]*>[\s\S]*?<\/button>/, ''); const on = /<button[^>]*data-act="chDecom"[^>]*>[\s\S]*?<\/button>/; h = h.replace(on, btn({ zh: 'Request Decommission', en: 'Request Decommission' }, 'chDecom', ch.code, { cls: 'danger', dis: !wdDone139(ch), tip: 'Complete the wind-down checklist first.' })); }
+    else if (['Active', 'Partially Suspended', 'Suspended'].includes(ch.status)) {
+      h = h.replace(/<button[^>]*data-act="chDecom"[^>]*>[\s\S]*?<\/button>/, btn({ zh: 'Request Decommission', en: 'Request Decommission' }, 'chDecom', ch.code, { cls: 'danger', dis: true, tip: 'Wind the channel down before decommissioning.' }));
+      if (can('Channel Control', 'C') && hasRole('nop')) h = h.replace(/(<button[^>]*data-act="chDecom")/, btn(E139('Request Wind-down'), 'wd139Req', ch.code, { cls: '', id: 'btnWdReq' }) + '$1');
+    }
+    return h;
+  };
+  const d0 = ACT.chDecom; ACT.chDecom = code => { const ch = chByCode(code); if (ch && ch.status === WD) { if (!wdDone139(ch)) { toast('Complete the wind-down checklist first.', 'err'); return; } const o = ch.status; ch.status = 'Suspended'; try { return d0(code); } finally { ch.status = o; } } if (ch && ['Active', 'Partially Suspended', 'Suspended'].includes(ch.status)) { toast('Wind the channel down before decommissioning.', 'err'); return; } return d0(code); };
+})();
+ACT.wd139Req = code => { const ch = chByCode(code); if (!ch || !['Active', 'Partially Suspended', 'Suspended'].includes(ch.status)) return; if (SEED.authReqs.some(r => r.kind === 'channel' && r.target === code && /Pending|Awaiting/.test(r.status))) { toast('This channel already has a request awaiting authorization.', 'err'); return; }
+  ask({ title: `Request Wind-down · ${code}`, danger: true, ok: E139('Submit for Authorization'), fields: [{ k: 'm_code', zh: '', en: 'Reason Code', ctl: 'select', req: true, opts: [['', '-']].concat(WD_CODES139) }, { k: 'm_ref', zh: '', en: 'PCSO Decision Reference', ctl: 'text', req: true, ph: 'PCSO resolution or memo number' }, { k: 'm_dl', zh: '', en: 'Turnover Deadline', ctl: 'date', req: true }, { k: 'm_snap', zh: '', en: 'Balance Snapshot Time', ctl: 'datetime' }], reason: { zh: '', en: 'Reason', max: 500 },
+    validate: v => { const e = {}; if (!v.m_code) e.m_code = 'Select a reason code.'; if (!(v.m_ref || '').trim()) e.m_ref = 'Enter the PCSO decision reference.'; else if (v.m_ref.trim().length > 100) e.m_ref = 'Up to 100 characters.'; if (!v.m_dl || v.m_dl <= today137()) e.m_dl = 'The deadline must be later than today.'; return e; },
+    onOk: v => { const r = submitAuth({ kind: 'channel', type: 'Wind-down', target: code, summary: `${v.m_code} · ${v.m_ref.trim()} · turnover by ${v.m_dl}`, reason: v.m_reason, payload: { code: v.m_code, ref: v.m_ref.trim(), deadline: v.m_dl, snapshot: v.m_snap ? normDT(v.m_snap) : '' } }); if (!r) return false; toast('Submitted. Wind-down pending authorization.'); } }); };
+AUTH_APPLY['Wind-down'] = r => { const ch = chByCode(r.target); const p = r.payload || {};
+  ch.status = WD; ch.ctlVer = (ch.ctlVer || 0) + 1; ch.windDown = { req: r.id, code: p.code, ref: p.ref, deadline: p.deadline, snapshot: p.snapshot && dt(p.snapshot) >= S.now ? p.snapshot : '', approvedAt: nowS(), approvedBy: me(), items: WD_ITEMS139.map(([id]) => ({ id, state: 'Pending' })) };
+  ch.actions.push({ type: 'Winding Down', scope: ['All'], at: nowS(), prevStatus: 'Active' });
+  const d = issueDirective({ channel: ch.code, type: 'Wind-down Notice', summary: `${p.code} · ${p.ref} · turnover by ${p.deadline}`, reason: r.reason, by: r.by, authBy: me(), ref: r.id }); d.objv = `${ch.code} · control version ${ch.ctlVer}`;
+  SEED.credentials.filter(c => c.channel === ch.code && c.status === 'Active' && c.env === 'Production').forEach(c => { c.status = 'Restricted'; });
+  audit('E-Channels', 'Wind-down approved', ch.code, `${r.id} · ${p.code} · ${d.id}`);
+};
+AUTH_CHECK['Wind-down'] = r => { const ch = chByCode(r.target); return ch && ['Active', 'Partially Suspended', 'Suspended'].includes(ch.status) ? null : 'Only an active or suspended channel can be wound down.'; };
+ACT.wd139Snap = code => { const ch = chByCode(code); ask({ title: `Balance Snapshot Time · ${code}`, ok: E139('Save'), fields: [{ k: 'm_snap', zh: '', en: 'Balance Snapshot Time', ctl: 'datetime', req: true }], validate: v => !v.m_snap ? { m_snap: 'This field is required.' } : (ch.windDown.approvedAt && dt(normDT(v.m_snap)) < dt(ch.windDown.approvedAt) ? { m_snap: 'The snapshot time cannot be before the approval time.' } : {}),
+  onOk: v => { ch.windDown.snapshot = normDT(v.m_snap); issueDirective({ channel: code, type: 'Data Submission Request', summary: `Player balance register as at ${ch.windDown.snapshot}`, reason: 'Wind-down', by: me() }); audit('E-Channels', 'Balance snapshot time recorded', code, ch.windDown.snapshot); toast('Saved. A data submission request for the player balance register was sent.'); } }); };
+ACT.wd139Handle = code => { const ch = chByCode(code); ask({ title: E139('Record Handling'), ok: E139('Save'), reason: { zh: '', en: 'Handling Method', max: 500, ph: 'e.g. transferred to PCSO for payment' }, onOk: v => { wdItem139(ch, 'prize').handling = v.m_reason; audit('Settlement', 'Wind-down prize handling recorded', code, v.m_reason); toast('Saved.'); } }); };
+ACT.wd139Reg = code => { const ch = chByCode(code); ch.windDown.register = { players: 18240, total: 4126500.5, hash: m5Sha('reg' + code), match: true, at: nowS(), demo: true }; audit('Settlement', 'Player balance register received', code, fmtP(4126500.5)); toast('Balance register received. Totals match the daily report.'); render(); };
+ACT.wd139Turn = code => { const ch = chByCode(code); const reg = ch.windDown.register; if (!reg) { toast('The player balance register has not been received yet.', 'err'); return; }
+  ask({ title: `Record Fund Turnover · ${code}`, ok: E139('Save'), fields: [{ k: 'm_amt', zh: '', en: 'Turnover Amount', ctl: 'money', req: true, def: String(reg.total) }, { k: 'm_date', zh: '', en: 'Turnover Date', ctl: 'date', req: true, def: today137() }, { k: 'm_ref', zh: '', en: 'PCSO Receipt No', ctl: 'text', req: true }, { k: 'm_diff', zh: '', en: 'Difference Explanation', ctl: 'textarea' }],
+    validate: v => { const e = {}; const a = +String(v.m_amt || '').replace(/[^\d.]/g, ''); if (!(a > 0)) e.m_amt = 'Enter the amount.'; if (!v.m_date) e.m_date = 'Select the date.'; if (!(v.m_ref || '').trim()) e.m_ref = 'Enter the reference number.'; if (a > 0 && r2(a) !== r2(reg.total) && !(v.m_diff || '').trim()) e.m_diff = 'Explain the difference from the confirmed register total.'; return e; },
+    onOk: v => { ch.windDown.turnover = { amount: r2(+String(v.m_amt).replace(/[^\d.]/g, '')), date: v.m_date, ref: v.m_ref.trim(), diffNote: (v.m_diff || '').trim(), by: me() }; audit('Settlement', 'Fund turnover recorded', code, `${fmtP(ch.windDown.turnover.amount)} · ${v.m_ref.trim()}`); toast('Fund turnover recorded.'); } }); };
+ACT.wd139Dev = a => { const [code, k] = a.split('|'); chByCode(code).windDown[k] = true; render(); };
+ACT.wd139Confirm = a => { const [code, id] = a.split('|'); const ch = chByCode(code); const it = wdItem139(ch, id); const fin = WD_ITEMS139.find(x => x[0] === id)[2] === 'fin';
+  if (!(fin ? can('Settlement', 'E') : can('E-Channels', 'E'))) { toast('You do not have permission for this action.', 'err'); return; } if (!wdReady139(ch, it)) { toast('This item is not ready yet.', 'err'); return; }
+  it.state = 'Done'; it.by = me(); it.at = nowS(); audit(fin ? 'Settlement' : 'E-Channels', 'Wind-down item confirmed', code, WD_ITEMS139.find(x => x[0] === id)[1]); toast('Confirmed.'); render(); };
+ACT.wd139Late = code => { const ch = chByCode(code); ch.windDown.deadline = ymd137(day137(today137()) - 864e5); wdTick139(); render(); };
+function wdTick139() { SEED.channels.filter(c => c.status === WD && c.windDown && c.windDown.items).forEach(ch => { if (today137() > ch.windDown.deadline && !wdDone139(ch) && !ch.windDown.lateAl) { ch.windDown.lateAl = true; const a = alert139('Wind-down Turnover Overdue', 'P2', ch.code, `${ch.code} wind-down checklist not complete by ${ch.windDown.deadline}`); const c = createCase({ source: 'WD-' + ch.code, channel: ch.code, event: `Wind-down turnover overdue · ${ch.code}`, severity: 'High', auto: true, type: 'Incident' }); a.caseId = c.id; audit('E-Channels', 'Wind-down turnover overdue', ch.code, c.id); } }); }
+TICKS139.push(wdTick139);
+
+/* =====================================================================
+ * L. claims desk policy bound to the draw; claim deadline extension while claims are paused
+ * ===================================================================== */
+SEED.cpVer139 = SEED.cpVer139 || [];
+function cpSnap139(P, version, eff) { return { version, eff, lockN: +(P.lockN || 0), idTypes: (P.idTypes || [ALL_IDS_K]).slice(), idCount: +(P.idCount || 1), enhancedThreshold: P.enhancedThreshold || P.bigPrizeThreshold }; }
+(function cpSeed139() { const P = SEED.claimPolicy; if (!SEED.cpVer139.length) { if (P.prevSnap) SEED.cpVer139.push(Object.assign(cpSnap139(P, P.prevSnap.version, P.prevSnap.eff), { lockN: 0, idTypes: [ALL_IDS_K], idCount: 1 })); SEED.cpVer139.push(cpSnap139(P, P.version, P.eff)); } })();
+function cpTrack139() { const P = SEED.claimPolicy; if (!SEED.cpVer139.some(x => x.version === P.version)) SEED.cpVer139.push(cpSnap139(P, P.version, P.eff)); else { const x = SEED.cpVer139.find(y => y.version === P.version); Object.assign(x, cpSnap139(P, P.version, P.eff)); } }
+(function cpWrap139() { const p0 = C2_POLICY; C2_POLICY = function () { const r = p0.apply(this, arguments); cpTrack139(); return r; }; })();
+function cpBound139(drawId) { const d = drawById(drawId); let at = d ? d.drawAt : nowS(); try { const rv = d && drRvCur(d); if (rv && rv.authAt) at = rv.authAt; } catch (e) { /* no result yet */ }
+  const L = SEED.cpVer139.filter(x => dt(String(x.eff).slice(0, 16)) <= dt(String(at).slice(0, 16))).sort((a, b) => dt(a.eff) - dt(b.eff)); return L.slice(-1)[0] || SEED.cpVer139.slice(-1)[0]; }
+function deskPol139() { const D = typeof c2desk === 'function' ? c2desk() : null; const c = D && D.claim ? c2claim(D.claim) : null; if (c && S.page === 'claims') { C2_POLICY(); return cpBound139(c.drawId); } return C2_POLICY(); }
+lockN_K = function () { return +(deskPol139().lockN || 0); };
+needIds_K = function () { return +(deskPol139().idCount || 1); };
+(function polIds139() { const p0 = polIdTypes_K; polIdTypes_K = function (P) { return p0(P || deskPol139()); }; })();
+(function deskView139() { const v0 = c2deskView; c2deskView = function (m) { let h = v0(m); const D = c2desk(); const c = D.claim ? c2claim(D.claim) : null; if (!c) return h; const b = cpBound139(c.drawId);
+  return h.replace(/(<div class="card")/, `<div class="tiny" id="deskPol139" style="margin:4px 0">Claim Policy Version <b>${esc(b.version)}</b> (in force when ${esc(c.drawId)} results were authorized) · ID types and count, lockout and threshold follow this version.</div>$1`); }; })();
+/* claim deadline extension (6A.11.2): pause segments per channel */
+SEED.cdx139 = SEED.cdx139 || {};
+function cdxTick139() { SEED.channels.forEach(ch => { const L = SEED.cdx139[ch.code] = SEED.cdx139[ch.code] || []; const open = L.find(s => !s.to); const paused = claimsPaused138(ch.code) && ch.status !== WD;
+  if (paused && !open) L.push({ from: (ch.suspended && ch.suspended.since) || nowS(), to: '' });
+  if (!paused && open) { open.to = nowS(); open.days = Math.round((day137(open.to.slice(0, 10)) - day137(String(open.from).slice(0, 10))) / 864e5) + 1; const d = issueDirective({ channel: ch.code, type: 'Claim Deadline Extension', summary: `Claim deadlines extended by ${open.days} days (suspension ${String(open.from).slice(0, 16)} → ${open.to.slice(0, 16)})`, reason: 'Claims paused during full suspension', by: 'System' }); open.dir = d.id; audit('Prize Claims', 'Claim deadline extension', ch.code, `${open.days} days · ${d.id}`); } }); }
+TICKS139.push(cdxTick139);
+function cdxDays139(code, deadline) { let dl = day137(deadline); (SEED.cdx139[code] || []).filter(s => s.to).forEach(s => { if (day137(String(s.from).slice(0, 10)) <= dl) dl += s.days * 864e5; }); return Math.round((dl - day137(deadline)) / 864e5); }
+(function unc139() {
+  const u0 = c2uncRows;
+  c2uncRows = function () { return u0().map(u => { const chs = Object.keys(u.by || {}); const ext = Math.max(0, ...chs.map(c => cdxDays139(c, u.deadline))); const pausedCh = chs.filter(c => (SEED.cdx139[c] || []).some(s => !s.to && day137(String(s.from).slice(0, 10)) <= day137(u.deadline)));
+    if (ext) { u.origDeadline = u.deadline; u.extDays = ext; u.deadline = ymd137(day137(u.deadline) + ext * 864e5); u.days = Math.ceil((dt(u.deadline + ' 23:59:59') - S.now) / 864e5); if (u.status === 'Forfeited' && u.days >= 0) u.status = u.days <= C2_POLICY().expiryWarnDays ? 'Expiring Soon' : 'Open'; }
+    if (pausedCh.length && u.days < 0 && u.unclaimed > 0) u.status = 'Extended – Channel Suspended';
+    return u; }); };
+  R134_COLS.ucT = cols => { const i = colIdx(cols, 'Claim Deadline'); if (i >= 0) cols[i] = { h: 'Claim Deadline', r: u => esc(u.deadline) + (u.extDays ? ` <span class="tag info" title="Original ${esc(u.origDeadline)} · extended ${u.extDays} days">Extended</span>` : '') }; return cols; };
+})();
+
+/* =====================================================================
+ * M. 6A.15.7 SLA parameters: Effective At, versions, month segments, typed editing
+ * ===================================================================== */
+SEED.slaVers139 = SEED.slaVers139 || [{ v: SEED.slaPar.v, eff: SEED.slaPar.eff, vals: Object.fromEntries(SEED.slaPar.rows.map(r => [r.id, r.val])) }];
+const TIER_FN139 = [['Integration Layer / API Gateway', 'Critical Path'], ['Transaction And Sales Data Reporting', 'Critical Path'], ['Player Identity Federation', 'Critical Path'], ['Winning Number Encoding And Cascade', 'Critical Path'], ['Prize Claim Consolidation', 'Other – Critical Functions'], ['Reference Data Publication', 'Other – Critical Functions'], ['Core Portal', 'All Other Functions'], ['Reporting', 'All Other Functions'], ['Reconciliation', 'All Other Functions']];
+function slaTyped139(r) {
+  const n = (k, en, hint) => ({ k, zh: en, en, ctl: 'number', req: true, hint });
+  switch (r.id) {
+    case 'period': return [{ k: 'm_t_period', zh: '', en: 'Measurement Period', ctl: 'select', req: true, opts: ['Monthly (annual summary for reference only)'] }];
+    case 'targets': return [n('m_t_cp', 'Critical Path Target (%)', '90–100, up to 2 decimals'), n('m_t_ot', 'Other Functions Target (%)', '90–100, up to 2 decimals')];
+    case 'tierMap': return TIER_FN139.map(([f], i) => ({ k: 'm_t_fn' + i, zh: f, en: f, ctl: 'select', req: true, opts: ['Critical Path', 'Other – Critical Functions', 'All Other Functions'] }));
+    case 'maint': return [n('m_t_mn', 'Notice (hours)', 'Minimum notice before the window'), n('m_t_mc', 'Not Within (hours before cut-off)'), n('m_t_mm', 'Monthly Cap (hours)'), n('m_t_my', 'Yearly Cap (hours)')];
+    case 'resp': return [n('m_t_p95', 'Transaction Receipt p95 (seconds)'), n('m_t_p99', 'Transaction Receipt p99 (seconds)')];
+    case 'portal': return [n('m_t_pl', 'Page Load (seconds)'), n('m_t_pq', 'Query Response (seconds)')];
+    case 'unavail': return [n('m_t_uw', 'Unavailability Window (minutes)')];
+    case 'cap': return [n('m_t_cap', 'Capacity Threshold (%)')];
+    case 'drift': return [n('m_t_drift', 'Core Clock Drift Threshold (milliseconds)')];
+    case 'baseDev': return [n('m_t_bd', 'Deviation Threshold (%)'), n('m_t_bm', 'Judgement Duration (minutes)')];
+    default: return null;
+  }
+}
+function slaTypedVal139(r, v) {
+  const num = k => String(v[k] == null ? '' : v[k]).trim(); const e = {}; const ok = (k, lo, hi, dec) => { const s = num(k); const re = dec ? /^\d+(\.\d{1,2})?$/ : /^\d+$/; if (!re.test(s) || +s < lo || +s > hi) e[k] = `Enter a value from ${lo} to ${hi}.`; return +s; };
+  let val = '';
+  switch (r.id) {
+    case 'period': val = v.m_t_period; break;
+    case 'targets': { const a = ok('m_t_cp', 90, 100, true), b = ok('m_t_ot', 90, 100, true); val = `Critical Path ≥ ${(+a).toFixed(2)}%, other functions ≥ ${(+b).toFixed(2)}%`; break; }
+    case 'tierMap': val = TIER_FN139.map(([f], i) => `${f}: ${v['m_t_fn' + i]}`).join('; '); break;
+    case 'maint': { const a = ok('m_t_mn', 1, 720), b = ok('m_t_mc', 0, 24), c = ok('m_t_mm', 0, 744), d = ok('m_t_my', 0, 8784); if (!e.m_t_my && d < c) e.m_t_my = 'The yearly cap cannot be lower than the monthly cap.'; val = `${a}-hour notice; not within ${b} hours before cut-off; ≤ ${c} hours per month and ≤ ${d} hours per year; not for the Critical Path or Critical functions`; break; }
+    case 'resp': { const a = ok('m_t_p95', 1, 60), b = ok('m_t_p99', 1, 60); if (!e.m_t_p99 && b < a) e.m_t_p99 = 'p99 cannot be lower than p95.'; val = `Transaction receipt p95 ≤ ${a} seconds, p99 ≤ ${b} seconds (peak); notice and result receipts follow 6A.2.6, 6A.3, 6A.6`; break; }
+    case 'portal': { const a = ok('m_t_pl', 1, 60), b = ok('m_t_pq', 1, 120); val = `Page load ≤ ${a} seconds; query response ≤ ${b} seconds`; break; }
+    case 'unavail': val = `${ok('m_t_uw', 1, 60)} minutes`; break;
+    case 'cap': val = `${ok('m_t_cap', 1, 100)}%`; break;
+    case 'drift': val = `${ok('m_t_drift', 1, 60000)} milliseconds`; break;
+    case 'baseDev': { const a = ok('m_t_bd', 1, 1000), b = ok('m_t_bm', 1, 1440); val = `${a}% for ${b} minutes`; break; }
+  }
+  return { e, val };
+}
+function slaApplyNext139() { const N = SEED.slaPar.next; if (!N || dt(N.eff) > S.now) return; const r = slaRow_K(N.id); if (r) r.val = N.val; SEED.slaPar = Object.assign(SEED.slaPar, { v: N.v, eff: N.eff, next: null }); SEED.slaVers139.push({ v: N.v, eff: N.eff, vals: Object.fromEntries(SEED.slaPar.rows.map(x => [x.id, x.val])) }); audit('Service Levels', 'SLA parameter version in force', N.v, `${N.en}: ${N.val}`); }
+TICKS139.push(slaApplyNext139);
+CR_APPLY.slaParam = cr => { const r = slaRow_K(cr.payload.id); if (!r) return; const eff = cr.payload.eff139 || nowS();
+  if (dt(eff) > S.now + 60e3) { SEED.slaPar.next = { id: r.id, en: r.en, val: cr.payload.val, v: cr.version, eff }; audit('Service Levels', 'SLA parameter approved (scheduled)', cr.version, `${r.en}: ${cr.payload.val} · from ${eff}`); return; }
+  r.val = cr.payload.val; SEED.slaPar = Object.assign(SEED.slaPar, { v: cr.version, eff }); SEED.slaVers139.push({ v: cr.version, eff, vals: Object.fromEntries(SEED.slaPar.rows.map(x => [x.id, x.val])) }); audit('Service Levels', 'SLA parameter approved', cr.version, `${r.en}: ${cr.payload.val}`); };
+function slaSegs139() { const mo = today137().slice(0, 7); const start = dt(mo + '-01 00:00'); const nm = new Date(day137(mo + '-01')); nm.setUTCMonth(nm.getUTCMonth() + 1); const end = nm.getTime() - 8 * 36e5;
+  const L = SEED.slaVers139.slice().sort((a, b) => dt(a.eff) - dt(b.eff)); const segs = [];
+  L.forEach((v, i) => { const f = Math.max(start, dt(v.eff)); const tE = i + 1 < L.length ? Math.min(end, dt(L[i + 1].eff)) : end; if (tE > f) segs.push({ id: v.v + i, v: v.v, from: fmtDT(f), to: fmtDT(tE), min: Math.round((tE - f) / 60e3), targets: v.vals.targets }); });
+  if (SEED.slaPar.next) { const last = segs[segs.length - 1]; const f = dt(SEED.slaPar.next.eff); if (last && f < end && f > dt(last.from)) { last.to = fmtDT(f); last.min = Math.round((f - dt(last.from)) / 60e3); segs.push({ id: 'next', v: SEED.slaPar.next.v + ' (scheduled)', from: fmtDT(f), to: fmtDT(end), min: Math.round((end - f) / 60e3), targets: SEED.slaPar.next.id === 'targets' ? SEED.slaPar.next.val : last.targets }); } }
+  return segs; }
+(function slaEdit139() {
+  ACT.slaParEdit = id => {
+    const r = slaRow_K(id); if (!r || !can('Service Levels', 'C')) return; const typed = slaTyped139(r);
+    const ctl = typed || (r.type === 'weeks' ? [{ k: 'm_val', zh: '', en: 'New Value (weeks)', ctl: 'number', req: true, hint: 'Whole number from 1 to 12' }] : r.type === 'slot' ? [{ k: 'm_val', zh: '', en: 'New Value (minutes)', ctl: 'select', req: true, opts: ['5', '10', '15', '30', '60'] }] : [{ k: 'm_val', zh: '', en: 'New Value', ctl: 'textarea', req: true }]);
+    const vals0 = { m_val: r.val === SLA_UNSET_K ? '' : r.val, m_eff: nowS() }; if (r.id === 'tierMap') TIER_FN139.forEach(([f, tr], i) => { const m = String(r.val).match(new RegExp(f.replace(/[/]/g, '\\/') + ': ([^;]+)')); vals0['m_t_fn' + i] = m ? m[1].trim() : tr; }); if (r.id === 'period') vals0.m_t_period = 'Monthly (annual summary for reference only)';
+    openModal({ title: `Edit · ${r.en}`, ok: { zh: 'Submit change request', en: 'Submit change request' }, vals: vals0,
+      body: () => formHtml([{ k: 'm_param', zh: '', en: 'Parameter', ctl: 'readonly', html: () => esc(r.en) }, { k: 'm_cur', zh: '', en: 'Current Value', ctl: 'readonly', html: () => esc(slaShow_K(r, r.val)) }].concat(ctl).concat([{ k: 'm_eff', zh: '', en: 'Effective At', ctl: 'datetime', req: true, hint: 'UTC+8. A change in the middle of a month splits the monthly SLA calculation at this time.' }, { k: 'm_note', zh: '', en: 'Change Note', ctl: 'textarea', req: true }])) + '<p class="tiny">Needs approval by Senior Authorizer</p>',
+      onOk: v => {
+        let e = {}; let nv;
+        if (typed) { const t0 = slaTypedVal139(r, v); e = t0.e; nv = t0.val; }
+        else { nv = String(v.m_val == null ? '' : v.m_val).trim(); if (r.type === 'weeks' && !(/^\d+$/.test(nv) && +nv >= 1 && +nv <= 12)) e.m_val = 'Enter a whole number from 1 to 12.'; else if (r.type === 'slot' && !['5', '10', '15', '30', '60'].includes(nv)) e.m_val = 'Enter a value in the allowed range.'; else if (!nv || nv.length > 500) e.m_val = 'Enter a value in the allowed range.'; }
+        if (!Object.keys(e).length && nv === r.val) e[typed ? typed[0].k : 'm_val'] = 'Change the value first.';
+        if (!v.m_eff) e.m_eff = 'Select the effective time.'; else if (dt(normDT(v.m_eff)) < S.now - 60e3) e.m_eff = 'The effective time cannot be in the past.';
+        if (empty((v.m_note || '').trim())) e.m_note = 'Enter a change note.';
+        if (Object.keys(e).length) { setErr(e); return false; }
+        const n = Math.max(...SEED.slaVers139.map(x => +String(x.v).replace(/\D/g, '')), SEED.slaPar.next ? +String(SEED.slaPar.next.v).replace(/\D/g, '') : 0) + 1; const eff = normDT(v.m_eff);
+        const cr = submitCR({ domain: 'SLA Parameters', object: r.en, kind: 'slaParam', critical: false, noLead: true, noNotice: true, effectiveAt: eff, version: 'SLP-v' + n, note: v.m_note.trim(), fields: [{ f: r.en, cur: slaShow_K(r, r.val), pro: slaShow_K(r, nv) }], payload: { id: r.id, val: nv, eff139: eff } });
+        if (!cr) return false; audit('Service Levels', 'SLA parameter change submitted', cr.id, `${r.en}: ${r.val} → ${nv} · from ${eff}`); toast(`Change request ${cr.id} submitted. Needs approval by Senior Authorizer.`);
+      } });
+  };
+  const c0 = slaParCard_K;
+  slaParCard_K = function () {
+    const segs = slaSegs139(); const N = SEED.slaPar.next;
+    return c0() + (N ? banner(`Scheduled: ${esc(N.v)} · ${esc(N.en)} → ${esc(N.val)} from ${esc(N.eff)}`, 'amber') : '')
+      + card(`Month Segments · ${today137().slice(0, 7)}`, table('slaSeg139', [{ h: 'Version', k: 'v' }, { h: 'From', k: 'from' }, { h: 'To', k: 'to' }, { h: 'Minutes', cls: 'num', r: s => fmtN(s.min) }, { h: 'Tier Availability Targets', k: 'targets' }], segs, { nopage: true }) + '<p class="tiny">The monthly SLA report applies each version to its own segment of the month, split at the effective time.</p>')
+      + card('Version History', table('slaVer139', [{ h: 'Version', k: 'v' }, { h: 'Effective From', k: 'eff' }], SEED.slaVers139.map((x, i) => Object.assign({ id: i }, x)).reverse(), { nopage: true }));
+  };
+})();
+
+/* =====================================================================
+ * N. 6A.12.3 Official Notices: drafts, preview, channel results, declarations
+ * ===================================================================== */
+(function onSeed139() { (SEED.offNotices138 || []).forEach(x => { if (!x.res139) { x.res139 = {}; if (x.status === 'Current' && x.demo) activeChannels().forEach(c => { x.res139[c.code] = { state: 'Executed', at: x.eff }; }); } }); })();
+function onExec139(x) { return activeChannels().filter(c => x.res139 && x.res139[c.code] && x.res139[c.code].state === 'Executed').length; }
+onShown138 = function (x) { const n = activeChannels().length; return `${x.status === 'Current' ? onExec139(x) : 0}/${n}`; };
+TICKS139.push(() => { if (typeof onTick138 === 'function') onTick138(); });
+function onValidate139(v, forDraft) {
+  const e = {}; const ty = v.m_type || 'Official Notice'; const rn = ty === 'Regulatory Notice'; const place = ty === 'Disclosure' ? ON_PLACES_138.Disclosure[0] : v.m_place; const body = String(v.m_body || ''); const urgent = v.m_urgent === true || v.m_urgent === 'true';
+  const title = String(v.m_title || '').trim(); if (!title) e.m_title = 'Enter a title.'; else if (title.length > 100) e.m_title = 'Up to 100 characters.';
+  if (forDraft) return e;
+  if (!place || !(ON_PLACES_138[ty] || []).includes(place)) e.m_place = 'Select a placement.';
+  if (!body.trim()) e.m_body = 'Enter the content.'; else if (body.length > (rn ? 300 : 20000)) e.m_body = 'The content is too long for this placement.'; else if (/<img\b/i.test(body)) e.m_body = 'Images are not supported. Use bold text and links only.'; else if (rn && /<[^>]+>/.test(body)) e.m_body = 'Regulatory notices are plain text.'; else if (/href="(?!https:\/\/)/i.test(body)) e.m_body = 'Links must start with https://.';
+  if (!v.m_eff) e.m_eff = 'Select the effective time.'; else if (!urgent && dt(normDT(v.m_eff)) < S.now + LEAD_H.other * 36e5) e.m_eff = 'The effective time must allow the minimum notice period.';
+  if (!rn && v.m_until && v.m_eff && dt(normDT(v.m_until)) <= dt(normDT(v.m_eff))) e.m_until = 'The end time must be after the effective time.';
+  const ref = String(v.m_ref || '').trim(); if (!ref) e.m_ref = 'Enter the PCSO reference.'; else if (ref.length > 100) e.m_ref = 'Up to 100 characters.';
+  if (urgent && !String(v.m_urgentReason || '').trim()) e.m_urgentReason = 'Enter the reason for the urgent change.';
+  if (!e.m_place && rn && SEED.offNotices138.some(x => x.place === place && x !== S._onEdit139 && ['Pending Approval', 'Scheduled'].includes(x.status))) e.m_place = MSG_ON_SCHED_138;
+  return e;
+}
+function onFrom139(v, x) { const ty = x ? x.type : (v.m_type || 'Official Notice'); const rn = ty === 'Regulatory Notice'; const place = ty === 'Disclosure' ? ON_PLACES_138.Disclosure[0] : v.m_place; const urgent = v.m_urgent === true || v.m_urgent === 'true';
+  return { type: ty, title: String(v.m_title || '').trim(), place: place || '', body: String(v.m_body || ''), eff: v.m_eff ? normDT(v.m_eff) : '', until: rn ? '' : (v.m_until ? normDT(v.m_until) : ''), ref: String(v.m_ref || '').trim(), urgent, urgentReason: urgent ? String(v.m_urgentReason || '').trim() : '' }; }
+function onForm139(x) {
+  S._onEdit139 = x || null;
+  const vals0 = x ? { m_type: x.type, m_place: x.place, m_title: x.title, m_body: x.body, m_eff: x.eff, m_until: x.until, m_ref: x.ref, m_urgent: !!x.urgent, m_urgentReason: x.urgentReason || '' } : { m_type: 'Official Notice' };
+  openModal({ title: x ? `Edit draft · ${x.id}` : E138('New content'), size: 'lg', ok: E138('Submit change request'), vals: vals0,
+    body: () => { const ty = fval('m_type', 'Official Notice'); if (ty === 'Regulatory Notice' && !x) { const pl = fval('m_place', ''); if (pl && !String(fval('m_body', '')).trim()) { const cur = SEED.offNotices138.find(y => y.place === pl && y.status === 'Current'); S.fv.m_body = cur ? cur.body : (RN_DEFAULT_138[pl] || ''); } }
+      let f = onFields138(); if (x) f = f.map(z => z.k === 'm_type' ? { k: 'm_type', zh: '', en: 'Content Type', ctl: 'readonly', html: () => esc(x.type) } : z);
+      return formHtml(f) + `<p class="tiny" id="onApprHint138">${fval('m_urgent', false) === true || fval('m_urgent', false) === 'true' ? 'Needs approval by Senior Authorizer' : 'Needs approval by Reference Approver'}</p><div class="filters">${btn(E139('Save Draft'), 'on139Draft', '', { id: 'btnOnDraft139' })} ${btn(E139('Preview'), 'on139PvForm', '', { id: 'btnOnPvForm139' })}</div>`; },
+    onOk: v => { const e = onValidate139(v, false); if (Object.keys(e).length) { S.ferr = e; return false; } const d = onFrom139(v, x); const urgent = d.urgent;
+      let it = x; if (!it) { const rn = d.type === 'Regulatory Notice'; const prev = rn ? SEED.offNotices138.filter(y => y.place === d.place).length : 0; it = { id: rn ? 'RN-' + d.place.toUpperCase().replace(/[^A-Z]/g, '') : nid(d.type === 'Disclosure' ? 'DS' : d.type === 'PlaySafe Material' ? 'PM' : 'ON', { w: 2 }), ver: 'v' + (prev + 1), by: me(), at: nowS(), appr: '', res139: {} }; SEED.offNotices138.unshift(it); }
+      Object.assign(it, d, { status: 'Pending Approval', by: me(), at: nowS() }); S._onEdit139 = null; audit('Terms Of Service', 'Official content submitted', it.id, `${it.type} · ${it.place} · ${it.ver}`); toast(`Submitted. ${urgent ? 'Needs approval by Senior Authorizer' : 'Needs approval by Reference Approver'}.`); } });
+}
+ACT.on138New = () => { if (!can('Terms Of Service', 'C')) return; onForm139(null); };
+ACT.on139Draft = () => { const v = vals(); const e = onValidate139(v, true); if (Object.keys(e).length) { setErr(e); return; } const x = S._onEdit139; const d = onFrom139(v, x);
+  if (x) { Object.assign(x, d); audit('Terms Of Service', 'Official content draft edited', x.id, x.ver); }
+  else { const rn = d.type === 'Regulatory Notice'; const prev = rn ? SEED.offNotices138.filter(y => y.place === d.place).length : 0; const it = Object.assign({ id: rn && d.place ? 'RN-' + d.place.toUpperCase().replace(/[^A-Z]/g, '') : nid(d.type === 'Disclosure' ? 'DS' : d.type === 'PlaySafe Material' ? 'PM' : 'ON', { w: 2 }), ver: 'v' + (prev + 1), status: 'Draft', by: me(), at: nowS(), appr: '', res139: {} }, d); SEED.offNotices138.unshift(it); audit('Terms Of Service', 'Official content draft saved', it.id, it.ver); }
+  S._onEdit139 = null; closeModal(); toast('Draft saved.'); render(); };
+ACT.on139Edit = id => { const x = SEED.offNotices138.find(y => y.id === id && y.status === 'Draft'); if (x && can('Terms Of Service', 'C')) onForm139(x); };
+ACT.on139Del = id => { const i = SEED.offNotices138.findIndex(y => y.id === id && y.status === 'Draft' && y.by === me()); if (i < 0) return; const x = SEED.offNotices138[i]; SEED.offNotices138.splice(i, 1); audit('Terms Of Service', 'Official content draft deleted', x.id, x.ver); toast('Draft deleted.'); render(); };
+function onPreviewHtml139(x) {
+  const body = x.type === 'Regulatory Notice' ? esc(x.body) : String(x.body || '').replace(/<(?!\/?(b|a)(\s|>))[^>]*>/gi, '').replace(/\n/g, '<br>');
+  const frame = inner => `<div id="onPv139" style="max-width:380px;margin:0 auto;border:1px solid #d8dde8;border-radius:16px;padding:14px;background:#f6f8fc"><div class="tiny muted" style="margin-bottom:8px">E-Channel player app · ${esc(x.place)}</div>${inner}</div>`;
+  if (x.type === 'Regulatory Notice') { const ctx = { 'E-Ticket': '<div class="card"><b>E-Ticket</b><div class="tiny">Grand Lotto 6/55 · 01 05 12 14 27 53</div></div>', 'Transaction Confirmation': '<div class="card"><b>Bet placed</b><div class="tiny">Transaction reference ILT-T0080021340</div></div>', 'Wallet': '<div class="card"><b>Wallet</b><div class="tiny">Available balance</div></div>', 'Player Dashboard': '<div class="card"><b>My Account</b></div>' }[x.place] || '';
+    return frame(ctx + `<div class="tiny" style="margin-top:8px;color:#55607a">${body}</div>`); }
+  if (x.type === 'Disclosure') return frame(`<div><b>Help Center</b> › PCSO Disclosures</div><div class="card"><h4>${esc(x.title)}</h4>${body}</div>`);
+  if (x.type === 'PlaySafe Material') return frame(`<div><b>PlaySafe</b></div><div class="card"><h4>${esc(x.title)}</h4>${body}</div>`);
+  return frame(`<div><b>Notices</b></div><div class="card"><span class="tag info">PCSO Official</span> <b>${esc(x.title)}</b><div style="margin-top:6px">${body}</div><div class="tiny muted">${esc(x.eff || '')}${x.until ? ' → ' + esc(x.until) : ''}</div></div><div class="card tiny muted">Channel’s own notices appear below PCSO official notices.</div>`);
+}
+ACT.on139Pv = id => { const x = SEED.offNotices138.find(y => y.id === id); if (!x) return; openModal({ title: `Preview · ${x.id} ${x.ver}`, body: () => onPreviewHtml139(x) + '<p class="tiny muted">Read only. Channels show the content exactly as published; long text may wrap or expand, never be cut.</p>', noFoot: false, ok: E139('Close'), onOk: () => {} }); };
+ACT.on139PvForm = () => { const v = vals(); const d = onFrom139(v, S._onEdit139); const keep = S.modal; const back = { modal: keep, fv: Object.assign({}, S.fv) };
+  S._onPvBack139 = back; openModal({ title: 'Preview', body: () => onPreviewHtml139(Object.assign({ id: '-', ver: '-' }, d)), ok: E139('Back To Form'), onOk: () => { setTimeout(() => { S.modal = back.modal; S.fv = back.fv; S._skipSnap = true; render(); }, 0); } }); };
+function onDeclRows139(x) { return activeChannels().map(c => { const it = (SEED.declarations || []).filter(d => d.channel === c.code).flatMap(d => (d.items || []).filter(i => i.domain === 'Official Information' && i.object === x.id).map(i => Object.assign({ decl: d.id }, i))).slice(-1)[0]; return { id: c.code, ch: c.code, res: x.res139 && x.res139[c.code], decl: it }; }); }
+(function onView139() {
+  const v0 = onView138;
+  onView138 = function () {
+    let h = v0();
+    h = h.replace(/(<button[^>]*data-act="on138Open" data-a="([^"]+)"[^>]*>[\s\S]*?<\/button>)/g, (s, a, id) => { const add = [btn(E139('Preview'), 'on139Pv', id, { cls: 'sm' })]; const dr = SEED.offNotices138.find(y => y.id === id && y.status === 'Draft');
+      if (dr && can('Terms Of Service', 'C')) add.push(btn(E139('Edit'), 'on139Edit', id, { cls: 'sm', id: 'btnOnEdit_' + id }), btn(E138('Submit change request'), 'on139Edit', id, { cls: 'sm primary' })); if (dr && dr.by === me()) add.push(btn(E139('Delete'), 'on139Del', id, { cls: 'sm danger' })); return a + ' ' + add.join(' '); });
+    return h;
+  };
+  const o0 = ACT.on138Open;
+  ACT.on138Open = id => { o0(id); const x = SEED.offNotices138.find(y => y.id === id); const D = S.drawer; if (!x || !D) return; const b0 = D.body;
+    D.body = () => b0() + '<h4>Channel Execution Results</h4>' + table('onRes139', [{ h: 'E-Channel', k: 'ch' }, { h: 'Execution Result', r: r => r.res ? `${badge(r.res.state, r.res.state === 'Executed' ? 'ok' : 'warn')} <span class="tiny">${esc(r.res.at)}</span>` : (x.status === 'Current' || x.status === 'Scheduled' ? badge('Awaiting', 'warn') : '-') },
+      { h: 'Declared Version', r: r => r.decl ? `${esc(r.decl.ch)} <span class="tiny">${esc(r.decl.decl)}</span>` : (r.res && r.res.state === 'Executed' ? esc(x.ver) : '-') }, { h: 'Comparison', r: r => r.decl ? badge(r.decl.core === r.decl.ch ? 'Consistent' : 'Deviation · ' + r.decl.sev, r.decl.core === r.decl.ch ? 'ok' : 'warn') : '-' }], onDeclRows139(x), { nopage: true })
+      + (['Current', 'Scheduled'].includes(x.status) ? `<div style="margin-top:6px">${btn(E139('Simulate channel execution'), 'on139Exec', x.id, { cls: 'sm', dev: true, id: 'btnOnExec139' })} ${btn(E139('Simulate declaration mismatch (EC2)'), 'on139Decl', x.id, { cls: 'sm', dev: true, id: 'btnOnDecl139' })}</div>` : '');
+    D.foot = () => btn(E139('Preview'), 'on139Pv', x.id) + ' ' + btn(E138('Close'), 'closeDrawer'); render(); };
+  const ok0 = ACT.on138Ok; ACT.on138Ok = id => { ok0(id); const x = SEED.offNotices138.find(y => y.id === id); if (x) x.res139 = x.res139 || {}; };
+})();
+ACT.on139Exec = id => { const x = SEED.offNotices138.find(y => y.id === id); x.res139 = x.res139 || {}; activeChannels().forEach(c => { if (!x.res139[c.code]) x.res139[c.code] = { state: 'Executed', at: nowS() }; }); audit('Terms Of Service', 'Channel execution results received', x.id, `${onExec139(x)} channels`); toast('Execution results received.'); render(); };
+ACT.on139Decl = id => { const x = SEED.offNotices138.find(y => y.id === id); const prevV = 'v' + Math.max(0, (+String(x.ver).slice(1)) - 1); const d = { id: nid('CD-EC2'), channel: 'EC2', trigger: 'Daily', submittedAt: nowS(), against: `Official Information ${x.id} ${x.ver}`, result: 'Deviations', items: [{ domain: 'Official Information', object: x.id, field: 'Version', core: x.ver, ch: prevV, sev: 'Medium', status: 'Open' }] }; SEED.declarations.unshift(d); audit('Configuration Declarations', 'Configuration deviation', 'EC2', `${x.id} · Core ${x.ver} / EC2 ${prevV} · Medium`); toast('EC2 declared an older version. Configuration deviation recorded (Medium).', 'warn'); render(); };
+
+/* =====================================================================
+ * O. Pool Sales Basis of the version in force at the draw closure (6A.6.1)
+ * ===================================================================== */
+function sfAt139(at) { const L = (SEED.sfVersions || []).filter(v => !['Pending Approval', 'Rejected', 'Withdrawn'].includes(v.status) && String(v.effFrom || '').slice(0, 10) && String(v.effFrom).slice(0, 10) <= String(at).slice(0, 10)).sort((a, b) => String(a.effFrom).localeCompare(String(b.effFrom))); return L.slice(-1)[0] || null; }
+function closeAt139(d) { return d && (((d.closure || {}).establishedAt) || d.cutoff || ''); }
+(function pool139() {
+  const p0 = poolSales138;
+  poolSales138 = function (d) { const at = closeAt139(d); const v = at ? sfAt139(at) : null; if (!v) return p0(d); sfSeed138(); const gross = drSales137(d); const p = v.p || {};
+    if (p.poolBasis !== 'Net of DST') return gross; const r = (+p.dstRate || 0) / 100; const dst = p.dstBasis === 'Tax-Inclusive' ? Math.round(gross / (1 + r) * r * 100) / 100 : Math.round(gross * r * 100) / 100; return Math.round((gross - dst) * 100) / 100; };
+  if (typeof drPrizeBody === 'function') { const b0 = drPrizeBody; drPrizeBody = function (c) { const h = b0(c); const d = c && c.d; const v = d && sfAt139(closeAt139(d)); return v ? h + `<p class="tiny" id="poolBasisAt139">Pool Sales Basis: ${esc((v.p || {}).poolBasis || 'Gross')} · settlement formula ${esc(v.v)} in force at the draw closure (${esc(String(closeAt139(d)).slice(0, 16))}).</p>` : h; }; }
+})();
+
+/* =====================================================================
+ * P. Wallet And Funds in the overview matrix + Data Domain filter; Restricted amounts for other roles
+ * ===================================================================== */
+(function walletRecon139() {
+  const f0 = filterBar;
+  filterBar = function (id, fields, right) { if (id === 'rcd' && Array.isArray(fields)) fields = fields.map(f => f.k === 'dom' && Array.isArray(f.opts) && !f.opts.includes(WALLET139) ? Object.assign({}, f, { opts: f.opts.concat([WALLET139]) }) : f);
+    if (id === 'onf' && Array.isArray(fields)) fields = fields.map(f => f.k === 'status' && Array.isArray(f.opts) && !f.opts.includes('Draft') ? Object.assign({}, f, { opts: ['All', 'Draft'].concat(f.opts.filter(o => o !== 'All')) }) : f);
+    return f0(id, fields, right); };
+  R134_COLS.rcOv = cols => { const i = colIdx(cols, 'Re-sync'); const SEV = ['Critical', 'High', 'Medium', 'Low']; const tone = { Critical: 'bad', High: 'bad', Medium: 'warn', Low: 'info' };
+    const col = { h: WALLET139, r: c => { const ds = SEED.divergences.filter(d => d.channel === c.code && String(d.dom).replace('\u200b', '') === WALLET139 && !['Resolved', 'Closed By Adjustment', 'Closed As Exception'].includes(d.pst)); if (!ds.length) return `<button class="m4-cell" data-act="rcCell" data-a="${c.code}|${WALLET139}">0</button>`; const top = SEV.find(s => ds.some(d => d.sev === s)); return `<button class="m4-cell" data-act="rcCell" data-a="${c.code}|${WALLET139}" data-wallet139="1">${badge(ds.filter(d => d.sev === top).length + ' ' + top, tone[top])}</button>`; } };
+    if (!cols.some(c => c.h === WALLET139)) cols.splice(i < 0 ? cols.length : i, 0, col); return cols; };
+  const m = modById('recon'); if (!m) return; const v0 = m.view;
+  m.view = () => { if (walletSee138()) return v0(); const keep = SEED.divergences; SEED.divergences = keep.map(d => d.dom === WALLET139 ? Object.assign({}, d, { dom: WALLET139 + '\u200b', domain: WALLET139 + '\u200b', fields: (d.fields || []).map(f => ({ f: f.f, core: 'Restricted', ch: 'Restricted' })), core: 'Restricted', ch: 'Restricted', tl: (d.tl || []).map(x => Object.assign({}, x, { note: String(x.note || '').replace(/-?₱[\d,]+(\.\d{2})?/g, 'Restricted') })) }) : d); try { return v0(); } finally { SEED.divergences = keep; } };
+})();
+(function walletFilter139() { const m = modById('recon'); if (!m) return; const v0 = m.view; m.view = () => { const f = S.f.rcd; const want = f && f.dom === WALLET139 && !walletSee138(); if (want) f.dom = WALLET139 + '\u200b'; try { return v0(); } finally { if (want) f.dom = WALLET139; } }; })();
+
+/* =====================================================================
+ * Q. Personnel Type change by access change request
+ * ===================================================================== */
+(function pers139() {
+  const f0 = formHtml;
+  formHtml = function (fields, o) {
+    if (Array.isArray(fields) && S.drawer && S.drawer.edit && fields.some(f => f && f.k === 'u_roles') && !fields.some(f => f && f.k === 'u_personnel')) { const u = userById(S.drawer.edit); if (u) { if (S.fv && S.fv.u_personnel == null) S.fv.u_personnel = u.personnel || 'PCSO Staff'; fields = fields.slice(); fields.splice(fields.findIndex(f => f && f.k === 'u_roles'), 0, { k: 'u_personnel', zh: '', en: 'Personnel Type', ctl: 'radio', req: true, opts: PERSONNEL_138, hint: { zh: '', en: 'A change is submitted for approval like any other account change.' } }); } }
+    return f0(fields, o);
+  };
+  const v0 = usrValidate;
+  usrValidate = function (v, u) { const e = v0(v, u); if (u) { if (e.u_roles === MSG_PERSONNEL_138) delete e.u_roles; if (!e.u_roles && !empty(v.u_roles)) { const pe = personnelErr138(PERSONNEL_138.includes(v.u_personnel) ? v.u_personnel : (u.personnel || 'PCSO Staff'), v.u_roles); if (pe) e.u_roles = pe; } } return e; };
+  const m = modById('users'); if (!m || !m.acts || !m.acts.usrSave) return; const s0 = m.acts.usrSave;
+  m.acts.usrSave = () => { const v = vals(); const u = S.drawer && S.drawer.edit ? userById(S.drawer.edit) : null; const pt = u && PERSONNEL_138.includes(v.u_personnel) ? v.u_personnel : null; const cur = u ? (u.personnel || 'PCSO Staff') : '';
+    if (!u || !pt || pt === cur) return s0();
+    if (setErr(usrValidate(v, u))) return;
+    const before = new Set(SEED.accessChanges); const t0 = S.lastToast; s0(); const ac = SEED.accessChanges.find(a => !before.has(a));
+    if (ac) { ac.payload.fields = Object.assign({}, ac.payload.fields || {}, { personnel: pt }); ac.before = `personnel: ${cur} · ${ac.before}`; ac.after = `personnel: ${pt} · ${ac.after}`; ac.type = 'Edit Account'; return; }
+    const ac2 = acNew('Edit Account', u.id, `personnel: ${cur}`, `personnel: ${pt}`, { fields: { personnel: pt }, roles: null }, String(v.u_note || '').trim()); closeDrawer(); toast(`Submitted ${ac2.id}. Another Portal Administrator must approve it.`); };
+})();
+
+/* =====================================================================
+ * R. 6A.2.5 rule 7: prize claims release submitters
+ * ===================================================================== */
+const MSG_REL139 = 'A prize claims release is submitted by Network Operations, Finance/Reporting, or a template or custom role with Channel Control · Create.';
+function relSubmitter139(u = S.user) { return !!u && (u.roles || []).some(id => id === 'nop' || id === 'finrep' || (['Template', 'Custom'].includes(roleType139(id)) && (rolePerms(id)['Channel Control'] || '').includes('C'))); }
+(function rel139() {
+  const s0 = submitAuth;
+  submitAuth = function (o) { if (o && o.payload && o.payload.cashRelease && !relSubmitter139()) { toast(MSG_REL139, 'err'); audit('Channel Control', 'Prize claims release refused', o.target, MSG_REL139, 'Rejected'); return null; } return s0(o); };
+  const f0 = openSuspForm;
+  openSuspForm = function (code) { f0(code); const ch = chByCode(code); if (!S.modal || suspMode138(ch) !== 'cash' || relSubmitter139()) return; const b0 = S.modal.body; S.modal.body = () => b0() + `<div class="hint red" id="relDeny139">${esc(MSG_REL139)}</div>`; render(); };
+})();
+
+/* boot: first tick after every module has initialised */
+(function boot139() { const b0 = boot; boot = function () { b0(); S._booted139 = true; adjTick139(); render(); }; })();
+/* module views captured by reference before this file */
+(function views139() { const m = modById('intreg'); if (m) m.view = intView137; const cm = modById('cases'); if (cm) { const v0 = cm.view; cm.view = () => S.sub === 'escalation' ? subTabs(cm) + escView137() : v0(); } })();
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
