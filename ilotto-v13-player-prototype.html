@@ -4806,6 +4806,62 @@ function panelPf(){const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?`
 {const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
  const old=el.querySelector('[data-vpf]');if(old)old.remove();const v=el.querySelector('[data-v138]')||el.querySelector('[data-v137c]');const html=`<div data-vpf="1">${panelPf()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
 render();
+/* ===== PRD follow-up, player side (batch139/proto.md, player part) =====
+   Loaded after p7z4_fill.js (build.sh). Default state = previous behaviour, except that an unfederated player's local
+   self-exclusion that reaches its end date no longer sends the expiry message.
+     6B.2.4 rule 6 / 6B.5.4  unfederated player (no unique player ID): the local self-exclusion turns Expired - Awaiting
+                      Reinstatement at the local end date and stays restricted; MSG_SELF_EXCLUSION_EXPIRED is NOT sent, the
+                      state is shown in PlaySafe only; the request to resume play waits for the Core registration. After
+                      federation iLotto submits the exclusion to Core as expired; MSG_SELF_EXCLUSION_EXPIRED is sent when the
+                      Core expiry notice (with the earliest application date) arrives, once per exclusion.
+     6B.3.3 rule 6 / 6B.4.2 rule 5 (3) / 6B.4.5  demo: Core voids a ticket excluded from the draw whose prize iLotto had
+                      already credited (iLotto error): ticket Voided (Excluded from this draw by PCSO), the bet refunded the
+                      way it was paid, the credited prize reversed from the prize balance only, down to 0.00 (Prize Reversal,
+                      "Adjusted because this ticket was voided."), MSG_PRIZE_BALANCE_ADJUSTED; what cannot be reversed is
+                      borne by iLotto and never deducted later (not a late-recovery type).
+     6B.4.3           deposits: unchanged (cool-off and KYC re-check already block deposits on the player side).
+   Panel section [data-v139] after the fill section. */
+(function(){const st=document.createElement('style');st.textContent='#panel [data-v139] h4{margin-top:10px}';document.head.appendChild(st)})();
+const MSG_SXEXP139='Your self-exclusion period has ended. Your account stays restricted until PCSO approves your request to resume play. You can apply in PlaySafe.';
+const MSG_SXFED139='You can apply to resume play once your identity check is complete.';
+const P139=()=>S.v139||(S.v139={});
+/* the expiry message is muted only inside the local-expiry call below (placeholder keeps nfV13 from tagging an older message) */
+{const _an=addNotif;addNotif=function(ic,zh,en){if(S.sxMute139&&en==='Self-exclusion period ended'){S.notifs.unshift({tmp139:1,pushed:1});return}return _an.apply(this,arguments)}}
+{const _ex=A.exclExp;A.exclExp=function(){const e=S.excl;
+ if(e&&!e.pcso&&!e.perm&&!e.expired&&e.local){S.sxMute139=1;try{_ex.apply(this,arguments)}finally{S.sxMute139=0;S.notifs=S.notifs.filter(n=>!n.tmp139)}
+  if(e.expired){e.exp139='local';v13Audit('local-self-exclusion-ended-no-message');toast('Local self-exclusion ended → Expired – Awaiting Reinstatement (restriction stays; no message, shown in PlaySafe)');render()}return}
+ if(e&&!e.pcso&&e.expired&&!e.local&&e.exp139==='submitted'){e.exp139='sent';e.ri137={st:'none',from:S.clock+RI_GAP137*DAY137};
+  nfV13('shield','Self-exclusion period ended',MSG_SXEXP139,'MSG_SELF_EXCLUSION_EXPIRED','playsafe');v13Audit('core-expiry-notice-after-federation');
+  toast('Core: expired self-exclusion registered → MSG_SELF_EXCLUSION_EXPIRED sent');render();return}
+ return _ex.apply(this,arguments)}}
+/* federation: the local exclusion is submitted to Core with its local end date; an expired one is registered as expired */
+{const _r=render;render=function(){const e=S.excl;if(S.upid&&e&&e.local&&e.expired&&e.exp139==='local'){e.exp139='submitted';v13Audit('self-exclusion-submitted-to-core-as-expired')}return _r.apply(this,arguments)}}
+/* before the Core registration the request to resume play cannot be started */
+{const _rs=A.riStart137;A.riStart137=function(){const e=S.excl;if(e&&!e.pcso&&e.expired&&(e.local||e.exp139==='local'||e.exp139==='submitted'))return toast(MSG_SXFED139);return _rs.apply(this,arguments)}}
+{const _ps=SC.playsafe.html;SC.playsafe.html=function(){let h=_ps.apply(this,arguments);const e=S.excl;if(!S.logged||!e||e.pcso||!e.expired||!(e.local||e.exp139==='local'||e.exp139==='submitted'))return h;
+ const tp=document.createElement('template');tp.innerHTML=h;const c=tp.content.querySelector('#ri_card137');if(!c)return h;
+ c.querySelectorAll('#ri_go137').forEach(b=>b.remove());const m=c.querySelector('.mu.sm');if(m)m.textContent='Your self-exclusion period has ended. Your account stays restricted. '+MSG_SXFED139;
+ c.setAttribute('data-v139','sx-local');return tp.innerHTML}}
+
+/* Core: excluded ticket voided although iLotto had already credited its prize */
+A.v139ExclPaid=()=>{if(!S.logged)seedDemo();const k=autoWon()[0];if(!k)return toast('No auto-credited winning ticket left to void.');
+ const net=r2(k.res?k.res.net:k.prize-taxOf(k.prize));k.st='await';voidAs(k,'excl');tick(5);
+ const take=Math.min(S.bal.prize,net),lost=r2(net-take);S.bal.prize=r2(S.bal.prize-take);if(take>0)adjTx133(k,-take,NOTE_VOID);
+ k.prize=0;k.tier='';k.res=null;k.adj='Excluded with prize credited';k.adjLoss=0;k.borne139=lost;pba();
+ v13Audit('core-excluded-transaction-void-prize-reversed');P139().ex={id:k.id,net,take,lost};
+ toast('Core: ticket excluded from the draw · voided and refunded; credited prize reversed '+fm2(take)+(lost>0?' ('+fm2(lost)+' borne by iLotto)':''));render()};
+
+/* demo setup for the local self-exclusion */
+A.sxLocal139=()=>{if(!S.logged)seedDemo();S.upid='';S.kyc='checking';S.excl={label:'3 months',perm:false,expired:false,req:false,rej:'',endTs:S.clock+1000,channel:'ILT',startTs:S.clock,local:1};v13Audit('self-exclusion-local-only');A.reset('kycStatus');A.go('playsafe')};
+A.sxFed139=()=>{if(!S.excl||!S.excl.expired)return toast('Let the local self-exclusion end first.');S.kyc='approved';S.upid=(typeof V13!=='undefined'&&V13.upidOld)||'UP-000104482';S.fed='Federated';render();toast('Identity check complete · unique player ID received');A.go('playsafe')};
+function panel139(){const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;const e=S.excl||{};
+ return `<h4>Self-exclusion of an unfederated player</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Local self-exclusion, identity check in progress (Demo data)','A.sxLocal139()',e.local&&!e.expired,'v139_sx')}${pb('Local end date reached','A.exclExp()',e.exp139==='local','v139_sx_end')}${pb('Identity check complete (federated)','A.sxFed139()',e.exp139==='submitted','v139_sx_fed')}${pb('Core: Expired – Awaiting Reinstatement notice','A.exclExp()',e.exp139==='sent','v139_sx_core')}</div>
+<div class="xs" style="color:#666;margin:4px 0">No expiry message at the local end date; the state is shown in PlaySafe. After federation the message is sent once, when Core's notice arrives.</div>
+<h4>Excluded ticket with a credited prize</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Core: excluded ticket voided, prize already credited (iLotto error)','A.v139ExclPaid()',!!P139().ex,'v139_expaid')}</div>
+<div class="xs" style="color:#666;margin:4px 0">Bet refunded the way it was paid; prize reversed from the prize balance only; the rest is borne by iLotto and is not deducted later.</div>`}
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-v139]');if(old)old.remove();const v=el.querySelector('[data-vpf]')||el.querySelector('[data-v138]');const html=`<div data-v139="1">${panel139()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
 </script>
 </body>
 </html>

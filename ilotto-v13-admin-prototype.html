@@ -18966,6 +18966,243 @@ function vfClick(e) {
 window.addEventListener("click", vfClick, true);
 if (!S.authed) render();
 /* ===== V13-13F3 END ===== */
+/* ===== V13-139 block: PRD 1.3.9 follow-up on the iLotto admin (6B.7.4, 6B.8.3, 6B.9.2, 6B.11.4, 6B.14.2, 6B.14.5) =====
+   Injected by patch_v139.py right after the V13-13F3 block. Acts start with "v139-" (window capture listener at the end). State S.v139.
+     6B.8.3   Back office deposit (PC237): Create Deposit Request is also blocked while the player is in a cool-off period or restricted
+              pending KYC re-verification (same block as wallet frozen / exclusion; an exclusion in effect or awaiting reinstatement
+              now blocks too); a request whose player enters one of these states while pending is blocked at approval (Finance
+              review or PCSO Approver) with the reason.
+     6B.8.3   Wallet status (PC236): the status before a freeze is recorded; unfreeze returns to it: Withdrawal Hold while the SOAR
+              post-action review is open or kept, Normal when the review lifted the hold during the freeze. The post-action review can
+              keep or lift a hold while the wallet is frozen (lifting clears the hold only, Frozen stays). Withdrawal Hold is not a
+              closure / deletion pre-check blocker. When the account is closed or marked for deletion by Core, its open post-action
+              reviews close automatically with the conclusion Account Closed (audited).
+     6B.9.2   Exclusions (PC239): Initiated By shows ILT / Other Channel / PCSO only (inferred: PCSO-imposed = PCSO, submitted through
+              iLotto incl. local rows = ILT, other self-exclusions = Other Channel); the filter uses the same inference; note that a
+              Local only exclusion sends no expiry message at its local end date (sent once after federation, on the Core notice).
+     6B.14.2  Automatic Full Suspension (PC242-1): initially allows neither withdrawals nor prize claims; only a Cash Bond Not
+              Replenished suspension can get prize claims allowed.
+     6B.11.4  Gateway settlements (PC242-2): data source = payment hub T+1 reconciliation file, newly connected in this release and
+              dependent on the payment team.
+     6B.3.3 rule 6 / 6B.7.4 / 6B.14.5  demo: Excluded Transactions Void for a ticket whose prize iLotto had already credited (iLotto
+              error, PRD example): ticket Voided, bet refunded, Void reported, Prize Reversal from the prize balance down to 0.00, the
+              rest borne by iLotto (not reported to Core as a recovery), directive receipt Executed (not Failed), Critical local report
+              (Prize Claims), a P1 to-do for Finance review, and a Prize balance adjustments card on Transactions > Prize payments;
+              the result adjustment note says such a ticket is not reversed again (6B.7.4 Voided row).
+   UI text is English only; demo values are marked Demo data. */
+S.v139 = { f: {}, err: "", cool: {}, ex: null, seq: 0 };
+function v9Btn(act, label, opt) { opt = opt || {}; return `<button type="button" class="btn btn-sm ${opt.cls || ""}" style="width:auto;flex:none" data-act="${act}"${opt.id != null ? ` data-id="${esc(opt.id)}"` : ""}${opt.arg != null ? ` data-arg="${esc(opt.arg)}"` : ""}${opt.dis ? ` disabled title="${esc(opt.dis)}"` : ""} data-v139="${opt.dv || act}">${label}</button>`; }
+function v9Now() { return v7Now(); }
+function v9Pl(id) { return S.players.find((x) => x.id === id); }
+
+/* =====================================================================================================
+   6B.8.3 back office deposit: cool-off and KYC re-verification block it too
+   ===================================================================================================== */
+function v9CoolOn(p) {
+  if (!p) return false;
+  if (S.v139.cool[p.id]) return true;
+  const m = String(p.cool || "").match(/(\d{4}-\d\d-\d\d \d\d:\d\d)/);
+  return !!(m && m[1] > v9Now());
+}
+function v9ExclOn(p) { return !!(p && S.v13 && S.v13.excl && S.v13.excl.some((e) => e.player === p.id && (e.st === "In Effect" || /Awaiting Reinstatement/.test(e.st)))); }
+const v9BodBlock0 = v7BodBlock;
+v7BodBlock = function (p) {
+  const r = v9BodBlock0.apply(this, arguments); if (r) return r;
+  if (v9ExclOn(p)) return "The player has an exclusion in effect.";
+  if (v9CoolOn(p)) return "The player is in a cool-off period.";
+  if (p.rekyc) return "The player is restricted pending KYC re-verification.";
+  return "";
+};
+const v9BodModal0 = v7BodModal;
+v7BodModal = function () {
+  return v13Tpl(v9BodModal0.apply(this, arguments), (c) => {
+    const p = c.querySelector("p.tiny"); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v139="bod-block">It cannot be submitted while the player's wallet is frozen, the player is suspended or restricted by Core, has an exclusion, is in a cool-off period or is restricted pending KYC re-verification, or while Core has suspended deposits. The money stays in the designated account until the restriction ends; then create the request with the same bank reference and credited date.</span>`);
+  });
+};
+
+/* =====================================================================================================
+   6B.8.3 wallet status: freeze during a Withdrawal Hold returns to the status before the freeze
+   ===================================================================================================== */
+function v9Back(p) { return S.v137.hold && S.v137.hold[p.id] ? "Withdrawal Hold" : "Normal"; }
+const v9ApplyWf0 = rsApplyWf;
+rsApplyWf = function (c) {
+  const p = v9Pl(c.wf && c.wf.player);
+  const before = p ? v8WalletSt(p) : "";
+  const r = v9ApplyWf0.apply(this, arguments);
+  if (!p) return r;
+  if (c.wf.op === "freeze") { p.v139pre = before; if (before === "Withdrawal Hold") v7Aud("Players", "Status before freeze recorded", p.id, "Withdrawal Hold", "Frozen · returns to Withdrawal Hold on unfreeze unless the post-action review lifts the hold", "Security"); }
+  else { const back = v8WalletSt(p); if (p.v139pre === "Withdrawal Hold" || back === "Withdrawal Hold") v7Aud("Players", "Wallet status after unfreeze", p.id, "Frozen", back + (p.v139pre === "Withdrawal Hold" && back === "Normal" ? " · hold lifted by the post-action review during the freeze" : " · status before the freeze"), "Security"); p.v139pre = ""; }
+  return r;
+};
+const v9WalletLine0 = rsWalletLine;
+rsWalletLine = function (p) {
+  const h = v9WalletLine0.apply(this, arguments);
+  if (!(p && p.wallet && p.wallet.st === "frozen" && S.v137.hold && S.v137.hold[p.id])) return h;
+  return v13Tpl(h, (c) => { const el = c.querySelector("[data-wf=status]"); if (el) el.insertAdjacentHTML("beforeend", `<br><span class="muted" data-v139="wst-back">Withdrawal Hold is kept under the freeze: unfreezing returns the wallet to Withdrawal Hold unless the SOAR post-action review lifts the hold first.</span>`); });
+};
+function v9SoarHold(p) {
+  const id = "SOAR-" + a2Ymd(v9Now()) + "-09" + String(++S.v139.seq).padStart(2, "0");
+  S.v137.hold = S.v137.hold || {}; S.v137.hold[p.id] = true;
+  S.v137.soarLog.unshift({ at: v9Now(), player: p.id, action: "Withdrawal Hold", mode: "Automatic", res: "Executed", ref: id });
+  vfSoar().unshift({ id, at: v9Now(), obj: p.id, kind: "player", action: "Withdrawal Hold", pb: "PB-ATO-01 v3", alert: "SEC-" + a2Ymd(v9Now()) + "-0139", st: "Awaiting Post-Action Review", dec: "", by: "", note: "", v139: 1 });
+  v7Aud("Players", "Wallet status changed by System (SOAR)", p.id, v8WalletSt(p) === "Frozen" ? "Frozen" : "Normal", "Withdrawal Hold · Automatic · " + id, "Security");
+}
+/* open post-action reviews of a closed / deleted account close automatically */
+function v9Gone(p) { return !!(p && (p.status === "closed" || p.status === "deleted" || p.deleted)); }
+function v9SoarSweep() {
+  if (!S.v13f || !S.v13f.soar) return;
+  S.v13f.soar.forEach((s) => {
+    if (s.kind !== "player" || s.st !== "Awaiting Post-Action Review") return;
+    const p = v9Pl(s.obj); if (!v9Gone(p)) return;
+    s.st = "Closed"; s.dec = "Closed"; s.by = "System"; s.note = "Account Closed"; s.v139closed = 1;
+    v7Aud("System", "SOAR post-action review closed", s.id + " · " + s.obj, "Awaiting Post-Action Review", "Closed · Account Closed", "Security");
+  });
+}
+const v9Render0 = render;
+render = function () {
+  try { v9SoarSweep(); } catch (e) { console.error(e); }
+  const r = v9Render0.apply(this, arguments);
+  /* 6B.7.4 "Voided" row: an excluded ticket whose prize was credited was reversed at the void already */
+  document.querySelectorAll("[data-v133=adj-note]").forEach((n) => { if (!n.querySelector("[data-v139=adj-ex]")) n.insertAdjacentHTML("beforeend", ` <span data-v139="adj-ex">A ticket voided as an excluded transaction whose prize had been credited (iLotto error) was already reversed when it was voided; what could not be reversed is borne by iLotto, not by PCSO, and it is not reversed again here.</span>`); });
+  return r;
+};
+const v9Player0 = viewPlayer0;
+viewPlayer0 = function (p) {
+  const h = v9Player0.apply(this, arguments); if (!p) return h;
+  return v13Tpl(h, (c) => {
+    const box = c.querySelector("[data-v137=pl-137] .row-actions"); if (!box) return;
+    const hold = S.v137.hold && S.v137.hold[p.id];
+    box.insertAdjacentHTML("beforeend", (hold ? "" : v9Btn("v139-hold", "Demo: SOAR Withdrawal Hold (Automatic)", { id: p.id })) + (v9Gone(p) ? tag("muted", p.deleted ? "Marked For Deletion By Core" : "Closed") : v9Btn("v139-del", "Demo: Core Marks The Account For Deletion", { id: p.id })));
+    const card = c.querySelector("[data-v137=pl-137]"); if (card) card.insertAdjacentHTML("beforeend", `<p class="tiny" data-v139="hold-note">${v13Demo()} Withdrawal Hold is not a closure or deletion pre-check blocker (a balance above ₱0.00 already blocks). When the account is closed or marked for deletion by Core, its open SOAR post-action reviews close automatically with the conclusion Account Closed.</p>`);
+  });
+};
+const v9SoarCard0 = vfSoarCard;
+vfSoarCard = function () {
+  const h = v9SoarCard0.apply(this, arguments); if (!h) return h;
+  return v13Tpl(h, (c) => {
+    const p = c.querySelector("p.tiny"); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v139="soar-note">Keep or Lift stays available while the wallet is frozen: Lift clears the hold only and the wallet stays Frozen; on unfreeze the wallet returns to Withdrawal Hold if the review is open or kept, and to Normal if the hold was lifted. Reviews of an account that is closed or marked for deletion by Core close automatically (Account Closed).</span>`);
+  });
+};
+
+/* =====================================================================================================
+   6B.9.2 exclusions: Initiated By = ILT / Other Channel / PCSO (inferred)
+   ===================================================================================================== */
+function v9By(e) { if (/PCSO/.test(e.type || "") || e.by === "PCSO") return "PCSO"; if (e.by === "ILT" || e.local) return "ILT"; return "Other Channel"; }
+const v9ExRows0 = v13ExclRows;
+v13ExclRows = function () {
+  const q = S.v13.exq, by = q.by;
+  if (!by || by === "all") return v9ExRows0.apply(this, arguments);
+  q.by = "all";
+  try { const want = by === "other" ? "Other Channel" : by; return v9ExRows0.apply(this, arguments).filter((e) => v9By(e) === want); } finally { q.by = by; }
+};
+const v9Excl0 = v13ViewExcl;
+v13ViewExcl = function () {
+  return v13Tpl(v9Excl0.apply(this, arguments), (c) => {
+    c.querySelectorAll("select[data-v13q='exq.by'] option").forEach((o) => { if (o.value === "other") o.textContent = "Other Channel"; });
+    const tb = [...c.querySelectorAll("table")].find((t) => [...t.querySelectorAll("thead th")].some((th) => th.textContent.trim() === "Initiated By")); if (!tb) return;
+    const k = [...tb.querySelectorAll("thead th")].findIndex((th) => th.textContent.trim() === "Initiated By");
+    tb.querySelectorAll("tbody tr[data-v13-excl]").forEach((tr) => { const e = S.v13.excl.find((x) => x.id === tr.dataset.v13Excl); const td = tr.children[k]; if (e && td) { td.textContent = v9By(e); td.setAttribute("data-v139", "excl-by"); } });
+    const note = c.querySelector(".card p.tiny:last-of-type") || c.querySelector(".card");
+    if (note) note.insertAdjacentHTML("beforeend", ` <span class="tiny" data-v139="excl-by-note">Initiated By is inferred from the exclusion source (Core notices do not carry it): PCSO-imposed exclusions (including a self-exclusion corrected to a PCSO-imposed one) show PCSO; self-exclusions submitted through iLotto (including local rows) show ILT; other self-exclusions show Other Channel. No channel code or PCSO staff account is shown. A Local only self-exclusion that reaches its local end date sends the player no expiry message; after federation the message is sent once, when the Core expiry notice arrives.</span>`);
+  });
+};
+
+/* =====================================================================================================
+   6B.14.2 Automatic Full Suspension wording; 6B.11.4 gateway settlements data source
+   ===================================================================================================== */
+const v9Dir0 = a2ViewDir;
+a2ViewDir = function () {
+  return v13Tpl(v9Dir0.apply(this, arguments), (c) => {
+    const p = c.querySelector("[data-v137=fs-card] p.tiny");
+    if (p) p.innerHTML = p.innerHTML.replace("Automatic Full Suspension (Cash Bond Not Replenished, Security Or Integrity Risk) arrives without allowances; during a Cash Bond Not Replenished suspension Core can send", "Automatic Full Suspension (Cash Bond Not Replenished, Security Or Integrity Risk) initially allows neither withdrawals nor prize claims; only when the reason code is Cash Bond Not Replenished can prize claims be allowed: Core can send");
+    const card = c.querySelector("[data-v137=fs-card]"); if (card) card.insertAdjacentHTML("afterend", v9ExCard());
+  });
+};
+const v9Gw0 = vfGwView;
+vfGwView = function () {
+  return String(v9Gw0.apply(this, arguments)).replace("matched from the payment hub T+1 file and the designated account bank statement", `matched from the payment hub T+1 reconciliation file <span data-v139="gw-src">(newly connected in this release; it depends on the payment team, which sets the file specification and delivery time)</span> and the designated account bank statement`);
+};
+
+/* =====================================================================================================
+   6B.3.3 rule 6 / 6B.7.4 / 6B.14.5 demo: Excluded Transactions Void with the prize already credited (iLotto error)
+   ===================================================================================================== */
+const V9_EX = { player: "PL-101774", stake: 20, credited: 4500, withdrawn: 3000 }; /* PRD example (6B.3.3 rule 6) */
+function v9ExCard() {
+  const x = S.v139.ex, ops = v7Is("ops", "finance", "admin") && !v7Pcso();
+  const body = x ? v13KV([
+    ["Directive", `<span class="mono" data-v139="ex-dir">${esc(x.dir)}</span> · Excluded Transactions Void · Execution Result ${tag("ok", "Executed")} <span class="tiny">(receipt sent on time; not reported as Failed)</span>`],
+    ["Ticket", `<span class="mono">${esc(x.no)}</span> · ${esc(x.player)} · ${tag("muted", "Voided")} · Excluded from this draw by PCSO`],
+    ["Bet Refund", `<span class="mono" data-v139="ex-refund">${peso2(x.stake)}</span> refunded the way it was paid · Void reported <span class="mono">${esc(x.ref)}-V</span> −${peso2(x.stake)}`],
+    ["Prize Reversal", `<span class="mono" data-v139="ex-rev">${peso2(x.rev)}</span> from the prize balance (to ₱0.00; the betting balance is not touched) · "Adjusted because this ticket was voided."`],
+    ["Not Recovered", `<span class="mono" data-v139="ex-loss">${peso2(x.loss)}</span> borne by iLotto · not reported to Core as a recovery, not counted as borne by PCSO, never deducted after a rejected withdrawal`],
+    ["Local Report", `<span class="mono" data-v139="ex-lr">${esc(x.lr)}</span> · ${tag("rose", "Critical")} · Prize Claims · P1 to-do for Finance review; Core opens a case to find the cause`]
+  ]) : `<p class="tiny">No demo run yet.</p>`;
+  return `<div class="card" data-v139="ex-card" style="margin-top:10px"><div class="page-h" style="margin-bottom:4px"><h4 style="margin:0">Excluded ticket with a credited prize ${v13Demo()}</h4>${x ? "" : v9Btn("v139-ex", "Demo: Excluded Transactions Void For A Ticket With A Credited Prize", { dis: ops ? "" : "Operations, Finance review or System admin only." })}</div>
+    <p class="tiny">A ticket removed from the closure record is never paid, so a prize found credited when Core voids it is an iLotto error. The ticket is voided as usual, the bet is refunded the way it was paid and a Void is reported per ticket; the directive is executed on time and not reported as failed. The credited prize is reversed from the prize balance only, down to ₱0.00 (Prize Reversal); what cannot be reversed is borne by iLotto. If the prize claim record was already rejected by Core and is under prize claim review, this reversal counts and is not repeated. A Critical local report (Prize Claims) is raised automatically. PRD example: bet ₱20.00, prize ₱4,500.00 credited, ₱3,000.00 already withdrawn, prize balance ₱1,500.00.</p>${body}</div>`;
+}
+function v9ExRun() {
+  const p = v9Pl(V9_EX.player); if (!p) return;
+  const base = S.tickets.find((t) => t.game === "g655") || S.tickets[0];
+  const no = "TKT20261012013900", ref = "ILT-" + no, now = v9Now(), ymd = a2Ymd(now);
+  const bal = V9_EX.credited - V9_EX.withdrawn, rev = Math.min(bal, V9_EX.credited), loss = Math.round((V9_EX.credited - rev) * 100) / 100;
+  S.tickets.unshift(Object.assign({}, base, { no, order: "BO" + ymd + "00000000139", player: p.id, st: "void", price: V9_EX.stake, amt: V9_EX.stake, prize: null, paid: null, claim: "N/A", v139: 1 }));
+  S.refunds.unshift({ id: "TXN" + ymd + "000139", time: now, player: p.id, ticket: no, bet: V9_EX.stake, prize: 0, zh: "Excluded from this draw by PCSO", en: "Excluded from this draw by PCSO", term: base.term || "", game: base.game });
+  p.cash = (p.cash || 0) + V9_EX.stake; p.prize = 0;
+  const dir = "DIR-" + ymd + "-000139", t0 = btMs(now + ":00");
+  const issued = btFmt(t0), recv = btFmt(t0 + 2000), execAt = btFmt(t0 + 4000);
+  S.v13a2.dirs.unshift(Object.assign({ reason: "", by: "core.sa01", players: [], detail: "", fail: "", handler: "System", mode: "auto", sub: "", round: 0, ackHist: [] }, { id: dir, type: "Excluded Transactions Void", sum: "1 excluded transaction · " + ref + " · " + base.issue, reason: "Late transaction removed from the closure record", issued, recv, deadline: btFmt(t0 + 24 * 3600000), exec: "Executed", execAt, ack: "Sent " + execAt.slice(11, 16), ackHist: [[recv, "Receipt confirmation sent"], [execAt, "Execution acknowledgment sent"]], detail: "Ticket voided and refunded " + peso2(V9_EX.stake) + "; Void reported. The prize credited before the void (iLotto error) was reversed " + peso2(rev) + "; " + peso2(loss) + " not recovered, borne by iLotto. Demo data" }));
+  const lr = "LR-ILT-" + ymd + "-0139";
+  S.v13a2.lrep.push({ id: lr, dom: "Prize Claims", obj: ref, desc: "Prize already credited when the ticket was voided as an excluded transaction (iLotto error): reversed " + peso2(rev) + ", not recovered " + peso2(loss) + " borne by iLotto", at: now, by: "System", div: "", sev: "Critical", v139: 1 });
+  S.v139.ex = { at: now, dir, no, ref, player: p.id, stake: V9_EX.stake, rev, loss, lr, todo: true };
+  v7Aud("Transactions", "Void and refund (Excluded Transactions Void)", ref, "Won · prize credited", "Voided · refunded " + peso2(V9_EX.stake) + " · Void reported");
+  v7Aud("Transactions", "Prize Reversal · Adjusted because this ticket was voided.", ref + " · " + p.id, peso2(bal), peso2(rev) + " reversed · not recovered " + peso2(loss) + " borne by iLotto");
+  v7Aud("Core integration", "Report local inconsistency (system)", lr, "-", "Prize Claims · Critical · " + ref);
+}
+const v9PP0 = viewPrizePay;
+viewPrizePay = function () {
+  const h = v9PP0.apply(this, arguments), x = S.v139.ex; if (!x) return h;
+  const t = S.tickets.find((k) => k.no === x.no) || {};
+  return h + `<div class="card" data-v139="pp-rev" style="margin-top:12px"><h4>Prize balance adjustments ${v13Demo()}</h4>${table(["Time", "Player", "Transaction Reference", "Draw ID", "Type", "Amount", "Note"], [`<tr><td class="mono">${esc(x.at)}</td><td class="mono">${esc(x.player)}</td><td class="mono">${esc(x.ref)}</td><td class="mono">${esc(t.issue || "-")}</td><td>${tag("rose", "Prize Reversal")}</td><td class="mono amt">−${peso2(x.rev)}</td><td class="tiny">Adjusted because this ticket was voided. Prize balance only, down to ₱0.00; not recovered ${peso2(x.loss)} borne by iLotto (not reported to Core as a recovery).</td></tr>`])}</div>`;
+};
+window.vfMoreTodos = (window.vfMoreTodos || []).concat([function (add) {
+  const x = S.v139.ex; if (!x || !x.todo) return;
+  add(["finance"], "v139-go-lr", "", "Prize credited on an excluded ticket (iLotto error)", x.ref + " · reversed " + peso2(x.rev) + " · " + peso2(x.loss) + " borne by iLotto · Critical local report " + x.lr, "P1");
+}]);
+
+/* =====================================================================================================
+   clicks
+   ===================================================================================================== */
+function v9Click(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  /* legacy acts already handled by earlier listeners: react to the outcome */
+  if (act === "v137-fin-appr") {
+    const p = S.v137.pa.find((x) => x.id === id);
+    if (p && p.link && p.link.kind === "bod" && p.stage === "pcso" && p.st !== "Rejected") {
+      const b = S.v137.bod.find((x) => x.id === p.link.id), bl = b ? v7BodBlock(v9Pl(b.player)) : "";
+      if (bl) { p.st = "Rejected"; p.rej = "Blocked at approval: " + bl; b.st = "Rejected"; v7Aud("Transactions", "Back office deposit blocked at approval", b.id + " · " + b.player, "Pending Finance Review", "Rejected · " + bl); toast("Blocked at approval: " + bl); render(); }
+    }
+    return;
+  }
+  if (act === "v13f-soar-rev-ok") {
+    const s = (S.v13f.soar || []).find((x) => x.id === id);
+    if (s && s.kind === "player" && s.action === "Withdrawal Hold" && s.st === "Lifted" && S.v137.hold && S.v137.hold[s.obj]) {
+      const p = v9Pl(s.obj), fr = p && p.wallet && p.wallet.st === "frozen";
+      delete S.v137.hold[s.obj];
+      v7Aud("Players", "Withdrawal Hold lifted (post-action review)", s.obj, fr ? "Frozen (hold kept under the freeze)" : "Withdrawal Hold", fr ? "Frozen · unfreeze returns to Normal" : "Normal", "Security");
+      render();
+    }
+    return;
+  }
+  if (!act || act.indexOf("v139-") !== 0) return;
+  e.stopPropagation(); e.preventDefault(); if (el.disabled) return;
+  if (act === "v139-hold") { const p = v9Pl(id); if (p) v9SoarHold(p); toast("System (SOAR) set Withdrawal Hold (Automatic). Finance review gets a post-action review."); render(); return; }
+  if (act === "v139-del") { const p = v9Pl(id); if (!p) return; p.deleted = true; v7Aud("Players", "Marked for deletion by Core (Demo)", p.id, "Active", "Marked For Deletion By Core"); toast("Core marked the account for deletion (Demo data)."); render(); return; }
+  if (act === "v139-ex") { if (S.v139.ex) return; v9ExRun(); toast("Excluded Transactions Void executed: ticket voided and refunded, prize reversed, Critical local report raised."); render(); return; }
+  if (act === "v139-go-lr") { const x = S.v139.ex; S.v133 = S.v133 || {}; S.v133.lrRef = x ? x.ref : ""; S.modal = null; S.playerId = null; v13CoreGo("recon"); S.v13a2.rSub = "local"; render(); return; }
+}
+window.addEventListener("click", v9Click, true);
+/* ===== V13-139 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">

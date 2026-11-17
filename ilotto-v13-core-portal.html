@@ -13188,6 +13188,200 @@ function relSubmitter139(u = S.user) { return !!u && (u.roles || []).some(id => 
 
 </script>
 <script>
+/* ===== p8o_139.js ===== */
+/* p8o_139.js — PRD 1.3.9 follow-up (Core portal). Loaded last.
+ *  A. 6A.2.5 Severity (Critical / High) on Partial / Full Suspension requests (incl. allowance-only resubmission and
+ *     source-entry restrictions); Authorization Requests list + detail show Severity; Restore / Roll Back have none.
+ *  B. 6A.2.7 production credential Revoke / Rotate with Revoke immediately / emergency Restrict: Identity and Access
+ *     Administrator submits with Severity, Senior Authorizer approves (Channel Credentials A).
+ *  C. 6A.15.5 Channel-Affecting Approval Overdue: pending > 15 minutes (Critical) / 1 hour (High) -> alert, once.
+ *  D. 6A.21.4 ledger: Approval Status (Escalated) and Severity columns, credential rows.
+ *  E. 6A.20.4 SOD-16 (Block Assignment): Portal Administrator scope C / E / A + any privileged Approve.
+ */
+const SEVS_139 = ['Critical', 'High'];
+const MSG_SEV_139 = 'Select a severity.';
+const SUSP_TYPES_139 = ['Partial Suspension', 'Full Suspension'];
+const ESC_MIN_139 = { Critical: 15, High: 60 };
+const sevField139 = show => ({ k: 'm_sev', zh: 'Severity', en: 'Severity', ctl: 'radio', req: true, opts: SEVS_139, show, hint: { zh: '', en: 'Pending more than 15 minutes (Critical) or 1 hour (High) escalates automatically. Not sent to the channel.' } });
+
+/* ---------- A. severity on the suspension forms ---------- */
+/** wrap an open modal: insert the Severity field after `afterKey`, require it when isSusp(v), stamp it on the request */
+function sevWrapModal139(mdl, isSusp, afterKey) {
+  if (!mdl || mdl._sev139) return; mdl._sev139 = true;
+  const b0 = mdl.body;
+  mdl.body = () => { const f0 = formHtml; formHtml = (fields, o) => { if (Array.isArray(fields) && !fields.some(f => f && f.k === 'm_sev')) { fields = fields.slice(); let i = -1; [].concat(afterKey).forEach(k => { const j = fields.findIndex(f => f && f.k === k); if (j > i) i = j; }); fields.splice(i + 1, 0, sevField139(isSusp)); } return f0(fields, o); }; try { return b0(); } finally { formHtml = f0; } };
+  const o0 = mdl.onOk;
+  mdl.onOk = v => {
+    if (!isSusp(v)) return o0(v);
+    if (!SEVS_139.includes(v.m_sev)) {
+      const s0 = submitAuth, t0 = toast; submitAuth = () => null; toast = () => {};
+      const keep = {}; Object.keys(S.ferr).forEach(k => { if (k.startsWith('m_')) delete S.ferr[k]; else keep[k] = S.ferr[k]; });
+      try { o0(v); } finally { submitAuth = s0; toast = t0; }
+      S.ferr = Object.assign(keep, S.ferr, { m_sev: MSG_SEV_139 }); return false;
+    }
+    delete S.ferr.m_sev;
+    const s0 = submitAuth; submitAuth = o => { const r = s0(o); if (r && SUSP_TYPES_139.includes(r.type)) { r.sev = v.m_sev; r.payload = Object.assign({}, r.payload || {}, { sev: v.m_sev }); audit('Channel Control', 'Severity recorded', r.id, `${r.type} · ${v.m_sev}`); } return r; };
+    try { return o0(v); } finally { submitAuth = s0; }
+  };
+}
+(function suspSev139() {
+  const f0 = openSuspForm;
+  openSuspForm = function (code) { f0(code); if (S.modal) { sevWrapModal139(S.modal, v => SUSP_TYPES_139.includes(v.m_action || 'Partial Suspension'), ['m_code', 'm_codeCur']); render(); } };
+  /* source-entry restriction form (6A.13.4 / 6A.16): same 6A.2.5 request */
+  const m0 = openModal;
+  openModal = function (spec) { m0(spec); try { const ttl = L(spec && spec.title) || ''; if (/^(Restrict Channel|\u9650\u5236\u6e20\u9053) /.test(String(ttl))) { sevWrapModal139(S.modal, v => SUSP_TYPES_139.includes(v.m_act || 'Partial Suspension'), ['m_scope']); render(); } } catch (e) { console.warn(e); } };
+})();
+/* demo rows (Demo data): severities chosen by the initiators */
+(function seedSev139() {
+  const set = (id, s) => { const r = (SEED.authReqs || []).find(x => x.id === id); if (r && !r.sev) { r.sev = s; r.payload = Object.assign({}, r.payload || {}, { sev: s }); } };
+  set('AR-20261012-0004', 'High'); set('AR-20261012-0001', 'High');
+})();
+function reqSev139(x) { return x && SUSP_TYPES_139.includes(x.type) && (x.sev || (x.payload || {}).sev) ? (x.sev || x.payload.sev) : ''; }
+function reqOverdue139(x) { const s = x && (x.sev || (x.payload || {}).sev); return !!s && ['Awaiting Authorization', 'Pending Approval'].includes(x.status) && (!!x.esc139 || S.now - dt(x.at) > ESC_MIN_139[s] * 60e3); }
+function sevCell139(x) { const s = reqSev139(x); return s ? badge(s, s === 'Critical' ? 'bad' : 'warn') + (reqOverdue139(x) ? ' ' + badge('Escalated', 'bad') : '') : '-'; }
+function reasonCode139(x) { const p = x.payload || {}; return p.code || p.reasonCode || x.reasonCode || '-'; }
+R134_COLS.chArList = cols => {
+  const ri = colIdx(cols, 'Reason'); const at = ri >= 0 ? ri : cols.length - 1;
+  const add = []; if (colIdx(cols, 'Reason Code') < 0) add.push({ h: 'Reason Code', r: x => esc(reasonCode139(x)) });
+  add.push({ h: 'Severity', r: x => `<span data-sev139="${esc(x.id)}">${sevCell139(x)}</span>` });
+  cols.splice(at, 0, ...add);
+  const ii = colIdx(cols, 'Request ID'); if (ii >= 0) cols[ii] = { h: 'Request ID', r: x => `<button class="btn link mono" data-act="arView139" data-a="${esc(x.id)}">${esc(x.id)}</button>` };
+  return cols;
+};
+const hIdx139 = (cols, h) => cols.findIndex(c => c && (typeof c.h === 'string' ? c.h : (c.h || {}).en) === h);
+['chAuthP', 'chAuthH'].forEach(id => { R134_COLS[id] = cols => { const i = hIdx139(cols, 'Reason'); cols.splice(i >= 0 ? i + 1 : cols.length - 1, 0, { h: 'Severity', r: x => sevCell139(x) }); return cols; }; });
+ACT.arView139 = id => {
+  const x = SEED.authReqs.find(r => r.id === id); if (!x) return;
+  openDrawer({ title: () => x.id, sub: () => badge(reqStatus(x.status)), size: 'md', body: () => dl([
+    ['Category', esc(AR_CATS[x.kind] || '-')], ['Object', `<span class="mono">${esc(arObject(x))}</span>`], ['Action', esc(x.type)], ['Scope', esc(arScope(x))],
+    ['Reason Code', esc(reasonCode139(x))], ['Severity', `<span id="arSev139">${sevCell139(x)}</span>`], ['Reason', esc(x.reason || '-')], ['Related Case', esc((x.payload || {}).case || '-')],
+    ['Initiated By', esc(x.by)], ['Submitted At', esc(x.at)], ['Decided By', esc(x.status === 'Withdrawn' ? x.by : (x.authBy || '-'))], ['Decided At', esc(x.authAt || x.wdAt || '-')],
+    ['Rejection Reason', esc(x.status === 'Rejected' ? (x.rejectReason || '-') : '-')], ['Control Version', x.ctlVer ? String(x.ctlVer) : '-'],
+  ]) + (reqSev139(x) ? `<p class="tiny muted">Escalates to the escalation recipients when pending for more than ${ESC_MIN_139[reqSev139(x)] === 15 ? '15 minutes' : '1 hour'} (${esc(reqSev139(x))}).</p>` : '') });
+};
+
+/* ---------- B. 6A.2.7 credential requests ---------- */
+SEED.credReqs139 = SEED.credReqs139 || [];
+const CRED_ACT_139 = { Revoke: 'Credential Revocation', 'Rotate And Revoke': 'Credential Revocation', Restrict: 'Emergency Restriction' };
+const credPend139 = c => SEED.credReqs139.find(r => r.cred === c.id && r.status === 'Pending Approval');
+function credIssue139(c) { const nw = Object.assign({}, c, { id: `CRD-${c.channel}-${pad(SEED.credentials.filter(x => x.channel === c.channel).length + 1, 4)}`, issuedAt: nowS(), expiresAt: fmtDT(S.now + 365 * 864e5), lastRotated: '-', overlapUntil: '', status: c.status === 'Restricted' ? 'Restricted' : 'Active', note: '' }); SEED.credentials.push(nw); c.lastRotated = nowS(); return nw; }
+function credSubmit139(c, action, v) {
+  if (credPend139(c)) { toast('This credential already has a request awaiting approval.', 'err'); return null; }
+  const r = { id: nid('CRR'), cred: c.id, channel: c.channel, action, type: CRED_ACT_139[action], sev: v.m_sev, reason: (v.m_reason || '').trim(), case: v.m_case || '', by: me(), at: nowS(), status: 'Pending Approval', prev: c.status, decidedBy: '', decidedAt: '' };
+  SEED.credReqs139.unshift(r);
+  if (action === 'Restrict') { c.status = 'Restricted'; audit('Channel Credentials', 'Credential restricted (emergency)', c.id, `${r.id} · ${r.sev} · ${r.reason}`); }
+  audit('Channel Credentials', 'Submitted for approval', r.id, `${action} · ${c.id} · ${r.sev} · ${r.reason}`);
+  return r;
+}
+const credSevFields139 = () => [sevField139(null), { k: 'm_case', zh: 'Related Case', en: 'Related Security Incident Or Case', ctl: 'select', opts: [['', '-']].concat(SEED.cases.filter(x => x.status !== 'Closed').map(x => [x.id, x.id + ' · ' + x.title])) }];
+const credSevVal139 = v => SEVS_139.includes(v.m_sev) ? {} : { m_sev: MSG_SEV_139 };
+(function credActs139() {
+  const m = modById('credentials'); if (!m) return;
+  m.acts.credRotate = id => { const c = SEED.credentials.find(x => x.id === id); if (!c) return; const canE = can('Channel Credentials', 'E'); const prod = c.env === 'Production';
+    ask({ title: `Rotate ${id}`, reason: { zh: 'Reason', en: 'Reason' },
+      fields: () => (canE ? [{ k: 'm_now', zh: 'Revoke Immediately', en: 'Revoke Immediately', ctl: 'switch', chg: true, swl: { zh: '', en: 'Security event: revoke the old credential at once (no overlap)' } }] : []).concat(prod && S.fv.m_now ? credSevFields139() : []),
+      validate: v => prod && v.m_now ? credSevVal139(v) : {},
+      onOk: v => {
+        if (v.m_now && prod) { const r = credSubmit139(c, 'Rotate And Revoke', v); if (!r) return false; toast(`Submitted for approval (${r.id}). The new credential is issued when a Senior Authorizer approves.`); return; }
+        const nw = credIssue139(c); if (v.m_now) { c.status = 'Revoked'; c.note = 'Rotated · revoked immediately'; } else c.overlapUntil = fmtDT(S.now + 24 * 3600e3);
+        audit('Channel Credentials', 'Credential rotated', id, `${nw.id} · ${v.m_reason}${v.m_now ? ' · revoked immediately' : ''}`); toast(`${nw.id} issued.`); } }); };
+  m.acts.credRevoke = id => { const c = SEED.credentials.find(x => x.id === id); if (!c) return; const prod = c.env === 'Production';
+    const lastProd = prod && SEED.credentials.filter(x => x.channel === c.channel && x.env === 'Production' && ['Active', 'Restricted'].includes(x.status)).length === 1;
+    const go = v => { if (!prod) { c.status = 'Revoked'; c.note = v.m_reason; audit('Channel Credentials', 'Credential revoked', id, v.m_reason); toast('Credential revoked.'); render(); return; }
+      const r = credSubmit139(c, 'Revoke', v); if (r) { toast(`Submitted for approval (${r.id}).`); render(); } };
+    ask({ title: `Revoke ${id}`, danger: true, msg: prod ? 'Production credential: a Senior Authorizer must approve the revocation before it takes effect.' : 'Certification credential: revoked at once. This cannot be undone.', fields: prod ? credSevFields139() : [], reason: { zh: 'Reason', en: 'Reason' }, validate: v => prod ? credSevVal139(v) : {},
+      onOk: v => { if (lastProd) { const keep = Object.assign({}, v); setTimeout(() => ask({ title: 'Revoke', danger: true, msg: 'This channel will lose production access. Continue?', ok: { zh: 'Continue', en: 'Continue' }, onOk: () => go(keep) }), 0); return; } go(v); } }); };
+  m.acts.credRestrict139 = id => { const c = SEED.credentials.find(x => x.id === id); if (!c) return;
+    ask({ title: `Restrict ${id}`, danger: true, msg: 'Security emergency only. The credential can reach reporting endpoints only, at once. A Senior Authorizer approves afterwards; a rejection restores Active.', fields: credSevFields139(), reason: { zh: 'Reason', en: 'Reason' }, validate: credSevVal139,
+      onOk: v => { const r = credSubmit139(c, 'Restrict', v); if (!r) return false; toast(`Credential restricted. Approval request ${r.id} submitted.`); } }); };
+  m.acts.credOk139 = id => { const r = SEED.credReqs139.find(x => x.id === id); if (!r || r.status !== 'Pending Approval') return; if (!can('Channel Credentials', 'A')) { toast('Only a Senior Authorizer can approve this request.', 'err'); return; } if (r.by === me()) { toast('You cannot authorize a request you initiated.', 'err'); audit('Access', 'SoD block', r.id, 'initiator = approver', 'Rejected'); return; }
+    const c = SEED.credentials.find(x => x.id === r.cred);
+    ask({ title: `Approve ${r.id}`, msg: `${esc(r.action)} · ${esc(r.cred)} · ${esc(r.sev)}`, fields: r.action === 'Restrict' ? [{ k: 'm_also', zh: 'Also Revoke', en: 'Also Revoke', ctl: 'switch', swl: { zh: '', en: 'Approve the revocation at the same time' } }] : [],
+      onOk: v => { r.status = 'Approved'; r.decidedBy = me(); r.decidedAt = nowS();
+        if (r.action === 'Revoke' || (r.action === 'Restrict' && v.m_also)) { c.status = 'Revoked'; c.note = r.reason; }
+        if (r.action === 'Rotate And Revoke') { const nw = credIssue139(c); c.status = 'Revoked'; c.note = 'Rotated · revoked immediately'; r.newCred = nw.id; }
+        audit('Channel Credentials', 'Approved', r.id, `${r.action}${v.m_also ? ' + revoke' : ''} · ${r.cred} · initiator ${r.by}`); toast('Approved.'); } }); };
+  m.acts.credRej139 = id => { const r = SEED.credReqs139.find(x => x.id === id); if (!r) return; if (r.by === me()) { toast('You cannot authorize a request you initiated.', 'err'); return; }
+    ask({ title: `Reject ${r.id}`, danger: true, ok: { zh: 'Reject', en: 'Reject' }, reason: { zh: 'Rejection Reason', en: 'Rejection Reason' }, onOk: v => { r.status = 'Rejected'; r.decidedBy = me(); r.decidedAt = nowS(); r.rejectReason = v.m_reason; const c = SEED.credentials.find(x => x.id === r.cred); if (r.action === 'Restrict' && c && c.status === 'Restricted') c.status = r.prev === 'Restricted' ? 'Restricted' : 'Active'; audit('Channel Credentials', 'Rejected', r.id, v.m_reason); toast('Request rejected.'); } }); };
+  m.acts.credWd139 = id => { const r = SEED.credReqs139.find(x => x.id === id); if (!r || r.by !== me()) return; r.status = 'Withdrawn'; r.decidedBy = me(); r.decidedAt = nowS(); const c = SEED.credentials.find(x => x.id === r.cred); if (r.action === 'Restrict' && c && c.status === 'Restricted') c.status = r.prev === 'Restricted' ? 'Restricted' : 'Active'; audit('Channel Credentials', 'Withdrawn', r.id); toast('Request withdrawn.'); render(); };
+  const v0 = m.view;
+  m.view = () => v0() + card('Credential Approval Requests', `<p class="tiny muted">Revoking a production credential, rotating it with Revoke Immediately, and emergency restriction need approval by a Senior Authorizer (on behalf of PCSO). Pending more than 15 minutes (Critical) or 1 hour (High) escalates automatically.</p>` + table('credReqT', [
+    { h: 'Request ID', r: r => `<span class="mono">${esc(r.id)}</span>` }, { h: 'Credential ID', r: r => `<span class="mono">${esc(r.cred)}</span>` }, { h: 'Channel', k: 'channel' }, { h: 'Action', k: 'action' },
+    { h: 'Severity', r: r => badge(r.sev, r.sev === 'Critical' ? 'bad' : 'warn') + (reqOverdue139(r) ? ' ' + badge('Escalated', 'bad') : '') }, { h: 'Reason', k: 'reason' }, { h: 'Related Case', r: r => esc(r.case || '-') },
+    { h: 'Initiated By', k: 'by' }, { h: 'Submitted At', k: 'at' }, { h: 'Status', r: r => badge(r.status) }, { h: 'Decided By', r: r => esc(r.decidedBy || '-') },
+    { h: 'Actions', r: r => r.status !== 'Pending Approval' ? '' : `<span class="nowrap">${[can('Channel Credentials', 'A') ? btn({ zh: 'Approve', en: 'Approve' }, 'credOk139', r.id, { cls: 'sm ok', dis: r.by === me(), tip: 'You cannot authorize a request you initiated.' }) : '', can('Channel Credentials', 'A') && r.by !== me() ? btn({ zh: 'Reject', en: 'Reject' }, 'credRej139', r.id, { cls: 'sm' }) : '', r.by === me() ? btn({ zh: 'Withdraw', en: 'Withdraw' }, 'credWd139', r.id, { cls: 'sm' }) : ''].join(' ')}</span>` },
+  ], SEED.credReqs139, { nopage: true, empty: { zh: 'No requests.', en: 'No requests.' } }));
+})();
+R134_COLS.credT = cols => {
+  const si = colIdx(cols, 'Status'); if (si >= 0) { const r0 = cols[si].r; cols[si] = Object.assign({}, cols[si], { r: c => r0(c) + (() => { const p = credPend139(c); return p ? ' ' + badge(p.action === 'Restrict' ? 'Restriction pending approval' : 'Revocation pending', 'warn') : ''; })() }); }
+  const ai = colIdx(cols, 'Actions');
+  if (ai >= 0) cols[ai] = { h: 'Actions', r: c => { if (!['Active', 'Restricted'].includes(c.status)) return ''; const pend = credPend139(c); const b = [];
+    if (can('Channel Credentials', 'C') && !pend) b.push(btn({ zh: 'Rotate', en: 'Rotate' }, 'credRotate', c.id, { cls: 'sm' }));
+    if (can('Channel Credentials', 'E') && !pend) b.push(btn({ zh: 'Revoke', en: 'Revoke' }, 'credRevoke', c.id, { cls: 'sm danger' }));
+    if (can('Channel Credentials', 'E') && !pend && c.env === 'Production' && c.status === 'Active') b.push(btn({ zh: 'Restrict', en: 'Restrict' }, 'credRestrict139', c.id, { cls: 'sm' }));
+    return `<span class="nowrap">${b.join(' ')}</span>`; } };
+  return cols;
+};
+
+/* ---------- C. escalation of pending channel-affecting approvals ---------- */
+const ESC_TYPE_139 = 'Channel-Affecting Approval Overdue';
+TICKS139.push(function esc139() {
+  if (SEED.routing && !SEED.routing.some(r => r.type === ESC_TYPE_139)) SEED.routing.push({ type: ESC_TYPE_139, roles: ['sa', 'nop'], users: [], delivery: ['Portal', 'Email', 'SMS'], escalate: ['sa'] });
+  if (typeof M4 === 'undefined' || !M4.raiseAlert) return;
+  const todo = (SEED.authReqs || []).filter(r => r.kind === 'channel' && SUSP_TYPES_139.includes(r.type)).concat(SEED.credReqs139 || []);
+  todo.forEach(r => { if (r.esc139 || !reqOverdue139(r)) return; r.esc139 = nowS(true);
+    const lim = ESC_MIN_139[r.sev || (r.payload || {}).sev] === 15 ? '15 minutes' : '1 hour';
+    const a = M4.raiseAlert({ cat: ESC_TYPE_139, sev: r.sev || r.payload.sev, channel: r.target || r.channel, event: `${r.id} ${r.type || r.action} pending approval for more than ${lim}`, src: r.id });
+    r.escAlert139 = a && a.id; audit(r.cred ? 'Channel Credentials' : 'Channel Control', 'Approval escalated', r.id, `${r.sev || r.payload.sev} · pending more than ${lim} · ${a ? a.id : ''}`); });
+});
+
+/* ---------- D. 6A.21.4 ledger ---------- */
+const ECA_TYPES_139 = ['Certification', 'Production Access', 'Activation', 'Registry Status Change', 'Scope Change', 'Directive', 'Enable-Disable', 'Automatic Deactivation', 'Graded Restriction', 'Emergency Restriction', 'Credential Revocation', 'Compliance Escalation', 'Parameter Change', 'Match Review Routing Rule Change', 'Non-Conformance Closure', 'Data Request'];
+function apprStatus139(st) { return ['Awaiting Authorization', 'Pending Approval'].includes(st) ? 'Pending' : ['Authorized', 'Approved', 'Re-syncing', 'Re-sync Failed'].includes(st) ? 'Approved' : st === 'Rejected' ? 'Rejected' : st === 'Withdrawn' ? 'Withdrawn' : 'Approved'; }
+(function eca139() {
+  const r0 = ecaRows;
+  ecaRows = function () {
+    const out = r0().map(row => { const q = (SEED.authReqs || []).find(x => x.id === row.id); if (!q) return Object.assign(row, { st: row.appr && row.appr !== '-' ? 'Approved' : '-', sev: '-' });
+      const st = apprStatus139(q.status); return Object.assign(row, { st, esc: reqOverdue139(q), sev: reqSev139(q) || '-', appr: st === 'Approved' ? (q.authBy || '-') : '-' }); });
+    (SEED.credReqs139 || []).forEach(q => out.push({ id: q.id, type: q.type, ch: q.channel, by: q.by, appr: q.status === 'Approved' ? q.decidedBy : '-', st: apprStatus139(q.status), esc: reqOverdue139(q), sev: q.sev || '-', rcase: q.case || '', at: String(q.at).slice(0, 16), go: 'credentials', sub: `${q.action} · ${q.cred}` }));
+    return out.sort((a, b) => dt(b.at) - dt(a.at));
+  };
+  ecaView = function () {
+    const ch = fv('ecaF', 'ch', 'All'), ty = fv('ecaF', 'type', 'All'), mo = fv('ecaF', 'month', '');
+    const rows = ecaRows().filter(r => (ch === 'All' || r.ch === ch) && (ty === 'All' || r.type === ty) && (!mo || r.at.startsWith(mo)));
+    return pageH({ zh: 'E-Channel-Affecting Actions', en: 'E-Channel-Affecting Actions' }, '6A.21.4', 'Collected automatically from 6A.2, 6A.3, 6A.8 and 6A.16. Read-only. Pending more than 15 minutes (Critical) or 1 hour (High) is marked Escalated.', can('Conflict Of Interest', 'X') ? btn({ zh: 'Export', en: 'Export' }, 'ecaExport', '', { id: 'btnEcaExport' }) : '')
+      + filterBar('ecaF', [{ k: 'ch', zh: 'E-Channel', en: 'E-Channel', type: 'select', def: 'All', opts: ['All'].concat(SEED.channels.map(c => c.code)) }, { k: 'type', zh: 'Action Type', en: 'Action Type', type: 'select', def: 'All', opts: ['All'].concat(ECA_TYPES_139) }, { k: 'month', zh: 'Month', en: 'Month', type: 'month' }])
+      + table('ecaList', [
+        { h: 'Action ID', r: r => `<button class="btn link mono" data-act="ecaGo" data-a="${esc(r.go)}">${esc(r.id)}</button>` }, { h: 'Action Type', r: r => esc(r.type) + (r.sub ? `<div class="tiny">${esc(r.sub)}</div>` : '') }, { h: 'E-Channel', r: r => chTag(r.ch) },
+        { h: 'Initiated By', k: 'by' }, { h: 'Approved By', r: r => esc(r.appr || '-') }, { h: 'Approval Status', r: r => r.st === '-' ? '-' : badge(r.st || 'Approved', r.st === 'Pending' ? 'warn' : r.st === 'Rejected' ? 'bad' : r.st === 'Approved' ? 'ok' : '') + (r.esc ? ' ' + badge('Escalated', 'bad') : '') },
+        { h: 'Severity', r: r => r.sev && r.sev !== '-' ? badge(r.sev, r.sev === 'Critical' ? 'bad' : 'warn') : '-' }, { h: 'Recommendation Case', r: r => esc(r.rcase || '-') }, { h: 'Time', r: r => `<span class="nowrap">${esc(r.at)}</span>` },
+      ], rows);
+  };
+})();
+
+/* ---------- E. SOD-16 ---------- */
+const SOD16_PRIV_139 = ['Security Policy', 'Platform Settings', 'Emergency Accounts', 'Channel Credentials', 'Access Allowlist'];
+(function sod16() {
+  const row = { id: 'SOD-16', a: 'User Accounts / Roles And SoD (Operations-Based scope) · Create / Edit / Approve (except approving changes submitted from the portal emergency account)', b: 'Any privileged approval: User Accounts / Roles And SoD (Privilege-Based scope), Security Policy, Platform Settings, Emergency Accounts, Channel Credentials, Access Allowlist · Approve', enf: 'Block Assignment', combo: 'Portal Administrator + Senior Authorizer; Portal Administrator + a custom role with these Approve permissions', source: 'Baseline', baseline: true, status: 'Active', blocked: '0' };
+  if (!SEED.sodRules.some(r => r.id === 'SOD-16')) { const i = SEED.sodRules.findIndex(r => r.id === 'SOD-15'); SEED.sodRules.splice(i + 1, 0, row); }
+  const ua = ['User Accounts', 'Roles And SoD'];
+  SOD_IMPL['SOD-16'] = {
+    a: x => ua.includes(x.mod) && 'CEA'.includes(x.l) && x.role !== 'sa' && roleCat137(x.role) === 'Operations-Based',
+    b: x => x.l === 'A' && (SOD16_PRIV_139.includes(x.mod) || (ua.includes(x.mod) && x.role === 'sa')),
+  };
+  /* SOD-16 is the specific rule for this pair: report it before the broader SOD-01 */
+  const c0 = sodCheck;
+  sodCheck = function (roleIds, over = {}, rules) {
+    const list = rules || SEED.sodRules.filter(r => r.status === 'Active');
+    const r16 = list.find(r => r.id === 'SOD-16' && (r.enf || 'Block Assignment') === 'Block Assignment');
+    if (r16) { const hit = c0(roleIds, over, [r16]); if (hit) return hit; }
+    return c0(roleIds, over, rules);
+  };
+})();
+R133_HOOKS.push(() => { document.querySelectorAll('.m5-note').forEach(p => { if (p.textContent.startsWith('Baseline rules cannot')) p.textContent = p.textContent.replace('Baseline rules cannot', 'Baseline rules SOD-01 to SOD-16 cannot'); }); });
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
