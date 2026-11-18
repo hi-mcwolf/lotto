@@ -4081,7 +4081,7 @@ ST137();
 const DAY137=864e5;
 const MSG_FULL137='iLotto is temporarily suspended by PCSO. Some services are unavailable. Your tickets and balances are safe.';
 const MSG_HELD137='iLotto is temporarily suspended by PCSO. This prize will be credited to your prize balance when iLotto resumes.';
-const MSG_CLAIMP137='Prize claims are paused while iLotto is suspended by PCSO. The claim deadline is extended by the suspension period.';
+const MSG_CLAIMP137='Prize claims are paused while iLotto is suspended by PCSO.';
 const MSG_VALID137="The validity of this ticket is subject to PCSO's official records.";
 const MSG_TRUST137="Your balances are held in trust for you by PCSO in its designated Land Bank of the Philippines account. iLotto operates this wallet on PCSO's behalf.";
 const MSG_TRUST_S137='Your funds are held in trust by PCSO in its designated LBP account.';
@@ -4861,6 +4861,148 @@ function panel139(){const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?
 <div class="xs" style="color:#666;margin:4px 0">Bet refunded the way it was paid; prize reversed from the prize balance only; the rest is borne by iLotto and is not deducted later.</div>`}
 {const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
  const old=el.querySelector('[data-v139]');if(old)old.remove();const v=el.querySelector('[data-vpf]')||el.querySelector('[data-v138]');const html=`<div data-v139="1">${panel139()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
+/* ===== PRD follow-up, player side (batch1310/proto.md, player part) =====
+   Loaded after p7z5_139.js (build.sh). Panel section [data-v1310] after the [data-v139] section.
+     6B.4.2 (item 470)  voided ticket whose credited prize was reversed (excluded-ticket void, transaction adjustment void):
+                      a Prize Reversed row under the void note shows the amount actually reversed (same as the Prize
+                      Reversal record); tapping it opens that record in Transactions > Prize. Nothing reversed = no row.
+                      Demo: bet 20.00, credited 4,500.00, 3,000.00 already withdrawn -> Prize Reversed 1,500.00 (Demo data).
+     6B.4.2 (item 466 5) My Tickets footer: retention sentence.
+     6B.4.2 rule 6 (items 471, 472)  full suspension without prize claims:
+                      - a prize within the threshold held during the suspension (Unclaimed) shows "Your prize will be credited
+                        when PCSO resumes prize claims." under the amount in the list and the detail, gone once credited;
+                      - a winning ticket whose original claim deadline passes during the suspension is not Expired: the detail
+                        shows the original deadline with "Extended due to channel suspension."; after the Core Claim Deadline
+                        Extension notice (channel restored) it shows the new deadline with
+                        "Original deadline: {date}. Extended due to channel suspension.";
+                      - rule 2 (Core temporary suspension of the player) gets no sentence.
+     6B.2.4 (item 466 6) PlaySafe exclusion badge: a fixed-term self-exclusion whose end date comes from Core (another
+                      channel) shows "Until {date}"; permanent shows no end date.
+     6B.2.3 (item 473)  KYC re-check: after Verify again the identity status page uses the eKYC under-review layout with the
+                      re-check sentence (no 5-day estimate, no Verify again); Re-KYC Failed shows the rejected layout with the
+                      reason and Verify again while the account page still shows Verified.
+     6B.1.6 / 6B.1.10   existing account with an incomplete address: identity check stays in Checking Details (federation not
+                      sent), sign-in opens Add your address; saving it resends federation automatically. Button Save Address. */
+(function(){const st=document.createElement('style');st.textContent='#panel [data-v1310] h4{margin-top:10px}#txhi1310{background:rgba(34,211,238,.12);border-radius:10px}';document.head.appendChild(st)})();
+const MSG_HELD1310='Your prize will be credited when PCSO resumes prize claims.';
+const MSG_EXT1310='Extended due to channel suspension.';
+const MSG_KEEP1310='Regular tickets are kept for 30 days. Winning tickets are kept for 1 year + 1 day from the draw date, or until the day after the claim deadline if later.';
+const MSG_KEEP_OLD1310='Regular tickets kept 30 days; winning tickets kept 1 year + 1 day from the draw date';
+const P1310=()=>S.v1310||(S.v1310={});
+
+/* ---------- 6B.4.2 Prize Reversed on a voided ticket ---------- */
+const rev1310=k=>{const xs=S.tx.filter(x=>x.adj&&x.tk===k.id&&x.amt<0);if(!xs.length)return null;const a=r2(-xs.reduce((s,x)=>s+x.amt,0));return a>0?{amt:a,id:xs[0].id}:null};
+A.txGo1310=id=>{S.txTab='prize';P1310().hi=id;A.go('tx')};
+{const _tr=txRow;txRow=function(x){const h=_tr.apply(this,arguments);return x&&x.id&&x.id===P1310().hi?h.replace(/^(\s*<div)/,'$1 id="txhi1310"'):h}}
+{const _go=A.go;A.go=function(sc){if(sc!=='tx'&&P1310().hi)P1310().hi='';return _go.apply(this,arguments)}}
+/* demo: PRD example (bet 20.00, credited 4,500.00, 3,000.00 withdrawn) */
+A.v1310ExPaid=()=>{if(!S.logged)seedDemo();const k=autoWon()[0];if(!k)return toast('No auto-credited winning ticket left to void.');
+ k.amt=20;k.sb=20;k.sp=0;k.res=null;k.prize=4500;tick(2);addTx('withdraw',-3000,'ok','GCash');S.bal.prize=1500;
+ const net=4500;k.st='await';voidAs(k,'excl');tick(5);
+ const take=Math.min(S.bal.prize,net),lost=r2(net-take);S.bal.prize=r2(S.bal.prize-take);if(take>0)adjTx133(k,-take,NOTE_VOID);
+ k.prize=0;k.tier='';k.res=null;k.adj='Excluded with prize credited';k.adjLoss=0;k.borne139=lost;pba();
+ v13Audit('core-excluded-transaction-void-prize-reversed');P1310().ex={id:k.id,take,lost};
+ toast('Core: ticket excluded from the draw · voided, '+fm2(20)+' refunded; '+fm2(take)+' reversed from the prize balance ('+fm2(lost)+' borne by iLotto)');A.go('tkDetail',{id:k.id})};
+
+/* ---------- 6B.4.2 rule 6: claim deadline while the channel is fully suspended ---------- */
+const susA1310=()=>S.sus137&&claimsOff137()?String(S.sus137.a).slice(0,10):'';
+const frozen1310=v=>{const a=susA1310();return !!a&&v<fdt(S.clock)&&v>=a};
+const claimExp1310=claimExp;
+claimExp=function(d){const v=claimExp1310(d);return frozen1310(v)?fdt(S.clock):v};
+const held1310=k=>!!(k&&k.held137&&k.st==='winPending');
+
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){let h=_d.apply(this,arguments);const k=S.tickets.find(x=>x.id===(S.p&&S.p.id));if(!k||archived(k))return h;
+ const tp=document.createElement('template');tp.innerHTML=h;const c=tp.content;
+ /* Prize Reversed under the void note */
+ if(k.st==='void'){const r=rev1310(k);if(r){const vc=[...c.querySelectorAll('.card')].find(x=>/color:var\(--ro\)/.test(x.getAttribute('style')||'')&&/refunded/.test(x.textContent));
+  if(vc&&!vc.querySelector('#prev1310'))vc.insertAdjacentHTML('beforeend',`<div class="row sp" id="prev1310" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);cursor:pointer;color:var(--tx)" onclick="A.txGo1310('${r.id}')"><span class="sm">Prize Reversed</span><b class="sm" id="prev1310_amt">−${fm2(r.amt)} ›</b></div>`)}}
+ /* held prize within the threshold: the sentence under the amount */
+ if(held1310(k)){const o=c.querySelector('#held137');if(o)o.remove();const sc=c.querySelector('#startclaim');
+  const card=[...c.querySelectorAll('.card')].find(x=>x.textContent.indexOf('Go to the PCSO Main Office to claim.')>=0);
+  if(card){const s=[...card.querySelectorAll('.sm')].find(x=>x.textContent.indexOf('Go to the PCSO Main Office to claim.')>=0);if(s){s.id='held1310';s.textContent=MSG_HELD1310}}
+  else{const bd=[...c.querySelectorAll('h3')].find(x=>x.textContent.trim()==='Bet details');if(bd)bd.insertAdjacentHTML('beforebegin',`<div class="c131" id="held1310">${MSG_HELD1310}</div>`)}
+  if(card)[...card.querySelectorAll('.xs')].forEach(x=>{if(x.textContent.indexOf('Each ticket is claimed on its own.')===0)x.remove()});
+  if(sc)sc.remove()}
+ /* deadline: frozen during the suspension, or extended after the Core notice */
+ const dl=c.querySelector('#dl_row');
+ if(dl&&k.st==='winPending'){const cur=claimExp1310(k.draw),orig=claimBase137(k.draw);
+  if(frozen1310(cur)){dl.innerHTML=`Claim deadline ${cur}<br><span id="dl_ext1310">${MSG_EXT1310}</span>`}
+  else if(cur!==orig){dl.innerHTML=`Claim deadline ${cur}<br><span id="dl_ext1310">Original deadline: ${orig}. ${MSG_EXT1310}</span>`}}
+ return tp.innerHTML}}
+
+/* ---------- My Tickets: held sentence in the list, retention footer ---------- */
+{const _t=SC.tickets.html;SC.tickets.html=function(){let h=_t.apply(this,arguments);h=h.split(MSG_KEEP_OLD1310).join(MSG_KEEP1310);
+ if(!S.tickets.some(held1310))return h;const tp=document.createElement('template');tp.innerHTML=h;
+ tp.content.querySelectorAll('[data-tk],.tksub,[id^="TKT"]').forEach(el=>{const k=S.tickets.find(x=>x.id===(el.dataset.tk||el.id));if(!held1310(k)||el.querySelector('[data-held1310]'))return;
+  const d=[...el.querySelectorAll('.xs')].find(x=>x.textContent.indexOf('Tap to view details and start your claim')>=0);
+  if(d){d.textContent=fm0(k.prize);d.insertAdjacentHTML('afterend',`<div class="xs mu" data-held1310="${k.id}" style="margin-top:2px;line-height:1.5">${MSG_HELD1310}</div>`)}
+  else el.insertAdjacentHTML('beforeend',`<div class="xs mu" data-held1310="${k.id}" style="margin-top:4px;line-height:1.5">${MSG_HELD1310}</div>`)});
+ return tp.innerHTML}}
+
+/* demo: a winning ticket whose original claim deadline passes during the suspension */
+A.v1310DeadlinePast=()=>{if(!S.logged)seedDemo();if(!RST().full)A.v13Channel('full');if(!claimsOff137())return toast('Prize claims are allowed: pause them first.');
+ S.sus137.a=fdt(S.clock-4*DAY137);
+ const k=S.tickets.find(x=>x.st==='winPending'&&!x.held137&&x.prize>300000&&!x.cs)||S.tickets.find(x=>x.st==='winPending'&&!x.held137);if(!k)return toast('No winning ticket awaiting claim.');
+ const y=fdt(S.clock-DAY137);k.draw=(+y.slice(0,4)-1)+y.slice(4);P1310().dl=k.id;v13Audit('claim-deadline-reached-during-suspension');
+ toast('Original claim deadline '+claimBase137(k.draw)+' passed during the suspension: not Expired (Demo data)');A.go('tkDetail',{id:k.id})};
+
+/* ---------- 6B.2.4 PlaySafe exclusion badge: Until {date} for an end date from Core ---------- */
+{const _ps=SC.playsafe.html;SC.playsafe.html=function(){const h=_ps.apply(this,arguments);const e=S.excl;
+ if(!S.logged||!e||e.pcso||e.perm||e.expired||!e.endTs||(e.channel||'ILT')==='ILT'||exState()!=='active')return h;
+ const tp=document.createElement('template');tp.innerHTML=h;const b=[...tp.content.querySelectorAll('.card .row.sp b')].find(x=>x.textContent.trim()==='Self-exclusion');
+ const bd=b&&b.parentElement.querySelector('.badge');if(!bd)return h;bd.textContent='Until '+fdt(e.endTs);bd.id='sx_until1310';return tp.innerHTML}}
+A.v1310SxCore=()=>{if(!S.logged)seedDemo();S.excl={label:'',perm:false,expired:false,req:false,rej:'',endTs:Date.parse('2027-03-05T23:59:00+08:00'),channel:'OTH',fromCore:1};
+ v13Audit('core-self-exclusion-other-channel');toast('Core: self-exclusion submitted on another channel, end date 2027-03-05 (Demo data)');A.go('playsafe')};
+
+/* ---------- 6B.2.3 KYC re-check: under-review layout, rejected layout ---------- */
+const kycAs1310=(k,fn)=>{const k0=S.kyc;S.kyc=k;try{return fn()}finally{S.kyc=k0}};
+const stripGate1310=h=>h.replace(/<div class="row sp mt3" style="padding-top:6px"><div class="logo">[\s\S]*?<\/button><\/div>/,'<div class="mt3"></div>');
+{const _ks=SC.kycStatus.html;SC.kycStatus.html=function(){const re=S.logged&&S.kyc==='approved'?S.kycRe:null;
+ if(re!=='review'&&re!=='fail')return _ks.apply(this,arguments);
+ if(re==='review'){let h=stripGate1310(kycAs1310('pending',()=>_ks.apply(this,arguments)));
+  const tp=document.createElement('template');tp.innerHTML=h;const c=tp.content;
+  const d=[...c.querySelectorAll('.mu')].find(x=>/manual review is under way/.test(x.textContent));if(d){d.textContent=MSG_KYCR_REV;d.id='kycre_rev1310'}
+  [...c.querySelectorAll('span')].forEach(s=>{if(s.textContent==='Manual review (only if checks fail)')s.textContent='Manual review'});
+  [...c.querySelectorAll('.card.c2')].forEach(x=>{if(/Admin approves KYC/.test(x.textContent))x.innerHTML=`${I('help',13)} Demo: use Re-verified or Re-KYC Failed in the right panel.`});
+  return tp.innerHTML.replace(/<\/div>\s*$/,`<button class="btn d mt" onclick="A.back()">Back</button></div>`)}
+ let h=stripGate1310(kycAs1310('rejected',()=>_ks.apply(this,arguments)));
+ h=h.replace('Manual review (only if checks fail)','Manual review').replace(/<button class="btn d mt" id="kyc_playsafe"[^>]*>PlaySafe<\/button>/,'').replace(/<button class="btn c mt2" onclick="S\.ek=\{step:1[^"]*"\>Resubmit<\/button>/,`<button class="btn c mt2" id="kycre_status_go" onclick="A.v133Reverify()">Verify again</button>`);
+ return h.replace(/<\/div>\s*$/,`<button class="btn d mt" onclick="A.back()">Back</button></div>`)}}
+{const _ek=A.ekSubmit;A.ekSubmit=function(){const re=S.logged&&S.kyc==='approved'&&(S.kycRe==='req'||S.kycRe==='fail')&&!S.addrMiss137;const r=_ek.apply(this,arguments);
+ if(re&&S.kycRe==='review'){A.reset('kycStatus')}return r}}
+
+/* ---------- 6B.1.6 / 6B.1.10 incomplete address ---------- */
+A.v1310AddrPart=()=>{if(!S.logged)seedDemo();S.addrMiss137=1;P1310().addr=1;S.upid='';S.kyc='checking';S.fed='Not Sent · Address Incomplete';S.regTmp={atype:'ph'};
+ v13Audit('federation-not-sent-address-incomplete');A.logout();toast('Existing account with an incomplete address (Demo data). Sign in again: Add your address opens first.')};
+/* Add your address is reachable in Checking Details (the identity status gate lets it through, like PlaySafe) */
+{const _r=render;render=function(){const go=S.logged&&S.addrMiss137&&S.screen==='addr137'&&['checking','checkfail','rejected','pending'].includes(S.kyc);if(!go)return _r.apply(this,arguments);
+ const a=SC.addr137.auth;SC.addr137.auth=true;try{return _r.apply(this,arguments)}finally{SC.addr137.auth=a}}}
+{const _a=SC.addr137.html;SC.addr137.html=function(){return _a.apply(this,arguments).replace('>Save address</button>','>Save Address</button>')}}
+{const _m=SC.addr137.mount;SC.addr137.mount=function(){if(_m)_m.apply(this,arguments);if(!P1310().addr)return;const r=$('#r_reg');if(!r||r.value)return;
+ const k0=Object.keys(REG)[0];r.value=k0;A.reg();const p=$('#r_prov');if(p&&p.options.length>1){p.value=p.options[1].value;A.prov()}
+ const n=$('#addr137_note');if(n&&!$('#addr1310_part'))n.insertAdjacentHTML('afterend',`<div class="xs mu mt3" id="addr1310_part" style="line-height:1.5">Your saved address is incomplete. Complete every field.</div>`)}}
+{const _s=A.addrSave137;A.addrSave137=function(){const part=P1310().addr;const r=_s.apply(this,arguments);
+ if(part&&!S.addrMiss137){P1310().addr=0;S.fed='Querying';v13Audit('address-completed-federation-resent');toast('Address saved')}return r}}
+
+/* ---------- demo panel ---------- */
+function panel1310(){const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;const r=RST();
+ return `<h4>Voided ticket with a reversed prize</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Excluded ticket, prize credited and reversed (bet ₱20.00, credited ₱4,500.00, ₱3,000.00 withdrawn) (Demo data)','A.v1310ExPaid()',!!P1310().ex,'v1310_ex')}</div>
+<div class="xs" style="color:#666;margin:4px 0">The ticket detail shows Prize Reversed with the amount actually reversed; tap it to open the Prize Reversal record.</div>
+<h4>Full suspension: prize claims</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Original claim deadline passed during the suspension (Demo data)','A.v1310DeadlinePast()',!!P1310().dl&&!!r.full,'v1310_dl')}${pb('Channel restored · Core Claim Deadline Extension notice',"RST().full?A.v13Channel('off'):toast('No full suspension in progress.')",'','v1310_ext')}</div>
+<div class="xs" style="color:#666;margin:4px 0">Held prizes within the threshold show the resume sentence until they are credited.</div>
+<h4>Identity and PlaySafe</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('Self-exclusion from another channel, end date from Core (Demo data)','A.v1310SxCore()',!!(S.excl&&S.excl.fromCore),'v1310_sx')}${pb('Existing account with an incomplete address (Demo data)','A.v1310AddrPart()',!!P1310().addr,'v1310_addr')}</div>`}
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-v1310]');if(old)old.remove();const v=el.querySelector('[data-v139]')||el.querySelector('[data-vpf]');const html=`<div data-v1310="1">${panel1310()}</div>`;if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
+
+/* ---------- 6B.4.2 Start Claim: the pre-tap hint is shown only with the button ----------
+   Full suspension without prize claims (rule 6) hides Start claim; the hint goes with it (no replacement sentence). */
+const MSG_SCHINT1310='Go to the PCSO Main Office to claim. Tap Start claim to generate your claim code.';
+{const _d=SC.tkDetail.html;SC.tkDetail.html=function(){const h=_d.apply(this,arguments);if(h.indexOf(MSG_SCHINT1310)<0)return h;
+ const tp=document.createElement('template');tp.innerHTML=h;let n=0;
+ [...tp.content.querySelectorAll('.card')].forEach(card=>{if(card.querySelector('#startclaim'))return;
+  [...card.querySelectorAll('.sm')].forEach(s=>{if(s.textContent.trim()===MSG_SCHINT1310){s.remove();n++}})});
+ return n?tp.innerHTML:h}}
 render();
 </script>
 </body>

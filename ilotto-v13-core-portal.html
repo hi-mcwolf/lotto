@@ -13382,6 +13382,72 @@ R133_HOOKS.push(() => { document.querySelectorAll('.m5-note').forEach(p => { if 
 
 </script>
 <script>
+/* ===== p8p_1310.js ===== */
+/* PRD 1.3.10 follow-up (Core portal)
+ *  A. 6A.21.4 E-Channel-Affecting Actions: requests that need approval enter the ledger on submission
+ *     (Pending / Rejected / Withdrawn listed too). Time column: effective time for effective actions
+ *     (incl. an Emergency Restriction applied ahead of approval, pending or rejected), submission time
+ *     for Pending / Rejected / Withdrawn, execution time for system actions without approval.
+ *     Monthly counts by type (Equal Treatment) count effective actions only.
+ *  Demo rows: one Rejected and one Withdrawn suspension request, one rejected Emergency Restriction (Demo data).
+ */
+
+/* ---------- demo rows (Demo data) ---------- */
+(function seed1310() {
+  if (!SEED.authReqs.some(r => r.id === 'AR-20261011-0005')) SEED.authReqs.push({ id: 'AR-20261011-0005', kind: 'channel', type: 'Full Suspension', target: 'EC2', summary: 'All services', reason: 'Settlement file not received for two days', payload: { scope: ['All services'], sev: 'High' }, by: 'ops.b', at: '2026-10-11 15:20', status: 'Rejected', authBy: 'sa.a', authAt: '2026-10-11 15:42', rejectReason: 'File received at 15:30; no suspension needed', demo: true });
+  if (!SEED.authReqs.some(r => r.id === 'AR-20261010-0006')) SEED.authReqs.push({ id: 'AR-20261010-0006', kind: 'channel', type: 'Partial Suspension', target: 'ILT', summary: 'New bets', reason: 'Duplicate ticket alerts', payload: { scope: ['New bets'], sev: 'High' }, by: 'ops.a', at: '2026-10-10 11:00', status: 'Withdrawn', authBy: '', authAt: '', wdAt: '2026-10-10 11:12', demo: true });
+  SEED.credReqs139 = SEED.credReqs139 || [];
+  if (!SEED.credReqs139.some(r => r.id === 'CRR-20261009-0001')) SEED.credReqs139.push({ id: 'CRR-20261009-0001', cred: 'CRD-ILT-0003', channel: 'ILT', action: 'Restrict', type: 'Emergency Restriction', sev: 'Critical', reason: 'Suspected certificate key exposure', case: '', by: 'ops.a', at: '2026-10-09 22:05:00', status: 'Rejected', prev: 'Active', decidedBy: 'sa.b', decidedAt: '2026-10-09 22:31:00', rejectReason: 'Key exposure not confirmed', demo: true });
+})();
+
+/* ---------- time basis per ledger row ---------- */
+const ECA_EFF_1310 = r => r.type === 'Emergency Restriction' || r.st === 'Approved';
+function ecaTime1310(row) {
+  const q = (SEED.authReqs || []).find(x => x.id === row.id);
+  const c = (SEED.credReqs139 || []).find(x => x.id === row.id);
+  if (q) {
+    if (row.st === 'Approved') return { at: String(q.authAt || q.at).slice(0, 16), basis: 'Effective' };
+    return { at: String(q.at).slice(0, 16), basis: 'Submitted' };
+  }
+  if (c) {
+    if (c.action === 'Restrict') return { at: String(c.at).slice(0, 16), basis: 'Effective' };
+    if (c.status === 'Approved') return { at: String(c.decidedAt || c.at).slice(0, 16), basis: 'Effective' };
+    return { at: String(c.at).slice(0, 16), basis: 'Submitted' };
+  }
+  if (row.st === '-' || row.appr === '-' || row.by === 'System') return { at: row.at, basis: row.st === '-' ? 'Executed' : 'Effective' };
+  return { at: row.at, basis: 'Effective' };
+}
+(function eca1310() {
+  const r0 = ecaRows;
+  ecaRows = function () {
+    return r0().map(row => { const t = ecaTime1310(row); return Object.assign(row, { at: t.at, basis: t.basis, eff: ECA_EFF_1310(row) || row.st === '-' }); })
+      .sort((a, b) => dt(b.at) - dt(a.at));
+  };
+  const v0 = ecaView;
+  ecaView = function () {
+    const ch = fv('ecaF', 'ch', 'All'), ty = fv('ecaF', 'type', 'All'), mo = fv('ecaF', 'month', '');
+    const rows = ecaRows().filter(r => (ch === 'All' || r.ch === ch) && (ty === 'All' || r.type === ty) && (!mo || r.at.startsWith(mo)));
+    const eff = rows.filter(r => r.eff);
+    const byType = {}; eff.forEach(r => { byType[r.type] = (byType[r.type] || 0) + 1; });
+    return v0()
+      .replace('Read-only. Pending more than', 'Read-only. Requests that need approval enter the ledger when submitted. Pending more than')
+      + `<p class="m5-note" id="ecaTimeNote1310">Time: effective time for effective actions (including an Emergency Restriction applied before approval), submission time for Pending, Rejected and Withdrawn requests, execution time for system actions.</p>`
+      + `<p class="m5-note" id="ecaEffCount1310">Effective actions in this list: <b>${eff.length}</b> of ${rows.length}${Object.keys(byType).length ? ' (' + Object.keys(byType).sort().map(k => `${esc(k)} ${byType[k]}`).join(' · ') + ')' : ''}. Monthly counts by type in Equal Treatment include effective actions only.</p>`;
+  };
+})();
+/* the Time cell shows its basis under the date */
+R133_HOOKS.push(() => {
+  if (S.page !== 'coi') return; const tb = document.querySelector('[data-table=ecaList]'); if (!tb) return;
+  const hs = [...tb.querySelectorAll('thead th')].map(th => th.textContent.trim()); const ti = hs.indexOf('Time'), ii = hs.indexOf('Action ID'); if (ti < 0 || ii < 0) return;
+  const map = {}; ecaRows().forEach(r => { map[r.id] = r.basis; });
+  tb.querySelectorAll('tbody tr').forEach(tr => { const td = tr.children[ti], id = (tr.children[ii] || {}).textContent; if (!td || !id || td.querySelector('.eca-basis')) return; const b = map[id.trim()]; if (b) td.insertAdjacentHTML('beforeend', `<div class="tiny eca-basis">${b}</div>`); });
+});
+
+/* ---------- Equal Treatment: the ledger metric counts effective actions only ---------- */
+(function et1310() { const m = ET_METRICS.find(x => x.id === 'act'); if (m) m.unit = 'effective actions'; })();
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>

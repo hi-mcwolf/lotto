@@ -19203,6 +19203,114 @@ function v9Click(e) {
 }
 window.addEventListener("click", v9Click, true);
 /* ===== V13-139 END ===== */
+/* ===== V13-1310 block: PRD 1.3.10 follow-up on the iLotto admin (6B.14.5, 6B.1.10 / 6B.1.6) =====
+   Injected by patch_v1310.py right after the V13-139 block. Acts start with "v1310-" (window capture listener at the end).
+     6B.14.5  Resolve By: Core divergences of the Settlement and Wallet And Funds domains = Detected At + 24 hours, remaining
+              time shown, amber under 4 hours, red when overdue with Escalated to Critical; other domains show "-". Local reports
+              get the same column: funds-type self-reports = Reported At + 24 hours; every other report shows "-".
+              The system report "prize already credited when an excluded ticket was voided" (Prize Claims, Critical) shows "-":
+              no remaining time, never amber or red. Its Finance review P1 to-do is still raised, the same to-do type as funds
+              differences, and says it has no 24-hour time limit. One Wallet And Funds divergence is seeded (Demo data).
+              Data Domain lists Wallet And Funds (summary, filter, Report Local Inconsistency form).
+     6B.1.10  Federation (optional item): a player whose registered address is incomplete is not sent to Core (no invented
+              address); Federation Status "Not Sent · Address Incomplete", the player sees Checking Details and is sent to
+              Add your address at sign-in; a technical to-do is raised; when the address is completed federation is resent
+              automatically (demo button).
+   UI text is English only; demo values are marked Demo data. */
+S.v1310 = { seq: 0 };
+const V10_FUNDS = ["Settlement", "Wallet And Funds"];
+const V10_WARN_MS = 4 * 3600000, V10_LIMIT_MS = 24 * 3600000;
+function v10Btn(act, label, opt) { opt = opt || {}; return `<button type="button" class="btn btn-sm ${opt.cls || ""}" style="width:auto;flex:none" data-act="${act}"${opt.id != null ? ` data-id="${esc(opt.id)}"` : ""}${opt.dis ? ` disabled title="${esc(opt.dis)}"` : ""} data-v1310="${opt.dv || act}">${label}</button>`; }
+function v10Left(ms) { const m = Math.max(0, Math.floor(ms / 60000)); return Math.floor(m / 60) + " h " + (m % 60) + " min left"; }
+/* Resolve By cell: from = detection / report time; done = handled or closed (no countdown) */
+function v10ResolveCell(from, done) {
+  const by = btMs(String(from).slice(0, 19)) + V10_LIMIT_MS; if (!isFinite(by)) return "-";
+  const at = `<span class="mono">${btFmt(by).slice(0, 16)}</span>`;
+  if (done) return at;
+  const left = by - a2NowMs();
+  if (left <= 0) return `<span data-v1310="rb-over" style="color:var(--rose,#f43f5e)">${at}</span><div>${tag("rose", "Escalated to Critical")}</div>`;
+  if (left < V10_WARN_MS) return `<span data-v1310="rb-warn" style="color:var(--amber,#d97706)">${at}</span><div class="tiny" style="color:var(--amber,#d97706)">${v10Left(left)}</div>`;
+  return `${at}<div class="tiny" data-v1310="rb-left">${v10Left(left)}</div>`;
+}
+function v10DivDone(d) { return d.local2 === "Handled" || d.local2 === "Closed" || d.st === "Closed" || ["Resolved", "Closed By Adjustment", "Closed As Exception"].indexOf(d.coreSt) >= 0; }
+function v10DivResolve(d) { return V10_FUNDS.indexOf(d.dom || d.kind) >= 0 ? v10ResolveCell(d.at, v10DivDone(d)) : "-"; }
+function v10LrResolve(r) { if (r.v139 || V10_FUNDS.indexOf(r.dom) < 0) return "-"; const d = r.div && S.v13.divs.find((x) => x.id === r.div); return v10ResolveCell(r.at, d ? v10DivDone(d) : false); }
+
+/* the Wallet And Funds domain in the domain summary, the filter and the report form */
+if (A2_DOMS.indexOf("Wallet And Funds") < 0) A2_DOMS.push("Wallet And Funds");
+/* demo: one Wallet And Funds divergence (Demo data) */
+(function v10Seed() {
+  if (S.v13.divs.some((d) => d.id === "DIV-20261012-000021")) return;
+  S.v13.divs.push({ id: "DIV-20261012-000021", kind: "Wallet And Funds", dom: "Wallet And Funds", type: "Value Mismatch", obj: "Sales day 2026-10-11 · designated account", core: "₱1,204,350.00", local: "₱1,203,850.00", level: "High", coreSt: "Open", local2: "Needs Action", rep: 0, at: "2026-10-12 04:30:00", st: "Open", note: "", v1310: 1 });
+})();
+
+/* ---------- 6B.14.5 Resolve By columns ---------- */
+const v10Recon0 = a2ViewRecon;
+a2ViewRecon = function () {
+  const sub = S.v13a2.rSub || "div";
+  return v13Tpl(v10Recon0.apply(this, arguments), (c) => {
+    if (sub === "div") {
+      const tb = [...c.querySelectorAll("table")].find((t) => [...t.querySelectorAll("thead th")].some((th) => th.textContent.trim() === "Divergence ID")); if (!tb) return;
+      const hr = tb.querySelector("thead tr"); if (hr && !hr.querySelector("[data-v1310=rb-h]")) { const last = hr.lastElementChild; last.insertAdjacentHTML("beforebegin", `<th data-v1310="rb-h">Resolve By</th>`); }
+      tb.querySelectorAll("tbody tr[data-a2-div]").forEach((tr) => { const d = S.v13.divs.find((x) => x.id === tr.dataset.a2Div); if (!d || tr.querySelector("[data-v1310=rb]")) return; tr.lastElementChild.insertAdjacentHTML("beforebegin", `<td data-v1310="rb">${v10DivResolve(d)}</td>`); });
+      const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v1310="rb-note">Resolve By applies to the Settlement and Wallet And Funds domains only: 24 hours from Detected At, amber when less than 4 hours are left, red with Escalated to Critical when overdue (Core escalates it). Other domains show -.</span>`);
+    }
+    if (sub === "local") {
+      const tb = [...c.querySelectorAll("table")].find((t) => [...t.querySelectorAll("thead th")].some((th) => th.textContent.trim() === "Report ID")); if (!tb) return;
+      const hr = tb.querySelector("thead tr"); if (hr && !hr.querySelector("[data-v1310=lr-rb-h]")) hr.insertAdjacentHTML("beforeend", `<th data-v1310="lr-rb-h">Resolve By</th>`);
+      tb.querySelectorAll("tbody tr[data-a2-lr]").forEach((tr) => { const r = S.v13a2.lrep.find((x) => x.id === tr.dataset.a2Lr); if (!r || tr.querySelector("[data-v1310=lr-rb]")) return; tr.insertAdjacentHTML("beforeend", `<td data-v1310="lr-rb">${v10LrResolve(r)}</td>`); });
+      const p = [...c.querySelectorAll("p.tiny")].pop(); if (p) p.insertAdjacentHTML("beforeend", ` <span data-v1310="lr-rb-note">Resolve By: Settlement and Wallet And Funds reports are handled within 24 hours of Reported At; other reports show -. A prize found already credited when an excluded ticket was voided (Prize Claims, Critical) has no 24-hour time limit: Resolve By shows -, but Finance review still gets a P1 to-do of the same type as funds differences.</span>`);
+    }
+  });
+};
+
+/* ---------- to-dos: funds divergences with remaining time; the excluded-ticket P1 states no time limit ---------- */
+window.vfMoreTodos = (window.vfMoreTodos || []).map((fn) => {
+  if (String(fn).indexOf("Prize credited on an excluded ticket") < 0) return fn;
+  return function (add) {
+    const x = S.v139.ex; if (!x || !x.todo) return;
+    add(["finance"], "v139-go-lr", "", "Prize credited on an excluded ticket (iLotto error)", x.ref + " · reversed " + peso2(x.rev) + " · " + peso2(x.loss) + " borne by iLotto · Critical local report " + x.lr + " · Prize Claims · no 24-hour time limit", "P1");
+  };
+}).concat([function (add) {
+  const L = S.v13.divs.filter((d) => V10_FUNDS.indexOf(d.dom) >= 0 && d.dom !== "Settlement" && !v10DivDone(d)); if (!L.length) return;
+  add(["finance"], "v1310-go-div", "", L.length + " funds divergence" + (L.length > 1 ? "s" : "") + " to handle", L.map((d) => { const left = btMs(d.at) + V10_LIMIT_MS - a2NowMs(); return d.id + " · " + (left > 0 ? v10Left(left) : "overdue · Escalated to Critical"); }).join(", ") + " · 24 hours to handle", "P1");
+}, function (add) {
+  const p = S.players.find((x) => x.fed === "addr"); if (!p) return;
+  add(["admin", "ops"], "v1310-go-pl", p.id, "Federation not sent: address incomplete", p.id + " · technical alert · the player is asked to add the address at sign-in; federation is resent automatically when it is complete", "P2");
+}]);
+const v10Ex0 = v9ExCard;
+v9ExCard = function () { return v10Ex0.apply(this, arguments).replace("P1 to-do for Finance review;", "P1 to-do for Finance review (same type as funds differences, no 24-hour time limit; Resolve By -);"); };
+
+/* ---------- 6B.1.10 federation: address incomplete (Demo data) ---------- */
+V13_FED.addr = "Not Sent · Address Incomplete";
+(function v10Fed() { const p = S.players.find((x) => x.id === "PL-104995"); if (!p || p.v1310) return; Object.assign(p, { fed: "addr", upid: "", core: "", coreAt: "", coreDir: "", v1310: 1, addrGap: "Philippines address: Barangay missing (four levels required)" }); })();
+const v10Card0 = v13PlayerCard;
+v13PlayerCard = function (p) {
+  const h = v10Card0.apply(this, arguments); if (!p || p.fed !== "addr") return h;
+  const canAct = v7Is("ops", "admin");
+  return `<div class="banner amber" data-v1310="fed-addr">Federation not sent: the registered address is incomplete (${esc(p.addrGap || "address incomplete")}). The address is checked before federation (Philippines: four levels; abroad: five items) and is never filled in by the system. A technical alert was raised. The player stays in <b>Checking Details</b> and is taken to Add your address at sign-in; federation is resent automatically once the address is complete. ${v13Demo()}
+    <div style="margin-top:6px">${v10Btn("v1310-addr-done", "Demo: Player Completes The Address", { id: p.id, dis: canAct ? "" : "Operations or System admin only." })}</div></div>` + h;
+};
+
+/* =====================================================================================================
+   clicks
+   ===================================================================================================== */
+function v10Click(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  if (!act || act.indexOf("v1310-") !== 0) return;
+  e.stopPropagation(); e.preventDefault(); if (el.disabled) return;
+  if (act === "v1310-go-div") { S.modal = null; S.playerId = null; v13CoreGo("recon"); S.v13a2.rSub = "div"; render(); return; }
+  if (act === "v1310-go-pl") { if (v7Is("ops")) { S.page = "players"; S.sub = null; S.modal = null; S.playerId = id; render(); } else toast("Federation not sent for " + id + ": address incomplete. Resent automatically when the player adds the address."); return; }
+  if (act === "v1310-addr-done") {
+    const p = S.players.find((x) => x.id === id); if (!p || p.fed !== "addr") return;
+    p.fed = "ing"; p.addrGap = "";
+    v13Sys("Players", "Address completed by the player · federation resent", p.id, "Federating");
+    toast("Address saved by the player. Federation resent automatically (Demo data)."); render(); return;
+  }
+}
+window.addEventListener("click", v10Click, true);
+/* ===== V13-1310 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">
