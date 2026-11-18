@@ -13655,7 +13655,7 @@ R133_HOOKS.push(() => {
  *     6A.11.3 Mock Flag, 6A.11.4 Mock ticket at the desk (rehearsal number, no cheque), 6A.11.5 filters, 6A.18.2 Mock Flag.
  *  C. Synthetic monitoring: 6A.3.5 Synthetic Monitoring Accounts (read only), 6A.10.2 rule 15 synthetic transactions.
  *  D. 6A.6.8 Draw Conduct Record (workbench column, First Entry gate, release checklist, lock at authorization,
- *     Add correction note, result detail tab Draw Conduct, Entry Log stage Conduct Record).
+ *     Add Correction Note, result detail tab Draw Conduct, Entry Log stage Conduct Record).
  *  E. 6A.3.9 Selling Hours and Non-Selling Periods.  F. 6A.3.10 Bank Holiday Calendar.
  */
 const MS_STATES = ['Pending Approval', 'Scheduled', 'Running', 'Ended', 'Purge Pending', 'Purging', 'Purged', 'Rejected', 'Withdrawn'];
@@ -13664,7 +13664,7 @@ const MS_CAL_TAG = '<span class="tag warn" data-mock="cal">MOCK</span>';
 const MS_SYN_TAG = '<span class="tag info" data-syn="tag">Synthetic</span>';
 const MS_FLAGS = ['Exclude Mock', 'Mock Only', 'All'];
 const MS_CATS = ['Mock Draws', 'Mock Transactions', 'Closure Records', 'Draw Results', 'Prize Claims', 'Reconciliation Records', 'Test Player Profiles'];
-const MS_CH_CATS = ['Mock Draws', 'Mock Transactions', 'Tickets', 'Prize Claims', 'Test Player Profiles'];
+const MS_CH_CATS = ['Mock Draws', 'Mock Transactions', 'Prize Claims', 'Test Player Profiles']; // PRD 6A.4.6 rule 5: four categories (transactions = tickets, not compared separately)
 (function msStyle() {
   const s = document.createElement('style');
   s.textContent = `.ms-wm{position:fixed;inset:0;pointer-events:none;z-index:5;display:flex;align-items:center;justify-content:center;font-size:160px;font-weight:800;color:rgba(200,120,0,.10);transform:rotate(-24deg)}
@@ -13786,7 +13786,7 @@ function msCoreCounts(p, ch) {
     'Prize Claims': msClaims(p, ch).length,
     'Reconciliation Records': ds.reduce((a, d) => a + ((d.rv || []).reduce((b, rv) => b + (rv.deliv || []).filter(x => !ch || x.channel === ch).length, 0)), 0), 'Test Player Profiles': msPlayers(p, ch).length };
 }
-function msChCounts(p, ch) { const c = msCoreCounts(p, ch); return { 'Mock Draws': c['Mock Draws'], 'Mock Transactions': c['Mock Transactions'], 'Tickets': c['Mock Transactions'], 'Prize Claims': c['Prize Claims'], 'Test Player Profiles': c['Test Player Profiles'] }; }
+function msChCounts(p, ch) { const c = msCoreCounts(p, ch); return { 'Mock Draws': c['Mock Draws'], 'Mock Transactions': c['Mock Transactions'], 'Prize Claims': c['Prize Claims'], 'Test Player Profiles': c['Test Player Profiles'] }; }
 function msPurgeResult(p) {
   const pg = p.purge; if (!pg || !pg.counts) return '-';
   if (p.status === 'Purging') { const per = Object.values(pg.per); const n = per.filter(x => x.status === 'Match').length; const mis = Object.keys(pg.per).filter(c => pg.per[c].status === 'Mismatch');
@@ -13946,7 +13946,7 @@ function msPurgeExec(p) {
 }
 function msChReport(p, ch, match) {
   const pg = p.purge; const r = pg.per[ch]; if (!r) return;
-  r.rep = Object.assign({}, r.core); if (!match) r.rep['Mock Transactions'] = r.core['Mock Transactions'] + 1, r.rep['Tickets'] = r.core['Tickets'] + 1;
+  r.rep = Object.assign({}, r.core); if (!match) r.rep['Mock Transactions'] = r.core['Mock Transactions'] + 1;
   r.status = match ? 'Match' : 'Mismatch'; r.at = nowS();
   const d = SEED.directives.find(x => x.id === r.dir); if (d) { d.ack = 'Acknowledged'; d.ackAt = nowS(true); d.exec = 'Executed'; }
   msAudit('Mock data purge reported', p.id, `${ch} · ${r.status} · ${MS_CH_CATS.map(k => `${k} ${r.rep[k]}`).join(', ')}`);
@@ -13988,7 +13988,10 @@ function msChReport(p, ch, match) {
 })();
 /* directive type, alert routing, automated case rule, reason codes */
 if (typeof DIR_TYPES !== 'undefined' && !DIR_TYPES.some(x => x[0] === 'Mock Data Purge')) { DIR_TYPES.push(['Mock Data Purge', '6A.4.6', 'Auto-executed']); DIR_MODE['Mock Data Purge'] = 'Auto-executed'; }
-if (SEED.routing && !SEED.routing.some(r => r.type === 'Mock Purge Mismatch')) SEED.routing.push({ type: 'Mock Purge Mismatch', roles: ['gop', 'sa'], users: [], delivery: ['Portal', 'Email'], escalate: ['sa'] });
+function msRouting() { // 6A.15.6: default recipients Game Operations, escalate to Senior Authorizer (SEED.routing is built at boot)
+  if (SEED.routing && !SEED.routing.some(r => r.type === 'Mock Purge Mismatch')) SEED.routing.push({ type: 'Mock Purge Mismatch', roles: ['gop'], users: [], delivery: ['Portal', 'Email'], escalate: ['sa'] });
+  if (SEED.routing && !SEED.routing.some(r => r.type === 'Synthetic Account Approval Missing')) SEED.routing.push({ type: 'Synthetic Account Approval Missing', roles: ['nop'], users: [], delivery: ['Portal', 'Email'], escalate: [] }); }
+msRouting();
 Object.assign(C2_NC_DEF, { 'Outside Selling Period': ['Critical', 'Excluded'], 'Mock Flag Mismatch': ['Critical', 'Excluded'] });
 (function msCaseRule() { const m = modById('cases'); if (!m) return; const v0 = m.view; m.view = function () { let h = v0.apply(this, arguments); if (S.sub !== 'rules') return h;
   const i = h.indexOf('data-table="csRules"'); const j = i >= 0 ? h.indexOf('</tbody>', i) : -1; if (j < 0) return h;
@@ -14131,7 +14134,7 @@ function dcOpen(id) {
   const offs = c ? c.officials.map(o => Object.assign({}, o)) : [{ name: '', org: '' }]; offs.forEach((o, i) => { vals['dc_on_' + i] = o.name; vals['dc_oo_' + i] = o.org; });
   openDrawer({ size: 'md', dcId: id, offN: offs.length, files: c ? c.files.slice() : [], vals,
     title: () => `Draw Conduct Record · ${d.game} · ${d.id} · ${d.drawAt}`, sub: () => `${badge(dcSt(d), dcSt(d) === 'Locked' ? 'info' : dcSt(d) === 'Saved' ? 'ok' : '')}${d.mock ? ' ' + MS_TAG : ''}`,
-    body: () => dcBody(d), foot: () => dcCanEdit(d) ? btn('Cancel', 'closeDrawer') + btn('Save record', 'dc.save', id, { cls: 'primary', id: 'btnDcSave' }) : (dcSt(d) === 'Locked' && can('Draw Results', 'C') ? btn('Add correction note', 'dc.corr', id, { id: 'btnDcCorr' }) : '') + btn('Close', 'closeDrawer') });
+    body: () => dcBody(d), foot: () => dcCanEdit(d) ? btn('Cancel', 'closeDrawer') + btn('Save Record', 'dc.save', id, { cls: 'primary', id: 'btnDcSave' }) : (dcSt(d) === 'Locked' && can('Draw Results', 'C') ? btn('Add Correction Note', 'dc.corr', id, { id: 'btnDcCorr' }) : '') + btn('Close', 'closeDrawer') });
 }
 function dcBody(d) {
   const c = dcOf(d); const D = S.drawer; let h = '';
@@ -14190,7 +14193,7 @@ Object.assign(ACT, {
     audit('Draw Results', old ? 'Draw conduct record updated' : 'Draw conduct record saved', d.id, changes.map(x => `${x.f}: ${x.from || '-'} → ${x.to || '-'}`).join('; '));
     toast('Draw conduct record saved.'); closeDrawer(); },
   'dc.corr': id => { const d = drawById(id); const c = dcOf(d); if (!c || c.status !== 'Locked' || !can('Draw Results', 'C')) return;
-    ask({ title: `Add correction note · ${d.id}`, ok: 'Add correction note', fields: [{ k: 'm_text', zh: 'Correction', en: 'Correction', ctl: 'textarea', req: true, ph: 'What was wrong in the record and the correct value' }], reason: { en: 'Reason', zh: 'Reason', max: 500 },
+    ask({ title: `Add Correction Note · ${d.id}`, ok: 'Add Correction Note', fields: [{ k: 'm_text', zh: 'Correction', en: 'Correction', ctl: 'textarea', req: true, ph: 'What was wrong in the record and the correct value' }], reason: { en: 'Reason', zh: 'Reason', max: 500 },
       validate: v => { const e = {}; const r = String(v.m_reason || '').trim(); if (r && r.length < 10) e.m_reason = 'Enter 10 to 500 characters.'; if (!String(v.m_text || '').trim()) e.m_text = 'Enter the correction.'; return e; },
       onOk: v => { c.corrections.push({ at: nowS(true), by: me(), reason: v.m_reason.trim(), text: v.m_text.trim() }); drLog(d, { stage: 'Conduct Record', outcome: 'Correction Added', reason: v.m_reason.trim() }); audit('Draw Results', 'Draw conduct correction note added', d.id, v.m_reason.trim()); toast('Correction note added. The original record is kept.'); } }); },
 });
@@ -14216,7 +14219,7 @@ R134_COLS.drBench = cols => { const col = { h: 'Conduct Record', r: d => { const
     return r; };
   const v0 = drView; drView = function (id) { v0.apply(this, arguments); const d = drawById(id); const D = S.drawer; if (!d || !D || D.dc6868) return; D.dc6868 = true;
     D.tabs = (D.tabs || []).concat([{ id: 'conduct', zh: 'Draw Conduct', en: 'Draw Conduct' }]); const b0 = D.body;
-    D.body = () => S.dtab === 'conduct' ? (dcReadOnly(d) + (dcSt(d) === 'Locked' && can('Draw Results', 'C') ? `<div style="margin-top:8px">${btn('Add correction note', 'dc.corr', d.id, { id: 'btnDcCorr2' })}</div>` : '') + (dcCanEdit(d) ? `<div style="margin-top:8px">${btn('Conduct Record', 'dc.open', d.id, { id: 'btnDcEdit2' })}</div>` : '')) : b0(); render(); };
+    D.body = () => S.dtab === 'conduct' ? (dcReadOnly(d) + (dcSt(d) === 'Locked' && can('Draw Results', 'C') ? `<div style="margin-top:8px">${btn('Add Correction Note', 'dc.corr', d.id, { id: 'btnDcCorr2' })}</div>` : '') + (dcCanEdit(d) ? `<div style="margin-top:8px">${btn('Conduct Record', 'dc.open', d.id, { id: 'btnDcEdit2' })}</div>` : '')) : b0(); render(); };
 })();
 
 /* =====================================================================
@@ -14352,7 +14355,7 @@ Object.assign(ACT, {
       fields: () => Array.from({ length: bhRowsN() }, (_, i) => [
         { k: 'm_d_' + i, zh: 'Date', en: `Date ${i + 1}`, ctl: 'date', req: true }, { k: 'm_n_' + i, zh: 'Holiday Name', en: 'Holiday Name', ctl: 'text', req: true, ph: 'Christmas Day' },
         { k: 'm_t_' + i, zh: 'Holiday Type', en: 'Holiday Type', ctl: 'select', req: true, opts: [['', '-']].concat(BH_TYPES) }, { k: 'm_s_' + i, zh: 'Source Reference', en: 'Source Reference', ctl: 'text', req: true, ph: 'Proclamation or BSP circular number' }]).flat()
-        .concat([{ k: 'm_more', zh: '', en: ' ', ctl: 'html', html: () => btn('+ Add Row', 'bh.row', '', { cls: 'sm', id: 'btnBhRow' }) }, { k: 'm_urg', zh: 'Urgent', en: 'Urgent', ctl: 'switch', swl: 'Urgent (a holiday declared at short notice; approved by a Senior Authorizer, effective on approval)' }]),
+        .concat([{ k: 'm_more', zh: '', en: ' ', ctl: 'html', html: () => btn('+ Add Row', 'bh.row', '', { cls: 'sm', id: 'btnBhRow' }) }, { k: 'm_urg', zh: 'Urgent', en: 'Urgent', ctl: 'switch', swl: 'Urgent (adds Senior Authorizer approval; effective on approval either way)' }]),
       validate: v => { const e = {}; const n = bhRowsN(); const today = fmtD(S.now); const taken = SEED.bankHol.filter(b => ['Pending', 'Effective'].includes(bhStatus(b))).map(b => b.date); const seen = [];
         for (let i = 0; i < n; i++) { const d = v['m_d_' + i]; if (!d) e['m_d_' + i] = 'Select the date.'; else if (d < today) e['m_d_' + i] = 'The date cannot be in the past.'; else if (taken.includes(d) || seen.includes(d)) e['m_d_' + i] = 'This date is already in the calendar.'; seen.push(d);
           const nm = String(v['m_n_' + i] || '').trim(); if (!nm) e['m_n_' + i] = 'Enter a name.'; else if (nm.length > 100) e['m_n_' + i] = 'Up to 100 characters.';
@@ -14392,7 +14395,7 @@ CR_APPLY.bankHolDisable = cr => { const b = SEED.bankHol.find(x => x.id === cr.p
 })();
 /* desk register for a Mock ticket (rehearsal number, no cheque) — installed after boot merges the module acts */
 (function msBoot() {
-  const b0 = boot; boot = function () { b0();
+  const b0 = boot; boot = function () { b0(); msRouting();
     const r0 = ACT['cl.register'];
     ACT['cl.register'] = function (id) { const c = c2claim(id); if (!c || !c.mock) return r0.apply(this, arguments);
       if (!c2verifOk(c)) { toast('Register is available only after Verified, within the payment registration window, by the verifying Claims Officer.', 'err'); return; } snap();
