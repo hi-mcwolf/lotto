@@ -13448,6 +13448,967 @@ R133_HOOKS.push(() => {
 
 </script>
 <script>
+/* ===== p8q_1311.js ===== */
+/* PRD 1.3.11 follow-up (Core portal)
+ *  A. 6A.6.2 Draw Results workbench: Mock Flag filter after Draw Date (All / Mock Only / Exclude Mock, default All).
+ *     Mock draws keep the Mock tag in the workbench, the result detail and Cascade & Reconciliation (6A.6.1).
+ *     One Mock draw is seeded (Demo data): L658-20261011-1-M, Mock Selling period MS-0001, ILT only.
+ *     Mock draws are kept in SEED.mockDraws1311 (not in SEED.draws), so the calendar, reports and counts stay unchanged.
+ *  B. 6A.7.2 Result Adjustment: when the draw's Retail Winners For Fixed Tiers is On, Winning Numbers Correction and
+ *     Prize Correction also take the retail winners of the fixed-amount tiers (Pool Amount -); Off: those rows are read-only.
+ *     Demo draw with the value On: L645-20261009-1 (Demo data; its fixed tier carries retail winners).
+ *  C. 6A.19.1 rule 7 / 6A.19.2 / 6A.19.4: "Excludes Mock Selling and Synthetic Monitoring data." under the report table and
+ *     under the custom view preview; Export dialog shows where the note goes per format (PDF page footer with Data as of and
+ *     the page number + first-page metadata; XLSX one line below the table on each worksheet; CSV in the Manifest only).
+ *     Scheduled files (6A.19.3) follow the same rule. Data Extraction (6A.19.7) files and Manifests do not carry it.
+ */
+const MOCK_NOTE_1311 = 'Excludes Mock Selling and Synthetic Monitoring data.';
+const E1311 = s => ({ zh: s, en: s });
+
+/* =====================================================================
+ * A. Mock draws and the Mock Flag filter
+ * ===================================================================== */
+SEED.mockDraws1311 = SEED.mockDraws1311 || [];
+(function seedMock1311() {
+  if (SEED.mockDraws1311.length) return;
+  const src = SEED.draws.find(d => d.id === 'L658-20261011-1'); if (!src) return;
+  const m = JSON.parse(JSON.stringify(Object.assign({}, src, { rv: undefined, elog: undefined })));
+  m.id = src.id + '-M'; m.seq = '-'; m.mock = true; m.mockPeriod = 'MS-0001'; m.demo = true;
+  if (m.closure && Array.isArray(m.closure.per)) m.closure.per = m.closure.per.filter(x => x.channel === 'ILT');
+  if (DR.official && DR.official[src.id]) DR.official[m.id] = DR.official[src.id].slice();
+  SEED.mockDraws1311.push(m);
+})();
+(function drawById1311() { const f0 = drawById; drawById = function (id) { return f0(id) || SEED.mockDraws1311.find(d => d.id === id); }; })();
+const MOCK_TAG_1311 = '<span class="tag warn" data-mock1311="tag">Mock</span>';
+function mockFlag1311() { return fv('drF', 'mock', 'All'); }
+/* the filter control: Draw Date From / To, then Mock Flag */
+(function filterBar1311() {
+  const f0 = filterBar;
+  filterBar = function (id, fields, right) {
+    if (id === 'drF' && Array.isArray(fields) && !fields.some(f => f.k === 'mock')) {
+      const i = fields.findIndex(f => f.k === 'to'); fields = fields.slice();
+      fields.splice(i < 0 ? fields.length : i + 1, 0, { k: 'mock', zh: 'Mock Flag', en: 'Mock Flag', type: 'select', def: 'All', opts: ['All', 'Mock Only', 'Exclude Mock'] });
+    }
+    return f0.call(this, id, fields, right);
+  };
+})();
+/* run a view with the Mock draws visible in SEED.draws (filtered by the flag), then restore */
+function withMock1311(flag, fn) {
+  const real = SEED.draws; const all = real.concat(SEED.mockDraws1311);
+  SEED.draws = flag === 'Mock Only' ? all.filter(d => d.mock) : flag === 'Exclude Mock' ? real.slice() : all;
+  try { return fn(); } finally { SEED.draws = real; }
+}
+(function bench1311() {
+  const v0 = drBenchView;
+  drBenchView = function () {
+    const n = drNeeds(S.user);
+    let h = withMock1311(mockFlag1311(), () => v0());
+    h = h.replace(/(id="drNeeds"><b>[^<(]*\()\d+(\))/, `$1${n}$2`);
+    return h;
+  };
+  const c0 = drCascadeView;
+  drCascadeView = function () {
+    let h = withMock1311('All', () => c0());
+    SEED.mockDraws1311.forEach(d => { h = h.split(`<span class="mono">${d.id}</span> · Result v`).join(`<span class="mono">${d.id}</span> ${MOCK_TAG_1311} · Result v`); });
+    return h;
+  };
+})();
+R134_COLS.drBench = cols => {
+  const i = cols.findIndex(c => c.h === 'Draw ID'); if (i < 0) return cols;
+  const r0 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: (d, j) => (r0 ? r0(d, j) : esc(d.id)) + (d.mock ? ' ' + MOCK_TAG_1311 : '') });
+  return cols;
+};
+(function drView1311() {
+  const v0 = drView;
+  drView = function (id) {
+    v0(id); const d = drawById(id); const D = S.drawer; if (!d || !d.mock || !D || D.drawId !== id || D.mock1311) return;
+    D.mock1311 = true; const s0 = D.sub, b0 = D.body;
+    D.sub = () => (typeof s0 === 'function' ? s0() : (s0 || '')) + ' ' + MOCK_TAG_1311;
+    D.body = () => banner(`<b>Mock draw</b> of Mock Selling period <span class="mono">${esc(d.mockPeriod)}</span> (Demo data). Entered, determined, authorized and cascaded like a live draw; results go to the participating E-Channels only, carry the Mock flag and stay out of settlement and official reports.`, 'amber') + (typeof b0 === 'function' ? b0() : (b0 || ''));
+    render();
+  };
+})();
+/* the workbench note under the table: the filter default */
+(function benchNote1311() {
+  const v0 = drBenchView;
+  drBenchView = function () {
+    const h = v0();
+    return h + `<p class="tiny" id="drMockNote1311">Mock Flag defaults to All: Mock draws are entered and authorized here only. Mock draws carry the Mock tag. Transactions, Prize Claims and Unclaimed Prizes keep Exclude Mock as their default.</p>`;
+  };
+})();
+
+/* =====================================================================
+ * B. 6A.7.2 Retail Winners For Fixed Tiers in result adjustments
+ * ===================================================================== */
+const RW_DEMO_1311 = 'L645-20261009-1';
+(function rwDemo1311() { const d = SEED.draws.find(x => x.id === RW_DEMO_1311); if (d && d.rwFixed === undefined) { d.rwFixed = true; d.rwDemo1311 = true; } })();
+/* the demo draw's published result: fixed-amount tiers carry retail winners as well (Demo data) */
+function rwFixRv1311(d) {
+  if (!d || !d.rwDemo1311 || !d.rv) return;
+  const def = drDef(d);
+  d.rv.forEach(rv => (rv.tiers || []).forEach((t, i) => {
+    const tr = def.tiers[i]; if (!tr || drPool(tr) || t.retail != null) return;
+    t.retail = Math.round(t.ec * 19); t.all = t.ec + t.retail; t.errs = {}; if (t.prize != null) t.total = Math.round(t.prize * t.all * 100) / 100;
+  }));
+}
+(function drEnsure1311() { const e0 = drEnsure; drEnsure = function (d) { const r = e0(d); rwFixRv1311(d); return r; }; })();
+/* entry log: fixed-amount tiers entered with retail winners are logged too (pool -) */
+(function prizeVals1311() {
+  const v0 = drPrizeVals;
+  drPrizeVals = function (rows) {
+    const fx = (rows || []).filter(r => !drPool(r) && r.retail != null);
+    if (!fx.length) return v0(rows);
+    const base = v0(rows); const add = fx.map(r => `${r.name}: - / ${r.retail} / ${drPrizeTxt(r)}`).join('; ');
+    return base === 'Fixed tiers confirmed' ? add : base + '; ' + add;
+  };
+})();
+function rwLine1311(d) {
+  return rwOn_K(d)
+    ? `<p class="tiny" id="adjRw1311" data-rw="On">Retail Winners For Fixed Tiers for this draw: <b>On</b> (the value fixed for this draw). Winning Numbers Correction and Prize Correction also take the retail winners of the fixed-amount tiers; both entries are compared.</p>`
+    : `<p class="tiny" id="adjRw1311" data-rw="Off">Retail Winners For Fixed Tiers for this draw: <b>Off</b> (the value fixed for this draw). Fixed-amount tiers are read-only and carry E-Channel winners only.</p>`;
+}
+(function adjReq1311() {
+  const n0 = adjNew;
+  adjNew = function (drawId) {
+    const r = n0(drawId); const D = S.drawer; const d = drawById(drawId);
+    if (D && D.mode === 'adjReq' && d && !D.rw1311) { D.rw1311 = true; const b0 = D.body; D.body = () => b0() + rwLine1311(d); render(); }
+    return r;
+  };
+  const b0 = drPrizeBody;
+  drPrizeBody = function (c) {
+    const h = b0(c); const D = S.drawer;
+    if (!c || c.kind !== 'A' || !D || D.done || rwOn_K(c.d)) return h;
+    if (!drDef(c.d).tiers.some(tr => !drPool(tr))) return h;
+    return h + rwLine1311(c.d);
+  };
+})();
+
+/* =====================================================================
+ * C. Reports: the Mock / Synthetic exclusion note
+ * ===================================================================== */
+const MOCK_P_1311 = `<p class="m5-note" id="repMockNote1311">${MOCK_NOTE_1311}</p>`;
+(function repNote1311() {
+  const c0 = repCatalogView;
+  repCatalogView = function () {
+    let h = c0(); if (h.indexOf('id="repMockNote1311"') >= 0) return h;
+    const i = h.indexOf('<div class="card"><h4>My Reports');
+    return i < 0 ? h + MOCK_P_1311 : h.slice(0, i) + MOCK_P_1311 + h.slice(i);
+  };
+})();
+/* export dialog: where the note goes in each format */
+function expPreview1311(rep, fmt) {
+  const q = M5R.q || {}; const n = repGroups(rep, q).length; const asOf = fmtT(S.now, true);
+  const filt = `Game = ${q.game} · E-Channel = ${q.ch} · Draw = ${q.draw} · ${q.period} · ${q.draw !== 'All' ? q.draw : `${q.from} → ${q.to}`} · Group By ${q.group}`;
+  const meta = [['Report', esc(rep.en)], ['Filters', esc(filt)], ['Data as of', esc(asOf)], ['Rows', fmtN(n)], ['Exported By', esc(me())], ['Exported At', 'At export'], ['Data Dictionary Version', 'Current version'], ['Exclusions', `<span data-exp1311="meta-note">${MOCK_NOTE_1311}</span>`]];
+  let h = '';
+  if (fmt === 'PDF') {
+    h += `<h4 style="margin:6px 0">First Page Metadata</h4>` + dl(meta);
+    h += `<h4 style="margin:10px 0 4px">Page Footer (Every Page)</h4><div class="card mono tiny" data-exp1311="pdf-footer">Data as of ${esc(asOf)} · Page n of N · ${MOCK_NOTE_1311}</div>`;
+  } else if (fmt === 'XLSX') {
+    h += `<h4 style="margin:6px 0">Each Worksheet</h4><div class="card tiny" data-exp1311="xlsx-sheet">Report table, then one line below the table: <b>${MOCK_NOTE_1311}</b></div>`;
+    h += `<h4 style="margin:10px 0 4px">Manifest File</h4>` + dl(meta);
+  } else {
+    h += `<h4 style="margin:6px 0">CSV Data File</h4><div class="card tiny" data-exp1311="csv-data">Header row and data rows only. Nothing is added after the data rows.</div>`;
+    h += `<h4 style="margin:10px 0 4px">Manifest File</h4>` + dl(meta);
+  }
+  return `<div id="expPrev1311" data-fmt="${fmt}">${h}<p class="tiny">A SHA-256 checksum is attached. Full extractions (6A.19.7) and migration packages do not carry the exclusion note.</p></div>`;
+}
+(function repExport1311() {
+  const m = modById('reports'); if (!m || !m.acts) return;
+  const go = () => {
+    const rep = repById(M5R.q.rep); if (!repCan(rep, 'X')) { toast('Your role cannot export this report.', 'err'); return; }
+    openModal({ title: E1311('Export'), ok: E1311('Export'), size: 'lg',
+      body: () => `<p style="margin-top:0">${esc(rep.en)}</p>` + formHtml([{ k: 'm_fmt', zh: 'Format', en: 'Format', ctl: 'radio', req: true, def: 'XLSX', opts: ['CSV', 'XLSX', 'PDF'], chg: true }]) + expPreview1311(rep, fval('m_fmt', 'XLSX')),
+      onOk: v => {
+        const fmt = v.m_fmt || 'XLSX'; const n = repGroups(rep, M5R.q).length; const h = m5Sha(rep.id + nowS(true) + fmt);
+        audit('Reports', 'Report exported', rep.en, `${fmt} · ${n} rows · ${fmt === 'CSV' ? 'exclusion note in Manifest' : fmt === 'XLSX' ? 'exclusion note below each worksheet table and in Manifest' : 'exclusion note in page footer and first-page metadata'} · SHA-256 ${h}`);
+        toast(`Export generated: ${rep.id}-report.${fmt.toLowerCase()} · SHA-256 ${m5Short(h)}`);
+      } });
+  };
+  m.acts.repExport = go; ACT.repExport = go;
+})();
+/* custom view preview: the note under the preview table */
+(function cvNote1311() {
+  const m = modById('reports'); if (!m || !m.acts || !m.acts.cvPreview) return;
+  const p0 = m.acts.cvPreview;
+  const go = function () { p0.apply(this, arguments); if (M5R.preview && M5R.preview.indexOf('cvMockNote1311') < 0) { M5R.preview += `<p class="m5-note" id="cvMockNote1311">${MOCK_NOTE_1311}</p>`; render(); } };
+  m.acts.cvPreview = go; ACT.cvPreview = go;
+})();
+/* scheduled files: the same placement rule, shown under Format in the schedule form */
+R133_HOOKS.push(() => {
+  const sel = document.querySelector('#ovl select[data-k="s_fmt"]'); if (!sel || document.getElementById('schFmtNote1311')) return;
+  const box = sel.closest('.fld, .frow, label, div') || sel.parentElement;
+  box.insertAdjacentHTML('beforeend', `<div class="hint" id="schFmtNote1311">Generated files carry the export metadata and the note "${MOCK_NOTE_1311}": PDF in every page footer and the first-page metadata, XLSX one line below the table on each worksheet, CSV in the Manifest only.</div>`);
+});
+
+</script>
+<script>
+/* ===== p8r_mock.js ===== */
+/* PRD gap fill (Core portal): modules that had no screen before this part.
+ *  A. 6A.4.6 Mock Selling: periods (New Mock Period, Approve / Reject, Withdraw, Add Mock Draw, End Now, Purge Mock Data),
+ *     status machine Pending Approval -> Scheduled -> Running -> Ended -> Purge Pending -> Purging -> Purged (Rejected, Withdrawn),
+ *     By schedule generation, Mock Data Purge directive (6A.2.6), channel purge reports and count comparison, Mock Purge Mismatch
+ *     alert + Incident case (6A.15 / 6A.17.5), audit event type Mock Selling with the Mock flag (6A.18).
+ *     Seeded period MS-0001 (Demo data) owns the 1.3.11 Mock draw L658-20261011-1-M.
+ *  B. Mock data in other modules: 6A.1.3 banner + to-dos, 6A.4.2 calendar Show Mock, 6A.6 target channels, 6A.5 closure tag,
+ *     6A.10.2 Mock Flag / Synthetic Flag filters, 6A.10.3 Mock Selling switch with watermark, 6A.10.4 reason codes,
+ *     6A.11.3 Mock Flag, 6A.11.4 Mock ticket at the desk (rehearsal number, no cheque), 6A.11.5 filters, 6A.18.2 Mock Flag.
+ *  C. Synthetic monitoring: 6A.3.5 Synthetic Monitoring Accounts (read only), 6A.10.2 rule 15 synthetic transactions.
+ *  D. 6A.6.8 Draw Conduct Record (workbench column, First Entry gate, release checklist, lock at authorization,
+ *     Add correction note, result detail tab Draw Conduct, Entry Log stage Conduct Record).
+ *  E. 6A.3.9 Selling Hours and Non-Selling Periods.  F. 6A.3.10 Bank Holiday Calendar.
+ */
+const MS_STATES = ['Pending Approval', 'Scheduled', 'Running', 'Ended', 'Purge Pending', 'Purging', 'Purged', 'Rejected', 'Withdrawn'];
+const MS_TAG = '<span class="tag warn" data-mock="tag">Mock</span>';
+const MS_CAL_TAG = '<span class="tag warn" data-mock="cal">MOCK</span>';
+const MS_SYN_TAG = '<span class="tag info" data-syn="tag">Synthetic</span>';
+const MS_FLAGS = ['Exclude Mock', 'Mock Only', 'All'];
+const MS_CATS = ['Mock Draws', 'Mock Transactions', 'Closure Records', 'Draw Results', 'Prize Claims', 'Reconciliation Records', 'Test Player Profiles'];
+const MS_CH_CATS = ['Mock Draws', 'Mock Transactions', 'Tickets', 'Prize Claims', 'Test Player Profiles'];
+(function msStyle() {
+  const s = document.createElement('style');
+  s.textContent = `.ms-wm{position:fixed;inset:0;pointer-events:none;z-index:5;display:flex;align-items:center;justify-content:center;font-size:160px;font-weight:800;color:rgba(200,120,0,.10);transform:rotate(-24deg)}
+  .ms-banner{cursor:pointer}.ms-off td,.ms-off{color:#9aa}.dc-off{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:6px}.ms-red{color:#c62828;font-weight:600}`;
+  document.head.appendChild(s);
+})();
+function msAudit(action, obj, detail, result) { const r = audit('Draw Calendar', action, obj, detail || '', result || 'Success'); r.evType = 'Mock Selling'; r.mock = true; return r; }
+/* every audit event about a Mock draw / Mock period carries the Mock flag (6A.18.1 rule 10) */
+(function auditMock() {
+  const a0 = audit;
+  audit = function (module, action, object, detail, result) {
+    const r = a0.apply(this, arguments);
+    const s = String(object || '') + ' ' + String(detail || '');
+    if (/\b[0-9A-Z]{2,5}-\d{8}-\d+-M\b/.test(s) || /\bMS-\d{4}\b/.test(s)) r.mock = true;
+    return r;
+  };
+})();
+if (typeof AUD_TYPES !== 'undefined' && !AUD_TYPES.includes('Mock Selling')) AUD_TYPES.push('Mock Selling');
+function msCanC() { return can('Draw Calendar', 'C'); }
+function msCanA() { return can('Draw Calendar', 'A') && hasRole('sa'); }
+function msById(id) { return (SEED.mockPeriods || []).find(p => p.id === id); }
+function msDraws(p) { return SEED.mockDraws1311.filter(d => d.mockPeriod === p.id); }
+function msTx(p, ch) { return (SEED.mockTx || []).filter(x => x.mockPeriod === p.id && (!ch || x.channel === ch)); }
+function msClaims(p, ch) { return (SEED.mockClaimRecs || []).filter(x => x.mockPeriod === p.id && (!ch || x.source === ch || x.channel === ch)); }
+function msPlayers(p, ch) { return (SEED.mockPlayers || []).filter(x => x.mockPeriod === p.id && (!ch || x.channels.some(c => c.code === ch))); }
+function msTone(s) { return { 'Pending Approval': 'warn', 'Scheduled': 'info', 'Running': 'ok', 'Ended': '', 'Purge Pending': 'warn', 'Purging': 'warn', 'Purged': 'ok', 'Rejected': 'bad', 'Withdrawn': '' }[s] || ''; }
+function msHist(p, from, to, by, note) { p.history.push({ at: nowS(), from, to, by: by || me() || 'System', note: note || '' }); p.status = to; }
+function msWindow(p) { return `${p.start} – ${p.end}`; }
+function msChanOpts() { return SEED.channels.filter(c => ['Certified', 'Active'].includes(c.status)).map(c => c.code); }
+function msGameOpts() { return SEED.games.filter(g => ['Inactive', 'Active'].includes((gameDef(g) || {}).status)).map(g => g.code); }
+
+/* ---------- mock draws ---------- */
+function msNewDraw(p, game, at, by, reason) {
+  const g = gameByCode(game); const def = gameDef(g); const ds = at.slice(0, 10); const time = at.slice(11, 16);
+  const slots = def.schedule.filter(s => s.day === dow(dt(ds))).map(s => s.time).sort();
+  let n = slots.indexOf(time) + 1; if (n <= 0) n = slots.length + 1;
+  const taken = id => !!drawById(id);
+  let id = `${game}-${ds.replace(/-/g, '')}-${n}-M`; while (taken(id)) { n++; id = `${game}-${ds.replace(/-/g, '')}-${n}-M`; }
+  const slot = def.schedule.find(s => s.time === time) || def.schedule[0];
+  const cutoff = addMin(at, -(slot.lead || 30));
+  const status = p.status === 'Running' && dt(cutoff) > S.now ? 'Open for Betting' : dt(cutoff) <= S.now && p.status === 'Running' ? 'Betting Closed' : 'Scheduled';
+  const d = { id, game, seq: '-', drawAt: at, cutoff, salesOpen: p.status === 'Running' ? nowS() : p.start, status, jackpot: null, special: null, regVersion: 'v' + curVersion(g).v, closure: null, refunds: null, session: time,
+    history: [{ at: nowS(), from: '-', to: status, by: by || 'System', reason: reason || 'Mock draw generated' }], mock: true, mockPeriod: p.id };
+  SEED.mockDraws1311.push(d); return d;
+}
+function msGenerate(p, by) {
+  const out = []; const end = dt(p.end); let day = dt(p.start.slice(0, 10));
+  while (day <= end) {
+    const ds = fmtD(day);
+    p.games.forEach(gc => { const g = gameByCode(gc); if (!g) return; gameDef(g).schedule.filter(s => s.day === dow(day)).forEach(s => {
+      const at = `${ds} ${s.time}`; if (dt(at) < dt(p.start) || dt(at) > end) return;
+      if (msDraws(p).some(d => d.game === gc && d.drawAt === at)) return;
+      out.push(msNewDraw(p, gc, at, by || 'System', 'Mock draw generated by schedule'));
+    }); });
+    day += 864e5;
+  }
+  return out;
+}
+function msOpenDraws(p) { msDraws(p).forEach(d => { if (d.status === 'Scheduled' && dt(d.cutoff) > S.now) { d.history.push({ at: nowS(), from: d.status, to: 'Open for Betting', by: 'System', reason: 'Mock period running' }); d.status = 'Open for Betting'; } }); }
+function msEnd(p, by, why) {
+  const undrawn = msDraws(p).filter(d => ['Scheduled', 'Open for Betting', 'Betting Closed', 'Drawing in Progress', 'Postponed'].includes(d.status));
+  undrawn.forEach(d => { d.history.push({ at: nowS(), from: d.status, to: 'Cancelled', by: 'System', reason: 'Mock period ended (no void directive)' }); d.status = 'Cancelled'; d.cancelReason = 'Mock period ended'; });
+  msHist(p, 'Running', 'Ended', by, why); p.endedAt = nowS();
+  msAudit(by === 'System' ? 'Mock period ended (end time reached)' : 'Mock period ended early (End Now)', p.id, `${undrawn.length} undrawn Mock draws cancelled${why ? ' · ' + why : ''}`);
+}
+TICKS139.push(function msTick() {
+  (SEED.mockPeriods || []).forEach(p => {
+    if (p.status === 'Scheduled' && dt(p.start) <= S.now) { msHist(p, 'Scheduled', 'Running', 'System', 'Start time reached'); msOpenDraws(p); msAudit('Mock period started', p.id, msWindow(p)); }
+    if (p.status === 'Running' && dt(p.end) <= S.now) msEnd(p, 'System');
+  });
+});
+
+/* ---------- seed (Demo data) ---------- */
+(function msSeed() {
+  if (SEED.mockPeriods) return;
+  const m1 = SEED.mockDraws1311.find(d => d.id === 'L658-20261011-1-M');
+  SEED.mockPeriods = [
+    { id: 'MS-0001', name: 'Pre-launch rehearsal (Demo data)', channels: ['ILT'], games: ['L658', '2D'], start: '2026-10-11 06:00', end: '2026-10-13 22:00', mode: 'By schedule', ref: 'Project timeline item (Demo data)', note: '', status: 'Running',
+      by: 'ops.a', at: '2026-10-08 10:00', appr: 'sa.a', apprAt: '2026-10-09 09:30', demo: true, purge: null,
+      history: [{ at: '2026-10-08 10:00', from: '-', to: 'Pending Approval', by: 'ops.a', note: 'Submitted' }, { at: '2026-10-09 09:30', from: 'Pending Approval', to: 'Scheduled', by: 'sa.a', note: 'Approved' }, { at: '2026-10-11 06:00', from: 'Scheduled', to: 'Running', by: 'System', note: 'Start time reached' }] },
+    { id: 'MS-0002', name: 'New game rehearsal (Demo data)', channels: ['ILT', 'EC3'], games: ['4D'], start: '2026-10-20 06:00', end: '2026-10-21 22:00', mode: 'Manual', ref: 'PCSO memo (Demo data)', note: 'Rehearsal before the 4D launch on the second channel (Demo data).', status: 'Pending Approval',
+      by: 'ops.a', at: '2026-10-12 15:10', appr: '', apprAt: '', demo: true, purge: null, history: [{ at: '2026-10-12 15:10', from: '-', to: 'Pending Approval', by: 'ops.a', note: 'Submitted' }] },
+  ];
+  SEED.seq.MS = 2;
+  const p1 = SEED.mockPeriods[0];
+  if (m1) { m1.mockPeriod = 'MS-0001'; }
+  /* By schedule draws still ahead in the window (Demo data) */
+  const day = '2026-10-13';
+  [['2D', '14:00'], ['2D', '17:00'], ['2D', '21:00'], ['L658', '21:00']].forEach(([g, tm]) => msNewDraw(p1, g, `${day} ${tm}`, 'System', 'Mock draw generated by schedule'));
+  const m2 = SEED.mockDraws1311.find(d => d.id === '2D-20261013-1-M');
+  /* Mock transactions (Demo data): ILT test players only */
+  const mk = (i, drawId, game, amt, at, sel, upid) => ({ id: `ILT-TM${String(100 + i).padStart(10, '0')}`, channel: 'ILT', upid, game, drawId, betType: 'Standard', amount: amt, units: amt / 25, confirmedAt: at, receivedAt: addMin(at, 0) + ':03', latency: 3, status: 'Accepted', nonconf: null, tax: 0, type: 'Sale', unitValue: 25, reportedUnits: amt / 25, coreUnits: amt / 25,
+    ccr: `CCR-${at.slice(0, 10).replace(/-/g, '')}-M${String(i).padStart(5, '0')}`, regVersion: `${game} v${curVersion(gameByCode(game)).v}`, ticketHash: hexOf('mocktx' + i), sf: false, refTx: '', adjustedBy: [], selection: sel, inRecord: true, coupon: 0, mock: true, mockPeriod: 'MS-0001', demo: true });
+  SEED.mockTx = [];
+  if (m1) [['19:02', '03,11,24,35,46,52', 'UP-M00000001'], ['19:15', '05,12,27,33,41,58', 'UP-M00000002'], ['19:40', '01,09,18,29,44,57', 'UP-M00000001'], ['20:05', '07,15,22,38,49,55', 'UP-M00000002'], ['20:12', '02,14,26,31,43,50', 'UP-M00000001']]
+    .forEach(([tm, sel, up], i) => SEED.mockTx.push(mk(i + 1, m1.id, 'L658', 25, `2026-10-11 ${tm}:00`, sel, up)));
+  if (m2) [['20:31', '07-21', 'UP-M00000001'], ['20:48', '13-30', 'UP-M00000002']].forEach(([tm, sel, up], i) => SEED.mockTx.push(Object.assign(mk(i + 6, m2.id, '2D', 20, `2026-10-12 ${tm}:00`, sel, up), { unitValue: 25, reportedUnits: 0.8, coreUnits: 0.8, units: 0.8 })));
+  /* test player profiles (Mock flag; not in the official registry statistics) */
+  const base = SEED.players[0];
+  SEED.mockPlayers = [['UP-M00000001', 'TEST', 'PLAYER ONE', 'ILT-TEST-0001', 'MOCK0001'], ['UP-M00000002', 'TEST', 'PLAYER TWO', 'ILT-TEST-0002', 'MOCK0002']].map(([upid, first, last, lid, idno]) =>
+    Object.assign(JSON.parse(JSON.stringify(base)), { upid, name: `${first} ${last}`, first, last, middle: '', origin: 'ILT', channels: [{ code: 'ILT', localId: lid, at: '2026-10-10 10:00' }], mobile: '+63 917 000 000' + upid.slice(-1), email: `test.player${upid.slice(-1)}@example.com`,
+      registeredAt: '2026-10-10 10:00', idType: 'PhilSys National ID', idHash: c2idHash('PhilSys National ID', idno), mock: true, mockPeriod: 'MS-0001', demo: true, versions: [], pay: [], devices: [] }));
+  /* Mock prize claims (Demo data) */
+  const t1 = m1 ? (drDef(m1).tiers[drDef(m1).tiers.length - 1] || {}).name || 'Prize' : 'Prize';
+  SEED.mockClaimRecs = m1 ? [{ id: 'CLM-20261012-M001', source: 'ILT', channel: 'ILT', upid: 'UP-M00000002', txid: 'ILT-TM0000000102', drawId: m1.id, tier: t1, gross: 20, tax: 0, net: 20, at: '2026-10-12 08:40', method: 'Standard', outcome: 'Approved', validation: 'Accepted', reason: '', bets: 1, type: 'Standard', mock: true, mockPeriod: 'MS-0001', demo: true }] : [];
+  /* a Mock big prize ticket at the desk (Demo data; claiming code 1234) */
+  const big = m1 ? (drDef(m1).tiers[1] || drDef(m1).tiers[0] || {}).name || 'Prize' : 'Prize';
+  SEED.mockBigClaims = m1 ? [{ id: 'CLM-20261012-M002', upid: 'UP-M00000001', txid: 'ILT-TM0000000101', drawId: m1.id, tier: big, gross: 500000, tax: 100000, net: 400000, channel: 'ILT', method: 'PCSO Main Office', status: 'FOR CLAIMING', startedAt: '2026-10-12 08:30',
+    codeHash: c2sha('1234'), check: '', codeAt: '2026-10-12 08:30', codeStatus: 'Active', oldHashes: [], usedHashes: [], prints: 0, mock: true, mockPeriod: 'MS-0001', demo: true }] : [];
+  SEED.mockUnclaimed = m1 ? [{ game: 'L658', drawId: m1.id, drawDate: '2026-10-11', tier: t1, winners: 3, claimed: 1, unit: 20, by: { ILT: 3 }, mock: true, mockPeriod: 'MS-0001', demo: true }] : [];
+})();
+/* participating channels only (6A.4.6 rule 1) */
+(function msTargets() { const f0 = drTargetChannels; drTargetChannels = function (d) { if (d && d.mock) { const p = msById(d.mockPeriod); return p ? p.channels.slice() : ['ILT']; } return f0.apply(this, arguments); }; })();
+
+/* ---------- counts / purge ---------- */
+function msCoreCounts(p, ch) {
+  const ds = msDraws(p);
+  return { 'Mock Draws': ds.length, 'Mock Transactions': msTx(p, ch).length, 'Closure Records': ds.filter(d => d.closure).length, 'Draw Results': ds.filter(d => d.result || d.rv).length,
+    'Prize Claims': msClaims(p, ch).length,
+    'Reconciliation Records': ds.reduce((a, d) => a + ((d.rv || []).reduce((b, rv) => b + (rv.deliv || []).filter(x => !ch || x.channel === ch).length, 0)), 0), 'Test Player Profiles': msPlayers(p, ch).length };
+}
+function msChCounts(p, ch) { const c = msCoreCounts(p, ch); return { 'Mock Draws': c['Mock Draws'], 'Mock Transactions': c['Mock Transactions'], 'Tickets': c['Mock Transactions'], 'Prize Claims': c['Prize Claims'], 'Test Player Profiles': c['Test Player Profiles'] }; }
+function msPurgeResult(p) {
+  const pg = p.purge; if (!pg || !pg.counts) return '-';
+  if (p.status === 'Purging') { const per = Object.values(pg.per); const n = per.filter(x => x.status === 'Match').length; const mis = Object.keys(pg.per).filter(c => pg.per[c].status === 'Mismatch');
+    return `Awaiting channel reports ${n}/${per.length}` + (mis.length ? ` · <span class="ms-red">Mismatch: ${mis.join(', ')}</span>` : ''); }
+  if (p.status === 'Purged') return MS_CATS.map(k => `${k} ${fmtN(pg.counts[k] || 0)}`).join(' · ') + ` · Channels matched ${Object.values(pg.per).filter(x => x.status === 'Match').length}/${Object.keys(pg.per).length}`;
+  return '-';
+}
+
+/* ---------- page ---------- */
+function msView(m) {
+  let h = pageH({ zh: 'Mock Selling', en: 'Mock Selling' }, '6A.4.6', 'Rehearse selling before commercial operation. Mock draws and Mock transactions carry the Mock flag and stay out of settlement, remittance, commission, official reports, dashboard figures, service level statistics and SAS. Purged data cannot be recovered; the audit trail is kept.',
+    msCanC() ? btn({ zh: '+ New Mock Period', en: '+ New Mock Period' }, 'ms.new', '', { cls: 'primary', id: 'btnMsNew' }) : '') + subTabs(m);
+  h += filterBar('msF', [{ k: 'st', zh: 'Status', en: 'Status', type: 'select', def: 'All', opts: ['All'].concat(MS_STATES) }]);
+  const st = fv('msF', 'st', 'All');
+  const rows = SEED.mockPeriods.filter(p => st === 'All' || p.status === st).slice().sort((a, b) => b.id.localeCompare(a.id));
+  h += table('msT', [
+    { h: 'Mock Period ID', r: p => `<span class="mono">${p.id}</span>${p.demo ? ' ' + demoTag() : ''}` }, { h: 'Name', r: p => esc(p.name) },
+    { h: 'Participating E-Channels', r: p => esc(p.channels.join(', ')) }, { h: 'Games', r: p => esc(p.games.join(', ')) },
+    { h: 'Window', cls: 'nowrap', r: p => `${esc(p.start)}<div class="tiny">– ${esc(p.end)}</div>` },
+    { h: 'Mock Draws / Mock Transactions', cls: 'num', r: p => `<span data-ms-count="${p.id}">${fmtN(msDraws(p).length)} / ${fmtN(msTx(p).length)}</span>` },
+    { h: 'Status', r: p => badge(p.status, msTone(p.status)) }, { h: 'Purge Result', r: p => `<span class="tiny" data-ms-purge="${p.id}">${msPurgeResult(p)}</span>` },
+    { h: 'Actions', r: p => `<div style="display:flex;flex-wrap:wrap;gap:4px">${msActs(p, true).join('')}</div>` },
+  ], rows, { rowAct: 'ms.open', empty: { zh: 'No Mock Selling periods.', en: 'No Mock Selling periods.' } });
+  h += `<p class="tiny">Several Mock Selling periods can run at the same time; E-Channels and games may overlap and are told apart by the Mock Period ID. Mock draw IDs end with <span class="mono">-M</span> and use no draw sequence or session number of the official calendar. Certified E-Channels may transact only Mock draws during a period.</p>`;
+  return h;
+}
+function msActs(p, sm) {
+  const o = c => ({ cls: (sm ? 'sm ' : '') + (c || '') }); const b = [];
+  if (p.status === 'Pending Approval' && msCanA() && p.by !== me()) { b.push(btn('Approve', 'ms.approve', p.id, Object.assign(o('ok'), { id: 'msApprove_' + p.id }))); b.push(btn('Reject', 'ms.reject', p.id, Object.assign(o(), { id: 'msReject_' + p.id }))); }
+  if (p.status === 'Pending Approval' && p.by === me()) b.push(btn('Withdraw', 'ms.withdraw', p.id, Object.assign(o(), { id: 'msWithdraw_' + p.id })));
+  if (['Scheduled', 'Running'].includes(p.status) && msCanC()) b.push(btn('Add Mock Draw', 'ms.addDraw', p.id, Object.assign(o(), { id: 'msAdd_' + p.id })));
+  if (p.status === 'Running' && msCanC()) b.push(btn('End Now', 'ms.endNow', p.id, Object.assign(o('danger'), { id: 'msEnd_' + p.id })));
+  if (p.status === 'Ended' && msCanC()) b.push(btn('Purge Mock Data', 'ms.purge', p.id, Object.assign(o('danger'), { id: 'msPurge_' + p.id })));
+  if (p.status === 'Purge Pending' && msCanA() && p.purge && p.purge.reqBy !== me()) { b.push(btn('Approve', 'ms.purgeOk', p.id, Object.assign(o('ok'), { id: 'msPurgeOk_' + p.id }))); b.push(btn('Reject', 'ms.purgeRej', p.id, Object.assign(o(), { id: 'msPurgeRej_' + p.id }))); }
+  return b;
+}
+function msOpen(id) {
+  const p = msById(id); if (!p) return;
+  openDrawer({ size: 'lg', msId: id, title: () => `${p.id} · ${esc(p.name)}`, sub: () => `${badge(p.status, msTone(p.status))} ${MS_TAG}${p.demo ? ' ' + demoTag() : ''}`,
+    tabs: [{ id: 'info', zh: 'Period', en: 'Period' }, { id: 'draws', zh: 'Mock Draws', en: 'Mock Draws' }, { id: 'tx', zh: 'Mock Transactions', en: 'Mock Transactions' }, { id: 'purge', zh: 'Purge', en: 'Purge' }, { id: 'hist', zh: 'Status History', en: 'Status History' }],
+    body: () => msBody(p), foot: () => msActs(p, false).concat([btn('Close', 'closeDrawer')]).join('') });
+}
+function msBody(p) {
+  const tab = S.dtab; let h = '';
+  if (p.status === 'Pending Approval') h += banner(`Awaiting approval by a Senior Authorizer who is not the submitter (${esc(p.by)}).`, 'amber');
+  if (p.status === 'Purge Pending') h += banner(`Purge requested by ${esc(p.purge.reqBy)} at ${esc(p.purge.reqAt)}. Awaiting approval by a Senior Authorizer.`, 'amber');
+  if (tab === 'info') {
+    h += dl([['Mock Period ID', `<b class="mono">${p.id}</b>`], ['Name', esc(p.name)], ['Participating E-Channels', esc(p.channels.join(', '))], ['Games', esc(p.games.join(', '))], ['Start / End', esc(msWindow(p)) + ' (UTC+8)'], ['Mock Draws', esc(p.mode)],
+      ['PCSO Reference', esc(p.ref)], ['Note', esc(p.note || '-')], ['Mock Draws / Mock Transactions', `${fmtN(msDraws(p).length)} / ${fmtN(msTx(p).length)}`], ['Submitted By', `${esc(p.by)} · ${esc(p.at)}`],
+      ['Approved By', p.appr ? `${esc(p.appr)} · ${esc(p.apprAt)}` : '-'], p.rejReason ? ['Rejection Reason', esc(p.rejReason)] : null, ['Purge Result', msPurgeResult(p)]]);
+    h += card('Test Player Profiles', table('msPl', [{ h: 'Unique Player ID', r: x => `<span class="mono">${x.upid}</span> ${MS_TAG}` }, { h: 'Channel / Local ID', r: x => esc(x.channels.map(c => c.code + ' ' + c.localId).join(', ')) }, { h: 'Registered At', k: 'registeredAt' }],
+      msPlayers(p).map(x => Object.assign({ id: x.upid }, x)), { nopage: true, empty: { zh: 'None', en: 'No test player profiles.' } }) + '<p class="tiny">Test player profiles carry the Mock flag. They are left out of the official registry statistics and cross-channel duplicate checks and are deleted by the purge.</p>');
+  } else if (tab === 'draws') {
+    h += table('msDr', [{ h: 'Draw ID', r: d => `<button class="btn link mono" data-act="drawOpen" data-a="${d.id}">${d.id}</button> ${MS_CAL_TAG}` }, { h: 'Game', k: 'game' }, { h: 'Draw Time', k: 'drawAt' }, { h: 'Cut-off', k: 'cutoff' }, { h: 'Status', r: d => badge(d.status) }, { h: 'Closure', r: d => d.closure ? esc(d.closure.status) : '-' }],
+      msDraws(p).slice().sort((a, b) => a.drawAt.localeCompare(b.drawAt)), { nopage: true, empty: { zh: 'None', en: 'No Mock draws yet.' } });
+    h += '<p class="tiny">Mock draws follow the official draw state machine, closure, entry, determination and claims, but are sent only to the participating E-Channels. When the period ends, undrawn Mock draws are cancelled without a void directive and are deleted by the purge.</p>';
+  } else if (tab === 'tx') {
+    h += table('msTxT', [{ h: 'Transaction Reference', r: x => `<span class="mono">${x.id}</span> ${MS_TAG}` }, { h: 'Channel', k: 'channel' }, { h: 'Unique Player ID', k: 'upid' }, { h: 'Draw ID', k: 'drawId' }, { h: 'Gross Receipts', cls: 'num', r: x => fmtP(x.amount) }, { h: 'Finalization Time', k: 'confirmedAt' }],
+      msTx(p), { size: 10, empty: { zh: 'None', en: 'No Mock transactions.' } }) + `<p class="tiny">${demoTag()}</p>`;
+  } else if (tab === 'purge') {
+    const pg = p.purge;
+    if (!pg) h += `<p class="muted">No purge requested. Purge Mock Data is available after the period has ended.</p>`;
+    else {
+      h += dl([['Requested By', `${esc(pg.reqBy)} · ${esc(pg.reqAt)}`], ['Approved By', pg.apprBy ? `${esc(pg.apprBy)} · ${esc(pg.apprAt)}` : '-'], ['Dataset Hash Before Purge', pg.hash ? `<span class="hash">${esc(pg.hash)}</span>` : '-'], pg.rejReason ? ['Rejection Reason', esc(pg.rejReason)] : null, pg.caseId ? ['Case', `<button class="btn link mono" data-act="viewCase" data-a="${pg.caseId}">${pg.caseId}</button>`] : null]);
+      if (pg.counts) {
+        h += card('Purge List (Core)', table('msPgC', [{ h: 'Data Category', k: 'id' }, { h: 'Records Purged', cls: 'num', r: r => fmtN(r.n) }], MS_CATS.map(k => ({ id: k, n: pg.counts[k] || 0 })), { nopage: true }) + (pg.manifest ? `<p class="tiny">Mock draws: ${esc(pg.manifest.draws.join(', ') || '-')}</p>` : ''));
+        h += card('Channel Reports', table('msPgR', [{ h: 'Channel', k: 'id' }, { h: 'Directive', r: r => r.dir ? `<span class="mono">${esc(r.dir)}</span>` : '-' }, { h: 'Status', r: r => badge(r.status, r.status === 'Match' ? 'ok' : r.status === 'Mismatch' ? 'bad' : 'warn') },
+          ...MS_CH_CATS.map(k => ({ h: k, cls: 'num', r: r => r.rep ? (r.rep[k] === r.core[k] ? fmtN(r.rep[k]) : `<span class="ms-red">${fmtN(r.rep[k])} (Core ${fmtN(r.core[k])})</span>`) : `<span class="tiny">Core ${fmtN(r.core[k])}</span>` })),
+          { h: '', r: r => p.status === 'Purging' && r.status !== 'Match' ? btn('Simulate Report (Match)', 'ms.chRep', `${p.id}|${r.id}|match`, { cls: 'sm dev', dev: true, id: `msRepOk_${r.id}` }) + ' ' + btn('Simulate Report (Mismatch)', 'ms.chRep', `${p.id}|${r.id}|mismatch`, { cls: 'sm dev', dev: true, id: `msRepBad_${r.id}` }) : '' }],
+        Object.keys(pg.per).map(c => Object.assign({ id: c }, pg.per[c])), { nopage: true }));
+      }
+    }
+    h += '<p class="tiny">The purge deletes the Mock draws, transactions, closure records, results, prize claims, reconciliation records and test profiles of this period and sends Mock Data Purge to each participating E-Channel. Each channel reports the counts it purged; when every count matches, the period becomes Purged; a mismatch raises an alert and opens a case. Audit events are never deleted: the purge writes one purge event with the counts and the dataset hash.</p>';
+  } else if (tab === 'hist') {
+    h += table('msH', [{ h: 'Time', k: 'at' }, { h: 'From', k: 'from' }, { h: 'To', r: x => badge(x.to, msTone(x.to)) }, { h: 'By', k: 'by' }, { h: 'Note', r: x => esc(x.note || '-') }], p.history.map((x, i) => Object.assign({ id: i }, x)).reverse(), { nopage: true });
+  }
+  return h;
+}
+const MS_FORM = () => [
+  { k: 'm_name', zh: 'Name', en: 'Name', ctl: 'text', req: true, ph: 'Pre-launch rehearsal' },
+  { k: 'm_ch', zh: 'Participating E-Channels', en: 'Participating E-Channels', ctl: 'checks', req: true, opts: msChanOpts(), hint: 'Certified or Active E-Channels. A Certified channel may transact only Mock draws during the period.' },
+  { k: 'm_games', zh: 'Games', en: 'Games', ctl: 'checks', req: true, opts: msGameOpts(), hint: 'Inactive games can be rehearsed here only; this does not list them for sale.' },
+  { k: 'm_start', zh: 'Start', en: 'Start', ctl: 'datetime', req: true, sub: 'UTC+8' }, { k: 'm_end', zh: 'End', en: 'End', ctl: 'datetime', req: true, sub: 'UTC+8' },
+  { k: 'm_mode', zh: 'Mock Draws', en: 'Mock Draws', ctl: 'radio', req: true, def: 'By schedule', opts: ['By schedule', 'Manual'], hint: 'By schedule: generated from the draw schedule of the selected games within the window. Manual: add draws one by one. Both can add draws while Running.' },
+  { k: 'm_ref', zh: 'PCSO Reference', en: 'PCSO Reference', ctl: 'text', req: true, ph: 'Project timeline item or PCSO memo' },
+  { k: 'm_note', zh: 'Note', en: 'Note', ctl: 'textarea' },
+];
+Object.assign(ACT, {
+  'ms.open': id => msOpen(id),
+  'ms.new': () => {
+    if (!msCanC()) return;
+    ask({ title: 'New Mock Period', size: 'lg', ok: 'Submit', fields: MS_FORM,
+      validate: v => { const e = {}; const nm = String(v.m_name || '').trim(); const ref = String(v.m_ref || '').trim(); const st = normDT(v.m_start), en = normDT(v.m_end);
+        if (!nm) e.m_name = 'Enter a name.'; else if (nm.length > 64) e.m_name = 'Up to 64 characters.';
+        if (empty(v.m_ch)) e.m_ch = 'Select at least one E-Channel.'; if (empty(v.m_games)) e.m_games = 'Select at least one game.';
+        if (!st) e.m_start = 'Select the start time.'; else if (dt(st) <= S.now) e.m_start = 'The start must be later than now.';
+        if (!en) e.m_end = 'Select the end time.'; else if (st && dt(en) <= dt(st)) e.m_end = 'The end must be later than the start.';
+        if (!ref) e.m_ref = 'Enter the PCSO reference.'; else if (ref.length > 100) e.m_ref = 'Up to 100 characters.';
+        if (String(v.m_note || '').length > 500) e.m_note = 'Up to 500 characters.'; return e; },
+      onOk: v => { const p = { id: nid('MS', { date: false }), name: v.m_name.trim(), channels: v.m_ch.slice(), games: v.m_games.slice(), start: normDT(v.m_start), end: normDT(v.m_end), mode: v.m_mode || 'By schedule', ref: v.m_ref.trim(), note: String(v.m_note || '').trim(),
+        status: 'Pending Approval', by: me(), at: nowS(), appr: '', apprAt: '', purge: null, history: [{ at: nowS(), from: '-', to: 'Pending Approval', by: me(), note: 'Submitted' }] };
+        SEED.mockPeriods.push(p); msAudit('Mock period submitted', p.id, `${p.name} · ${p.channels.join(', ')} · ${p.games.join(', ')} · ${msWindow(p)} · ${p.mode}`); toast(`Mock period ${p.id} submitted for approval.`); } });
+  },
+  'ms.approve': id => { const p = msById(id); if (!p || p.status !== 'Pending Approval') return;
+    if (!msCanA()) { toast('Only a Senior Authorizer can approve this request.', 'err'); return; }
+    if (p.by === me()) { toast('You cannot approve a request you submitted.', 'err'); msAudit('Mock period approval refused', p.id, 'Submitter cannot approve', 'Rejected'); return; }
+    if (dt(p.start) < S.now) { toast('The start time has already passed. Reject this request; a new one can be submitted.', 'err'); return; }
+    ask({ title: `Approve ${p.id}`, ok: 'Approve', msg: `${esc(p.name)} · ${esc(p.channels.join(', '))} · ${esc(p.games.join(', '))} · ${esc(msWindow(p))} · ${esc(p.mode)}`,
+      onOk: () => { p.appr = me(); p.apprAt = nowS(); msHist(p, 'Pending Approval', 'Scheduled', me(), 'Approved'); const gen = p.mode === 'By schedule' ? msGenerate(p, 'System') : [];
+        msAudit('Mock period approved', p.id, `Scheduled · ${gen.length} Mock draws generated`); toast(`${p.id} approved. ${gen.length} Mock draws generated.`); } }); },
+  'ms.reject': id => { const p = msById(id); if (!p || !msCanA() || p.by === me()) return;
+    ask({ title: `Reject ${p.id}`, ok: 'Reject', danger: true, reason: { en: 'Reason', zh: 'Reason' }, onOk: v => { p.rejReason = v.m_reason.trim(); msHist(p, 'Pending Approval', 'Rejected', me(), p.rejReason); msAudit('Mock period rejected', p.id, p.rejReason); toast(`${p.id} rejected.`); } }); },
+  'ms.withdraw': id => { const p = msById(id); if (!p || p.status !== 'Pending Approval' || p.by !== me()) return;
+    ask({ title: `Withdraw ${p.id}`, ok: 'Withdraw', danger: true, msg: 'The request will be withdrawn and cannot be approved.', onOk: () => { msHist(p, 'Pending Approval', 'Withdrawn', me(), 'Withdrawn by the submitter'); msAudit('Mock period withdrawn', p.id, ''); toast(`${p.id} withdrawn.`); } }); },
+  'ms.addDraw': id => { const p = msById(id); if (!p || !['Scheduled', 'Running'].includes(p.status) || !msCanC()) return;
+    ask({ title: `Add Mock Draw · ${p.id}`, ok: 'Add Mock Draw', msg: '<span class="tiny">No approval and no implementation lead time. The draw is sent to the participating E-Channels only.</span>',
+      fields: [{ k: 'm_game', zh: 'Game', en: 'Game', ctl: 'select', req: true, opts: p.games, def: p.games[0] }, { k: 'm_at', zh: 'Draw Date And Time', en: 'Draw Date And Time', ctl: 'datetime', req: true, sub: 'UTC+8' }],
+      validate: v => { const at = normDT(v.m_at); if (!at) return { m_at: 'Select the draw time.' }; if (dt(at) <= S.now) return { m_at: 'The new draw time must be later than now.' };
+        if (dt(at) < dt(p.start) || dt(at) > dt(p.end)) return { m_at: 'The draw time must be within the Mock period.' };
+        if (msDraws(p).some(d => d.game === v.m_game && d.drawAt === at && d.status !== 'Cancelled')) return { m_at: 'Another Mock draw of this game already has this draw time.' }; return {}; },
+      onOk: v => { const d = msNewDraw(p, v.m_game, normDT(v.m_at), me(), 'Mock draw added'); msAudit('Mock draw added', p.id, `${d.id} · ${d.drawAt}`); toast(`Mock draw ${d.id} added.`); } }); },
+  'ms.endNow': id => { const p = msById(id); if (!p || p.status !== 'Running' || !msCanC()) return;
+    const n = msDraws(p).filter(d => ['Scheduled', 'Open for Betting', 'Betting Closed', 'Drawing in Progress', 'Postponed'].includes(d.status)).length;
+    ask({ title: `End Now · ${p.id}`, ok: 'End Now', danger: true, msg: `Mock transactions are no longer accepted after the period ends. ${n} undrawn Mock draws will be cancelled (no void directive).`,
+      check: { en: 'I understand the Mock period ends now', zh: 'I understand the Mock period ends now' }, reason: { en: 'Reason', zh: 'Reason', req: false },
+      onOk: v => { msEnd(p, me(), String(v.m_reason || '').trim()); toast(`${p.id} ended.`); } }); },
+  'ms.purge': id => { const p = msById(id); if (!p || p.status !== 'Ended' || !msCanC()) return;
+    const c = msCoreCounts(p);
+    ask({ title: `Purge Mock Data · ${p.id}`, ok: 'Submit Purge Request', danger: true, msg: `A Senior Authorizer must approve the purge. Records to purge: ${MS_CATS.map(k => `${k} ${fmtN(c[k])}`).join(' · ')}.`,
+      onOk: () => { p.purge = { reqBy: me(), reqAt: nowS() }; msHist(p, 'Ended', 'Purge Pending', me(), 'Purge requested'); msAudit('Mock data purge requested', p.id, MS_CATS.map(k => `${k} ${c[k]}`).join(', ')); toast(`Purge request for ${p.id} submitted.`); } }); },
+  'ms.purgeOk': id => { const p = msById(id); if (!p || p.status !== 'Purge Pending') return;
+    if (!msCanA()) { toast('Only a Senior Authorizer can approve this request.', 'err'); return; }
+    if (p.purge.reqBy === me()) { toast('You cannot approve a request you submitted.', 'err'); return; }
+    ask({ title: `Approve purge · ${p.id}`, ok: 'Approve and Purge', danger: true, msg: 'Purged Mock data cannot be recovered. The audit trail is kept.',
+      check: { en: 'I understand the Mock data of this period will be deleted and cannot be recovered', zh: 'I understand the Mock data of this period will be deleted and cannot be recovered' },
+      onOk: () => msPurgeExec(p) }); },
+  'ms.purgeRej': id => { const p = msById(id); if (!p || p.status !== 'Purge Pending' || !msCanA() || p.purge.reqBy === me()) return;
+    ask({ title: `Reject purge · ${p.id}`, ok: 'Reject', danger: true, reason: { en: 'Reason', zh: 'Reason' }, onOk: v => { p.purge.rejReason = v.m_reason.trim(); msHist(p, 'Purge Pending', 'Ended', me(), 'Purge rejected · ' + p.purge.rejReason); msAudit('Mock data purge rejected', p.id, p.purge.rejReason); toast('Purge request rejected.'); } }); },
+  'ms.chRep': a => { const [id, ch, kind] = a.split('|'); const p = msById(id); if (!p || p.status !== 'Purging') return; msChReport(p, ch, kind === 'match'); render(); },
+  'ms.showMock': () => { setF('cal', 'showMock', !fv('cal', 'showMock', false)); S.pg.calT = 0; render(); },
+});
+function msPurgeExec(p) {
+  const pg = p.purge; const draws = msDraws(p);
+  pg.counts = msCoreCounts(p); pg.per = {}; p.channels.forEach(ch => { pg.per[ch] = { status: 'Awaiting', core: msChCounts(p, ch), rep: null, at: '' }; });
+  pg.manifest = { draws: draws.map(d => d.id), tx: msTx(p).map(x => x.id), players: msPlayers(p).map(x => x.upid) };
+  pg.hash = hexOf(p.id + '|' + JSON.stringify(pg.manifest) + '|' + JSON.stringify(pg.counts));
+  pg.apprBy = me(); pg.apprAt = nowS();
+  /* delete the Mock business data of this period */
+  const ids = new Set(pg.manifest.draws);
+  for (let i = SEED.mockDraws1311.length - 1; i >= 0; i--) if (SEED.mockDraws1311[i].mockPeriod === p.id) SEED.mockDraws1311.splice(i, 1);
+  ['mockTx', 'mockClaimRecs', 'mockPlayers', 'mockBigClaims', 'mockUnclaimed'].forEach(k => { SEED[k] = (SEED[k] || []).filter(x => x.mockPeriod !== p.id && !ids.has(x.drawId)); });
+  const dirs = issueDirectives(p.channels, { type: 'Mock Data Purge', summary: `${p.id} · purge all Mock data of the period and report the counts`, reason: 'Mock period ended', by: pg.reqBy, authBy: me(), ref: p.id });
+  dirs.forEach(d => { pg.per[d.channel].dir = d.id; });
+  msHist(p, 'Purge Pending', 'Purging', me(), 'Purge approved and executed in Core');
+  msAudit('Mock data purged', p.id, `${MS_CATS.map(k => `${k} ${pg.counts[k]}`).join(', ')} · dataset hash ${pg.hash}`);
+  toast(`Mock data of ${p.id} purged in Core. Mock Data Purge sent to ${p.channels.join(', ')}.`);
+}
+function msChReport(p, ch, match) {
+  const pg = p.purge; const r = pg.per[ch]; if (!r) return;
+  r.rep = Object.assign({}, r.core); if (!match) r.rep['Mock Transactions'] = r.core['Mock Transactions'] + 1, r.rep['Tickets'] = r.core['Tickets'] + 1;
+  r.status = match ? 'Match' : 'Mismatch'; r.at = nowS();
+  const d = SEED.directives.find(x => x.id === r.dir); if (d) { d.ack = 'Acknowledged'; d.ackAt = nowS(true); d.exec = 'Executed'; }
+  msAudit('Mock data purge reported', p.id, `${ch} · ${r.status} · ${MS_CH_CATS.map(k => `${k} ${r.rep[k]}`).join(', ')}`);
+  if (!match) {
+    const al = M4.raiseAlert({ cat: 'Mock Purge Mismatch', sev: 'High', channel: ch, event: `${p.id} · purge counts reported by ${ch} differ from Core`, src: p.id });
+    if (!pg.caseId) { const c = createCase({ source: al.id, channel: ch, event: `Mock data purge count mismatch · ${p.id} · ${ch}`, severity: 'High', auto: true, type: 'Incident', desc: `Purge counts reported by ${ch} differ from Core (6A.4.6).` }); c.ctype = 'Incident'; c.priority = 'P2'; pg.caseId = c.id; }
+    toast(`Purge counts from ${ch} do not match. Alert raised and case ${pg.caseId} opened.`, 'warn');
+  }
+  if (Object.values(pg.per).every(x => x.status === 'Match')) { msHist(p, 'Purging', 'Purged', 'System', 'All channel counts match'); p.purgedAt = nowS(); msAudit('Mock data purge completed', p.id, 'All participating E-Channels reported matching counts'); toast(`${p.id} purged. All channel counts match.`); }
+}
+/* calendar: Mock Selling tab, Show Mock */
+(function msCalendar() {
+  const m = modById('calendar'); if (!m) return;
+  if (!m.subs.some(s => s.id === 'mock')) m.subs = m.subs.concat([{ id: 'mock', zh: 'Mock Selling', en: 'Mock Selling' }]);
+  const v0 = m.view; m.view = function () { if (S.sub === 'mock') return msView(m); let h = v0.apply(this, arguments);
+    if (S.sub === 'calendar') { const on = !!fv('cal', 'showMock', false); const box = `<label class="tiny" style="display:inline-flex;align-items:center;gap:4px;margin-left:8px"><input type="checkbox" id="calShowMock" data-act="ms.showMock"${on ? ' checked' : ''}> Show Mock</label>`;
+      const i = h.indexOf('data-act="calMode"'); const j = i >= 0 ? h.indexOf('</div>', i) : -1; h = j >= 0 ? h.slice(0, j + 6) + box + h.slice(j + 6) : h + box;
+      h += `<p class="tiny" id="calMockNote">Mock draws (6A.4.6) are hidden by default; tick Show Mock to list them with the MOCK tag. They use no draw sequence or session number and do not count toward the draws to keep or the advance-sale window.</p>`; }
+    return h; };
+  const r0 = calRows; calRows = function () { if (!fv('cal', 'showMock', false)) return r0.apply(this, arguments); const real = SEED.draws; SEED.draws = real.concat(SEED.mockDraws1311); try { return r0.apply(this, arguments); } finally { SEED.draws = real; } };
+  R134_COLS.calT = cols => { const i = cols.findIndex(c => c.h === 'Draw ID'); if (i >= 0) { const r1 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: (d, j) => (r1 ? r1(d, j) : esc(d.id)) + (d.mock ? ' ' + MS_CAL_TAG : '') }); } return cols; };
+  const mv = monthView; monthView = function (rows, ym) { let h = mv.apply(this, arguments); rows.filter(d => d.mock).forEach(d => { h = h.split(`data-a="${d.id}" title="${d.id} · `).join(`data-a="${d.id}" data-mockchip="1" title="MOCK ${d.id} · `); h = h.replace(new RegExp(`(data-a="${d.id}" data-mockchip="1"[^>]*>)`), '$1MOCK '); }); return h; };
+  const o0 = drawOpen; drawOpen = function (id) { o0.apply(this, arguments); const d = drawById(id); const D = S.drawer; if (!d || !d.mock || !D) return; const s0 = D.sub, b0 = D.body;
+    D.sub = () => (typeof s0 === 'function' ? s0() : s0 || '') + ' ' + MS_CAL_TAG; D.body = () => banner(`<b>Mock draw</b> of Mock Selling period <button class="btn link mono" data-act="ms.openFromDraw" data-a="${esc(d.mockPeriod)}">${esc(d.mockPeriod)}</button>. Sent to the participating E-Channels only; not in the official calendar statistics.`, 'amber') + b0(); D.foot = () => ''; render(); };
+  ACT['ms.openFromDraw'] = id => { closeDrawer(); go('calendar', 'mock'); msOpen(id); };
+})();
+/* closure record of a Mock draw carries the Mock tag (6A.5.3) */
+(function msClosure() { const c0 = closureOpen; closureOpen = function (id) { c0.apply(this, arguments); const d = drawById(id); if (d && d.mock && S.drawer && !S.drawer.ms) { S.drawer.ms = true; const s0 = S.drawer.sub; S.drawer.sub = () => (typeof s0 === 'function' ? s0() : s0 || '') + ' ' + MS_TAG + ' <span class="tiny">Not an official closure record</span>'; render(); } }; })();
+/* dashboard banner + to-dos (6A.1.3) */
+(function msDash() {
+  const m = modById('dash'); if (!m) return; const v0 = m.view;
+  m.view = function () { let h = v0.apply(this, arguments); const run = SEED.mockPeriods.filter(p => p.status === 'Running');
+    if (!run.length) return h; const b = run.map(p => `<div class="banner amber ms-banner" id="msDashBanner" data-act="go" data-a="calendar/mock">Mock selling ${p.id} running · mock data excluded</div>`).join('');
+    const i = h.indexOf('<div class="filters"'); return i >= 0 ? h.slice(0, i) + b + h.slice(i) : b + h; };
+  TODO_PROVIDERS.push(u => { const out = [];
+    if (hasRole('sa', u) && can('Draw Calendar', 'A', u)) out.push({ n: SEED.mockPeriods.filter(p => (p.status === 'Pending Approval' && p.by !== u.id) || (p.status === 'Purge Pending' && p.purge && p.purge.reqBy !== u.id)).length, zh: 'Mock selling periods or Mock data purges to approve', en: 'Mock selling periods or Mock data purges to approve', go: 'calendar/mock' });
+    if (can('Draw Calendar', 'C', u)) out.push({ n: SEED.mockPeriods.filter(p => p.status === 'Ended').length, zh: 'ended Mock selling periods awaiting purge', en: 'ended Mock selling periods awaiting purge', go: 'calendar/mock' });
+    return out; });
+})();
+/* directive type, alert routing, automated case rule, reason codes */
+if (typeof DIR_TYPES !== 'undefined' && !DIR_TYPES.some(x => x[0] === 'Mock Data Purge')) { DIR_TYPES.push(['Mock Data Purge', '6A.4.6', 'Auto-executed']); DIR_MODE['Mock Data Purge'] = 'Auto-executed'; }
+if (SEED.routing && !SEED.routing.some(r => r.type === 'Mock Purge Mismatch')) SEED.routing.push({ type: 'Mock Purge Mismatch', roles: ['gop', 'sa'], users: [], delivery: ['Portal', 'Email'], escalate: ['sa'] });
+Object.assign(C2_NC_DEF, { 'Outside Selling Period': ['Critical', 'Excluded'], 'Mock Flag Mismatch': ['Critical', 'Excluded'] });
+(function msCaseRule() { const m = modById('cases'); if (!m) return; const v0 = m.view; m.view = function () { let h = v0.apply(this, arguments); if (S.sub !== 'rules') return h;
+  const i = h.indexOf('data-table="csRules"'); const j = i >= 0 ? h.indexOf('</tbody>', i) : -1; if (j < 0) return h;
+  const row = '<tr data-row="mock"><td>Mock data purge counts reported by a channel differ from Core</td><td>6A.4.6</td><td>Incident</td><td>P2</td></tr><tr data-row="osp"><td>Synthetic monitoring account declared without a PCSO approval reference (alert to Network Operations, no case)</td><td>6A.3.5</td><td>-</td><td>-</td></tr>';
+  return h.slice(0, j) + row + h.slice(j); }; })();
+
+/* =====================================================================
+ * B. Mock and Synthetic data in Transactions, Prize Claims, Audit Trail
+ * ===================================================================== */
+(function msFilters() {
+  const f0 = filterBar;
+  filterBar = function (id, fields, right) {
+    if (Array.isArray(fields)) {
+      if (id === 'txf' && !fields.some(f => f.k === 'mock')) fields = fields.concat([{ k: 'mock', zh: 'Mock Flag', en: 'Mock Flag', type: 'select', def: 'Exclude Mock', opts: MS_FLAGS }, { k: 'syn', zh: 'Synthetic Flag', en: 'Synthetic Flag', type: 'select', def: 'Exclude Synthetic', opts: ['Exclude Synthetic', 'Synthetic Only', 'All'] }]);
+      if (id === 'crf' && !fields.some(f => f.k === 'mock')) fields = fields.concat([{ k: 'mock', zh: 'Mock Flag', en: 'Mock Flag', type: 'select', def: 'Exclude Mock', opts: MS_FLAGS }]);
+    }
+    return f0.call(this, id, fields, right);
+  };
+})();
+function msFlagOk(x, mf, sf) { if (mf === 'Exclude Mock' && x.mock) return false; if (mf === 'Mock Only' && !x.mock) return false; if (sf === 'Exclude Synthetic' && x.synthetic) return false; if (sf === 'Synthetic Only' && !x.synthetic) return false; return true; }
+(function msTxRows() {
+  const r0 = c2txRows;
+  c2txRows = function () {
+    const mf = fv('txf', 'mock', 'Exclude Mock'), sf = fv('txf', 'syn', 'Exclude Synthetic'); const real = SEED.transactions;
+    const pool = real.concat(SEED.mockTx || [], SEED.synthTx || []); const ref = String(fv('txf', 'ref', '')).trim();
+    if (ref) return pool.filter(x => x.id === ref);
+    SEED.transactions = pool.filter(x => msFlagOk(x, mf, sf)); try { return r0.apply(this, arguments); } finally { SEED.transactions = real; }
+  };
+  const t0 = c2tx; c2tx = function (id) { return t0(id) || (SEED.mockTx || []).find(x => x.id === id) || (SEED.synthTx || []).find(x => x.id === id); };
+  R134_COLS.txT = cols => { if (cols[0]) { const r1 = cols[0].r; cols[0] = Object.assign({}, cols[0], { r: (x, j) => (r1 ? r1(x, j) : esc(x.id)) + (x.mock ? ' ' + MS_TAG : '') + (x.synthetic ? ' ' + MS_SYN_TAG : '') }); } return cols; };
+  const o0 = c2txOpen; c2txOpen = function (id) { o0.apply(this, arguments); const x = c2tx(id); const D = S.drawer; if (!x || !D || !(x.mock || x.synthetic)) return; const b0 = D.body;
+    D.body = () => banner(x.mock ? `<b>Mock transaction</b> of Mock Selling period <span class="mono">${esc(x.mockPeriod)}</span>. Not in settlement, remittance, official reports or dashboard figures; deleted by the purge. ${demoTag()}` : `<b>Synthetic monitoring transaction</b> from declared account <span class="mono">${esc(x.account)}</span>. Not in the closure record, determination, settlement, transaction monitoring statistics, official reports or player statistics. ${demoTag()}`, 'amber') + b0(); render(); };
+  const m0 = c2txMonitor;
+  c2txMonitor = function (m) {
+    const on = !!fv('tmf', 'mockSel', false); const real = SEED.transactions; if (on) SEED.transactions = (SEED.mockTx || []).slice();
+    let h; try { h = m0.apply(this, arguments); } finally { SEED.transactions = real; }
+    const sw = `<div class="filters" id="tmMockSw"><label class="sw"><input type="checkbox" id="tmMockSel" data-act="ms.tmSwitch"${on ? ' checked' : ''}> Mock Selling</label><span class="tiny">${on ? 'Showing Mock data only. Official data is not included and the two are never added together.' : 'Official data. Mock and synthetic monitoring transactions are not included.'}</span></div>`;
+    const i = h.indexOf('<div class="filters"'); h = i >= 0 ? h.slice(0, i) + sw + h.slice(i) : sw + h;
+    if (on) h = `<div class="ms-wm" id="tmMockWm" aria-hidden="true">Mock</div>` + h.replace('</h1>', ` ${MS_TAG}</h1>`);
+    return h;
+  };
+  ACT['ms.tmSwitch'] = () => { setF('tmf', 'mockSel', !fv('tmf', 'mockSel', false)); render(); };
+})();
+(function msClaimsRows() {
+  const r0 = c2recRows;
+  c2recRows = function () { const rows = r0.apply(this, arguments); if (!(S.page === 'claims' && S.sub === 'records')) return rows; const mf = fv('crf', 'mock', 'Exclude Mock');
+    const mock = (SEED.mockClaimRecs || []).map(c2recTax); return mf === 'Mock Only' ? mock : mf === 'All' ? rows.concat(mock) : rows; };
+  R134_COLS.crT = cols => { if (cols[0]) { const r1 = cols[0].r; cols[0] = Object.assign({}, cols[0], { r: (x, j) => (r1 ? r1(x, j) : esc(x.id)) + (x.mock ? ' ' + MS_TAG : '') }); } return cols; };
+  /* 6A.11.5 filters (Mock Flag default Exclude Mock) */
+  const u0 = c2uncRows;
+  c2uncRows = function () { const rows = u0.apply(this, arguments); if (!(S.page === 'claims' && S.sub === 'unclaimed')) return rows;
+    const f = k => fv('ucF', k, 'All'); const mf = fv('ucF', 'mock', 'Exclude Mock'); const from = fv('ucF', 'from', ''), to = fv('ucF', 'to', '');
+    const mock = (SEED.mockUnclaimed || []).map(u => Object.assign({ id: 'M|' + u.drawId + '|' + u.tier, deadline: '-', days: 0, unclaimed: u.winners - u.claimed, status: 'Not Tracked (Mock)' }, u));
+    const all = mf === 'Mock Only' ? mock : mf === 'All' ? rows.concat(mock) : rows;
+    return all.filter(u => (f('game') === 'All' || u.game === f('game')) && (!fv('ucF', 'draw', '') || u.drawId === String(fv('ucF', 'draw', '')).trim()) && (!fv('ucF', 'tier', '') || String(u.tier).toLowerCase().includes(String(fv('ucF', 'tier', '')).trim().toLowerCase()))
+      && (f('ch') === 'All' || Object.keys(u.by || {}).includes(f('ch'))) && (f('st') === 'All' || u.status === f('st')) && (u.mock || ((!from || u.deadline >= from) && (!to || u.deadline <= to)))); };
+  R134_COLS.ucT = cols => { if (cols[0]) { const r1 = cols[0].r; cols[0] = Object.assign({}, cols[0], { r: (x, j) => (r1 ? r1(x, j) : esc(x.drawId)) + (x.mock ? ' ' + MS_TAG : '') }); } return cols; };
+  const m = modById('claims'); if (!m) return; const v0 = m.view;
+  m.view = function () { let h = v0.apply(this, arguments); if (S.sub !== 'unclaimed') return h;
+    const bar = filterBar('ucF', [{ k: 'game', zh: 'Game', en: 'Game', type: 'select', def: 'All', opts: ['All'].concat(SEED.games.map(g => g.code)) }, { k: 'draw', zh: 'Draw ID', en: 'Draw ID', w: 150 }, { k: 'tier', zh: 'Prize Tier', en: 'Prize Tier', w: 110 },
+      { k: 'ch', zh: 'Channel', en: 'Channel', type: 'select', def: 'All', opts: ['All'].concat(SEED.channels.filter(c => c.status !== 'Pending').map(c => c.code)) }, { k: 'st', zh: 'Status', en: 'Status', type: 'select', def: 'All', opts: ['All', 'Open', 'Expiring Soon', 'Forfeited', 'Extended – Channel Suspended', 'Not Tracked (Mock)'] },
+      { k: 'from', zh: 'Claim Deadline From', en: 'Claim Deadline From', type: 'date' }, { k: 'to', zh: 'Claim Deadline To', en: 'Claim Deadline To', type: 'date' }, { k: 'mock', zh: 'Mock Flag', en: 'Mock Flag', type: 'select', def: 'Exclude Mock', opts: MS_FLAGS }]);
+    const i = h.indexOf('<div class="tbl-wrap"'); h = i >= 0 ? h.slice(0, i) + bar + h.slice(i) : h + bar;
+    return h + '<p class="tiny" id="ucMockNote">Mock draws are not counted as unclaimed and are never forfeited; they are listed only with Mock Flag Mock Only or All.</p>'; };
+})();
+/* 6A.11.4 Mock ticket at the Big Prize Claims Desk */
+(function msDesk() {
+  const c0 = c2claim; c2claim = function (id) { return c0(id) || (SEED.mockBigClaims || []).find(c => c.id === id); };
+  const p0 = c2pl; c2pl = function (upid) { return p0(upid) || (SEED.mockPlayers || []).find(p => p.upid === upid); };
+  const f0 = c2find; c2find = function (q) { const r = f0(q); if (r.hits.length) return r; const s = String(q || '').trim(); if (!s) return r; const up = s.toUpperCase(); const tail = id => id.toUpperCase().split('-').slice(1).join('-'); const big = SEED.mockBigClaims || [];
+    let hits = big.filter(c => c.txid.toUpperCase() === up || tail(c.txid) === up); if (!hits.length) { const hh = c2sha(s); hits = big.filter(c => c.codeHash && c.codeHash === hh); } if (!hits.length) hits = big.filter(c => c.upid === up || c.drawId === s);
+    return hits.length ? { hits: hits.map(c => c.id), msg: '' } : r; };
+  const v0 = c2deskView;
+  c2deskView = function (m) { let h = v0.apply(this, arguments); const D = c2desk(); const c = D.claim ? c2claim(D.claim) : null; if (!c || !c.mock || (D.tab !== 'handle' && can('Big Prize Claims', 'C'))) return h;
+    const b = `<div id="deskMockBanner">${banner('<b>Mock Selling ticket – rehearsal only. No cheque is issued.</b>', 'amber')}</div>`;
+    const i = h.indexOf('id="deskSteps"'); const j = i >= 0 ? h.indexOf('</div>', i) + 6 : 0; h = h.slice(0, j) + b + h.slice(j);
+    h = h.replace('>Cheque Number<', '>Rehearsal Number<').replace('placeholder="Cheque number"', 'placeholder="MOCK-…"').replace(/(<select data-k="dk_bank"[^>]*>)[\s\S]*?(<\/select>)/, '$1<option value="">-</option><option value="Not Applicable"' + (fval('dk_bank', '') === 'Not Applicable' ? ' selected' : '') + '>Not Applicable</option>$2')
+      .replace('>Register cheque and mark as claimed<', '>Register Rehearsal and Mark as Claimed<').replace('>Cheque Amount<', '>Rehearsal Amount<');
+    return h; };
+})();
+(function msAuditUI() {
+  const r0 = audRun; audRun = function (q, o) { const rows = r0.apply(this, arguments); const mf = (q && q.mock) || 'All'; return mf === 'All' ? rows : rows.filter(r => mf === 'Mock Only' ? !!r.mock : !r.mock); };
+  const v0 = audSearchView; audSearchView = function () { let h = v0.apply(this, arguments); const i = h.indexOf('data-filter="audF|out"'); const j = i >= 0 ? h.indexOf('</label>', i) : -1; if (j < 0) return h;
+    const lbl = m5Lbl('Mock Flag', m5Sel('audF', 'mock', ['All', 'Mock Only', 'Exclude Mock'], 'All')); return h.slice(0, j + 8) + lbl + h.slice(j + 8); };
+  const c0 = audCols; audCols = function () { const cols = c0.apply(this, arguments); const i = cols.findIndex(c => c.h === 'Type'); if (i >= 0) { const r1 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: r => r1(r) + (r.mock ? ' ' + MS_TAG : '') }); } return cols; };
+})();
+
+/* =====================================================================
+ * C. Synthetic monitoring accounts (6A.3.5) and transactions (6A.10.2 rule 15)
+ * ===================================================================== */
+(function synSeed() {
+  if (SEED.synthAccounts) return;
+  SEED.synthAccounts = [
+    { channel: 'ILT', acct: 'ILT-SYN-01', upid: 'None', opened: '2026-09-15', closed: '-', ref: 'PCSO-APR-2026-0912 (Demo data)', demo: true },
+    { channel: 'ILT', acct: 'ILT-SYN-02', upid: 'None', opened: '2026-09-15', closed: '-', ref: 'PCSO-APR-2026-0912 (Demo data)', demo: true },
+  ];
+  const d = SEED.draws.find(x => x.game === 'L655' && x.status === 'Open for Betting') || SEED.draws[0];
+  SEED.synthTx = ['20:40', '20:45', '20:50'].map((tm, i) => ({ id: `ILT-TS${String(9000 + i).padStart(10, '0')}`, channel: 'ILT', upid: '-', account: 'ILT-SYN-01', game: d.game, drawId: d.id, betType: 'Standard', amount: 25, units: 1, confirmedAt: `2026-10-12 ${tm}:00`, receivedAt: `2026-10-12 ${tm}:02`, latency: 2, status: 'Accepted', nonconf: null, tax: 0, type: 'Sale', unitValue: 25, reportedUnits: 1, coreUnits: 1,
+    ccr: `CCR-20261012-S${String(i + 1).padStart(5, '0')}`, regVersion: `${d.game} ${d.regVersion}`, ticketHash: hexOf('syn' + i), sf: false, refTx: '', adjustedBy: [], selection: '01,02,03,04,05,06', inRecord: false, coupon: 0, synthetic: true, demo: true }));
+})();
+(function synDecl() {
+  const m = modById('registry'); if (!m) return; const v0 = m.view;
+  m.view = function () { const h = v0.apply(this, arguments); if (S.sub !== 'declarations') return h;
+    return h + card('Synthetic Monitoring Accounts', table('synT', [{ h: 'E-Channel', k: 'channel' }, { h: 'Channel Account ID', r: a => `<span class="mono">${esc(a.acct)}</span>` }, { h: 'Unique Player ID', k: 'upid' }, { h: 'Opened On', k: 'opened' }, { h: 'Closed On', k: 'closed' },
+      { h: 'PCSO Approval Reference', r: a => a.ref ? esc(a.ref) : '<span class="ms-red" data-syn-missing="1">Missing</span>' }], SEED.synthAccounts.map((a, i) => Object.assign({ id: i }, a)), { nopage: true })
+      + (SEED.synthAccounts.some(a => !a.ref) ? '' : `<div style="margin-top:6px">${btn('Simulate Declaration Without PCSO Approval Reference', 'syn.sim', '', { cls: 'sm dev', dev: true, id: 'btnSynSim' })}</div>`)
+      + `<p class="tiny">Read only, from the latest configuration declarations; not judged as divergences. Only transactions of declared accounts with the Synthetic flag are treated as synthetic monitoring transactions; the Synthetic flag from an undeclared account is returned as a format error. A declaration without a PCSO approval reference is shown in red and alerts Network Operations. ${demoTag()}</p>`); };
+  if (SEED.routing && !SEED.routing.some(r => r.type === 'Synthetic Account Approval Missing')) SEED.routing.push({ type: 'Synthetic Account Approval Missing', roles: ['nop'], users: [], delivery: ['Portal', 'Email'], escalate: [] });
+  /* DEV: the channel side declares an account without a PCSO approval reference (EC2, Demo data) */
+  ACT['syn.sim'] = () => { const a = { channel: 'EC2', acct: 'EC2-MON-01', upid: 'None', opened: '2026-10-01', closed: '-', ref: '', demo: true }; SEED.synthAccounts.push(a);
+    audit('Configuration Declarations', 'Synthetic monitoring account declared', a.acct, `${a.channel} · no PCSO approval reference`);
+    M4.raiseAlert({ cat: 'Synthetic Account Approval Missing', sev: 'Medium', channel: a.channel, event: `${a.acct} declared without a PCSO approval reference`, src: 'SYN-' + a.acct }); toast(`${a.acct} declared without a PCSO approval reference. Network Operations alerted.`, 'warn'); render(); };
+})();
+
+/* =====================================================================
+ * D. 6A.6.8 Draw Conduct Record
+ * ===================================================================== */
+const DC_DONE = ['Results Encoded', 'Cascading', 'Published'];
+function dcDemo(d, locked) {
+  const lotto = gameByCode(d.game) && gameByCode(d.game).type === 'Lotto'; const st = d.drawAt + ':00';
+  return { status: locked ? 'Locked' : 'Saved', venue: 'PCSO draw studio (Demo data)', start: st, end: fmtDT(dt(d.drawAt) + (lotto ? 750 : 180) * 1000, true), machine: 'DM-02 (Demo data)', balls: `BS-${d.game}-A (Demo data)`,
+    officials: [{ name: 'Demo Official 1', org: 'PCSO Board Secretary (Demo data)' }, { name: 'Demo Official 2', org: 'Commission on Audit (Demo data)' }], video: `https://example.com/draws/${d.id}`, notes: '', files: [], versions: [{ at: d.drawAt, by: 'ops.a', note: 'Created (Demo data)' }], corrections: [], demo: true, lockedAt: locked ? d.drawAt : '' };
+}
+function dcOf(d) {
+  if (!d) return null; if (d.conduct !== undefined) return d.conduct;
+  if (DC_DONE.includes(d.status) || (d.status === 'Cancelled' && d.rv)) d.conduct = dcDemo(d, true);
+  else if (d.status === 'Drawing in Progress' && ((d.entries && d.entries.num && (d.entries.num.first || d.entries.num.round > 1 || d.entries.matched)) || (d.elog || []).some(x => x.stage === 'Numbers') || d.id === 'L655-20261012-1')) d.conduct = dcDemo(d, false);
+  else d.conduct = null;
+  return d.conduct;
+}
+function dcSt(d) { const c = dcOf(d); return c ? c.status : 'Not Started'; }
+function dcSaved(d) { return ['Saved', 'Locked'].includes(dcSt(d)); }
+function dcCanEdit(d) { return can('Draw Results', 'C') && dcSt(d) !== 'Locked' && ['Betting Closed', 'Drawing in Progress'].includes(d.status); }
+function dcPrev(d) { const ps = SEED.draws.filter(x => x.game === d.game && x.id !== d.id && x.drawAt < d.drawAt && DC_DONE.includes(x.status)).sort((a, b) => b.drawAt.localeCompare(a.drawAt)); for (const x of ps) { const c = dcOf(x); if (c) return c; } return null; }
+const DC_FIELDS = [['venue', 'Draw Venue'], ['start', 'Draw Start Time'], ['end', 'Draw End Time'], ['machine', 'Draw Machine ID'], ['balls', 'Ball Set ID'], ['officials', 'Supervising Officials'], ['video', 'Video Link'], ['notes', 'Incident Notes'], ['files', 'Attachments']];
+function dcVal(c, k) { if (!c) return ''; if (k === 'officials') return (c.officials || []).map(o => `${o.name} (${o.org})`).join('; '); if (k === 'files') return (c.files || []).map(f => f.name).join(', '); return c[k] || ''; }
+function dcOpen(id) {
+  const d = drawById(id); if (!d) return; const c = dcOf(d); const prev = dcPrev(d); const src = c || prev || {};
+  const vals = { dc_venue: src.venue || '', dc_start: c ? c.start.replace(' ', 'T') : (d.drawAt + ':00').replace(' ', 'T'), dc_end: c ? c.end.replace(' ', 'T') : '', dc_machine: src.machine || '', dc_balls: src.balls || '', dc_video: c ? c.video : '', dc_notes: c ? c.notes : '' };
+  const offs = c ? c.officials.map(o => Object.assign({}, o)) : [{ name: '', org: '' }]; offs.forEach((o, i) => { vals['dc_on_' + i] = o.name; vals['dc_oo_' + i] = o.org; });
+  openDrawer({ size: 'md', dcId: id, offN: offs.length, files: c ? c.files.slice() : [], vals,
+    title: () => `Draw Conduct Record · ${d.game} · ${d.id} · ${d.drawAt}`, sub: () => `${badge(dcSt(d), dcSt(d) === 'Locked' ? 'info' : dcSt(d) === 'Saved' ? 'ok' : '')}${d.mock ? ' ' + MS_TAG : ''}`,
+    body: () => dcBody(d), foot: () => dcCanEdit(d) ? btn('Cancel', 'closeDrawer') + btn('Save record', 'dc.save', id, { cls: 'primary', id: 'btnDcSave' }) : (dcSt(d) === 'Locked' && can('Draw Results', 'C') ? btn('Add correction note', 'dc.corr', id, { id: 'btnDcCorr' }) : '') + btn('Close', 'closeDrawer') });
+}
+function dcBody(d) {
+  const c = dcOf(d); const D = S.drawer; let h = '';
+  if (!dcCanEdit(d)) return dcReadOnly(d);
+  h += `<p class="tiny">Required before the first number entry. Kept in Core only and not sent to E-Channels. Locked when the result is authorized.${c && c.demo ? ' ' + demoTag() : ''}</p>`;
+  const dtIn = (k, v) => `<input type="datetime-local" step="1" data-k="${k}" value="${esc(String(fval(k, v) || '').replace(' ', 'T'))}">`;
+  const offRows = Array.from({ length: D.offN }, (_, i) => `<div class="dc-off"><input data-k="dc_on_${i}" placeholder="Name" value="${esc(fval('dc_on_' + i, ''))}"><input data-k="dc_oo_${i}" placeholder="Organization / Position" value="${esc(fval('dc_oo_' + i, ''))}">${D.offN > 1 ? btn('Remove', 'dc.offDel', String(i), { cls: 'sm' }) : '<span></span>'}</div>`).join('');
+  h += formHtml([
+    { k: 'dc_draw', zh: 'Draw ID', en: 'Draw ID', ctl: 'readonly', html: () => `<span class="mono">${d.id}</span>${d.mock ? ' ' + MS_TAG : ''}` },
+    { k: 'dc_venue', zh: 'Draw Venue', en: 'Draw Venue', ctl: 'text', req: true, ph: 'Where the draw was conducted' },
+    { k: 'dc_start', zh: 'Draw Start Time', en: 'Draw Start Time', ctl: 'html', req: true, sub: 'UTC+8', html: () => dtIn('dc_start', '') },
+    { k: 'dc_end', zh: 'Draw End Time', en: 'Draw End Time', ctl: 'html', req: true, sub: 'UTC+8', html: () => dtIn('dc_end', '') },
+    { k: 'dc_machine', zh: 'Draw Machine ID', en: 'Draw Machine ID', ctl: 'text', req: true }, { k: 'dc_balls', zh: 'Ball Set ID', en: 'Ball Set ID', ctl: 'text', req: true, hint: 'Separate several ball sets of a digit game with commas.' },
+    { k: 'dc_offs', zh: 'Supervising Officials', en: 'Supervising Officials', ctl: 'html', req: true, html: () => offRows + btn('+ Add', 'dc.offAdd', '', { cls: 'sm', id: 'btnDcOffAdd' }) },
+    { k: 'dc_video', zh: 'Video Link', en: 'Video Link', ctl: 'text', req: true, ph: 'https://…', hint: 'Live stream or recording. Core stores the link only.' },
+    { k: 'dc_notes', zh: 'Incident Notes', en: 'Incident Notes', ctl: 'textarea', hint: 'Interruptions, redraws or other incidents at the draw.' },
+    { k: 'dc_files', zh: 'Attachments', en: 'Attachments', ctl: 'html', html: () => `<input type="file" id="dcFile" multiple accept=".pdf,.jpg,.jpeg,.png">${(D.files || []).map((f, i) => `<div class="tiny">${esc(f.name)} · ${(f.size / 1048576).toFixed(2)} MB ${btn('Remove', 'dc.fileDel', String(i), { cls: 'sm' })}</div>`).join('')}<div class="hint">PDF, JPG or PNG, up to 10 MB each, at most 5 files. Kept in Core only.</div>` },
+  ]);
+  if (c && c.versions.length) h += dcVersions(c);
+  return h;
+}
+function dcReadOnly(d) {
+  const c = dcOf(d); if (!c) return `<p class="muted" id="dcNone">No draw conduct record yet.${d.status === 'Scheduled' || d.status === 'Open for Betting' ? ' It can be filled in once betting has closed.' : ''}</p>`;
+  let h = (c.status === 'Locked' ? banner(`Locked at authorization${c.lockedAt ? ' · ' + esc(c.lockedAt) : ''}. Corrections are added as notes; the original record is kept.`, '') : '') + dl([['Draw ID', `<span class="mono">${d.id}</span>${d.mock ? ' ' + MS_TAG : ''}`], ['Draw Venue', esc(c.venue)], ['Draw Start / End', `${esc(c.start)} – ${esc(c.end)}`], ['Draw Machine ID', esc(c.machine)], ['Ball Set ID', esc(c.balls)],
+    ['Supervising Officials', c.officials.map(o => `${esc(o.name)} · ${esc(o.org)}`).join('<br>')], ['Video Link', `<a href="${esc(c.video)}" target="_blank" rel="noopener">${esc(c.video)}</a>`], ['Incident Notes', esc(c.notes || '-')], ['Attachments', esc(dcVal(c, 'files') || '-')], ['Status', badge(c.status)]]);
+  if (c.demo) h += `<p class="tiny">${demoTag()}</p>`;
+  if (c.corrections.length) h += card('Correction Notes', table('dcCorrT', [{ h: 'Time', k: 'at' }, { h: 'By', k: 'by' }, { h: 'Reason', r: x => esc(x.reason) }, { h: 'Correction', r: x => esc(x.text) }], c.corrections.map((x, i) => Object.assign({ id: i }, x)), { nopage: true }));
+  h += dcVersions(c); return h;
+}
+function dcVersions(c) { return card('Version History', table('dcVerT', [{ h: 'Time', k: 'at' }, { h: 'By', k: 'by' }, { h: 'Changes', r: x => x.changes ? x.changes.map(ch => `${esc(ch.f)}: ${esc(ch.from || '-')} → ${esc(ch.to || '-')}`).join('<br>') : esc(x.note || '-') }], c.versions.map((x, i) => Object.assign({ id: i }, x)).reverse(), { nopage: true })); }
+function dcValidate(d) {
+  snap(); const D = S.drawer; const v = k => String(fval(k, '') || '').trim(); const e = {}; const toSec = s => s ? (s.length === 16 ? s + ':00' : s).replace('T', ' ') : '';
+  const st = toSec(v('dc_start')), en = toSec(v('dc_end'));
+  if (!v('dc_venue')) e.dc_venue = 'Enter the draw venue.'; else if (v('dc_venue').length > 200) e.dc_venue = 'Up to 200 characters.';
+  if (!st) e.dc_start = 'Select the draw start time.'; else if (dt(st) < dt(d.cutoff)) e.dc_start = 'The draw cannot start before betting closed.';
+  if (!en) e.dc_end = 'Select the draw end time.'; else if (st && dt(en) <= dt(st)) e.dc_end = 'The end time must be after the start time.'; else if (dt(en) > S.now) e.dc_end = 'The end time cannot be in the future.';
+  if (!v('dc_machine')) e.dc_machine = 'Enter the draw machine ID.'; else if (v('dc_machine').length > 50) e.dc_machine = 'Up to 50 characters.';
+  if (!v('dc_balls')) e.dc_balls = 'Enter the ball set ID.'; else if (v('dc_balls').length > 50) e.dc_balls = 'Up to 50 characters.';
+  const offs = Array.from({ length: D.offN }, (_, i) => ({ name: v('dc_on_' + i), org: v('dc_oo_' + i) })).filter(o => o.name || o.org);
+  if (!offs.length || offs.some(o => !o.name || !o.org)) e.dc_offs = 'Add at least one supervising official.'; else if (offs.some(o => o.name.length > 100 || o.org.length > 100)) e.dc_offs = 'Up to 100 characters for each item.';
+  if (!/^https:\/\/[^\s/]+\.[^\s]+$/i.test(v('dc_video'))) e.dc_video = 'Enter a valid https link.';
+  if (v('dc_notes').length > 1000) e.dc_notes = 'Up to 1,000 characters.';
+  return { e, rec: { venue: v('dc_venue'), start: st, end: en, machine: v('dc_machine'), balls: v('dc_balls'), officials: offs, video: v('dc_video'), notes: v('dc_notes'), files: (D.files || []).slice() } };
+}
+Object.assign(ACT, {
+  'dc.open': id => dcOpen(id),
+  'dc.offAdd': () => { snap(); S.drawer.offN++; render(); },
+  'dc.offDel': i => { snap(); const D = S.drawer; const n = D.offN; for (let k = +i; k < n - 1; k++) { S.fv['dc_on_' + k] = S.fv['dc_on_' + (k + 1)]; S.fv['dc_oo_' + k] = S.fv['dc_oo_' + (k + 1)]; } delete S.fv['dc_on_' + (n - 1)]; delete S.fv['dc_oo_' + (n - 1)]; D.offN = n - 1; S._skipSnap = true; render(); },
+  'dc.fileDel': i => { snap(); S.drawer.files.splice(+i, 1); S._skipSnap = true; render(); },
+  'dc.save': id => { const d = drawById(id); if (!dcCanEdit(d)) { toast('This record cannot be edited.', 'err'); return; }
+    const { e, rec } = dcValidate(d); if (setErr(e)) return;
+    const old = dcOf(d); const changes = DC_FIELDS.map(([k, f]) => ({ f, from: dcVal(old, k), to: dcVal(rec, k) })).filter(x => x.from !== x.to);
+    if (old && !changes.length) { toast('No changes to save.', 'warn'); return; }
+    d.conduct = Object.assign({}, old || { versions: [], corrections: [] }, rec, { status: 'Saved', demo: false }); d.conduct.versions = (old ? old.versions : []).concat([{ at: nowS(true), by: me(), changes }]);
+    drLog(d, { stage: 'Conduct Record', outcome: 'Saved', reason: old ? 'Updated' : 'Created', vals: changes.map(x => x.f).join(', ') });
+    audit('Draw Results', old ? 'Draw conduct record updated' : 'Draw conduct record saved', d.id, changes.map(x => `${x.f}: ${x.from || '-'} → ${x.to || '-'}`).join('; '));
+    toast('Draw conduct record saved.'); closeDrawer(); },
+  'dc.corr': id => { const d = drawById(id); const c = dcOf(d); if (!c || c.status !== 'Locked' || !can('Draw Results', 'C')) return;
+    ask({ title: `Add correction note · ${d.id}`, ok: 'Add correction note', fields: [{ k: 'm_text', zh: 'Correction', en: 'Correction', ctl: 'textarea', req: true, ph: 'What was wrong in the record and the correct value' }], reason: { en: 'Reason', zh: 'Reason', max: 500 },
+      validate: v => { const e = {}; const r = String(v.m_reason || '').trim(); if (r && r.length < 10) e.m_reason = 'Enter 10 to 500 characters.'; if (!String(v.m_text || '').trim()) e.m_text = 'Enter the correction.'; return e; },
+      onOk: v => { c.corrections.push({ at: nowS(true), by: me(), reason: v.m_reason.trim(), text: v.m_text.trim() }); drLog(d, { stage: 'Conduct Record', outcome: 'Correction Added', reason: v.m_reason.trim() }); audit('Draw Results', 'Draw conduct correction note added', d.id, v.m_reason.trim()); toast('Correction note added. The original record is kept.'); } }); },
+});
+document.addEventListener('change', ev => {
+  const el = ev.target; if (!el || el.id !== 'dcFile' || !S.drawer) return; snap();
+  const D = S.drawer; const fs = Array.from(el.files || []); const bad = fs.some(f => !/\.(pdf|jpe?g|png)$/i.test(f.name) || f.size > 10 * 1048576);
+  if (bad) { S.ferr = Object.assign({}, S.ferr, { dc_files: 'Files must be PDF, JPG or PNG and up to 10 MB each.' }); S._skipSnap = true; render(); return; }
+  if ((D.files || []).length + fs.length > 5) { S.ferr = Object.assign({}, S.ferr, { dc_files: 'At most 5 files.' }); S._skipSnap = true; render(); return; }
+  D.files = (D.files || []).concat(fs.map(f => ({ name: f.name, size: f.size }))); delete S.ferr.dc_files; S._skipSnap = true; render();
+}, true);
+/* workbench column, First Entry gate, checklist, lock, result detail tab */
+R134_COLS.drBench = cols => { const col = { h: 'Conduct Record', r: d => { const s = dcSt(d); return `<span data-dc="${d.id}">${badge(s, s === 'Locked' ? 'info' : s === 'Saved' ? 'ok' : 'warn')}</span>` + (['Betting Closed', 'Drawing in Progress', 'Postponed'].concat(DC_DONE).includes(d.status) ? `<div>${btn('Conduct Record', 'dc.open', d.id, { cls: 'sm link', id: 'dcBtn_' + d.id })}</div>` : ''); } };
+  cols.push(col); return cols; }; /* last column: older suites read the first button of a row (the action) */
+(function dcGate() {
+  const a0 = drAction; drAction = function (d) { const r = a0.apply(this, arguments);
+    if (d.status === 'Drawing in Progress' && hasRole('enc') && drProgress(d) === 'Awaiting First Entry' && dt(d.drawAt) <= S.now && !dcSaved(d)) return { h: btn({ zh: 'First Entry', en: 'First Entry' }, 'drNum', 'D:' + d.id, { cls: 'sm primary', dis: true, tip: 'Complete the draw conduct record first.' }), mine: false };
+    return r; };
+  const e0 = drEntryBlock; drEntryBlock = function (d) { const r = e0.apply(this, arguments); if (r) return r; if (!dcSaved(d)) return 'Complete the draw conduct record first.'; return null; };
+  const c0 = drChecklist; drChecklist = function (d) { return c0.apply(this, arguments).concat([['Draw conduct record completed', dcSaved(d)]]); };
+  const z0 = drAuthorize; drAuthorize = function (d) {
+    if (d && d.status === 'Drawing in Progress' && !dcSaved(d)) { const m = 'Complete the draw conduct record first.'; drLog(d, { stage: 'Authorization', outcome: 'Rejected', reason: m }); toast(m, 'err'); return false; }
+    const r = z0.apply(this, arguments); if (r !== false && d && d.conduct && d.conduct.status === 'Saved' && d.status !== 'Drawing in Progress') { d.conduct.status = 'Locked'; d.conduct.lockedAt = nowS(true); drLog(d, { stage: 'Conduct Record', outcome: 'Locked', reason: 'Locked at authorization' }); audit('Draw Results', 'Draw conduct record locked', d.id, 'Locked at authorization'); }
+    return r; };
+  const v0 = drView; drView = function (id) { v0.apply(this, arguments); const d = drawById(id); const D = S.drawer; if (!d || !D || D.dc6868) return; D.dc6868 = true;
+    D.tabs = (D.tabs || []).concat([{ id: 'conduct', zh: 'Draw Conduct', en: 'Draw Conduct' }]); const b0 = D.body;
+    D.body = () => S.dtab === 'conduct' ? (dcReadOnly(d) + (dcSt(d) === 'Locked' && can('Draw Results', 'C') ? `<div style="margin-top:8px">${btn('Add correction note', 'dc.corr', d.id, { id: 'btnDcCorr2' })}</div>` : '') + (dcCanEdit(d) ? `<div style="margin-top:8px">${btn('Conduct Record', 'dc.open', d.id, { id: 'btnDcEdit2' })}</div>` : '')) : b0(); render(); };
+})();
+
+/* =====================================================================
+ * E. 6A.3.9 Selling Hours and Non-Selling Periods
+ * ===================================================================== */
+const SH_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+(function shSeed() {
+  if (SEED.sellHours) return;
+  SEED.sellHours = { version: 'SH-v1', eff: '2026-09-01 00:00', games: 'All games', gameList: [], days: Object.fromEntries(SH_DAYS.map(d => [d, ['06:00', '22:00']])), demo: true, next: null };
+  SEED.nsp = [
+    { id: 'NSP-0001', games: ['All games'], start: '2026-05-11 00:00', end: '2026-05-12 00:00', ref: 'PCSO declaration (Demo data)', reason: 'National election (Demo data)', urgent: false, approved: true, by: 'ops.a', appr: 'sa.a', at: '2026-04-20 10:00', cr: '', demo: true },
+    { id: 'NSP-0002', games: ['All games'], start: '2026-11-01 00:00', end: '2026-11-02 00:00', ref: 'PCSO memo (Demo data)', reason: "All Saints' Day (Demo data)", urgent: false, approved: true, by: 'ops.a', appr: 'sa.a', at: '2026-10-05 10:00', cr: '', demo: true },
+  ];
+  SEED.seq.NSP = 2;
+  (SEED.declarations || []).forEach(d => { if (d.against && !/Selling Hours/.test(d.against)) d.against += '; Selling Hours SH-v1; Non-Selling Periods; Bank Holiday Calendar BH-v1'; });
+})();
+function crOf(id) { return id ? SEED.changes.find(c => c.id === id) : null; }
+function nspStatus(n) {
+  if (n.disabled) return 'Disabled'; const cr = crOf(n.cr);
+  if (cr && cr.status === 'Rejected') return 'Rejected'; if (cr && cr.status === 'Withdrawn') return 'Withdrawn'; if (!n.approved) return 'Pending';
+  if (S.now < dt(n.start)) return 'Scheduled'; if (S.now < dt(n.end)) return 'Effective'; return 'Ended';
+}
+function nspDraws(n) { return SEED.draws.filter(d => d.status !== 'Cancelled' && dt(d.cutoff) >= dt(n.start) && dt(d.cutoff) < dt(n.end) && (n.games.includes('All games') || n.games.includes(d.game))); }
+function shPending() { return SEED.changes.find(c => c.kind === 'sellHours' && (['Pending Approval', 'Pending Senior Authorization'].includes(c.status) || (c.status === 'Published' && dt(c.effectiveAt) > S.now))); }
+function shDayTxt(sh, d) { const v = sh.days[d]; return v ? `${v[0]} – ${v[1]}` : 'No selling'; }
+TICKS139.push(function shTick() { const sh = SEED.sellHours; if (sh && sh.next && dt(sh.next.eff) <= S.now) { Object.assign(sh, sh.next, { next: null }); audit('Game Registry', 'Selling hours effective', sh.version, sh.eff); } });
+function sellView(m) {
+  const sh = SEED.sellHours; const pend = shPending(); const ed = can('Game Registry', 'C');
+  let h = pageH({ zh: 'Selling Hours', en: 'Selling Hours And Non-Selling Periods' }, '6A.3.9', 'E-Channels may sell tickets and take payment only on selling days, within selling hours and outside PCSO non-selling periods (UTC+8, Core time source). These rules do not change draw status: draws still open, close and draw as scheduled. Withdrawals, claims, queries and reporting continue.',
+    ed ? btn('Edit Selling Hours', 'sh.edit', '', { id: 'btnShEdit', dis: !!pend, tip: 'A selling hours change is already awaiting approval or effect.' }) + ' ' + btn('Add Non-Selling Period', 'nsp.add', '', { cls: 'primary', id: 'btnNspAdd' }) : '') + subTabs(m);
+  h += card(`Selling Hours <span class="tag">${esc(sh.version)}</span> ${sh.demo ? demoTag() : ''}`, table('shT', [{ h: 'Selling Day', k: 'id' }, { h: 'Selling Hours', r: r => r.v === 'No selling' ? '<span class="muted">No selling</span>' : esc(r.v) }], SH_DAYS.map(d => ({ id: d, v: shDayTxt(sh, d) })), { nopage: true })
+    + dl([['Applicable Games', sh.games === 'All games' ? 'All games' : esc(sh.gameList.join(', ')) + ' <span class="tiny">(other games are not restricted by this table)</span>'], ['Effective At', esc(sh.eff)], sh.next ? ['Scheduled', `${esc(sh.next.version)} from ${esc(sh.next.eff)}`] : null])
+    + (pend ? banner(`Pending: <button class="btn link mono" data-act="crOpen" data-a="${pend.id}">${pend.id}</button> · ${esc(pend.version)} · ${badge(crStatus(pend))}`, 'amber') : '')
+    + '<p class="tiny">Initial values are provided by PCSO before go-live. Changes follow 6A.3.3 (general parameter): Game Operations submits, a Reference Approver approves; Urgent changes also need a Senior Authorizer. A channel declaring a different version is a Critical divergence.</p>');
+  h += filterBar('nspF', [{ k: 'st', zh: 'Status', en: 'Status', type: 'select', def: 'All', opts: ['All', 'Pending', 'Scheduled', 'Effective', 'Ended', 'Disabled', 'Rejected', 'Withdrawn'] }]);
+  const st = fv('nspF', 'st', 'All');
+  h += card('Non-Selling Periods', table('nspT', [{ h: 'Registration No', r: n => `<span class="mono">${n.id}</span>${n.demo ? ' ' + demoTag() : ''}` }, { h: 'Games', r: n => esc(n.games.join(', ')) }, { h: 'Start / End', cls: 'nowrap', r: n => `${esc(n.start)}<div class="tiny">– ${esc(n.end)}</div>` },
+    { h: 'PCSO Declaration Reference', k: 'ref' }, { h: 'Reason', k: 'reason' }, { h: 'Affected Draws', cls: 'num', r: n => { const k = nspDraws(n).length; return k ? btn(String(k), 'nsp.draws', n.id, { cls: 'sm link', id: 'nspDr_' + n.id }) : '0'; } },
+    { h: 'Status', r: n => badge(nspStatus(n), { Pending: 'warn', Scheduled: 'info', Effective: 'ok', Rejected: 'bad' }[nspStatus(n)] || '') + (n.urgent ? ' ' + badge('Urgent', 'bad') : '') },
+    { h: 'Submitted By / Approved By', r: n => `${esc(n.by)} / ${esc(n.appr || '-')}` },
+    { h: 'Actions', r: n => { const s = nspStatus(n); const dpend = SEED.changes.some(c => c.kind === 'nspDisable' && c.payload.id === n.id && c.status.startsWith('Pending')); return [['Scheduled', 'Effective'].includes(s) && ed ? btn('Disable', 'nsp.disable', n.id, { cls: 'sm', id: 'nspDis_' + n.id, dis: dpend, tip: 'A disable request is already awaiting approval.' }) : '', s === 'Pending' && n.by === me() ? btn('Withdraw', 'nsp.withdraw', n.id, { cls: 'sm', id: 'nspWd_' + n.id }) : '', n.cr && s === 'Pending' ? btn('Review', 'crOpen', n.cr, { cls: 'sm' }) : ''].join(' '); } }],
+    SEED.nsp.filter(n => st === 'All' || nspStatus(n) === st).slice().sort((a, b) => b.id.localeCompare(a.id)), { nopage: true, empty: { zh: 'None', en: 'No non-selling periods.' } })
+    + '<p class="tiny">Start inclusive, end exclusive (UTC+8). Affected Draws = draws whose cut-off falls in the period; a reminder only — set a no-draw date (6A.4.5) or postpone (6A.4.4) if PCSO does not want them drawn. Sales finalized outside selling hours or in a non-selling period are non-conformant (Outside Selling Period, 6A.10.4).</p>');
+  return h;
+}
+function shForm() {
+  const sh = SEED.sellHours; const tIn = (k, v) => `<input type="time" data-k="${k}" value="${esc(fval(k, v))}" style="width:150px">`;
+  return [
+    { k: 'm_days', zh: 'Selling Days', en: 'Selling Days', ctl: 'checks', req: true, chg: true, opts: SH_DAYS, def: SH_DAYS.filter(d => sh.days[d]) },
+    { k: 'm_hours', zh: 'Selling Hours', en: 'Selling Hours', ctl: 'html', req: true, sub: 'UTC+8 · one range per day', html: v => SH_DAYS.filter(d => (v.m_days || SH_DAYS.filter(x => sh.days[x])).includes(d)).map(d => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><b style="width:40px">${d}</b>${tIn('m_s_' + d, (sh.days[d] || ['06:00'])[0])} – ${tIn('m_e_' + d, (sh.days[d] || ['', '22:00'])[1])}${S.ferr['m_e_' + d] ? `<span class="ferr" data-err="m_e_${d}">${esc(S.ferr['m_e_' + d])}</span>` : ''}</div>`).join('') || '<span class="muted">Select selling days first.</span>' },
+    { k: 'm_gm', zh: 'Applicable Games', en: 'Applicable Games', ctl: 'radio', req: true, chg: true, def: sh.games === 'All games' ? 'All games' : 'Specific games', opts: ['All games', 'Specific games'] },
+    { k: 'm_gl', zh: 'Games', en: 'Games', ctl: 'checks', req: true, opts: SEED.games.map(g => g.code), def: sh.gameList.slice(), show: v => v.m_gm === 'Specific games', hint: 'Other games are not restricted by this table.' },
+    { k: 'm_eff', zh: 'Effective At', en: 'Effective At', ctl: 'datetime', req: true, def: fmtDT(S.now + 4 * 864e5).slice(0, 10) + 'T00:00' },
+    { k: 'm_urg', zh: 'Urgent', en: 'Urgent', ctl: 'switch', swl: 'Urgent (no lead time; also needs a Senior Authorizer)' },
+    { k: 'm_note', zh: 'Change Note', en: 'Change Note', ctl: 'textarea', req: true, ph: 'PCSO memo' },
+  ];
+}
+Object.assign(ACT, {
+  'sh.edit': () => { if (!can('Game Registry', 'C') || shPending()) return; const sh = SEED.sellHours;
+    ask({ title: 'Edit Selling Hours', size: 'lg', ok: 'Submit Change Request', fields: shForm,
+      validate: v => { const e = {}; const days = v.m_days || []; if (!days.length) e.m_days = 'Select at least one selling day.';
+        days.forEach(d => { const s = v['m_s_' + d] || '', en = v['m_e_' + d] || ''; if (!s || !en || en <= s) e['m_e_' + d] = 'The end time must be later than the start time.'; });
+        if (v.m_gm === 'Specific games' && empty(v.m_gl)) e.m_gl = 'Select at least one game.';
+        const eff = normDT(v.m_eff); if (!eff) e.m_eff = 'Select the effective time.'; else if (dt(eff) <= S.now) e.m_eff = 'The effective time must be later than now.'; else if (!leadOk({ critical: false, urgent: !!v.m_urg, effectiveAt: eff })) e.m_eff = leadMsg({ critical: false });
+        const note = String(v.m_note || '').trim(); if (!note) e.m_note = 'Enter a change note.'; else if (note.length > 200) e.m_note = 'Up to 200 characters.'; return e; },
+      onOk: v => { const days = Object.fromEntries(SH_DAYS.map(d => [d, (v.m_days || []).includes(d) ? [v['m_s_' + d], v['m_e_' + d]] : null])); const games = v.m_gm === 'Specific games' ? 'Specific games' : 'All games'; const gl = games === 'All games' ? [] : v.m_gl.slice();
+        const fields = SH_DAYS.map(d => ({ f: 'Selling Hours · ' + d, cur: shDayTxt(sh, d), pro: days[d] ? `${days[d][0]} – ${days[d][1]}` : 'No selling' })).concat([{ f: 'Applicable Games', cur: sh.games === 'All games' ? 'All games' : sh.gameList.join(', '), pro: games === 'All games' ? 'All games' : gl.join(', ') }]).filter(x => x.cur !== x.pro);
+        if (!fields.length) { toast('No changes to submit.', 'warn'); return false; }
+        const ver = 'SH-v' + (+sh.version.split('v')[1] + 1);
+        const cr = submitCR({ domain: 'Selling Hours', object: 'Selling Hours', kind: 'sellHours', critical: false, urgent: !!v.m_urg, urgentReason: v.m_urg ? v.m_note.trim() : '', effectiveAt: normDT(v.m_eff), version: ver, note: v.m_note.trim(), fields, payload: { days, games, gameList: gl, version: ver } });
+        if (!cr) return false; toast(`Change request ${cr.id} submitted.`); } }); },
+  'nsp.add': () => { if (!can('Game Registry', 'C')) return;
+    ask({ title: 'Add Non-Selling Period', size: 'lg', ok: 'Submit Change Request', fields: [
+      { k: 'm_games', zh: 'Games', en: 'Games', ctl: 'checks', req: true, def: ['All games'], opts: ['All games'].concat(SEED.games.map(g => g.code)) },
+      { k: 'm_start', zh: 'Start', en: 'Start', ctl: 'datetime', req: true, sub: 'UTC+8 · inclusive' }, { k: 'm_end', zh: 'End', en: 'End', ctl: 'datetime', req: true, sub: 'UTC+8 · exclusive' },
+      { k: 'm_ref', zh: 'PCSO Declaration Reference', en: 'PCSO Declaration Reference', ctl: 'text', req: true, ph: 'PCSO declaration or memo number' },
+      { k: 'm_why', zh: 'Reason', en: 'Reason', ctl: 'textarea', req: true, ph: 'National election', hint: 'Sent with the notice; channels may show it to players.' },
+      { k: 'm_urg', zh: 'Urgent', en: 'Urgent', ctl: 'switch', swl: 'Urgent (no lead time; approved by a Senior Authorizer, effective on approval)' }],
+      validate: v => { const e = {}; const s = normDT(v.m_start), en = normDT(v.m_end);
+        if (empty(v.m_games)) e.m_games = 'Select at least one game.';
+        if (!s) e.m_start = 'Select the start time.'; else if (dt(s) <= S.now) e.m_start = 'The start must be later than now.'; else if (!leadOk({ critical: false, urgent: !!v.m_urg, effectiveAt: s })) e.m_start = leadMsg({ critical: false });
+        if (!en) e.m_end = 'Select the end time.'; else if (s && dt(en) <= dt(s)) e.m_end = 'The end must be later than the start.';
+        const ref = String(v.m_ref || '').trim(); if (!ref) e.m_ref = 'Enter the PCSO declaration reference.'; else if (ref.length > 100) e.m_ref = 'Up to 100 characters.';
+        const why = String(v.m_why || '').trim(); if (!why) e.m_why = 'Enter a reason.'; else if (why.length > 200) e.m_why = 'Up to 200 characters.'; return e; },
+      onOk: v => { const games = v.m_games.includes('All games') ? ['All games'] : v.m_games.slice();
+        const n = { id: nid('NSP', { date: false }), games, start: normDT(v.m_start), end: normDT(v.m_end), ref: v.m_ref.trim(), reason: v.m_why.trim(), urgent: !!v.m_urg, approved: false, by: me(), appr: '', at: nowS(), cr: '' };
+        const cr = submitCR({ domain: 'Non-Selling Periods', object: n.id, kind: 'nsp', critical: false, urgent: n.urgent, urgentReason: n.urgent ? n.reason : '', effectiveAt: n.urgent ? nowS() : n.start, version: n.id, note: n.reason,
+          fields: [{ f: 'Games', cur: '-', pro: games.join(', ') }, { f: 'Start / End', cur: '-', pro: `${n.start} – ${n.end}` }, { f: 'PCSO Declaration Reference', cur: '-', pro: n.ref }, { f: 'Reason', cur: '-', pro: n.reason }], payload: { id: n.id } });
+        if (!cr) return false; n.cr = cr.id; SEED.nsp.push(n); toast(`${n.id} submitted (${cr.id}).`); } }); },
+  'nsp.draws': id => { const n = SEED.nsp.find(x => x.id === id); openModal({ title: `Affected Draws · ${id}`, cancel: false, ok: 'Close', size: 'lg', body: () => table('nspDrT', [{ h: 'Draw ID', r: d => `<span class="mono">${d.id}</span>` }, { h: 'Cut-off', k: 'cutoff' }, { h: 'Draw Time', k: 'drawAt' }, { h: 'Draw Status', r: d => badge(d.status) }], nspDraws(n), { size: 10 }) + '<p class="tiny">Reminder only. Use a no-draw date (6A.4.5) or a postponement (6A.4.4) if these draws must not be drawn.</p>' }); },
+  'nsp.disable': id => { const n = SEED.nsp.find(x => x.id === id); if (!n || !can('Game Registry', 'C')) return;
+    ask({ title: `Disable ${id}`, ok: 'Submit Change Request', msg: nspStatus(n) === 'Effective' ? 'The period ends early once the request is approved.' : 'The scheduled period is cancelled once the request is approved.', reason: { en: 'Reason', zh: 'Reason', max: 200 },
+      onOk: v => { const cr = submitCR({ domain: 'Non-Selling Periods', object: id, kind: 'nspDisable', critical: false, urgent: n.urgent, urgentReason: n.urgent ? v.m_reason : '', noLead: true, effectiveAt: nowS(), version: id, note: v.m_reason, fields: [{ f: 'Status', cur: nspStatus(n), pro: 'Disabled' }], payload: { id } }); if (cr) toast(`Disable request ${cr.id} submitted.`); } }); },
+  'nsp.withdraw': id => { const n = SEED.nsp.find(x => x.id === id); const cr = crOf(n.cr); if (!cr || n.by !== me()) return; cr.status = 'Withdrawn'; cr.history.push({ at: nowS(), by: me(), act: 'Withdrawn' }); audit('Game Registry', 'Non-selling period withdrawn', id); toast('Request withdrawn.'); render(); },
+});
+CR_APPLY.sellHours = cr => { const sh = SEED.sellHours; const nx = { version: cr.payload.version, eff: cr.effectiveAt, games: cr.payload.games, gameList: cr.payload.gameList, days: cr.payload.days, demo: false };
+  if (dt(cr.effectiveAt) > S.now) sh.next = nx; else Object.assign(sh, nx, { next: null }); audit('Game Registry', 'Selling hours approved', nx.version, nx.eff); };
+CR_APPLY.nsp = cr => { const n = SEED.nsp.find(x => x.id === cr.payload.id); if (!n) return; n.approved = true; n.appr = (cr.approvals || []).map(a => a.by).concat([me()]).filter((x, i, a) => x && a.indexOf(x) === i).join(', '); if (n.urgent && dt(n.start) < S.now) n.start = nowS(); audit('Game Registry', 'Non-selling period approved', n.id, `${n.start} – ${n.end}`); };
+CR_APPLY.nspDisable = cr => { const n = SEED.nsp.find(x => x.id === cr.payload.id); if (!n) return; n.disabled = true; n.disabledAt = nowS(); audit('Game Registry', 'Non-selling period disabled', n.id, cr.note); };
+
+/* =====================================================================
+ * F. 6A.3.10 Bank Holiday Calendar
+ * ===================================================================== */
+const BH_TYPES = ['Regular Holiday', 'Special Non-Working Day', 'Bank Holiday', 'Ad-hoc Suspension'];
+(function bhSeed() {
+  if (SEED.bankHol) return;
+  SEED.bankHol = [['2026-11-01', "All Saints' Day", 'Special Non-Working Day'], ['2026-11-02', "All Souls' Day", 'Special Non-Working Day'], ['2026-11-30', 'Bonifacio Day', 'Regular Holiday'], ['2026-12-08', 'Feast of the Immaculate Conception', 'Special Non-Working Day'],
+    ['2026-12-24', 'Christmas Eve', 'Special Non-Working Day'], ['2026-12-25', 'Christmas Day', 'Regular Holiday'], ['2026-12-30', 'Rizal Day', 'Regular Holiday'], ['2026-12-31', 'Last Day of the Year', 'Special Non-Working Day']]
+    .map(([date, name, type], i) => ({ id: 'BH-' + pad(i + 1, 4), date, name, type, src: 'Proclamation (Demo data)', approved: true, by: 'ops.a', appr: 'sa.a', cr: '', demo: true }));
+  SEED.seq.BH = SEED.bankHol.length; SEED.bhVersion = 'BH-v1';
+})();
+function bhStatus(b) { if (b.disabled) return 'Disabled'; const cr = crOf(b.cr); if (cr && cr.status === 'Rejected') return 'Rejected'; if (cr && cr.status === 'Withdrawn') return 'Withdrawn'; return b.approved ? 'Effective' : 'Pending'; }
+function bhSync() { if (typeof DRS137 !== 'undefined') DRS137.holidays = SEED.bankHol.filter(b => bhStatus(b) === 'Effective').map(b => b.date); }
+bhSync();
+function bhNextBank(s) { let x = s; for (let i = 0; i < 15; i++) { x = fmtD(dt(x) + 864e5); const w = dow(dt(x)); if (!['Sat', 'Sun'].includes(w) && !DRS137.holidays.includes(x)) return x; } return x; }
+function bankHolView(m) {
+  const ed = can('Game Registry', 'C'); const yr = fv('bhF', 'yr', fmtD(S.now).slice(0, 4));
+  let h = pageH({ zh: 'Bank Holiday Calendar', en: 'Bank Holiday Calendar' }, '6A.3.10', 'Bank days are Monday to Friday except the dates in this calendar. The next-bank-day remittance due date (6A.13) uses this calendar; channels receive it as a reference data domain and use the same rule. Sources: government proclamations and BSP circulars.',
+    ed ? btn('Add Holiday', 'bh.add', '', { cls: 'primary', id: 'btnBhAdd' }) : '') + subTabs(m);
+  h += filterBar('bhF', [{ k: 'yr', zh: 'Year', en: 'Year', type: 'select', def: fmtD(S.now).slice(0, 4), opts: ['2026', '2027', 'All'] }, { k: 'st', zh: 'Status', en: 'Status', type: 'select', def: 'All', opts: ['All', 'Pending', 'Effective', 'Disabled', 'Rejected', 'Withdrawn'] }]);
+  const st = fv('bhF', 'st', 'All');
+  h += table('bhT', [{ h: 'Date', r: b => `<span class="mono">${b.date}</span> <span class="tiny">${dow(dt(b.date))}</span>` }, { h: 'Holiday Name', r: b => esc(b.name) + (b.demo ? ' ' + demoTag() : '') }, { h: 'Holiday Type', k: 'type' }, { h: 'Source Reference', k: 'src' },
+    { h: 'Status', r: b => badge(bhStatus(b), { Pending: 'warn', Effective: 'ok', Rejected: 'bad' }[bhStatus(b)] || '') + (b.urgent ? ' ' + badge('Urgent', 'bad') : '') }, { h: 'Submitted By / Approved By', r: b => `${esc(b.by)} / ${esc(b.appr || '-')}` },
+    { h: 'Actions', r: b => { const s = bhStatus(b); const dp = SEED.changes.some(c => c.kind === 'bankHolDisable' && c.payload.id === b.id && c.status.startsWith('Pending')); return [s === 'Effective' && b.date > fmtD(S.now) && ed ? btn('Disable', 'bh.disable', b.id, { cls: 'sm', id: 'bhDis_' + b.id, dis: dp, tip: 'A disable request is already awaiting approval.' }) : '', s === 'Pending' && b.by === me() ? btn('Withdraw', 'bh.withdraw', b.id, { cls: 'sm', id: 'bhWd_' + b.id }) : '', b.cr && s === 'Pending' ? btn('Review', 'crOpen', b.cr, { cls: 'sm' }) : ''].join(' '); } }],
+    SEED.bankHol.filter(b => (yr === 'All' || b.date.startsWith(yr)) && (st === 'All' || bhStatus(b) === st)).slice().sort((a, b) => a.date.localeCompare(b.date)), { nopage: true, empty: { zh: 'None', en: 'No holidays in this year.' } });
+  h += `<p class="tiny">Version ${esc(SEED.bhVersion)}. A remittance due date is fixed at the end of each sales day with the calendar then in effect; a holiday added later that falls on a due date not yet reached moves that due date to the next bank day (audited); due dates already reached are not changed. Late penalties count calendar days and are not affected. A channel declaring a different version is a Medium divergence.</p>`;
+  return h;
+}
+function bhRowsN() { return S.modal && S.modal.bhN || 1; }
+Object.assign(ACT, {
+  'bh.add': () => { if (!can('Game Registry', 'C')) return;
+    ask({ title: 'Add Holiday', size: 'lg', ok: 'Submit Change Request', msg: '<span class="tiny">Several dates (for example a full year) can be entered in one change request.</span>',
+      fields: () => Array.from({ length: bhRowsN() }, (_, i) => [
+        { k: 'm_d_' + i, zh: 'Date', en: `Date ${i + 1}`, ctl: 'date', req: true }, { k: 'm_n_' + i, zh: 'Holiday Name', en: 'Holiday Name', ctl: 'text', req: true, ph: 'Christmas Day' },
+        { k: 'm_t_' + i, zh: 'Holiday Type', en: 'Holiday Type', ctl: 'select', req: true, opts: [['', '-']].concat(BH_TYPES) }, { k: 'm_s_' + i, zh: 'Source Reference', en: 'Source Reference', ctl: 'text', req: true, ph: 'Proclamation or BSP circular number' }]).flat()
+        .concat([{ k: 'm_more', zh: '', en: ' ', ctl: 'html', html: () => btn('+ Add Row', 'bh.row', '', { cls: 'sm', id: 'btnBhRow' }) }, { k: 'm_urg', zh: 'Urgent', en: 'Urgent', ctl: 'switch', swl: 'Urgent (a holiday declared at short notice; approved by a Senior Authorizer, effective on approval)' }]),
+      validate: v => { const e = {}; const n = bhRowsN(); const today = fmtD(S.now); const taken = SEED.bankHol.filter(b => ['Pending', 'Effective'].includes(bhStatus(b))).map(b => b.date); const seen = [];
+        for (let i = 0; i < n; i++) { const d = v['m_d_' + i]; if (!d) e['m_d_' + i] = 'Select the date.'; else if (d < today) e['m_d_' + i] = 'The date cannot be in the past.'; else if (taken.includes(d) || seen.includes(d)) e['m_d_' + i] = 'This date is already in the calendar.'; seen.push(d);
+          const nm = String(v['m_n_' + i] || '').trim(); if (!nm) e['m_n_' + i] = 'Enter a name.'; else if (nm.length > 100) e['m_n_' + i] = 'Up to 100 characters.';
+          if (!v['m_t_' + i]) e['m_t_' + i] = 'Select the holiday type.';
+          const sr = String(v['m_s_' + i] || '').trim(); if (!sr) e['m_s_' + i] = 'Enter the source reference.'; else if (sr.length > 100) e['m_s_' + i] = 'Up to 100 characters.'; }
+        return e; },
+      onOk: v => { const n = bhRowsN(); const rows = Array.from({ length: n }, (_, i) => ({ id: nid('BH', { date: false }), date: v['m_d_' + i], name: String(v['m_n_' + i]).trim(), type: v['m_t_' + i], src: String(v['m_s_' + i]).trim(), urgent: !!v.m_urg, approved: false, by: me(), appr: '', cr: '' }));
+        const ver = 'BH-v' + (+SEED.bhVersion.split('v')[1] + 1);
+        const cr = submitCR({ domain: 'Bank Holiday Calendar', object: rows.map(r => r.date).join(', '), kind: 'bankHol', critical: false, urgent: !!v.m_urg, urgentReason: v.m_urg ? rows[0].name : '', noLead: true, effectiveAt: nowS(), version: ver, note: rows.map(r => `${r.date} ${r.name} (${r.type}; ${r.src})`).join('; '),
+          fields: rows.map(r => ({ f: 'Holiday ' + r.date, cur: '-', pro: `${r.name} · ${r.type} · ${r.src}` })), payload: { ids: rows.map(r => r.id), version: ver } });
+        if (!cr) return false; rows.forEach(r => { r.cr = cr.id; SEED.bankHol.push(r); }); toast(`${rows.length} holiday${rows.length > 1 ? 's' : ''} submitted (${cr.id}).`); } });
+  },
+  'bh.row': () => { snap(); S.modal.bhN = bhRowsN() + 1; S._skipSnap = true; render(); },
+  'bh.disable': id => { const b = SEED.bankHol.find(x => x.id === id); if (!b || !can('Game Registry', 'C')) return;
+    ask({ title: `Disable ${b.date} · ${b.name}`, ok: 'Submit Change Request', reason: { en: 'Reason', zh: 'Reason', ph: 'Registered by mistake or revoked by the government', max: 200 },
+      onOk: v => { const cr = submitCR({ domain: 'Bank Holiday Calendar', object: b.date, kind: 'bankHolDisable', critical: false, noLead: true, effectiveAt: nowS(), version: 'BH-v' + (+SEED.bhVersion.split('v')[1] + 1), note: v.m_reason, fields: [{ f: 'Holiday ' + b.date, cur: `${b.name} · Effective`, pro: 'Disabled' }], payload: { id } }); if (cr) toast(`Disable request ${cr.id} submitted.`); } }); },
+  'bh.withdraw': id => { const b = SEED.bankHol.find(x => x.id === id); const cr = crOf(b.cr); if (!cr || b.by !== me()) return; cr.status = 'Withdrawn'; cr.history.push({ at: nowS(), by: me(), act: 'Withdrawn' }); audit('Game Registry', 'Bank holiday request withdrawn', b.date); toast('Request withdrawn.'); render(); },
+});
+CR_APPLY.bankHol = cr => {
+  const rows = SEED.bankHol.filter(b => cr.payload.ids.includes(b.id)); const ap = (cr.approvals || []).map(a => a.by).concat([me()]).filter((x, i, a) => x && a.indexOf(x) === i).join(', ');
+  rows.forEach(b => { b.approved = true; b.appr = ap; }); SEED.bhVersion = cr.payload.version; bhSync();
+  const today = fmtD(S.now);
+  (SEED.drs137 || []).forEach(s => { if (s.due && s.due >= today && rows.some(b => b.date === s.due)) { const from = s.due; s.due = bhNextBank(from); s.dueMoved = `${from} → ${s.due}`; audit('Settlement', 'Remittance due date moved (bank holiday)', s.id, `${from} → ${s.due} · ${SEED.bhVersion}`); } });
+  audit('Game Registry', 'Bank holidays approved', rows.map(b => b.date).join(', '), SEED.bhVersion);
+};
+CR_APPLY.bankHolDisable = cr => { const b = SEED.bankHol.find(x => x.id === cr.payload.id); if (!b) return; b.disabled = true; SEED.bhVersion = cr.version; bhSync(); audit('Game Registry', 'Bank holiday disabled', b.date, cr.note); };
+/* registry tabs + change request page additions */
+(function regTabs() {
+  const m = modById('registry'); if (!m) return;
+  if (!m.subs.some(s => s.id === 'selling')) m.subs = m.subs.concat([{ id: 'selling', zh: 'Selling Hours', en: 'Selling Hours' }, { id: 'bankhol', zh: 'Bank Holidays', en: 'Bank Holidays' }]);
+  const v0 = m.view; m.view = function () { if (S.sub === 'selling') return sellView(m); if (S.sub === 'bankhol') return bankHolView(m); return v0.apply(this, arguments); };
+  const b0 = crBody; crBody = function (cr) { let h = b0.apply(this, arguments); if (cr.kind === 'nsp') { const n = SEED.nsp.find(x => x.id === cr.payload.id); if (n) { const ds = nspDraws(n);
+    h += card(`Draws with cut-off in this period <span class="tag">${ds.length}</span>`, table('crNspDr', [{ h: 'Draw ID', r: d => `<span class="mono">${d.id}</span>` }, { h: 'Cut-off', k: 'cutoff' }, { h: 'Draw Status', r: d => badge(d.status) }], ds, { size: 10, empty: { zh: 'None', en: 'No draws have their cut-off in this period.' } })
+      + '<p class="tiny">Draws still open, close and draw as scheduled. If PCSO does not want them drawn, set a no-draw date (6A.4.5) or postpone them (6A.4.4).</p>'); } }
+    return h; };
+  R133_HOOKS.push(() => { const sel = document.querySelector('select[data-filter="crF|domain"]'); if (sel && ![...sel.options].some(o => o.value === 'Selling Hours')) { ['Selling Hours', 'Non-Selling Periods', 'Bank Holiday Calendar'].forEach(x => sel.insertAdjacentHTML('beforeend', `<option value="${x}">${x}</option>`)); const cur = fv('crF', 'domain', 'All'); if (cur) sel.value = cur; } });
+})();
+/* desk register for a Mock ticket (rehearsal number, no cheque) — installed after boot merges the module acts */
+(function msBoot() {
+  const b0 = boot; boot = function () { b0();
+    const r0 = ACT['cl.register'];
+    ACT['cl.register'] = function (id) { const c = c2claim(id); if (!c || !c.mock) return r0.apply(this, arguments);
+      if (!c2verifOk(c)) { toast('Register is available only after Verified, within the payment registration window, by the verifying Claims Officer.', 'err'); return; } snap();
+      const no = String(fval('dk_chq', '')).trim(); const bank = fval('dk_bank', ''); const e = {};
+      if (!/^MOCK-[A-Za-z0-9-]{1,20}$/.test(no)) e.dk_chq = 'Enter a rehearsal number that starts with MOCK-.'; if (bank !== 'Not Applicable') e.dk_bank = 'Select Not Applicable.';
+      if (setErr(e)) return;
+      ask({ title: 'Register Rehearsal and Mark as Claimed', ok: 'Register', msg: `${esc(c.txid)} · ${esc(no)} · Mock Selling ticket – rehearsal only. No cheque is issued.`,
+        onOk: () => { Object.assign(c, { status: 'CLAIMED', chequeNo: no, bank: 'Not Applicable', chequeDate: fmtD(S.now), paidAt: nowS(), claimedAt: nowS(), by: me(), check: no, recordId: nid('CLM') });
+          c.dir = issueDirective({ channel: c.channel, type: 'Claimed', summary: `${c.txid} · Mock · WINNING TICKET (CLAIMED) · rehearsal ${no}`, reason: 'Mock Selling rehearsal', ref: c.id }).id;
+          (SEED.mockClaimRecs = SEED.mockClaimRecs || []).push({ id: c.recordId, source: 'PCSO Main Office', channel: c.channel, upid: c.upid, txid: c.txid, drawId: c.drawId, tier: c.tier, gross: c.gross, tax: c.tax, net: c.net, at: nowS(), method: 'Enhanced', outcome: 'Approved', validation: 'Accepted', reason: 'Rehearsal ' + no, bets: 1, type: 'PCSO Main Office', pcso: true, mock: true, mockPeriod: c.mockPeriod });
+          audit('Big Prize Claims', 'Mock rehearsal registered · CLAIMED', c.txid, `${c.upid} · ${no} · ${c.drawId}`); c2desk().done = true; c2desk().msg = ''; toast(`Rehearsal ${no} registered. ${c.txid} is CLAIMED (Mock).`); } }); };
+    render(); };
+})();
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
