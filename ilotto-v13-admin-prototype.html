@@ -19421,6 +19421,287 @@ window.addEventListener("click", (e) => {
   }, 0);
 }, true);
 /* ===== V13-1311 END ===== */
+/* ===== V13-1313 block: PRD 1.3.13 follow-up on the iLotto admin (MOCK-A logical purge; 6B.3.7 rule 5, 6B.8.3) =====
+   Injected by patch_v1313.py right after the V13-1311 block. State S.v1313.
+     6B.3.7 rule 5 / 6B.8.3  The Core purge is logical: the Mock data of a test account (Mock tickets, Mock Balance and its
+              wallet records) is registered as purged per Mock period and never physically deleted. Remove Test Account is
+              greyed while the account still has Mock data that is not registered as purged (Demo data below).
+              Demo buttons on the player detail (test accounts only): a Mock ticket bought, and the Core Mock Data Purge
+              arriving (registers the data as purged; records kept for audit).
+     The Mock Only / Draw Category filters, the period-level purge demo and the Mock Data Purge directive row are in the
+              V13-1313B block (v1313b_block.js); purged Mock rows are listed nowhere.
+   UI text is English only. */
+S.v1313 = { mock: {} };
+const V13M_TIP = "This account still has Mock data that has not been purged. Core must purge the Mock data first.";
+function v13mRec(id) { return S.v1313.mock[id] || null; }
+/* Mock data still visible = at least one record not registered as purged */
+function v13mOpen(id) { const r = v13mRec(id); return !!(r && r.items.some((x) => !x.purged)); }
+function v13mFrag(html) { return document.createRange().createContextualFragment(html); }
+const v13mPlayer0 = viewPlayer0;
+viewPlayer0 = function (p) {
+  const h = v13mPlayer0.apply(this, arguments); if (!p || !S.v137.test[p.id]) return h;
+  return v13Tpl(h, (c) => {
+    const box = c.querySelector("[data-v137=pl-137]"); if (!box) return;
+    const open = v13mOpen(p.id), r = v13mRec(p.id);
+    const rm = box.querySelector("[data-act=v137-test]");
+    if (rm && open) { rm.disabled = true; rm.title = V13M_TIP; rm.setAttribute("data-v1313", "rm-grey"); }
+    const live = r ? r.items.filter((x) => !x.purged) : [], done = r ? r.items.filter((x) => x.purged) : [];
+    const st = !r ? "No Mock data" : live.length ? "Not purged" : "Purged";
+    const ops = v7Is("ops", "admin");
+    box.append(v13mFrag(`<div data-v1313="mock-box" style="margin-top:8px"><span class="tiny">Mock data: <b data-v1313="mock-st">${st}</b>${r ? ` (${live.length} open, ${done.length} registered as purged)` : ""} ${tag("muted", "Demo data")}</span>
+      <div class="row-actions" style="margin-top:6px">${v7Btn("v1313-buy", "Demo: Test Account Buys A Mock Ticket", { id: p.id, dis: ops ? "" : "Operations or System admin only." })}${v7Btn("v1313-purge", "Demo: Core Mock Data Purge Arrives", { id: p.id, dis: !open ? "No Mock data to purge." : "" })}</div>
+      <p class="tiny" data-v1313="mock-note">The Core purge is logical: Mock tickets, Mock Balance and its wallet records are registered as purged and are no longer shown to the player or on business pages; the records are kept for audit and PCSO data requests. Remove Test Account is available only after the Mock data is purged.</p></div>`));
+  });
+};
+function v13mClick(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  if (act === "v137-test" && S.v137.test[id] && v13mOpen(id)) { e.stopPropagation(); e.preventDefault(); toast(V13M_TIP); return; }
+  if (!act || act.indexOf("v1313-") !== 0) return;
+  e.stopPropagation(); e.preventDefault(); if (el.disabled) return;
+  if (act === "v1313-buy") {
+    const r = S.v1313.mock[id] || (S.v1313.mock[id] = { items: [] });
+    const n = r.items.length + 1;
+    r.items.push({ ref: "MOCK-TKT-" + String(n).padStart(4, "0"), kind: "Mock ticket and Mock Balance record", purged: false, at: v7Now() });
+    v7Aud("Players", "Mock ticket bought (Demo data)", id, "-", "Mock data open");
+    toast("Mock ticket bought by test account " + id + " (Demo data)."); render(); return;
+  }
+  if (act === "v1313-purge") {
+    const r = v13mRec(id); if (!r) return; const live = r.items.filter((x) => !x.purged);
+    live.forEach((x) => { x.purged = true; x.purgedAt = v7Now(); });
+    v7Aud("System", "Mock Data Purge executed (logical)", id, "Not purged", live.length + " Mock records registered as purged");
+    toast(live.length + " Mock records of " + id + " registered as purged; the records are kept. Remove Test Account is now available."); render(); return;
+  }
+}
+window.addEventListener("click", v13mClick, true);
+/* the request dialog itself also refuses (a forged click on the greyed button reaches the v137 handler first) */
+const v13mModal0 = renderModal;
+renderModal = function () {
+  const m = S.modal;
+  if (m && m.type === "v137-test" && S.v137.test[m.id] && v13mOpen(m.id)) { S.modal = null; setTimeout(() => toast(V13M_TIP), 0); }
+  return v13mModal0.apply(this, arguments);
+};
+/* ===== V13-1313 END ===== */
+/* ===== V13-1313B block: PRD 6B.10 / 6B.7.3 / 6B.8.3 Mock and Synthetic filters on the iLotto admin (follow-up to V13-1313) =====
+   Injected by patch_v1313b.py right after the V13-1313 block. State S.v1313b. Demo data throughout.
+     6B.10.1 item 9, 6B.10.2  Transactions: filter Mock (Exclude Mock / Mock Only / All, default Exclude Mock) on the Bets,
+              Refunds, Tickets and Prize payments tabs; Mock rows carry the Mock tag. Filter Synthetic (Exclude Synthetic /
+              Synthetic Only / All, default Exclude Synthetic) on Bets, Refunds, Tickets, Deposits and Withdrawals;
+              Synthetic rows carry the Synthetic tag.
+     6B.7.3   Draws and results: list filter Draw Category (Official / Mock, default Official); Mock draws (Draw ID ends in
+              -M) carry the Mock tag in the list and on their detail page.
+     6B.3.7 rule 5, 6B.14.2 (1.3.13)  Demo button "Core Mock Data Purge Arrives" for the mock selling period: logical purge
+              (registered as purged, records kept). Afterwards no Mock draw, transaction, ticket or claim record is listed,
+              also not with Mock Only / Mock; a Mock Data Purge directive row is added and the purge is audited. Test account
+              Mock data on player details (V13-1313) is registered as purged too.
+     6B.8.3   Players list: Test Account filter (All / Yes / No) and the row tag Test.
+   UI text is English only. */
+S.v1313b = { msp: "MSP-2026-01", purged: null, cat: "Official", mock: "Exclude Mock", syn: "Exclude Synthetic", plTest: "All" };
+if (A2_DTYPES.indexOf("Mock Data Purge") < 0) A2_DTYPES.push("Mock Data Purge");
+const V13B_MOCK_TABS = ["order", "refund", "ticket", "prize"], V13B_SYN_TABS = ["order", "refund", "ticket", "dep", "wd"];
+const V13B_TEST_PL = "PL-109002";
+function v13bTagM() { return `<span data-v1313b="tag-mock">${tag("cyan", "Mock")}</span>`; }
+function v13bTagS() { return `<span data-v1313b="tag-syn">${tag("muted", "Synthetic")}</span>`; }
+function v13bDay(off) { return btFmt(btMs(a2NowFull().slice(0, 10) + " 12:00:00") + off * 86400000).slice(0, 10); }
+function v13bCode(gid) { const g = gameBy(gid); try { return v13Code(g); } catch (e) { return gid.toUpperCase(); } }
+/* Mock draws of the mock selling period (Demo data; dates relative to today) */
+function v13bDraws() {
+  if (S.v1313b.purged) return [];
+  const d0 = v13bDay(0), d1 = v13bDay(-1), y0 = d0.replace(/-/g, ""), y1 = d1.replace(/-/g, "");
+  const mk = (gid, ymd, k, o) => Object.assign({ no: v13bCode(gid) + "-" + ymd + "-" + k + "-M", game: gid, reg: v13bCode(gid) + " v1", nums: "-", res: "-", recv: "-", pub: "-", rec: "-", seal: "-" }, o);
+  return [
+    mk("g655", y0, 1, { seq: "M0003", open: d1 + " 09:00", cut: d0 + " 20:30", draw: d0 + " 21:00", st: "sale", sales: 20 }),
+    mk("sw3", y0, 2, { seq: "M0002", open: d0 + " 09:00", cut: d0 + " 16:45", draw: d0 + " 17:00", st: "sale", sales: 10 }),
+    mk("s649", y1, 1, { seq: "M0001", open: v13bDay(-2) + " 09:00", cut: d1 + " 20:30", draw: d1 + " 21:00", st: "settled", nums: "04 11 19 27 33 45", res: "v1", recv: d1 + " 21:47:08", pub: d1 + " 21:49:30", rec: "Agreed", seal: "Match", sales: 40 })
+  ];
+}
+/* Mock and Synthetic transactions (Demo data) */
+function v13bLive() { const i = S.issues.find((x) => x.st === "sale"); return i ? i.no : "-"; }
+function v13bTx(flag) {
+  const d0 = v13bDay(0), d1 = v13bDay(-1), y0 = d0.replace(/-/g, ""), y1 = d1.replace(/-/g, "");
+  if (flag === "mock") {
+    if (S.v1313b.purged) return [];
+    const D = v13bDraws();
+    return [
+      { kind: "sale", tid: "TXN" + y0 + "M00011", time: d0 + " 10:05", player: V13B_TEST_PL, game: "g655", draw: D[0].no, play: "Lucky Pick", amt: 20, tk: "TKT" + y0 + "M00011", nums: "05 12 23 34 41 50", st: "Issued" },
+      { kind: "sale", tid: "TXN" + y0 + "M00012", time: d0 + " 10:07", player: V13B_TEST_PL, game: "sw3", draw: D[1].no, play: "Standard", amt: 10, tk: "TKT" + y0 + "M00012", nums: "4 7 1", st: "Issued" },
+      { kind: "prize", tid: "CLM-" + y1 + "-M00001", time: d1 + " 21:52", player: V13B_TEST_PL, game: "s649", draw: D[2].no, play: "Standard", amt: 20, tk: "TKT" + y1 + "M00007", nums: "04 11 19 02 08 15", st: "Won" }
+    ];
+  }
+  const live = v13bLive();
+  return [
+    { kind: "sale", tid: "TXN" + y0 + "S00031", time: d0 + " 09:55", player: "PL-900001", game: "s649", draw: live, play: "Lucky Pick", amt: 20, tk: "TKT" + y0 + "S00031", nums: "03 09 17 28 36 44", st: "Issued" },
+    { kind: "sale", tid: "TXN" + y0 + "S00032", time: d0 + " 10:00", player: "PL-900002", game: "s649", draw: live, play: "Lucky Pick", amt: 20, tk: "TKT" + y0 + "S00032", nums: "01 14 22 25 39 47", st: "Issued" },
+    { kind: "void", tid: "TXN" + y1 + "S00027", time: d1 + " 17:10", player: "PL-900001", game: "d6", draw: "6D-" + y1 + "-2", play: "Lucky Pick", amt: 20, tk: "TKT" + y1 + "S00027", nums: "4 1 9 0 2 7", st: "Voided" },
+    { kind: "dep", tid: "TXN" + y0 + "S00030", time: d0 + " 09:54", player: "PL-900001", amt: 20, st: "Credited" },
+    { kind: "dep", tid: "TXN" + y0 + "S00033", time: d0 + " 10:00", player: "PL-900002", amt: 20, st: "Credited" }
+  ];
+}
+function v13bRef(x) { return "ILT-" + x.tk + (x.kind === "void" ? "-V" : ""); }
+function v13bCells(tab, x, flag) {
+  const g = x.game ? gameBy(x.game) : null, ref = x.tk ? v13bRef(x) : "-", rep = tag("ok", "Reported"), amt = peso2(x.kind === "void" ? -x.amt : x.amt);
+  const C = {
+    "Transaction Id": x.tid, "Time": x.time + " UTC+8", "Player Id": x.player, "Player": x.player, "Game Draw": g ? esc(gname(g)) + " / " + x.draw : "-", "Game": g ? esc(gname(g)) : "-",
+    "Draw ID": x.draw || "-", "Play": x.play || "-", "Bet Type": x.play || "-", "Amount": amt, "Bet Amount": amt, "Amount Paid": amt, "Voucher Deduction": "-", "Ticket Number": x.tk || "-",
+    "Transaction Reference": ref, "Unique Player ID": "-", "Register Version": x.game ? v13bCode(x.game) + " v1" : "-", "Unit Value": "₱10.00", "Transaction Count": "1", "Reporting Status": rep,
+    "Reported At": x.time, "Conformance": tag("muted", "Pending"), "Purchased At": x.time, "Bet Numbers": x.nums || "-", "Status": tag(x.st === "Voided" ? "rose" : "ok", x.st), "Ticket Price": amt,
+    "Purchase Amount": amt, "Refund Amount": peso2(x.amt), "To Bet / Prize Balance": "Synthetic balance " + peso2(x.amt), "Void Reason": "Draw cancelled by Core", "Request Time": x.time + " UTC+8",
+    "Payment Channel": "Monitoring test channel", "Order Amount": amt, "Credited Amount": amt, "Deposited Time": x.time + " UTC+8", "Deposit Method": "Monitoring test channel", "First Deposit": "No",
+    "Payment Institution": "-", "Claim Source": tag("ok", "Auto Credit"), "Record Type": "Standard", "Claim Record ID": x.tid, "Result Version": "v1", "Tier Breakdown": "Match 3 × 1 · " + amt,
+    "Gross / Tax / Net": amt + " / ₱0.00 / " + amt, "Verification Method": "Automatic", "Core Verification": "Accepted", "Claimed At": x.time, "Prize Pre-Tax": amt, "Net Payout": x.kind === "prize" ? amt + " to Mock Balance" : "-"
+  };
+  if (tab === "ticket" && x.kind === "prize") { C["Purchase Amount"] = peso2(20); C["Status"] = tag("ok", "Won"); }
+  return C;
+}
+function v13bRows(tab, flag) {
+  const kinds = { order: ["sale"], ticket: ["sale", "prize"], refund: ["void"], prize: ["prize"], dep: ["dep"], wd: [] }[tab] || [];
+  return v13bTx(flag).filter((x) => kinds.indexOf(x.kind) >= 0).map((x) => ({ x, flag, ref: x.tk ? v13bRef(x) : x.tid }));
+}
+function v13bMatch(tab, r) {
+  if (["order", "refund", "ticket"].indexOf(tab) < 0) return true;
+  const q = a2Q("tx", { ref: "", upid: "", st: "all" }), ref = String(q.ref || "").trim().toUpperCase(), up = String(q.upid || "").trim().toUpperCase();
+  if (ref) return r.ref.toUpperCase() === ref || r.ref.toUpperCase() === "ILT-" + ref;
+  if (up) return false;
+  return q.st === "all" || q.st === "Reported";
+}
+function v13bOpt(vals, cur) { return vals.map((v) => `<option ${v === cur ? "selected" : ""}>${v}</option>`).join(""); }
+function v13bPurgeBtn() {
+  const p = S.v1313b.purged;
+  return v7Btn("v1313b-purge", "Demo: Core Mock Data Purge Arrives", { dis: p ? "The Mock data of " + S.v1313b.msp + " is already purged." : v7Is("ops", "admin") ? "" : "Demo for Operations or System admin." });
+}
+function v13bPurgeNote() {
+  const p = S.v1313b.purged;
+  return p ? `<p class="tiny" data-v1313b="purged-note">Mock selling period <span class="mono">${S.v1313b.msp}</span>: Mock data purged by Core at <span class="mono">${esc(p.at)}</span>. The records are registered as purged and kept for audit and PCSO data requests only; they are not listed here, also not with the Mock filter.</p>` : "";
+}
+/* ---------- Transactions (6B.10) ---------- */
+function v13bTxApply(html, tab) {
+  const key = { order: "Transaction Reference", refund: "Transaction Reference", ticket: "Transaction Reference", prize: "Transaction Reference", dep: "Deposit Method", wd: "Payout Account" }[tab];
+  const hasM = V13B_MOCK_TABS.indexOf(tab) >= 0, hasS = V13B_SYN_TABS.indexOf(tab) >= 0;
+  return v13Tpl(html, (c) => {
+    const tb = [...c.querySelectorAll("table")].find((t1) => [...t1.querySelectorAll(":scope > thead > tr > th")].some((h) => h.textContent.trim() === key)); if (!tb) return;
+    const heads = [...tb.querySelectorAll(":scope > thead > tr > th")].map((h) => h.textContent.trim()), W = heads.length;
+    const m = S.v1313b.mock, sy = S.v1313b.syn, mOnly = hasM && m === "Mock Only", sOnly = hasS && sy === "Synthetic Only";
+    const body = tb.tBodies[0] || tb.appendChild(document.createElement("tbody"));
+    if (mOnly || sOnly) [...body.rows].forEach((tr) => tr.remove());
+    const add = [];
+    if (hasM && m !== "Exclude Mock" && !sOnly) add.push(...v13bRows(tab, "mock"));
+    if (hasS && sy !== "Exclude Synthetic" && !mOnly) add.push(...v13bRows(tab, "syn"));
+    const tot = [...body.rows].find((tr) => tr.querySelector("td[colspan]"));
+    add.filter((r) => v13bMatch(tab, r)).forEach((r) => {
+      const C = v13bCells(tab, r.x, r.flag), tr = document.createElement("tr");
+      tr.setAttribute("data-v1313b-row", r.flag); tr.setAttribute("data-ref", r.ref);
+      tr.innerHTML = heads.map((h, k) => `<td class="${/Amount|Price|Payout|Pre-Tax|Gross/.test(h) ? "mono amt" : "mono"}">${h ? C[h] != null ? C[h] : "-" : ""}${k === 0 ? " " + (r.flag === "mock" ? v13bTagM() : v13bTagS()) : ""}</td>`).join("");
+      body.insertBefore(tr, tot || null);
+    });
+    if (!body.rows.length) body.innerHTML = `<tr data-v1313b="empty"><td colspan="${W}" class="muted">No transactions found.</td></tr>`;
+    const sels = (hasM ? `<label class="f">Mock<select data-v1313b-f="mock">${v13bOpt(["Exclude Mock", "Mock Only", "All"], m)}</select></label>` : "") + (hasS ? `<label class="f">Synthetic<select data-v1313b-f="syn">${v13bOpt(["Exclude Synthetic", "Synthetic Only", "All"], sy)}</select></label>` : "");
+    const note = (hasM ? "Mock: transactions of Core mock selling draws (test accounts only, tag Mock). Hidden by default; not counted in remittance, commission, daily reconciliation, coverage or formal reports. " : "") +
+      (hasS ? "Synthetic: transactions of Synthetic monitor accounts (tag Synthetic). Hidden by default; kept out of every report and player statistic. " : "") + (tab === "wd" ? "Synthetic monitor accounts cannot withdraw, so Synthetic Only lists nothing. " : "");
+    const card = `<div class="card" data-v1313b="tx-flags" style="margin-bottom:10px"><div class="tools">${sels}${hasM ? v13bPurgeBtn() : ""}</div><p class="tiny" style="margin:6px 0 0">${note}${tag("muted", "Demo data")}</p>${hasM ? v13bPurgeNote() : ""}</div>`;
+    const at = tb.closest(".table-wrap") || tb; at.before(document.createRange().createContextualFragment(card));
+  });
+}
+const v13bTxn0 = viewTxn;
+viewTxn = function () {
+  const h = v13bTxn0.apply(this, arguments), tab = S.tab.txn || "dep";
+  if (V13B_MOCK_TABS.indexOf(tab) < 0 && V13B_SYN_TABS.indexOf(tab) < 0) return h;
+  return v13bTxApply(h, tab);
+};
+/* ---------- Draws and results (6B.7.3) ---------- */
+function v13bDrawCells(d) {
+  const g = gameBy(d.game), s = V13_ST[d.st] || [d.st, d.st, "muted"];
+  return {
+    "Draw ID": `<span class="mono">${d.no}</span> ${v13bTagM()}`, "Draw Sequence No": d.seq, "Game": esc(gname(g)), "Sales Open At": d.open, "Betting Cut-off": d.cut, "Draw Date And Time": d.draw,
+    "Status": tag(s[2], s[1]), "Core Draw Status": V13_CORE_ST[d.st] || "-", "Winning Numbers": d.nums, "Register Version": d.reg, "Result Version": d.res, "Result Received At": d.recv,
+    "Actual Publish Time": d.pub, "Reconciliation": d.rec, "Sealed Summary": d.seal, "Total sales": peso2(d.sales)
+  };
+}
+const v13bDrawList0 = viewDrawList;
+viewDrawList = function (...a) {
+  return v13Tpl(v13bDrawList0(...a), (c) => {
+    const st = c.querySelector("select[data-field=drawSt]"), cat = S.v1313b.cat;
+    const lab = `<label class="f">Draw Category<select data-v1313b-f="cat">${v13bOpt(["Official", "Mock"], cat)}</select></label>`;
+    if (st && st.closest("label")) st.closest("label").after(document.createRange().createContextualFragment(lab));
+    const tools = st ? st.closest(".card") : null;
+    const note = `<p class="tiny" data-v1313b="draw-note" style="margin:6px 0 0">Draw Category: Official lists the live draws (default). Mock lists the draws of the Core mock selling period (Draw ID ends in -M, tag Mock): synchronized, opened, closed, resulted and paid like live draws, but only test accounts can bet, and they are kept out of formal reports, remittance statements and dashboard KPIs. After the Core Mock Data Purge they are registered as purged and no longer listed. ${tag("muted", "Demo data")}</p>${v13bPurgeNote()}<div class="row-actions" style="margin-top:6px">${v13bPurgeBtn()}</div>`;
+    if (tools) tools.append(document.createRange().createContextualFragment(note));
+    if (cat !== "Mock") return;
+    const tb = [...c.querySelectorAll("table")].find((t1) => [...t1.querySelectorAll(":scope > thead > tr > th")].some((h) => h.textContent.trim() === "Draw Sequence No")); if (!tb) return;
+    const heads = [...tb.querySelectorAll(":scope > thead > tr > th")].map((h) => h.textContent.trim()), body = tb.tBodies[0] || tb.appendChild(document.createElement("tbody"));
+    body.innerHTML = "";
+    const q = String(S.drawQ.issue || "").trim().toLowerCase();
+    const L = v13bDraws().filter((d) => (S.drawQ.game === "all" || d.game === S.drawQ.game) && (S.drawQ.st === "all" || d.st === S.drawQ.st) && (!q || d.no.toLowerCase().includes(q)));
+    L.forEach((d) => {
+      const C = v13bDrawCells(d), tr = document.createElement("tr"); tr.setAttribute("data-v1313b-draw", d.no);
+      tr.innerHTML = heads.map((h) => h ? `<td class="${h === "Status" || h === "Game" ? "" : "mono"}">${C[h] != null ? C[h] : "-"}</td>` : `<td class="row-actions"><button type="button" class="btn btn-sm" data-act="v1313b-mdraw" data-id="${d.no}">Details</button></td>`).join("");
+      body.append(tr);
+    });
+    if (!L.length) body.innerHTML = `<tr data-v1313b="empty"><td colspan="${heads.length}" class="muted">No draws found.</td></tr>`;
+  });
+};
+function v13bDrawDetail() {
+  const d = v13bDraws().find((x) => x.no === S.sub.no); if (!d) { S.sub = null; return viewDraws(); }
+  const C = v13bDrawCells(d);
+  return `<div class="crumb"><a data-act="v1313b-mback">Draws and results</a> › Draw detail › <span class="mono">${d.no}</span></div>
+    <div class="page-h"><div><h3><span class="mono">${d.no}</span> ${v13bTagM()}</h3><p class="muted">Mock draw of mock selling period <span class="mono">${S.v1313b.msp}</span>. ${tag("muted", "Demo data")}</p></div></div>
+    <div class="banner" data-v1313b="mock-detail">Only test accounts can bet on this draw. Its transactions, sealed summary, reconciliation confirmation and claim records are reported to Core with the Mock flag, and it is kept out of formal reports, remittance statements and dashboard KPIs. Prizes go to the Mock Balance only.</div>
+    <div class="card" data-v1313b="mock-kv">${v13KV(Object.keys(C).map((k) => [k, C[k]]))}</div>`;
+}
+const v13bDraws0 = viewDraws;
+viewDraws = function () { if (S.sub && S.sub.type === "v1313b-mock") return v13bDrawDetail(); return v13bDraws0.apply(this, arguments); };
+const v13bChk0 = raDrawCheck;
+raDrawCheck = function () { if (S.sub && S.sub.type === "v1313b-mock") return ""; return v13bChk0.apply(this, arguments); };
+/* ---------- Players list (6B.8.3) ---------- */
+const v13bPlayers0 = viewPlayers;
+viewPlayers = function () {
+  const h = v13bPlayers0.apply(this, arguments); if (S.playerId) return h;
+  return v13Tpl(h, (c) => {
+    const tb = [...c.querySelectorAll("table")].find((t1) => [...t1.querySelectorAll(":scope > thead > tr > th")].some((x) => x.textContent.trim() === "Last sign-in")); if (!tb) return;
+    const f = S.v1313b.plTest, W = tb.querySelectorAll(":scope > thead > tr > th").length;
+    [...tb.querySelectorAll(":scope > tbody > tr[data-id]")].forEach((tr) => {
+      const test = !!S.v137.test[tr.dataset.id];
+      if ((f === "Yes" && !test) || (f === "No" && test)) { tr.remove(); return; }
+      if (test && tr.children[0]) tr.children[0].insertAdjacentHTML("beforeend", ` <span data-v1313b="pl-test-tag">${tag("cyan", "Test")}</span>`);
+    });
+    const body = tb.tBodies[0]; if (body && !body.rows.length) body.innerHTML = `<tr data-v1313b="empty"><td colspan="${W}" class="muted">No players found.</td></tr>`;
+    const lab = `<label class="f" data-v1313b="pl-test">Test Account<select data-v1313b-f="pltest">${v13bOpt(["All", "Yes", "No"], f)}</select></label>`;
+    const w = c.querySelector("select[data-v138f=wst]");
+    if (w && w.closest("label")) w.closest("label").after(document.createRange().createContextualFragment(lab));
+    else (tb.closest(".table-wrap") || tb).before(document.createRange().createContextualFragment(`<div class="tools">${lab}</div>`));
+  });
+};
+/* ---------- events ---------- */
+window.addEventListener("change", (e) => {
+  const el = e.target, k = el && el.dataset && el.dataset.v1313bF; if (!k) return;
+  e.stopPropagation();
+  if (k === "cat") S.v1313b.cat = el.value; else if (k === "mock") S.v1313b.mock = el.value; else if (k === "syn") S.v1313b.syn = el.value; else if (k === "pltest") S.v1313b.plTest = el.value;
+  render();
+}, true);
+function v13bClick(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act; if (!act || act.indexOf("v1313b-") !== 0) return;
+  e.stopPropagation(); e.preventDefault(); if (el.disabled) return;
+  if (act === "v1313b-mdraw") { S.sub = { type: "v1313b-mock", no: el.dataset.id }; render(); return; }
+  if (act === "v1313b-mback") { S.sub = null; render(); return; }
+  if (act === "v1313b-purge") {
+    if (S.v1313b.purged || !v7Is("ops", "admin")) return;
+    const at = a2NowFull(), nD = v13bDraws().length, tx = v13bTx("mock"), nT = tx.filter((x) => x.kind === "sale").length, nC = tx.filter((x) => x.kind === "prize").length;
+    const pl = {}; tx.forEach((x) => { pl[x.player] = 1; });
+    Object.keys(S.v1313.mock || {}).forEach((id) => { const r = S.v1313.mock[id]; if (r.items.some((x) => !x.purged)) pl[id] = 1; r.items.forEach((x) => { if (!x.purged) { x.purged = true; x.purgedAt = v7Now(); } }); });
+    const nP = Object.keys(pl).length, cnt = `draws ${nD}, transactions ${nT}, claims ${nC}, test players ${nP}`;
+    S.v1313b.purged = { at, n: { draws: nD, tx: nT, claims: nC, players: nP } };
+    const id = "DIR-" + a2Ymd() + "-000190";
+    if (!S.v13a2.dirs.some((d) => d.id === id)) S.v13a2.dirs.unshift(Object.assign({ reason: "", by: "core.sa01", players: [], detail: "", fail: "", handler: "System", mode: "auto", sub: "", round: 0, ackHist: [] }, {
+      id, type: "Mock Data Purge", sum: "Purge the Mock data of mock selling period " + S.v1313b.msp, reason: "Mock selling period ended", issued: at, recv: at, deadline: btFmt(a2NowMs() + 24 * 3600000),
+      exec: "Executed", execAt: at, ack: "Sent " + at.slice(11, 16), ackHist: [[at, "Receipt confirmation sent"], [at, "Execution acknowledgment sent"]],
+      detail: "Logical purge: Mock draws, transactions, tickets, claims and payouts, test account Mock Balance and wallet records registered as purged (records kept); no longer shown to players or on business pages (Mock filters included). Counts reported: " + cnt + ". Wallet records and Mock Balance are registered locally only. Audit records are kept."
+    }));
+    v7Aud("System", "Mock Data Purge executed (logical)", S.v1313b.msp, "Not purged", "Registered as purged: " + cnt);
+    toast("Mock data of " + S.v1313b.msp + " registered as purged (" + cnt + "); the records are kept for audit."); render(); return;
+  }
+}
+window.addEventListener("click", v13bClick, true);
+/* ===== V13-1313B END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">
@@ -20331,6 +20612,9 @@ td[data-v133="dir-receipt"], td[data-v133="dir-xr"], td[data-v133="dir-dl"], td[
 .login-panel .idle-notice .idle-x{border:0;background:transparent;color:inherit;font-size:20px;line-height:1;cursor:pointer;padding:0 2px;opacity:.7}
 .login-panel .idle-notice .idle-x:hover{opacity:1}
 .devlang .idle-demo{background:#fff6cc;border:0;color:#5c4300;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}
+
+/* 6B.7.3 Mock draw rows (1313B): keep the Draw ID on one line */
+tr[data-v1313b-draw] > td:first-child > .mono { white-space: nowrap; }
 
 </style>
 <script id="skin-js">

@@ -4609,7 +4609,7 @@ render();
      6B.3.7           Mock selling: a test account buys Mock draws only (draw ID + "-M", MOCK badges on game cards,
                       Play, bet confirmation, tickets, results), pays from the Mock Balance, wins go to the Mock Balance
                       (no claim code), deposit / withdraw / payment accounts hidden, [MOCK] in-app messages only (no SMS,
-                      no email), Core Mock Data Purge deletes the Mock draws, tickets, balance and its records
+                      no email), Core Mock Data Purge marks the Mock draws, tickets, balance and its records as purged (p7z7_1313.js)
      6B.5.5           outlets: Outlet Category (Accredited Outlet / PCSO Branch Office) on each row and as a filter
      6B.1.3           App: device biometrics turned off or every fingerprint / face removed -> this device loses its
                       trusted status at once (other devices keep theirs), no pop-up, next sign-in goes to the SMS step;
@@ -4728,7 +4728,7 @@ A.mockRes=kind=>{const M=MK();const ks=S.tickets.filter(k=>k.mock&&k.st==='await
 A.mockPurge=()=>{const M=MK();const tk=S.tickets.filter(k=>k.mock).length,dr=M.draws.length,tx=M.tx.length,bal=M.bal;
  S.tickets=S.tickets.filter(k=>!k.mock);M.draws=[];M.tx=[];M.bal=0;M.open={};
  v13Audit(`core-mock-data-purge-${MOCK_PERIOD_PF}: tickets ${tk}, mock draws ${dr}, mock balance records ${tx}, mock balance ${bal}`);
- toast(`Core: Mock Data Purge ${MOCK_PERIOD_PF} · ${tk} tickets, ${dr} Mock results, ${tx} Mock Balance records deleted · test account flag kept`);render()};
+ toast(`Core: Mock Data Purge ${MOCK_PERIOD_PF} · ${tk} tickets, ${dr} Mock results, ${tx} Mock Balance records marked as purged · test account flag kept`);render()};
 
 /* ---------- 6B.5.5 outlets: Outlet Category ---------- */
 const OCAT_PF={a:'Accredited Outlet',b:'PCSO Branch Office'};
@@ -5003,6 +5003,47 @@ const MSG_SCHINT1310='Go to the PCSO Main Office to claim. Tap Start claim to ge
  [...tp.content.querySelectorAll('.card')].forEach(card=>{if(card.querySelector('#startclaim'))return;
   [...card.querySelectorAll('.sm')].forEach(s=>{if(s.textContent.trim()===MSG_SCHINT1310){s.remove();n++}})});
  return n?tp.innerHTML:h}}
+render();
+/* ===== PRD follow-up, player side (batch1313/proto.md, player part) =====
+   Loaded after p7z6_1310.js (build.sh). No panel section of its own: the new demo button sits in the 6B.3.3 large-order
+   group of panel138 (id v138_bx_frz).
+     6B.3.7 rule 5 (MOCK-A)  Core Mock Data Purge is a logical purge: the Mock tickets, Mock results, Mock Balance records and
+                      the Mock Balance are marked purged (purged, purgedAt, purgeRef) and registered per Mock period in
+                      S.pf.mock.purgeReg; nothing is physically deleted. Purged records are no longer shown to the test
+                      account (tickets, results, wallet), the Mock Balance restarts from 0.00. The test account flag is kept;
+                      Remove Test Account is refused while any Mock record is not marked purged (counted by the mark).
+     6B.3.3 (PC243)   large orders: a wallet freeze between batches stops the order like the other reasons. Result page keeps
+                      "{n} tickets were not issued: {reason}"; later batches are not charged (existing stop logic).
+                      Demo: Next large order: batch 2 hits a wallet freeze.
+     6B.4.2 (PC244)   big prize ID instruction has three cases: 1 government-issued ID (default); 2 government-issued IDs of
+                      different types (All Government-Issued IDs, n > 1); 2 IDs of the listed types. The demo switch cycles
+                      through the three.
+   UI text is English only. */
+
+/* ---------- 6B.3.7 rule 5: logical Mock data purge ---------- */
+const liveMk1313=a=>(a||[]).filter(x=>!x.purged);
+const mockOpen1313=()=>{const M=MK();return M.bal>0||liveMk1313(M.tx).length>0||liveMk1313(M.draws).length>0||S.tickets.some(k=>k.mock&&!k.purged)};
+A.mockPurge=()=>{const M=MK();const at=fts(S.clock);
+ const tks=S.tickets.filter(k=>k.mock&&!k.purged),drs=liveMk1313(M.draws),txs=liveMk1313(M.tx),bal=M.bal;
+ [...tks,...drs,...txs].forEach(x=>{x.purged=1;x.purgedAt=at;x.purgeRef=MOCK_PERIOD_PF});
+ (M.purgeReg=M.purgeReg||[]).push({period:MOCK_PERIOD_PF,at,purged:1,bal,tickets:tks,draws:drs,tx:txs});
+ S.tickets=S.tickets.filter(k=>!k.purged);M.draws=liveMk1313(M.draws);M.tx=liveMk1313(M.tx);M.bal=0;M.open={};
+ v13Audit(`core-mock-data-purge-${MOCK_PERIOD_PF}: tickets ${tks.length}, mock draws ${drs.length}, mock balance records ${txs.length}, mock balance ${bal} marked as purged`);
+ toast(`Core: Mock Data Purge ${MOCK_PERIOD_PF} · ${tks.length} tickets, ${drs.length} Mock results, ${txs.length} Mock Balance records marked as purged · test account flag kept`);render()};
+{const _t=A.mockTest;A.mockTest=function(){const M=MK();if(S.logged&&M.test&&mockOpen1313())return toast('Demo: run the Core Mock Data Purge first');return _t.apply(this,arguments)}}
+
+/* ---------- 6B.3.3 (PC243): wallet freeze between batches ---------- */
+BX_WHY138.frz='Your wallet is temporarily restricted. Please contact customer support.';
+{const _p=panel138;panel138=function(){let h=_p.apply(this,arguments);if(h.indexOf('id="v138_bx_frz"')>=0)return h;
+ const bx=P138().bx,on=bx&&bx.why==='frz';const b=`<button class="pb ${on?'on':''}" id="v138_bx_frz" onclick="A.bxArm138('frz')">Next large order: batch 2 hits a wallet freeze</button>`;
+ const i=h.indexOf('id="v138_bx_rst"');if(i<0)return h;const j=h.indexOf('</button>',i)+9;return h.slice(0,j)+b+h.slice(j)}}
+
+/* ---------- 6B.4.2 (PC244): three ID instructions ---------- */
+idTxt137=function(){const v=CFG137C().ids;if(!v)return 'Bring this code and 1 valid government-issued ID to the PCSO Main Office.';const n=2;
+ if(v===2)return `Bring this code and ${n} valid government-issued IDs of different types to the PCSO Main Office.`;
+ return `Bring this code and ${n} valid ID${n>1?'s':''} (${ID_TYPES137}) to the PCSO Main Office.`};
+A.ids137=()=>{const c=CFG137C();c.ids=!c.ids?2:c.ids===2?1:0;
+ toast(c.ids===2?'Claim policy: 2 government-issued IDs of different types (Demo data)':c.ids===1?'Claim policy: 2 IDs from '+ID_TYPES137+' (Demo data)':'Claim policy: 1 valid government-issued ID');render()};
 render();
 </script>
 </body>

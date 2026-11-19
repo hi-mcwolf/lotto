@@ -13686,10 +13686,12 @@ if (typeof AUD_TYPES !== 'undefined' && !AUD_TYPES.includes('Mock Selling')) AUD
 function msCanC() { return can('Draw Calendar', 'C'); }
 function msCanA() { return can('Draw Calendar', 'A') && hasRole('sa'); }
 function msById(id) { return (SEED.mockPeriods || []).find(p => p.id === id); }
-function msDraws(p) { return SEED.mockDraws1311.filter(d => d.mockPeriod === p.id); }
-function msTx(p, ch) { return (SEED.mockTx || []).filter(x => x.mockPeriod === p.id && (!ch || x.channel === ch)); }
-function msClaims(p, ch) { return (SEED.mockClaimRecs || []).filter(x => x.mockPeriod === p.id && (!ch || x.source === ch || x.channel === ch)); }
-function msPlayers(p, ch) { return (SEED.mockPlayers || []).filter(x => x.mockPeriod === p.id && (!ch || x.channels.some(c => c.code === ch))); }
+/* PRD 1.3.13 (6A.4.6 rule 5): the purge is logical. Records keep purged: true and every page, filter and count leaves them out. */
+function msL(a) { return (a || []).filter(x => !x.purged); }
+function msDraws(p) { return msL(SEED.mockDraws1311).filter(d => d.mockPeriod === p.id); }
+function msTx(p, ch) { return msL(SEED.mockTx).filter(x => x.mockPeriod === p.id && (!ch || x.channel === ch)); }
+function msClaims(p, ch) { return msL(SEED.mockClaimRecs).filter(x => x.mockPeriod === p.id && (!ch || x.source === ch || x.channel === ch)); }
+function msPlayers(p, ch) { return msL(SEED.mockPlayers).filter(x => x.mockPeriod === p.id && (!ch || x.channels.some(c => c.code === ch))); }
 function msTone(s) { return { 'Pending Approval': 'warn', 'Scheduled': 'info', 'Running': 'ok', 'Ended': '', 'Purge Pending': 'warn', 'Purging': 'warn', 'Purged': 'ok', 'Rejected': 'bad', 'Withdrawn': '' }[s] || ''; }
 function msHist(p, from, to, by, note) { p.history.push({ at: nowS(), from, to, by: by || me() || 'System', note: note || '' }); p.status = to; }
 function msWindow(p) { return `${p.start} – ${p.end}`; }
@@ -13701,7 +13703,7 @@ function msNewDraw(p, game, at, by, reason) {
   const g = gameByCode(game); const def = gameDef(g); const ds = at.slice(0, 10); const time = at.slice(11, 16);
   const slots = def.schedule.filter(s => s.day === dow(dt(ds))).map(s => s.time).sort();
   let n = slots.indexOf(time) + 1; if (n <= 0) n = slots.length + 1;
-  const taken = id => !!drawById(id);
+  const taken = id => !!drawById(id) || SEED.mockDraws1311.some(d => d.id === id); /* purged IDs are not reused */
   let id = `${game}-${ds.replace(/-/g, '')}-${n}-M`; while (taken(id)) { n++; id = `${game}-${ds.replace(/-/g, '')}-${n}-M`; }
   const slot = def.schedule.find(s => s.time === time) || def.schedule[0];
   const cutoff = addMin(at, -(slot.lead || 30));
@@ -13776,6 +13778,11 @@ TICKS139.push(function msTick() {
     codeHash: c2sha('1234'), check: '', codeAt: '2026-10-12 08:30', codeStatus: 'Active', oldHashes: [], usedHashes: [], prints: 0, mock: true, mockPeriod: 'MS-0001', demo: true }] : [];
   SEED.mockUnclaimed = m1 ? [{ game: 'L658', drawId: m1.id, drawDate: '2026-10-11', tier: t1, winners: 3, claimed: 1, unit: 20, by: { ILT: 3 }, mock: true, mockPeriod: 'MS-0001', demo: true }] : [];
 })();
+/* purged Mock draws are left out of draw lookups and the results workbench Mock filter (6A.4.6 rule 5) */
+(function msHidePurged() {
+  const d0 = drawById; drawById = function (id) { const d = d0.apply(this, arguments); return d && d.purged ? null : d; };
+  const w0 = withMock1311; withMock1311 = function (flag, fn) { const all = SEED.mockDraws1311; SEED.mockDraws1311 = msL(all); try { return w0(flag, fn); } finally { SEED.mockDraws1311 = all; } };
+})();
 /* participating channels only (6A.4.6 rule 1) */
 (function msTargets() { const f0 = drTargetChannels; drTargetChannels = function (d) { if (d && d.mock) { const p = msById(d.mockPeriod); return p ? p.channels.slice() : ['ILT']; } return f0.apply(this, arguments); }; })();
 
@@ -13797,7 +13804,7 @@ function msPurgeResult(p) {
 
 /* ---------- page ---------- */
 function msView(m) {
-  let h = pageH({ zh: 'Mock Selling', en: 'Mock Selling' }, '6A.4.6', 'Rehearse selling before commercial operation. Mock draws and Mock transactions carry the Mock flag and stay out of settlement, remittance, commission, official reports, dashboard figures, service level statistics and SAS. Purged data cannot be recovered; the audit trail is kept.',
+  let h = pageH({ zh: 'Mock Selling', en: 'Mock Selling' }, '6A.4.6', 'Rehearse selling before commercial operation. Mock draws and Mock transactions carry the Mock flag and stay out of settlement, remittance, commission, official reports, dashboard figures, service level statistics and SAS. Purged data is marked as purged and kept out of every page, report and reconciliation. It is not physically deleted. The audit trail is kept.',
     msCanC() ? btn({ zh: '+ New Mock Period', en: '+ New Mock Period' }, 'ms.new', '', { cls: 'primary', id: 'btnMsNew' }) : '') + subTabs(m);
   h += filterBar('msF', [{ k: 'st', zh: 'Status', en: 'Status', type: 'select', def: 'All', opts: ['All'].concat(MS_STATES) }]);
   const st = fv('msF', 'st', 'All');
@@ -13838,11 +13845,13 @@ function msBody(p) {
       ['PCSO Reference', esc(p.ref)], ['Note', esc(p.note || '-')], ['Mock Draws / Mock Transactions', `${fmtN(msDraws(p).length)} / ${fmtN(msTx(p).length)}`], ['Submitted By', `${esc(p.by)} · ${esc(p.at)}`],
       ['Approved By', p.appr ? `${esc(p.appr)} · ${esc(p.apprAt)}` : '-'], p.rejReason ? ['Rejection Reason', esc(p.rejReason)] : null, ['Purge Result', msPurgeResult(p)]]);
     h += card('Test Player Profiles', table('msPl', [{ h: 'Unique Player ID', r: x => `<span class="mono">${x.upid}</span> ${MS_TAG}` }, { h: 'Channel / Local ID', r: x => esc(x.channels.map(c => c.code + ' ' + c.localId).join(', ')) }, { h: 'Registered At', k: 'registeredAt' }],
-      msPlayers(p).map(x => Object.assign({ id: x.upid }, x)), { nopage: true, empty: { zh: 'None', en: 'No test player profiles.' } }) + '<p class="tiny">Test player profiles carry the Mock flag. They are left out of the official registry statistics and cross-channel duplicate checks and are deleted by the purge.</p>');
+      msPlayers(p).map(x => Object.assign({ id: x.upid }, x)), { nopage: true, empty: { zh: 'None', en: 'No test player profiles.' } }) + '<p class="tiny">Test player profiles carry the Mock flag. They are left out of the official registry statistics and cross-channel duplicate checks and are marked as purged by the purge.</p>');
+  } else if ((tab === 'draws' || tab === 'tx') && p.purge && p.purge.counts) {
+    h += `<p class="muted" id="msPurgedEmpty">Mock data of this period has been purged.</p>`;
   } else if (tab === 'draws') {
     h += table('msDr', [{ h: 'Draw ID', r: d => `<button class="btn link mono" data-act="drawOpen" data-a="${d.id}">${d.id}</button> ${MS_CAL_TAG}` }, { h: 'Game', k: 'game' }, { h: 'Draw Time', k: 'drawAt' }, { h: 'Cut-off', k: 'cutoff' }, { h: 'Status', r: d => badge(d.status) }, { h: 'Closure', r: d => d.closure ? esc(d.closure.status) : '-' }],
       msDraws(p).slice().sort((a, b) => a.drawAt.localeCompare(b.drawAt)), { nopage: true, empty: { zh: 'None', en: 'No Mock draws yet.' } });
-    h += '<p class="tiny">Mock draws follow the official draw state machine, closure, entry, determination and claims, but are sent only to the participating E-Channels. When the period ends, undrawn Mock draws are cancelled without a void directive and are deleted by the purge.</p>';
+    h += '<p class="tiny">Mock draws follow the official draw state machine, closure, entry, determination and claims, but are sent only to the participating E-Channels. When the period ends, undrawn Mock draws are cancelled without a void directive and are marked as purged by the purge.</p>';
   } else if (tab === 'tx') {
     h += table('msTxT', [{ h: 'Transaction Reference', r: x => `<span class="mono">${x.id}</span> ${MS_TAG}` }, { h: 'Channel', k: 'channel' }, { h: 'Unique Player ID', k: 'upid' }, { h: 'Draw ID', k: 'drawId' }, { h: 'Gross Receipts', cls: 'num', r: x => fmtP(x.amount) }, { h: 'Finalization Time', k: 'confirmedAt' }],
       msTx(p), { size: 10, empty: { zh: 'None', en: 'No Mock transactions.' } }) + `<p class="tiny">${demoTag()}</p>`;
@@ -13850,7 +13859,7 @@ function msBody(p) {
     const pg = p.purge;
     if (!pg) h += `<p class="muted">No purge requested. Purge Mock Data is available after the period has ended.</p>`;
     else {
-      h += dl([['Requested By', `${esc(pg.reqBy)} · ${esc(pg.reqAt)}`], ['Approved By', pg.apprBy ? `${esc(pg.apprBy)} · ${esc(pg.apprAt)}` : '-'], ['Dataset Hash Before Purge', pg.hash ? `<span class="hash">${esc(pg.hash)}</span>` : '-'], pg.rejReason ? ['Rejection Reason', esc(pg.rejReason)] : null, pg.caseId ? ['Case', `<button class="btn link mono" data-act="viewCase" data-a="${pg.caseId}">${pg.caseId}</button>`] : null]);
+      h += dl([['Requested By', `${esc(pg.reqBy)} · ${esc(pg.reqAt)}`], ['Approved By', pg.apprBy ? `${esc(pg.apprBy)} · ${esc(pg.apprAt)}` : '-'], ['Dataset Hash Before Purge', pg.hash ? `<span class="hash">${esc(pg.hash)}</span><div class="tiny" id="msHashNote">Use this hash to check that purged data has not changed.</div>` : '-'], pg.rejReason ? ['Rejection Reason', esc(pg.rejReason)] : null, pg.caseId ? ['Case', `<button class="btn link mono" data-act="viewCase" data-a="${pg.caseId}">${pg.caseId}</button>`] : null]);
       if (pg.counts) {
         h += card('Purge List (Core)', table('msPgC', [{ h: 'Data Category', k: 'id' }, { h: 'Records Purged', cls: 'num', r: r => fmtN(r.n) }], MS_CATS.map(k => ({ id: k, n: pg.counts[k] || 0 })), { nopage: true }) + (pg.manifest ? `<p class="tiny">Mock draws: ${esc(pg.manifest.draws.join(', ') || '-')}</p>` : ''));
         h += card('Channel Reports', table('msPgR', [{ h: 'Channel', k: 'id' }, { h: 'Directive', r: r => r.dir ? `<span class="mono">${esc(r.dir)}</span>` : '-' }, { h: 'Status', r: r => badge(r.status, r.status === 'Match' ? 'ok' : r.status === 'Mismatch' ? 'bad' : 'warn') },
@@ -13859,7 +13868,7 @@ function msBody(p) {
         Object.keys(pg.per).map(c => Object.assign({ id: c }, pg.per[c])), { nopage: true }));
       }
     }
-    h += '<p class="tiny">The purge deletes the Mock draws, transactions, closure records, results, prize claims, reconciliation records and test profiles of this period and sends Mock Data Purge to each participating E-Channel. Each channel reports the counts it purged; when every count matches, the period becomes Purged; a mismatch raises an alert and opens a case. Audit events are never deleted: the purge writes one purge event with the counts and the dataset hash.</p>';
+    h += '<p class="tiny">The purge marks the Mock draws, transactions, closure records, results, prize claims, reconciliation records and test profiles of this period as purged (no physical deletion) and sends Mock Data Purge to each participating E-Channel. Each channel reports the counts it purged; when every count matches, the period becomes Purged; a mismatch raises an alert and opens a case. Audit events are never deleted: the purge writes one purge event with the counts and the dataset hash.</p>';
   } else if (tab === 'hist') {
     h += table('msH', [{ h: 'Time', k: 'at' }, { h: 'From', k: 'from' }, { h: 'To', r: x => badge(x.to, msTone(x.to)) }, { h: 'By', k: 'by' }, { h: 'Note', r: x => esc(x.note || '-') }], p.history.map((x, i) => Object.assign({ id: i }, x)).reverse(), { nopage: true });
   }
@@ -13920,8 +13929,8 @@ Object.assign(ACT, {
   'ms.purgeOk': id => { const p = msById(id); if (!p || p.status !== 'Purge Pending') return;
     if (!msCanA()) { toast('Only a Senior Authorizer can approve this request.', 'err'); return; }
     if (p.purge.reqBy === me()) { toast('You cannot approve a request you submitted.', 'err'); return; }
-    ask({ title: `Approve purge · ${p.id}`, ok: 'Approve and Purge', danger: true, msg: 'Purged Mock data cannot be recovered. The audit trail is kept.',
-      check: { en: 'I understand the Mock data of this period will be deleted and cannot be recovered', zh: 'I understand the Mock data of this period will be deleted and cannot be recovered' },
+    ask({ title: `Approve purge · ${p.id}`, ok: 'Approve and Purge', danger: true, msg: 'Purged Mock data is kept out of all pages, reports and reconciliation, and the purge cannot be undone. The audit trail is kept.',
+      check: { en: 'I understand the Mock data of this period will be marked as purged and the purge cannot be undone', zh: 'I understand the Mock data of this period will be marked as purged and the purge cannot be undone' },
       onOk: () => msPurgeExec(p) }); },
   'ms.purgeRej': id => { const p = msById(id); if (!p || p.status !== 'Purge Pending' || !msCanA() || p.purge.reqBy === me()) return;
     ask({ title: `Reject purge · ${p.id}`, ok: 'Reject', danger: true, reason: { en: 'Reason', zh: 'Reason' }, onOk: v => { p.purge.rejReason = v.m_reason.trim(); msHist(p, 'Purge Pending', 'Ended', me(), 'Purge rejected · ' + p.purge.rejReason); msAudit('Mock data purge rejected', p.id, p.purge.rejReason); toast('Purge request rejected.'); } }); },
@@ -13934,15 +13943,16 @@ function msPurgeExec(p) {
   pg.manifest = { draws: draws.map(d => d.id), tx: msTx(p).map(x => x.id), players: msPlayers(p).map(x => x.upid) };
   pg.hash = hexOf(p.id + '|' + JSON.stringify(pg.manifest) + '|' + JSON.stringify(pg.counts));
   pg.apprBy = me(); pg.apprAt = nowS();
-  /* delete the Mock business data of this period */
-  const ids = new Set(pg.manifest.draws);
-  for (let i = SEED.mockDraws1311.length - 1; i >= 0; i--) if (SEED.mockDraws1311[i].mockPeriod === p.id) SEED.mockDraws1311.splice(i, 1);
-  ['mockTx', 'mockClaimRecs', 'mockPlayers', 'mockBigClaims', 'mockUnclaimed'].forEach(k => { SEED[k] = (SEED[k] || []).filter(x => x.mockPeriod !== p.id && !ids.has(x.drawId)); });
-  const dirs = issueDirectives(p.channels, { type: 'Mock Data Purge', summary: `${p.id} · purge all Mock data of the period and report the counts`, reason: 'Mock period ended', by: pg.reqBy, authBy: me(), ref: p.id });
+  /* mark the Mock business data of this period as purged (logical purge, no physical deletion) */
+  const ids = new Set(pg.manifest.draws); const at = nowS();
+  const mark = x => { x.purged = true; x.purgedAt = at; x.purgeRef = p.id; };
+  SEED.mockDraws1311.forEach(d => { if (d.mockPeriod === p.id && !d.purged) mark(d); });
+  ['mockTx', 'mockClaimRecs', 'mockPlayers', 'mockBigClaims', 'mockUnclaimed'].forEach(k => { (SEED[k] || []).forEach(x => { if (!x.purged && (x.mockPeriod === p.id || ids.has(x.drawId))) mark(x); }); });
+  const dirs = issueDirectives(p.channels, { type: 'Mock Data Purge', summary: `${p.id} · mark all Mock data of the period as purged and report the counts`, reason: 'Mock period ended', by: pg.reqBy, authBy: me(), ref: p.id });
   dirs.forEach(d => { pg.per[d.channel].dir = d.id; });
-  msHist(p, 'Purge Pending', 'Purging', me(), 'Purge approved and executed in Core');
+  msHist(p, 'Purge Pending', 'Purging', me(), 'Purge approved; Mock data marked as purged in Core');
   msAudit('Mock data purged', p.id, `${MS_CATS.map(k => `${k} ${pg.counts[k]}`).join(', ')} · dataset hash ${pg.hash}`);
-  toast(`Mock data of ${p.id} purged in Core. Mock Data Purge sent to ${p.channels.join(', ')}.`);
+  toast(`Mock data of ${p.id} marked as purged in Core. Mock Data Purge sent to ${p.channels.join(', ')}.`);
 }
 function msChReport(p, ch, match) {
   const pg = p.purge; const r = pg.per[ch]; if (!r) return;
@@ -13966,7 +13976,7 @@ function msChReport(p, ch, match) {
       const i = h.indexOf('data-act="calMode"'); const j = i >= 0 ? h.indexOf('</div>', i) : -1; h = j >= 0 ? h.slice(0, j + 6) + box + h.slice(j + 6) : h + box;
       h += `<p class="tiny" id="calMockNote">Mock draws (6A.4.6) are hidden by default; tick Show Mock to list them with the MOCK tag. They use no draw sequence or session number and do not count toward the draws to keep or the advance-sale window.</p>`; }
     return h; };
-  const r0 = calRows; calRows = function () { if (!fv('cal', 'showMock', false)) return r0.apply(this, arguments); const real = SEED.draws; SEED.draws = real.concat(SEED.mockDraws1311); try { return r0.apply(this, arguments); } finally { SEED.draws = real; } };
+  const r0 = calRows; calRows = function () { if (!fv('cal', 'showMock', false)) return r0.apply(this, arguments); const real = SEED.draws; SEED.draws = real.concat(msL(SEED.mockDraws1311)); try { return r0.apply(this, arguments); } finally { SEED.draws = real; } };
   R134_COLS.calT = cols => { const i = cols.findIndex(c => c.h === 'Draw ID'); if (i >= 0) { const r1 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: (d, j) => (r1 ? r1(d, j) : esc(d.id)) + (d.mock ? ' ' + MS_CAL_TAG : '') }); } return cols; };
   const mv = monthView; monthView = function (rows, ym) { let h = mv.apply(this, arguments); rows.filter(d => d.mock).forEach(d => { h = h.split(`data-a="${d.id}" title="${d.id} · `).join(`data-a="${d.id}" data-mockchip="1" title="MOCK ${d.id} · `); h = h.replace(new RegExp(`(data-a="${d.id}" data-mockchip="1"[^>]*>)`), '$1MOCK '); }); return h; };
   const o0 = drawOpen; drawOpen = function (id) { o0.apply(this, arguments); const d = drawById(id); const D = S.drawer; if (!d || !d.mock || !D) return; const s0 = D.sub, b0 = D.body;
@@ -14016,17 +14026,17 @@ function msFlagOk(x, mf, sf) { if (mf === 'Exclude Mock' && x.mock) return false
   const r0 = c2txRows;
   c2txRows = function () {
     const mf = fv('txf', 'mock', 'Exclude Mock'), sf = fv('txf', 'syn', 'Exclude Synthetic'); const real = SEED.transactions;
-    const pool = real.concat(SEED.mockTx || [], SEED.synthTx || []); const ref = String(fv('txf', 'ref', '')).trim();
+    const pool = real.concat(msL(SEED.mockTx), SEED.synthTx || []); const ref = String(fv('txf', 'ref', '')).trim();
     if (ref) return pool.filter(x => x.id === ref);
     SEED.transactions = pool.filter(x => msFlagOk(x, mf, sf)); try { return r0.apply(this, arguments); } finally { SEED.transactions = real; }
   };
-  const t0 = c2tx; c2tx = function (id) { return t0(id) || (SEED.mockTx || []).find(x => x.id === id) || (SEED.synthTx || []).find(x => x.id === id); };
+  const t0 = c2tx; c2tx = function (id) { return t0(id) || msL(SEED.mockTx).find(x => x.id === id) || (SEED.synthTx || []).find(x => x.id === id); };
   R134_COLS.txT = cols => { if (cols[0]) { const r1 = cols[0].r; cols[0] = Object.assign({}, cols[0], { r: (x, j) => (r1 ? r1(x, j) : esc(x.id)) + (x.mock ? ' ' + MS_TAG : '') + (x.synthetic ? ' ' + MS_SYN_TAG : '') }); } return cols; };
   const o0 = c2txOpen; c2txOpen = function (id) { o0.apply(this, arguments); const x = c2tx(id); const D = S.drawer; if (!x || !D || !(x.mock || x.synthetic)) return; const b0 = D.body;
-    D.body = () => banner(x.mock ? `<b>Mock transaction</b> of Mock Selling period <span class="mono">${esc(x.mockPeriod)}</span>. Not in settlement, remittance, official reports or dashboard figures; deleted by the purge. ${demoTag()}` : `<b>Synthetic monitoring transaction</b> from declared account <span class="mono">${esc(x.account)}</span>. Not in the closure record, determination, settlement, transaction monitoring statistics, official reports or player statistics. ${demoTag()}`, 'amber') + b0(); render(); };
+    D.body = () => banner(x.mock ? `<b>Mock transaction</b> of Mock Selling period <span class="mono">${esc(x.mockPeriod)}</span>. Not in settlement, remittance, official reports or dashboard figures; marked as purged by the purge. ${demoTag()}` : `<b>Synthetic monitoring transaction</b> from declared account <span class="mono">${esc(x.account)}</span>. Not in the closure record, determination, settlement, transaction monitoring statistics, official reports or player statistics. ${demoTag()}`, 'amber') + b0(); render(); };
   const m0 = c2txMonitor;
   c2txMonitor = function (m) {
-    const on = !!fv('tmf', 'mockSel', false); const real = SEED.transactions; if (on) SEED.transactions = (SEED.mockTx || []).slice();
+    const on = !!fv('tmf', 'mockSel', false); const real = SEED.transactions; if (on) SEED.transactions = msL(SEED.mockTx);
     let h; try { h = m0.apply(this, arguments); } finally { SEED.transactions = real; }
     const sw = `<div class="filters" id="tmMockSw"><label class="sw"><input type="checkbox" id="tmMockSel" data-act="ms.tmSwitch"${on ? ' checked' : ''}> Mock Selling</label><span class="tiny">${on ? 'Showing Mock data only. Official data is not included and the two are never added together.' : 'Official data. Mock and synthetic monitoring transactions are not included.'}</span></div>`;
     const i = h.indexOf('<div class="filters"'); h = i >= 0 ? h.slice(0, i) + sw + h.slice(i) : sw + h;
@@ -14038,13 +14048,13 @@ function msFlagOk(x, mf, sf) { if (mf === 'Exclude Mock' && x.mock) return false
 (function msClaimsRows() {
   const r0 = c2recRows;
   c2recRows = function () { const rows = r0.apply(this, arguments); if (!(S.page === 'claims' && S.sub === 'records')) return rows; const mf = fv('crf', 'mock', 'Exclude Mock');
-    const mock = (SEED.mockClaimRecs || []).map(c2recTax); return mf === 'Mock Only' ? mock : mf === 'All' ? rows.concat(mock) : rows; };
+    const mock = msL(SEED.mockClaimRecs).map(c2recTax); return mf === 'Mock Only' ? mock : mf === 'All' ? rows.concat(mock) : rows; };
   R134_COLS.crT = cols => { if (cols[0]) { const r1 = cols[0].r; cols[0] = Object.assign({}, cols[0], { r: (x, j) => (r1 ? r1(x, j) : esc(x.id)) + (x.mock ? ' ' + MS_TAG : '') }); } return cols; };
   /* 6A.11.5 filters (Mock Flag default Exclude Mock) */
   const u0 = c2uncRows;
   c2uncRows = function () { const rows = u0.apply(this, arguments); if (!(S.page === 'claims' && S.sub === 'unclaimed')) return rows;
     const f = k => fv('ucF', k, 'All'); const mf = fv('ucF', 'mock', 'Exclude Mock'); const from = fv('ucF', 'from', ''), to = fv('ucF', 'to', '');
-    const mock = (SEED.mockUnclaimed || []).map(u => Object.assign({ id: 'M|' + u.drawId + '|' + u.tier, deadline: '-', days: 0, unclaimed: u.winners - u.claimed, status: 'Not Tracked (Mock)' }, u));
+    const mock = msL(SEED.mockUnclaimed).map(u => Object.assign({ id: 'M|' + u.drawId + '|' + u.tier, deadline: '-', days: 0, unclaimed: u.winners - u.claimed, status: 'Not Tracked (Mock)' }, u));
     const all = mf === 'Mock Only' ? mock : mf === 'All' ? rows.concat(mock) : rows;
     return all.filter(u => (f('game') === 'All' || u.game === f('game')) && (!fv('ucF', 'draw', '') || u.drawId === String(fv('ucF', 'draw', '')).trim()) && (!fv('ucF', 'tier', '') || String(u.tier).toLowerCase().includes(String(fv('ucF', 'tier', '')).trim().toLowerCase()))
       && (f('ch') === 'All' || Object.keys(u.by || {}).includes(f('ch'))) && (f('st') === 'All' || u.status === f('st')) && (u.mock || ((!from || u.deadline >= from) && (!to || u.deadline <= to)))); };
@@ -14059,9 +14069,9 @@ function msFlagOk(x, mf, sf) { if (mf === 'Exclude Mock' && x.mock) return false
 })();
 /* 6A.11.4 Mock ticket at the Big Prize Claims Desk */
 (function msDesk() {
-  const c0 = c2claim; c2claim = function (id) { return c0(id) || (SEED.mockBigClaims || []).find(c => c.id === id); };
-  const p0 = c2pl; c2pl = function (upid) { return p0(upid) || (SEED.mockPlayers || []).find(p => p.upid === upid); };
-  const f0 = c2find; c2find = function (q) { const r = f0(q); if (r.hits.length) return r; const s = String(q || '').trim(); if (!s) return r; const up = s.toUpperCase(); const tail = id => id.toUpperCase().split('-').slice(1).join('-'); const big = SEED.mockBigClaims || [];
+  const c0 = c2claim; c2claim = function (id) { return c0(id) || msL(SEED.mockBigClaims).find(c => c.id === id); };
+  const p0 = c2pl; c2pl = function (upid) { return p0(upid) || msL(SEED.mockPlayers).find(p => p.upid === upid); };
+  const f0 = c2find; c2find = function (q) { const r = f0(q); if (r.hits.length) return r; const s = String(q || '').trim(); if (!s) return r; const up = s.toUpperCase(); const tail = id => id.toUpperCase().split('-').slice(1).join('-'); const big = msL(SEED.mockBigClaims);
     let hits = big.filter(c => c.txid.toUpperCase() === up || tail(c.txid) === up); if (!hits.length) { const hh = c2sha(s); hits = big.filter(c => c.codeHash && c.codeHash === hh); } if (!hits.length) hits = big.filter(c => c.upid === up || c.drawId === s);
     return hits.length ? { hits: hits.map(c => c.id), msg: '' } : r; };
   const v0 = c2deskView;
