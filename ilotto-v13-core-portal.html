@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>iLotto Core · PCSO Core Management Portal</title>
+<title>I-Lotto Core System · Core Administration Portal</title>
 <style>
 :root{
   --blue:#004bc9;--blue2:#003ea6;--navy:#0b1560;--navy2:#0a1148;--red:#d60021;--yellow:#ffd100;--green:#1fa45a;
@@ -225,7 +225,7 @@ const LOGO="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AA
 <script>
 /* ===== p2_core.js ===== */
 /* =====================================================================
- * p2_core.js — iLotto Core portal runtime (C0). API documented in README.md.
+ * p2_core.js — I-Lotto Core portal runtime (C0). API documented in README.md.
  * Global state S, render(), MODULES registry, ACT dispatch table, t(zh,en),
  * date/money helpers, and UI components (table, filters, 11-column forms,
  * drawer, modal/ask, toast, badge, tabs, KPI). C1–C4 must not edit this file.
@@ -512,7 +512,7 @@ function shellView(body, m) {
       ${SEED.users.filter(x => x.status === 'Active' && x.id !== u.id && x.demo).map(x => `<button data-act="switchUser" data-a="${x.id}">${esc(x.id)} <span class="tiny">· ${x.roles.map(roleName).join(', ')}</span></button>`).join('')}
       <div class="lbl"></div><button data-act="logout">${t('退出登录', 'Sign out')}</button></div>` : '';
   return `<div class="shell">
-  <aside class="side"><div class="sbrand"><img src="${LOGO}" alt=""><div><b>iLotto Core</b><small>PCSO Core Management Portal</small></div></div>
+  <aside class="side"><div class="sbrand"><img src="${LOGO}" alt=""><div><b>I-Lotto Core System</b><small>Core Administration Portal</small></div></div>
     <nav class="snav">${nav}</nav>
     <div class="sfoot"><i></i>${t('Core 运行状态', 'Core Status')}: ${esc(SEED.core.status)}</div></aside>
   <div class="main"><header class="top">
@@ -972,7 +972,7 @@ const _certItems = (res, date, by) => ['Configuration Declaration', 'Transaction
   .map((n, i) => ({ item: n, result: Array.isArray(res) ? res[i] : res, date: (Array.isArray(res) ? res[i] : res) === 'Not Started' ? '' : date, evidence: (Array.isArray(res) ? res[i] : res) === 'Not Started' ? '' : `report-${n.toLowerCase().replace(/[^a-z]+/g, '-')}.pdf`, by: (Array.isArray(res) ? res[i] : res) === 'Not Started' ? '' : by, history: [] }));
 const _contact = (n, e, p) => ({ name: n, email: e, phone: p });
 SEED.channels = [
-  { code: 'ILT', name: 'iLotto', entity: '(E-Channel operator legal name)', authRef: 'PCSO-EC-2026-001', status: 'Active', link: 'Online', affiliated: 'No',
+  { code: 'ILT', name: 'I-Lotto', entity: '(E-Channel operator legal name)', authRef: 'PCSO-EC-2026-001', status: 'Active', link: 'Online', affiliated: 'No',
     endpoints: 'Directive and notice endpoint per ICD', tech: _contact('ILT Tech Desk', 'tech@ilotto.example', '+63 2 8000 1001'), compliance: _contact('ILT Compliance', 'compliance@ilotto.example', '+63 2 8000 1002'), escalation: _contact('ILT Duty Manager', 'duty@ilotto.example', '+63 2 8000 1003'),
     registeredAt: '2026-08-03 10:00', certDate: '2026-09-30', certExpiry: '2027-09-30', certScope: 'All games · All domains', recert: '', cert: _certItems('Passed', '2026-09-30', 'ops.a'),
     suspended: null, resynced: true, actions: [], metrics: { tpm: 2810, lat: 4.2, backlog: 0, backlogAge: '-', err: 0.02, nonconf: 0, div: 0, lastSync: '21:04', sf: false, candRatio: '1.06' }, lastHb: '21:04:55', activatedAt: '2026-10-01 00:00' },
@@ -1339,15 +1339,15 @@ function loginView() {
     <div class="lnote"><span class="devtag">DEV</span> ${t('演示验证码', 'Demo verification code')}: <b>${SEED.policy.demoOtp}</b></div>`;
   return `<div class="login">
   <section class="login-hero"><div class="stripe"><i></i><i></i><i></i></div>
-    <div class="hbrand"><img src="${LOGO}" alt=""><div><small>PCSO</small><b>iLotto Core</b></div></div>
-    <div class="h-eyebrow">PCSO CORE MANAGEMENT PORTAL</div>
+    <div class="hbrand"><img src="${LOGO}" alt=""><div><small>PCSO</small><b>I-Lotto Core System</b></div></div>
+    <div class="h-eyebrow">PCSO CORE ADMINISTRATION PORTAL</div>
     <h1 class="h-h1">${t('全网集中监督与运营', 'Central operation and supervision of all E-Channels')}</h1>
-    <p class="h-lede">${t('游戏登记册、开奖日历、开奖结果与判奖、中央玩家与排除登记册、交易与结算对账的唯一管理界面。', 'One portal for the game register, draw calendar, draw results, central player and exclusion registers, transactions and settlement.')}</p>
+    <p class="h-lede">${t('游戏登记册、开奖日历、开奖结果与判奖、中央玩家与排除登记册、交易与结算对账的唯一管理界面。', 'One portal for the Game Reference Register, Official Draw Calendar, draw results, Central Player Registry and Exclusion Register, transactions and settlement.')}</p>
     <div class="h-ok"><i></i>${t('Core 运行状态', 'Core Status')}: ${esc(SEED.core.status)}</div>
   </section>
   <section class="login-panel">
     <div class="lpanel">
-      <h2>iLotto Core · Administration Portal</h2>
+      <h2>I-Lotto Core System · Core Administration Portal</h2>
       <p class="sub">PCSO authorized personnel only</p>
       ${L0.msg ? `<div class="banner amber" id="loginMsg">${esc(L0.msg)}</div>` : ''}
       ${panel}
@@ -3743,7 +3743,7 @@ function c2idHash(type, no) { return c2sha(C2_SALT + '|' + type + '|' + String(n
   Object.assign(SEED.claimPolicy, {
     validityRules: [{ game: 'All games', tier: 'All tiers', period: '1 year and 1 day from the draw date' }], enhancedThreshold: 300000,
     bands: [{ band: '≤ ₱300,000.00', where: 'Channel credits the player wallet automatically (WINNING TICKET (PAID))', method: 'Standard', id: 'KYC-approved account holder at the channel; no visit' },
-      { band: '> ₱300,000.00 (incl. jackpot)', where: 'Player in person at PCSO Main Office, paid by cheque, never to the wallet (WINNING TICKET (FOR CLAIMING) → CLAIMED)', method: 'Enhanced', id: 'In person; original valid government ID matching the registry ID hash, name and birthdate; valid claiming code from the iLotto player app' }],
+      { band: '> ₱300,000.00 (incl. jackpot)', where: 'Player in person at PCSO Main Office, paid by cheque, never to the wallet (WINNING TICKET (FOR CLAIMING) → CLAIMED)', method: 'Enhanced', id: 'In person; original valid government ID matching the registry ID hash, name and birthdate; valid claiming code from the I-Lotto player app' }],
     codeValidity: '7 days', payWindowMin: 30, expiryWarnDays: 30, forfeitThreshold: 300000,
     history: [{ version: 'v1', eff: '2026-10-01 00:00', by: 'ops.a', appr: 'sa.a', note: 'Initial policy (default values)' }],
   });
@@ -4237,7 +4237,7 @@ function c2deskView(m) {
   if (tab === 'pay') {
     return h + table('payT', [{ h: 'Transaction Reference', r: c => `<span class="mono nowrap">${c.txid}</span>` }, { h: 'Unique Player ID', r: c => `<span class="mono tiny nowrap">${c.upid}</span>` }, { h: 'Game / Draw ID', r: c => `${c.drawId.split('-')[0]} / <span class="tiny">${c.drawId}</span>` },
       { h: 'Gross / Tax / Net', cls: 'num', r: c => `${fmtP(c.gross)} / ${fmtP(c.tax)} / ${fmtP(c.net)}` }, { h: 'Cheque Number / Bank', r: c => `${esc(c.chequeNo)} / ${esc(c.bank)}` }, { h: 'Paid At', cls: 'nowrap', r: c => esc(c.paidAt) }, { h: 'Claims Officer', r: c => esc(c.by || '-') },
-      { h: 'Channel Acknowledgement', r: c => { const a = c.dir ? c2ack({ dir: c.dir }) : c.ack; const lbl = a === 'Timed Out' ? 'Escalated' : a; return badge(lbl) + (lbl === 'Awaiting' ? '<div class="tiny amber">Awaiting channel acknowledgement</div>' + (canH ? btn({ zh: '模拟 iLotto 回执', en: 'Simulate iLotto acknowledgement' }, 'cl.ackSim', c.id, { cls: 'sm dev', dev: true, id: 'btnClAck' }) : '') : ''); } }],
+      { h: 'Channel Acknowledgement', r: c => { const a = c.dir ? c2ack({ dir: c.dir }) : c.ack; const lbl = a === 'Timed Out' ? 'Escalated' : a; return badge(lbl) + (lbl === 'Awaiting' ? '<div class="tiny amber">Awaiting channel acknowledgement</div>' + (canH ? btn({ zh: '模拟 I-Lotto 回执', en: 'Simulate I-Lotto acknowledgement' }, 'cl.ackSim', c.id, { cls: 'sm dev', dev: true, id: 'btnClAck' }) : '') : ''); } }],
       SEED.claims.filter(c => c.method === 'PCSO Main Office' && c.status === 'CLAIMED').sort((a, b) => String(b.paidAt).localeCompare(String(a.paidAt))), { nopage: true, empty: { zh: '无兑付记录', en: 'No claim payments yet.' } });
   }
   const c = D.claim ? c2claim(D.claim) : null; const p = c ? c2pl(c.upid) : null;
@@ -4270,7 +4270,7 @@ function c2deskView(m) {
   h += card(t('③ 校验兑奖码', '③ Verify claiming code'), `<div class="filters"><label>${t('兑奖码', 'Claiming code')}<input data-k="dk_code" id="dkCode" autocomplete="off" placeholder="Type or scan" value=""></label><div class="sp">${btn('Verify', 'cl.verify', '', { cls: 'primary', id: 'btnVerifyCode', dis: !pres || verified, tip: verified ? 'Already verified.' : "Check the player's identity first." })} <span id="codeRes">${vr ? badge(vr.ok ? 'Verified' : 'Not Verified', vr.ok ? 'ok' : 'bad') : ''}</span></div></div>`
     + (vr && !vr.ok ? `<p class="red" id="codeReason">${esc(vr.reason)}</p>` : '') + (cs === 'Not generated' ? `<p class="amber">The player has not started the claim yet.</p>` : '')
     + (verified ? `<p class="tiny">Verification ${esc(c.verif.id)} · ${esc(c.verif.by)} · ${fmtDT(c.verif.at)} · ${t('须在', 'register within')} ${C2_POLICY().payWindowMin} min (${t('至', 'until')} ${fmtT(c.verif.at + C2_POLICY().payWindowMin * 60e3)})</p>` + btn({ zh: '模拟 31 分钟后', en: 'Simulate 31 minutes later' }, 'cl.lapse', c.id, { cls: 'sm dev', dev: true, id: 'btnLapse' }) : '')
-    + (cs !== 'Active' ? ' ' + btn({ zh: '模拟玩家在 iLotto 生成新兑奖码（1234）', en: 'Simulate new claiming code from iLotto (1234)' }, 'cl.newCode', c.id, { cls: 'sm dev', dev: true, id: 'btnNewCode' }) : ''));
+    + (cs !== 'Active' ? ' ' + btn({ zh: '模拟玩家在 I-Lotto 生成新兑奖码（1234）', en: 'Simulate new claiming code from I-Lotto (1234)' }, 'cl.newCode', c.id, { cls: 'sm dev', dev: true, id: 'btnNewCode' }) : ''));
   const ok = c2verifOk(c); const tip = !verified ? 'Available after the claiming code is Verified.' : c.verif.by !== me() ? 'Only the Claims Officer who verified the code can register the cheque.' : 'The payment registration window has passed. Ask the player to generate a new claiming code.';
   h += card(t('④ 登记支票', '④ Register cheque'), (verified && !ok ? `<div id="regLock">${banner(esc(tip), 'amber')}</div>` : '') + formHtml([{ k: 'dk_chq', zh: '支票号', en: 'Cheque Number', ctl: 'text', req: true, ph: 'Cheque number', dis: !ok }, { k: 'dk_bank', zh: '出票银行', en: 'Drawee Bank', ctl: 'select', req: true, opts: [['', '-']].concat(C2_BANKS), dis: !ok }, { k: 'dk_date', zh: '支票日期', en: 'Cheque Date', ctl: 'date', req: true, def: fmtD(S.now), dis: !ok },
     { k: 'dk_payee', zh: '收款人', en: 'Payee', ctl: 'readonly', html: () => esc(c2payee(p)) }, { k: 'dk_amt', zh: '支票金额', en: 'Cheque Amount', ctl: 'readonly', html: () => fmtP(c2cheque(c)) + (c.channelPaid ? ` <span class="tiny">= ${fmtP(c.net)} − ${t('渠道已付', 'Channel Paid')} ${fmtP(c.channelPaid)}</span>` : '') }, { k: 'dk_loc', zh: '兑付地点', en: 'Payout Location', ctl: 'readonly', html: () => 'PCSO Main Office' }, { k: 'dk_rem', zh: '备注', en: 'Remarks', ctl: 'textarea', dis: !ok }])
@@ -4337,7 +4337,7 @@ const C2_CL_ACTS = {
     issueDirective({ channel: c.channel, type: 'Claim Status', summary: `${c.txid} · claiming code used`, reason: 'Verified at PCSO Main Office', ref: c.verif.id });
     D.codeRes = { ok: true }; audit('Big Prize Claims', 'Claiming code verification', c.txid, `${c.upid} · Verified · ${c.verif.id}`); toast('Verified'); render(); },
   'cl.lapse': id => { const c = c2claim(id); if (c.verif) c.verif.at -= 31 * 60e3; audit('Big Prize Claims', 'Payment window lapsed (simulated)', c.txid); toast(t('付款登记时限已过，本次校验失效', 'The payment registration window has passed. This verification has lapsed.'), 'warn'); render(); },
-  'cl.newCode': id => { const c = c2claim(id); if (c.codeHash) c.oldHashes.push(c.codeHash); c.codeHash = c2sha('1234'); c.codeAt = nowS(); c.codeStatus = 'Active'; c.verif = null; const D = c2desk(); D.codeRes = null; if (D.msg === 'The player has not started the claim yet.') D.msg = ''; audit('Big Prize Claims', 'Claiming code generated (iLotto)', c.txid, `${c.upid} · expires ${c2codeExp(c)}`); toast(t('iLotto 已上报新兑奖码哈希（演示码 1234）', 'iLotto reported a new claiming code hash (demo code 1234).')); render(); },
+  'cl.newCode': id => { const c = c2claim(id); if (c.codeHash) c.oldHashes.push(c.codeHash); c.codeHash = c2sha('1234'); c.codeAt = nowS(); c.codeStatus = 'Active'; c.verif = null; const D = c2desk(); D.codeRes = null; if (D.msg === 'The player has not started the claim yet.') D.msg = ''; audit('Big Prize Claims', 'Claiming code generated (I-Lotto)', c.txid, `${c.upid} · expires ${c2codeExp(c)}`); toast(t('I-Lotto 已上报新兑奖码哈希（演示码 1234）', 'I-Lotto reported a new claiming code hash (demo code 1234).')); render(); },
   'cl.print': id => { const c = c2claim(id); const p = c2pl(c.upid); const copy = c.prints > 0;
     openModal({ title: { zh: '打印校验后的中奖票副本', en: 'Print validated ticket' }, ok: { zh: '打印', en: 'Print' }, body: () => `<div id="printCopy" style="position:relative;border:1px dashed #9aa;padding:12px;font-family:monospace;font-size:12px;overflow:hidden">${copy ? '<div id="copyMark" style="position:absolute;top:30%;left:28%;font-size:48px;color:rgba(200,0,0,.18);transform:rotate(-20deg)">COPY</div>' : ''}
       <b>PCSO · VALIDATED WINNING TICKET</b><br>${esc(c.txid)} · ${esc(c.drawId)} · ${esc(c.tier)}<br>Winning numbers: ${esc(((drawById(c.drawId) || {}).result || {}).numbers || '-')}<br>Gross ${fmtP(c.gross)} · Tax ${fmtP(c.tax)} · Net ${fmtP(c.net)}<br>${esc(c2name(p))} · ${esc(c.upid)}<br>Verified · ${c.verif ? `${fmtDT(c.verif.at)} · ${esc(c.verif.by)} · ${esc(c.verif.id)}` : '-'}${c.chequeNo ? `<br>Cheque ${esc(c.chequeNo)} · ${esc(c.bank)}` : ''}</div>`,
@@ -4347,11 +4347,11 @@ const C2_CL_ACTS = {
     if (empty(v.no)) e.dk_chq = 'Enter the cheque number.'; else if (!/^[A-Za-z0-9]{1,20}$/.test(v.no)) e.dk_chq = 'Use 1–20 letters or digits.'; else if (SEED.claims.some(x => x.chequeNo === v.no && x.bank === v.bank)) e.dk_chq = 'This cheque number has already been registered.';
     if (empty(v.bank)) e.dk_bank = 'Select the bank.'; if (empty(v.date)) e.dk_date = 'Select the cheque date.'; else if (v.date > fmtD(S.now)) e.dk_date = 'The cheque date cannot be in the future.';
     if (setErr(e)) return;
-    ask({ title: { zh: '登记支票并改为已兑奖', en: 'Register cheque and mark as claimed' }, ok: { zh: '确认登记', en: 'Register' }, msg: `${esc(c.txid)} · Cheque ${esc(v.no)} · ${esc(v.bank)} · ${fmtP(c2cheque(c))}<br><span class="tiny">${t('奖金只以支票支付，不入玩家钱包；将通知 iLotto 把票改为 CLAIMED。', 'Paid by cheque only, never to the wallet. iLotto will be told to mark the ticket CLAIMED.')}</span>`,
+    ask({ title: { zh: '登记支票并改为已兑奖', en: 'Register cheque and mark as claimed' }, ok: { zh: '确认登记', en: 'Register' }, msg: `${esc(c.txid)} · Cheque ${esc(v.no)} · ${esc(v.bank)} · ${fmtP(c2cheque(c))}<br><span class="tiny">${t('奖金只以支票支付，不入玩家钱包；将通知 I-Lotto 把票改为 CLAIMED。', 'Paid by cheque only, never to the wallet. I-Lotto will be told to mark the ticket CLAIMED.')}</span>`,
       onOk: () => { Object.assign(c, { status: 'CLAIMED', chequeNo: v.no, bank: v.bank, chequeDate: v.date, remarks: fval('dk_rem', ''), paidAt: nowS(), claimedAt: nowS(), by: me(), check: v.no, recordId: nid('CLM') });
         c.dir = issueDirective({ channel: c.channel, type: 'Claimed', summary: `${c.txid} · WINNING TICKET (CLAIMED) · paid by PCSO · gross ${fmtP(c.gross)} · tax ${fmtP(c.tax)} · net ${fmtP(c.net)}${c.channelPaid ? ` · channel paid ${fmtP(c.channelPaid)} · cheque ${fmtP(c2cheque(c))}` : ''}`, reason: 'Cheque ' + v.no, ref: c.id }).id;
         audit('Big Prize Claims', 'Cheque registered · CLAIMED', c.txid, `${c.upid} · ${v.no} · ${v.bank} · ${fmtP(c2cheque(c))}`); c2desk().done = true; c2desk().msg = ''; toast(`Cheque ${v.no} registered. ${c.txid} is CLAIMED; CLAIMED notice sent to ${c.channel}.`); } }); },
-  'cl.ackSim': id => { const c = c2claim(id); c2ackSim([c.dir]); c.ack = 'Acknowledged'; audit('Big Prize Claims', 'CLAIMED acknowledged', c.txid, c.channel); toast(t('iLotto 已回执', 'iLotto acknowledged.')); render(); },
+  'cl.ackSim': id => { const c = c2claim(id); c2ackSim([c.dir]); c.ack = 'Acknowledged'; audit('Big Prize Claims', 'CLAIMED acknowledged', c.txid, c.channel); toast(t('I-Lotto 已回执', 'I-Lotto acknowledged.')); render(); },
 };
 MODULES.push({
   id: 'claims', sec: '6A.11', menu: { zh: '兑奖', en: 'Prize Claims', group: 'tx' }, title: { zh: '兑奖政策与兑奖核验', en: 'Prize Claims' },
@@ -5703,7 +5703,7 @@ SEED.emReqs = [
 SEED.audit.push(
   { id: 'AUD-000114', at: '2026-10-12 21:04:47', user: 'ops.b', ip: '10.20.1.17', module: 'Draw Results', action: 'Second entry submitted', object: 'L655-20261012-1', detail: 'Winning numbers second entry · matched first entry', result: 'Success', ms: 882 },
   { id: 'AUD-000113', at: '2026-10-12 21:01:05', user: 'ops.a', ip: '10.20.1.16', module: 'Draw Results', action: 'First entry submitted', object: 'L655-20261012-1', detail: 'Winning numbers first entry', result: 'Success', ms: 120 },
-  { id: 'AUD-000112', at: '2026-10-12 20:50:31', user: 'ILT', ip: '-', module: 'ILT', action: 'Local security event reported', object: 'ILT', detail: 'Five failed staff sign-ins on the iLotto admin console (reported via audit event ingestion)', result: 'Success', reported: true, channel: 'ILT' },
+  { id: 'AUD-000112', at: '2026-10-12 20:50:31', user: 'ILT', ip: '-', module: 'ILT', action: 'Local security event reported', object: 'ILT', detail: 'Five failed staff sign-ins on the I-Lotto admin console (reported via audit event ingestion)', result: 'Success', reported: true, channel: 'ILT' },
   { id: 'AUD-000111', at: '2026-10-12 20:35:02', user: 'BG-DB-01', ip: '10.20.9.4', module: 'Emergency Accounts', action: 'Break-glass sign-in', object: 'BG-DB-01', detail: 'Use request ER-20261012-001 · SIEM alert sent', result: 'Success', bg: true, evType: 'Security', caseId: 'CASE-20261012-0013' },
   { id: 'AUD-000110', at: '2026-10-12 20:12:44', user: 'System', ip: '-', module: 'API Gateway', action: 'Cross-channel request blocked', object: 'EC2', detail: 'EC2 credential requested an ILT transaction record (GET /reconciliation/transactions) · blocked', result: 'Rejected', evType: 'Security', channel: 'EC2' },
   { id: 'AUD-000109', at: '2026-10-12 20:05:10', user: 'ILT', ip: '-', module: 'API Gateway', action: 'Transaction report received', object: 'ILT', detail: 'Exchange: Transaction report · Inbound · 18.2 KB · payload hash 4f1a…9c02 · Receipt: Accepted', result: 'Success', evType: 'Transaction', channel: 'ILT' },
@@ -6870,7 +6870,7 @@ SEED.seq.ER = 1;
 const COI_TYPES = ['Affiliated E-Channel Disclosure', 'Other Relationship', 'Approved Treatment Difference', 'Commercial Dealing', 'Personnel Transfer', 'Mitigation Measure'];
 const COI_BASIS = ['Operator', 'Platform Or Component Supplier', 'Equity 5% Or More', 'Control Or Significant Influence', 'Board Or Management Seat'];
 SEED.coi = [
-  { id: 'COI-2026-001', type: 'Affiliated E-Channel Disclosure', channel: 'ILT', party: 'Core supplier parent company', basis: ['Platform Or Component Supplier'], details: 'The Core supplier group also supplies the iLotto platform.', notice: '2026-07-20', eff: '2026-09-01', approvalRef: '', due: '', status: 'Approved', by: 'comp.a', at: '2026-07-21 10:00', appr: 'sa.b', apprAt: '2026-07-25 15:00', files: ['disclosure.pdf'] },
+  { id: 'COI-2026-001', type: 'Affiliated E-Channel Disclosure', channel: 'ILT', party: 'Core supplier parent company', basis: ['Platform Or Component Supplier'], details: 'The Core supplier group also supplies the I-Lotto platform.', notice: '2026-07-20', eff: '2026-09-01', approvalRef: '', due: '', status: 'Approved', by: 'comp.a', at: '2026-07-21 10:00', appr: 'sa.b', apprAt: '2026-07-25 15:00', files: ['disclosure.pdf'] },
   { id: 'COI-2026-002', type: 'Approved Treatment Difference', channel: 'ILT', party: 'Core supplier parent company', basis: [], details: 'Rate limit: network formula 3,000 tpm; ILT 4,500 tpm during the launch month. Reason: launch volume test requested by PCSO.', notice: '', eff: '2026-11-15', approvalRef: 'PCSO-MEMO-2026-121', due: '', status: 'Pending', by: 'comp.a', at: '2026-10-12 14:10', appr: '', apprAt: '', files: [] },
   { id: 'COI-0003', type: 'Affiliated E-Channel Disclosure', channel: 'EC4', party: 'Core supplier', basis: ['Equity 5% Or More'], details: 'Affiliated operator (shared shareholder).', notice: '2026-10-08', eff: '2026-10-20', approvalRef: '', due: '', status: 'Approved', by: 'comp.a', at: '2026-10-08 15:30', appr: 'sa.a', apprAt: '2026-10-09 09:00', files: [] },
   { id: 'COI-2026-004', type: 'Mitigation Measure', channel: 'ILT', party: 'Core supplier parent company', basis: [], details: 'Separate on-call rotation for ILT support staff.', notice: '', eff: '2026-09-01', approvalRef: '', due: '2026-10-10', status: 'Approved', by: 'comp.a', at: '2026-08-20 11:00', appr: 'sa.b', apprAt: '2026-08-22 10:00', files: [], done: false },
@@ -7044,7 +7044,7 @@ MODULES.push({
     etExport: mo => ask({ title: { zh: '导出月度平等待遇报告', en: 'Export Report' }, ok: { zh: '导出', en: 'Export' }, fields: [{ k: 'm_fmt', zh: '格式', en: 'Format', ctl: 'radio', def: 'PDF', opts: ['PDF', 'XLSX'] }], onOk: v => { audit('Conflict Of Interest', 'Equal treatment report exported', mo, v.m_fmt); toast(`Export generated: equal-treatment-${mo}.${v.m_fmt.toLowerCase()}`); } }),
     etStatement: mo => { const chs = activeChannels().map(c => c.code);
       ask({ title: { zh: '渠道指标单', en: 'Channel Statement' }, ok: { zh: '生成', en: 'Generate' }, size: 'lg m5d', fields: [{ k: 'm_ch', zh: '渠道', en: 'E-Channel', ctl: 'select', req: true, opts: chs, chg: true }],
-        extra: () => { const c = fval('m_ch', chs[0]); const few = chs.length < 3; return (few ? banner('Network median is not shown because there are fewer than 3 active E-Channels.', 'amber') : '') + table('etSt', [{ h: 'Metric', k: 'en' }, { h: c, cls: 'num', r: m => esc(String(etVal(m, c, mo))) }].concat(few ? [] : [{ h: 'Network Median', cls: 'num', r: m => esc(String(etMedian(chs.map(x => etVal(m, x, mo))))) }]), ET_METRICS, { nopage: true }); },
+        extra: () => { const c = fval('m_ch', chs[0]); const few = false; /* PRD 6A.21.3 (2026-11-15): median shown even with < 3 active channels */ return (chs.length < 3 ? banner('Fewer than 3 active E-Channels: the network median is based on ' + chs.length + ' channel(s).', 'amber') : '') + table('etSt', [{ h: 'Metric', k: 'en' }, { h: c, cls: 'num', r: m => esc(String(etVal(m, c, mo))) }].concat(few ? [] : [{ h: 'Network Median', cls: 'num', r: m => esc(String(etMedian(chs.map(x => etVal(m, x, mo))))) }]), ET_METRICS, { nopage: true }); },
         onOk: v => { audit('Conflict Of Interest', 'Channel statement generated', v.m_ch, mo); toast(`Channel statement generated: ${v.m_ch}-${mo}.pdf`); } }); },
     ecaGo: a => { const [p, s] = String(a).split('/'); if (modById(p) && modVisible(modById(p))) go(p, s); else toast(t('当前角色无权查看来源记录', 'Your role cannot open the source record.'), 'warn'); },
     ecaExport: () => { audit('Conflict Of Interest', 'E-Channel-affecting actions exported', '-', 'XLSX'); toast('Export generated: e-channel-affecting-actions.xlsx'); },
@@ -9287,8 +9287,8 @@ R134_COLS.adjT = cols => {
 (function seedBands() {
   const P = SEED.claimPolicy; if (P.bandsN) return;
   P.bandsN = [{ lo: 0.01, hi: 300000, where: P.bands[0].where, method: 'Standard', id: P.bands[0].id },
-    { lo: 300000.01, hi: 5000000, where: P.bands[1].where, method: 'Enhanced', id: 'In person; one original valid government ID matching the registry ID hash, name and birthdate; valid claiming code from the iLotto player app' },
-    { lo: 5000000.01, hi: null, where: P.bands[1].where + ' (jackpot)', method: 'Enhanced', id: 'In person; two original valid government IDs matching the registry ID hash, name and birthdate; valid claiming code from the iLotto player app', demo: true }];
+    { lo: 300000.01, hi: 5000000, where: P.bands[1].where, method: 'Enhanced', id: 'In person; one original valid government ID matching the registry ID hash, name and birthdate; valid claiming code from the I-Lotto player app' },
+    { lo: 5000000.01, hi: null, where: P.bands[1].where + ' (jackpot)', method: 'Enhanced', id: 'In person; two original valid government IDs matching the registry ID hash, name and birthdate; valid claiming code from the I-Lotto player app', demo: true }];
 })();
 function bandText(b) { return b.hi == null ? `> ${fmtP(b.lo - 0.01)}` : `${fmtP(b.lo)} – ${fmtP(b.hi)}`; }
 const MSG_RANGES = 'The prize value ranges must be continuous with no gaps or overlaps.';
@@ -9826,7 +9826,7 @@ R133_HOOKS.push(() => { if (S.page !== 'coi') return; document.querySelectorAll(
  *     Overpayment / Add-back / Borne By PCSO / Offset (+ PCSO net borne = Σ Borne − Σ Offset)
  *  B. 6A.7.4 add-back note: cap per adjustment, period by Core receipt time
  *  C. 6A.11.4 Channel Paid = cumulative net paid (credited − reported reversals + earlier top-ups)
- *  D. 6A.11.3 Top-up deadline by adjustment; rejected (iLotto Error) ticket re-reported as Standard
+ *  D. 6A.11.3 Top-up deadline by adjustment; rejected (I-Lotto Error) ticket re-reported as Standard
  *  E. 6A.3.5 divergence severity: six domains still on an old version are Medium (alert + case, no stop)
  * Demo rows are marked demo:true and listed in README §14.
  * ===================================================================== */
@@ -9924,14 +9924,14 @@ function chPaidText(c) {
 (function seedRecs135() {
   if (!SEED.claimRecords || SEED.claimRecords.some(r => r.id === 'CLM-20261012-0052')) return;
   SEED.claimRecords.push(
-    { id: 'CLM-20261011-0040', source: 'ILT', upid: 'UP-000104483', txid: 'ILT-T0080021409', drawId: 'L655-20261010-1', tier: '4th Prize', gross: 1000, tax: 0, net: 1000, bets: 1, type: 'Standard', at: '2026-10-11 09:20', method: 'Standard', outcome: 'Approved', validation: 'Rejected', reason: 'Not on the current Winning Wager List · ILT ruled iLotto Error', tiers: [{ tier: '4th Prize', bets: 1, unit: 1000 }], demo: true },
+    { id: 'CLM-20261011-0040', source: 'ILT', upid: 'UP-000104483', txid: 'ILT-T0080021409', drawId: 'L655-20261010-1', tier: '4th Prize', gross: 1000, tax: 0, net: 1000, bets: 1, type: 'Standard', at: '2026-10-11 09:20', method: 'Standard', outcome: 'Approved', validation: 'Rejected', reason: 'Not on the current Winning Wager List · ILT ruled I-Lotto Error', tiers: [{ tier: '4th Prize', bets: 1, unit: 1000 }], demo: true },
     { id: 'CLM-20261012-0052', source: 'ILT', upid: 'UP-000104483', txid: 'ILT-T0080021409', drawId: 'L655-20261010-1', tier: '4th Prize', gross: 1000, tax: 0, net: 1000, bets: 1, type: 'Standard', ver: 2, at: '2026-10-12 11:20', method: 'Standard', outcome: 'Approved', validation: 'Accepted', reason: 'Won after result adjustment v2; the earlier record was rejected. Counted in Prizes Paid in full (₱1,000.00).', tiers: [{ tier: '4th Prize', bets: 1, unit: 1000 }], demo: true });
 })();
 R133_HOOKS.push(() => {
   if (S.page !== 'claims' || S.sub !== 'records') return; const tb = document.querySelector('[data-table=crT]'); if (!tb || document.getElementById('crNote135')) return;
   tb.insertAdjacentHTML('afterend', `<p class="tiny" id="crNote135">${esc(t(
-    'Top-up 不按兑奖时间判截止日，看所属调整：调整生效时或渠道收到时已过兑奖截止日的拒收（Claim Expired）；截止日前收到的调整，Top-up 兑奖时间晚于截止日也照常核验。Standard 曾被拒收、渠道判 iLotto Error 的票再遇结果调整的，按未兑处理：渠道按新清单报 Standard（整票新值），按该条实付计入渠道已付奖金，不计调整超付加回。',
-    'The claim deadline of a Top-up is judged by its adjustment, not by the claim time: a Top-up is rejected (Claim Expired) only when the adjustment took effect or reached the channel after the claim deadline; a Top-up claimed after the deadline for an adjustment received before it is validated as usual. A ticket whose Standard record was rejected and ruled iLotto Error by the channel is handled as unclaimed when a result adjustment makes it win: the channel reports a new Standard record (whole-ticket new values), counted in Prizes Paid at its net paid, with no add-back.'))} ${demoTag()}</p>`);
+    'Top-up 不按兑奖时间判截止日，看所属调整：调整生效时或渠道收到时已过兑奖截止日的拒收（Claim Expired）；截止日前收到的调整，Top-up 兑奖时间晚于截止日也照常核验。Standard 曾被拒收、渠道判 I-Lotto Error 的票再遇结果调整的，按未兑处理：渠道按新清单报 Standard（整票新值），按该条实付计入渠道已付奖金，不计调整超付加回。',
+    'The claim deadline of a Top-up is judged by its adjustment, not by the claim time: a Top-up is rejected (Claim Expired) only when the adjustment took effect or reached the channel after the claim deadline; a Top-up claimed after the deadline for an adjustment received before it is validated as usual. A ticket whose Standard record was rejected and ruled I-Lotto Error by the channel is handled as unclaimed when a result adjustment makes it win: the channel reports a new Standard record (whole-ticket new values), counted in Prizes Paid at its net paid, with no add-back.'))} ${demoTag()}</p>`);
 });
 
 /* =====================================================================
@@ -11011,7 +11011,7 @@ fixModuleRoles137();
 <script>
 /* ===== p8j_idle.js ===== */
 /* =====================================================================
- * p8j_idle.js - 6A.1 rule 5: idle timeout warning and sign-out notice (same rule as iLotto Admin 6B.6.3 rule 3).
+ * p8j_idle.js - 6A.1 rule 5: idle timeout warning and sign-out notice (same rule as I-Lotto Administration Portal 6B.6.3 rule 3).
  * Idle Timeout = platform setting (6A.20, SEED.policy.idleMin, default 15 minutes; approved changes of Platform Settings or
  * Security Policy write it, read on every tick so a change applies at once). 30 seconds before the sign-out a Session
  * Expiring dialog counts down every second; Stay Signed In or any mouse, keyboard or touch action renews; Sign Out ends the
@@ -12558,14 +12558,14 @@ ACT.esc139Wd = () => { const E = SEED.esc139; if (!E.pending || E.pending.by !==
 SEED.sas139 = SEED.sas139 || [
   { id: 'SAS-20261001-01', at: '2026-10-01 02:10', batch: 'CORE-2026-W40', src: 'Core', cutoff: '2026-09-30 23:59:59', files: [['core-backup-20260930.tar.gpg', 1, m5Sha('sas1a')], ['core-transactions-20260930.csv.gpg', 1203350, m5Sha('sas1b')]], manifest: m5Sha('sas1m'), by: 'sys.a', demo: true },
   { id: 'SAS-20261008-01', at: '2026-10-08 02:05', batch: 'CORE-2026-W41', src: 'Core', cutoff: '2026-10-07 23:59:59', files: [['core-backup-20261007.tar.gpg', 1, m5Sha('sas2a')], ['core-transactions-20261007.csv.gpg', 1188410, m5Sha('sas2b')]], manifest: m5Sha('sas2m'), by: 'sys.a', demo: true },
-  { id: 'SAS-20261008-02', at: '2026-10-08 03:20', batch: 'ILOTTO-2026-W41', src: 'iLotto', cutoff: '2026-10-07 23:59:59', files: [['ilotto-tickets-20261007.csv.gpg', 1101200, m5Sha('sas3a')], ['ilotto-wallet-20261007.csv.gpg', 2304512, m5Sha('sas3b')]], manifest: m5Sha('sas3m'), by: 'sys.a', demo: true },
+  { id: 'SAS-20261008-02', at: '2026-10-08 03:20', batch: 'ILOTTO-2026-W41', src: 'I-Lotto', cutoff: '2026-10-07 23:59:59', files: [['ilotto-tickets-20261007.csv.gpg', 1101200, m5Sha('sas3a')], ['ilotto-wallet-20261007.csv.gpg', 2304512, m5Sha('sas3b')]], manifest: m5Sha('sas3m'), by: 'sys.a', demo: true },
 ];
 SEED.sasCycle139 = SEED.sasCycle139 || { days: 7, demo: true };
 function sasDue139(src) { const last = SEED.sas139.filter(x => x.src === src).map(x => x.at).sort().slice(-1)[0]; return last ? fmtDT(dt(last) + SEED.sasCycle139.days * 864e5) : '-'; }
 function sasCard139() {
   const canC = can('Change Requests', 'C');
   return `<div class="card" id="sasLog139"><h4>Export Log (SAS) <span class="sec">6A.1.5</span></h4><p class="tiny">The contractor logs every export for the stand-alone system (SAS): batch, source system, data cut-off, file list and hashes. PCSO portal roles are read only. The SAS has no network connection to the main platform; import results are checked inside the SAS.</p>`
-    + dl([['Export Cycle', `Every ${SEED.sasCycle139.days} days ${D139()} <span class="tiny muted">(value pending PCSO, Operating Parameters)</span>`], ['Next Export Due', `Core ${esc(sasDue139('Core'))} · iLotto ${esc(sasDue139('iLotto'))}`]])
+    + dl([['Export Cycle', `Every ${SEED.sasCycle139.days} days ${D139()} <span class="tiny muted">(value pending PCSO, Operating Parameters)</span>`], ['Next Export Due', `Core ${esc(sasDue139('Core'))} · I-Lotto ${esc(sasDue139('I-Lotto'))}`]])
     + table('sas139', [{ h: 'Export ID', k: 'id', cls: 'mono' }, { h: 'Exported At', k: 'at' }, { h: 'Batch No', k: 'batch' }, { h: 'Source System', k: 'src' }, { h: 'Data Cut-off', k: 'cutoff' }, { h: 'Files', r: x => x.files.map(f => `<div class="tiny mono">${esc(f[0])} · ${fmtN(f[1])} records · ${esc(String(f[2]).slice(0, 12))}…</div>`).join('') }, { h: 'Manifest Hash', r: x => `<span class="mono tiny">${esc(String(x.manifest).slice(0, 16))}…</span>` }, { h: 'Logged By', k: 'by' }], SEED.sas139.slice().reverse(), { nopage: true })
     + `<div style="margin-top:6px">${canC ? btn(E139('Record Export'), 'sas139Rec', '', { cls: 'primary sm', id: 'btnSasRec' }) : ''} ${btn(E139('Simulate export cycle passed'), 'sas139Sim', '', { cls: 'sm', dev: true })} ${D139()}</div></div>`;
 }
@@ -12574,7 +12574,7 @@ function sasCard139() {
   m.view = () => { let h = v0(); const i = h.lastIndexOf('<div class="card"><h4>Export Log (SAS)'); if (i >= 0) { const j = h.indexOf('</div>', h.indexOf('</p>', i)) + 6; h = h.slice(0, i) + sasCard139() + h.slice(j); } else h += sasCard139(); return h; };
 })();
 ACT.sas139Rec = () => { if (!can('Change Requests', 'C')) return;
-  ask({ title: E139('Record Export'), ok: E139('Save'), fields: [{ k: 'm_at', zh: '', en: 'Exported At', ctl: 'datetime', req: true, def: nowS() }, { k: 'm_batch', zh: '', en: 'Batch No', ctl: 'text', req: true, ph: 'CORE-2026-W42' }, { k: 'm_src', zh: '', en: 'Source System', ctl: 'radio', req: true, def: 'Core', opts: ['Core', 'iLotto'] }, { k: 'm_cut', zh: '', en: 'Data Cut-off', ctl: 'datetime', req: true },
+  ask({ title: E139('Record Export'), ok: E139('Save'), fields: [{ k: 'm_at', zh: '', en: 'Exported At', ctl: 'datetime', req: true, def: nowS() }, { k: 'm_batch', zh: '', en: 'Batch No', ctl: 'text', req: true, ph: 'CORE-2026-W42' }, { k: 'm_src', zh: '', en: 'Source System', ctl: 'radio', req: true, def: 'Core', opts: ['Core', 'I-Lotto'] }, { k: 'm_cut', zh: '', en: 'Data Cut-off', ctl: 'datetime', req: true },
     { k: 'm_files', zh: '', en: 'File List', ctl: 'textarea', req: true, ph: 'file name | records | SHA-256, one file per line' }, { k: 'm_man', zh: '', en: 'Manifest Hash', ctl: 'text', req: true, ph: 'SHA-256' }],
     validate: v => { const e = {}; if (!(v.m_batch || '').trim()) e.m_batch = 'Enter the batch number.'; else if (SEED.sas139.some(x => x.batch === v.m_batch.trim())) e.m_batch = 'This batch number is already logged.'; if (!v.m_cut) e.m_cut = 'Select the data cut-off.';
       const lines = String(v.m_files || '').split('\n').map(s => s.trim()).filter(Boolean); if (!lines.length || lines.some(l => { const p = l.split('|').map(s => s.trim()); return p.length !== 3 || !p[0] || !/^\d+$/.test(p[1]) || !/^[0-9a-fA-F]{64}$/.test(p[2]); })) e.m_files = 'Enter one file per line: file name | records | 64-character SHA-256.';
@@ -12582,7 +12582,7 @@ ACT.sas139Rec = () => { if (!can('Change Requests', 'C')) return;
     onOk: v => { const x = { id: nid('SAS', { w: 2 }), at: normDT(v.m_at), batch: v.m_batch.trim(), src: v.m_src, cutoff: normDT(v.m_cut), files: String(v.m_files).split('\n').map(s => s.trim()).filter(Boolean).map(l => { const p = l.split('|').map(s => s.trim()); return [p[0], +p[1], p[2].toLowerCase()]; }), manifest: v.m_man.trim().toLowerCase(), by: me() };
       SEED.sas139.push(x); audit('Change Requests', 'SAS export logged', x.id, `${x.batch} · ${x.src} · ${x.files.length} files`); toast(`${x.id} logged.`); } }); };
 ACT.sas139Sim = () => { const old = fmtDT(S.now - (SEED.sasCycle139.days + 1) * 864e5); SEED.sas139.filter(x => x.src === 'Core' && x.at > old).forEach(x => { x.at = old; }); sasTick139(); render(); toast('Export cycle passed without a logged Core export. Alert sent to Network Operations.', 'warn'); };
-function sasTick139() { ['Core', 'iLotto'].forEach(src => { const due = sasDue139(src); if (due === '-' || dt(due) > S.now) return; const key = src + '|' + due; SEED.sasAl139 = SEED.sasAl139 || []; if (SEED.sasAl139.includes(key)) return; SEED.sasAl139.push(key); const a = alert139('SAS Export Not Logged', 'P2', 'Network', `No ${src} export logged for the stand-alone system since ${due}`); a.roles139 = ['nop']; audit('Change Requests', 'SAS export overdue', src, due); }); }
+function sasTick139() { ['Core', 'I-Lotto'].forEach(src => { const due = sasDue139(src); if (due === '-' || dt(due) > S.now) return; const key = src + '|' + due; SEED.sasAl139 = SEED.sasAl139 || []; if (SEED.sasAl139.includes(key)) return; SEED.sasAl139.push(key); const a = alert139('SAS Export Not Logged', 'P2', 'Network', `No ${src} export logged for the stand-alone system since ${due}`); a.roles139 = ['nop']; audit('Change Requests', 'SAS export overdue', src, due); }); }
 TICKS139.push(sasTick139);
 
 /* =====================================================================
@@ -14418,6 +14418,259 @@ CR_APPLY.bankHolDisable = cr => { const b = SEED.bankHol.find(x => x.id === cr.p
           (SEED.mockClaimRecs = SEED.mockClaimRecs || []).push({ id: c.recordId, source: 'PCSO Main Office', channel: c.channel, upid: c.upid, txid: c.txid, drawId: c.drawId, tier: c.tier, gross: c.gross, tax: c.tax, net: c.net, at: nowS(), method: 'Enhanced', outcome: 'Approved', validation: 'Accepted', reason: 'Rehearsal ' + no, bets: 1, type: 'PCSO Main Office', pcso: true, mock: true, mockPeriod: c.mockPeriod });
           audit('Big Prize Claims', 'Mock rehearsal registered · CLAIMED', c.txid, `${c.upid} · ${no} · ${c.drawId}`); c2desk().done = true; c2desk().msg = ''; toast(`Rehearsal ${no} registered. ${c.txid} is CLAIMED (Mock).`); } }); };
     render(); };
+})();
+
+</script>
+<script>
+/* ===== p8s_1125.js ===== */
+/* p8s_1125.js - batch 1125 (PRD 1.3.13, terminology alignment + small decisions). Loaded last in build.sh.
+ *  A. 6A.11.2 Drawee Bank List (Bank Code / Bank Name / Status). Add, Rename, Enable / Disable are requests submitted by
+ *     PCSO Finance and approved by a Senior Authorizer who is not the submitter; effective on approval; audited.
+ *     At least one bank stays enabled. Default seed: LBP / Land Bank of the Philippines only.
+ *     6A.11.4 Big Prize Claims Desk: the Drawee Bank dropdown (C2_BANKS) lists the enabled banks only.
+ *  B. 6A.4.6 Mock purge: participating channels that are Decommissioned at approval get no Mock Data Purge directive and
+ *     are not awaited; the period becomes Purged when every awaited channel matches.
+ *  C. 6A.21.3 Channel Statement: the generated file prints "Excludes Mock Selling and Synthetic Monitoring data."
+ *  D. Terminology (glossary 1125): visible English is renamed at display time (render, toast, document title).
+ *     Ids, data keys, act names, identifiers and option values are never changed. PERM gets the PRD module names
+ *     as aliases of the old keys (same row object), so can('Game Registry') and PERM['Game Reference Register'] agree.
+ */
+'use strict';
+const B1125 = { ver: 'batch-1125' };
+const EN_1125 = s => ({ zh: s, en: s });
+
+/* =====================================================================
+ * A. Drawee Bank List (6A.11.2) + desk dropdown (6A.11.4)
+ * ===================================================================== */
+SEED.draweeBanks = SEED.draweeBanks || [{ code: 'LBP', name: 'Land Bank of the Philippines', status: 'Enabled', since: '2026-06-01 09:00', by: 'System' }];
+SEED.draweeBankReqs = SEED.draweeBankReqs || [];
+function dbEnabled_1125() { return SEED.draweeBanks.filter(b => b.status === 'Enabled'); }
+/* the desk form reads C2_BANKS (const array in p7_m3.js): keep it equal to the enabled bank names */
+function dbSync_1125() { C2_BANKS.splice(0, C2_BANKS.length, ...dbEnabled_1125().map(b => b.name)); }
+dbSync_1125();
+function dbIsFinance_1125(u = S.user) { return !!u && (u.roles || []).includes('fin'); }
+function dbIsSenior_1125(u = S.user) { return !!u && hasRole('sa', u); }
+function dbPend_1125(code) { return SEED.draweeBankReqs.find(r => r.status === 'Pending Approval' && r.code === code); }
+function dbBank_1125(code) { return SEED.draweeBanks.find(b => b.code === code); }
+const DB_MSG_1125 = {
+  codeEmpty: 'Enter a bank code.', codeDup: 'This bank code already exists.', codeFmt: 'Enter 2 to 10 uppercase letters or digits.',
+  nameEmpty: 'Enter the bank name.', nameLong: 'Up to 100 characters.', same: 'Change the value first.',
+  lastOne: 'At least one bank must stay enabled.', pending: 'A request for this bank is already awaiting approval.',
+  own: 'You cannot approve a request you submitted.', senior: 'Only a Senior Authorizer can approve this request.',
+};
+function dbDesc_1125(r) {
+  if (r.action === 'Add') return `Add ${r.code} · ${r.name} · ${r.bankStatus}`;
+  if (r.action === 'Rename') return `Rename ${r.code}: ${r.oldName} → ${r.name}`;
+  return `${r.action} ${r.code} · ${r.name}`;
+}
+function dbSubmit_1125(o) {
+  const r = Object.assign({ id: nid('DBR'), by: me(), at: nowS(), status: 'Pending Approval', decidedBy: '', decidedAt: '', rejReason: '' }, o);
+  SEED.draweeBankReqs.unshift(r);
+  audit('Claim Policy', 'Drawee bank change submitted', r.id, dbDesc_1125(r));
+  toast(`Request ${r.id} submitted. Needs approval by Senior Authorizer.`);
+  return r;
+}
+function dbLeavesNone_1125(r) {
+  /* disabling the last enabled bank is refused (at submission and again at approval) */
+  if (r.action !== 'Disable') return false;
+  return dbEnabled_1125().filter(b => b.code !== r.code).length === 0;
+}
+function dbApply_1125(r) {
+  if (r.action === 'Add') SEED.draweeBanks.push({ code: r.code, name: r.name, status: r.bankStatus || 'Enabled', since: nowS(), by: r.by });
+  else { const b = dbBank_1125(r.code); if (!b) return; if (r.action === 'Rename') b.name = r.name; else b.status = r.action === 'Disable' ? 'Disabled' : 'Enabled'; b.since = nowS(); }
+  dbSync_1125();
+}
+function dbCard_1125() {
+  const fin = dbIsFinance_1125(); const sr = dbIsSenior_1125();
+  const acts = b => {
+    if (!fin) return '';
+    const p = dbPend_1125(b.code); const tip = DB_MSG_1125.pending;
+    return btn('Rename', 'db.rename', b.code, { cls: 'sm', dis: !!p, tip, id: `dbRen_${b.code}` }) + ' '
+      + (b.status === 'Enabled' ? btn('Disable', 'db.toggle', b.code, { cls: 'sm', dis: !!p, tip, id: `dbDis_${b.code}` }) : btn('Enable', 'db.toggle', b.code, { cls: 'sm', dis: !!p, tip, id: `dbEn_${b.code}` }));
+  };
+  let h = table('dbList', [{ h: 'Bank Code', r: b => `<span class="mono">${esc(b.code)}</span>` }, { h: 'Bank Name', r: b => esc(b.name) }, { h: 'Status', r: b => badge(b.status, b.status === 'Enabled' ? 'ok' : '') },
+    { h: 'Last Changed', r: b => esc(b.since || '-') }].concat(fin ? [{ h: '', r: acts }] : []),
+    SEED.draweeBanks.map(b => Object.assign({ id: b.code }, b)), { nopage: true });
+  const reqs = SEED.draweeBankReqs;
+  if (reqs.length) {
+    h += `<div style="margin-top:10px"><b>Change Requests</b></div>` + table('dbReqs', [{ h: 'Request ID', r: r => `<span class="mono">${esc(r.id)}</span>` }, { h: 'Change', r: r => esc(dbDesc_1125(r)) },
+      { h: 'Submitted By', r: r => `${esc(r.by)} · ${esc(r.at)}` }, { h: 'Status', r: r => badge(r.status) }, { h: 'Decided By', r: r => r.decidedBy ? `${esc(r.decidedBy)} · ${esc(r.decidedAt)}` : '-' },
+      { h: 'Rejection Reason', r: r => esc(r.rejReason || '-') },
+      { h: '', r: r => r.status !== 'Pending Approval' ? '' : (sr && r.by !== me() ? btn('Approve', 'db.approve', r.id, { cls: 'sm ok', id: `dbOk_${r.id}` }) + ' ' + btn('Reject', 'db.reject', r.id, { cls: 'sm', id: `dbRej_${r.id}` }) : '')
+        + (r.by === me() ? btn('Withdraw', 'db.withdraw', r.id, { cls: 'sm', id: `dbWd_${r.id}` }) : '') }], reqs.map(r => Object.assign({}, r)), { nopage: true });
+  }
+  h += '<p class="tiny" id="dbNote">Source of the Drawee Bank list on the Big Prize Claims Desk. Used in Core only; not sent to E-Channels. Add, rename, enable and disable are submitted by PCSO Finance and take effect when a Senior Authorizer other than the submitter approves them. Disabled banks leave the list; cheques already registered are not affected. At least one bank stays enabled.</p>';
+  return `<div id="dbCard">` + card('Drawee Bank List', h, fin ? btn('Add Bank', 'db.add', '', { cls: 'primary', id: 'btnDbAdd' }) : '') + `</div>`;
+}
+(function dbPolicyView() {
+  const v0 = c2policyView;
+  c2policyView = function (m) { return v0.apply(this, arguments) + dbCard_1125(); };
+})();
+Object.assign(ACT, {
+  'db.add': () => {
+    if (!dbIsFinance_1125()) return;
+    ask({ title: 'Add Bank', ok: 'Submit', msg: '<span class="tiny">Needs approval by Senior Authorizer</span>',
+      fields: [{ k: 'm_code', zh: 'Bank Code', en: 'Bank Code', ctl: 'text', req: true, ph: 'LBP', hint: '2 to 10 uppercase letters or digits. Cannot be changed later.' },
+        { k: 'm_name', zh: 'Bank Name', en: 'Bank Name', ctl: 'text', req: true, ph: 'Land Bank of the Philippines' },
+        { k: 'm_st', zh: 'Status', en: 'Status', ctl: 'radio', req: true, def: 'Enabled', opts: ['Enabled', 'Disabled'] }],
+      validate: v => { const e = {}; const c = String(v.m_code || '').trim(); const n = String(v.m_name || '').trim();
+        if (!c) e.m_code = DB_MSG_1125.codeEmpty; else if (!/^[A-Z0-9]{2,10}$/.test(c)) e.m_code = DB_MSG_1125.codeFmt;
+        else if (dbBank_1125(c) || SEED.draweeBankReqs.some(r => r.action === 'Add' && r.code === c && r.status === 'Pending Approval')) e.m_code = DB_MSG_1125.codeDup;
+        if (!n) e.m_name = DB_MSG_1125.nameEmpty; else if (n.length > 100) e.m_name = DB_MSG_1125.nameLong; return e; },
+      onOk: v => { dbSubmit_1125({ action: 'Add', code: String(v.m_code).trim(), name: String(v.m_name).trim(), bankStatus: v.m_st || 'Enabled' }); } });
+  },
+  'db.rename': code => {
+    const b = dbBank_1125(code); if (!b || !dbIsFinance_1125()) return;
+    if (dbPend_1125(code)) { toast(DB_MSG_1125.pending, 'err'); return; }
+    ask({ title: `Rename · ${b.code}`, ok: 'Submit', msg: '<span class="tiny">Needs approval by Senior Authorizer</span>', vals: { m_name: b.name },
+      fields: [{ k: 'm_name', zh: 'Bank Name', en: 'Bank Name', ctl: 'text', req: true, def: b.name }],
+      validate: v => { const n = String(v.m_name || '').trim(); if (!n) return { m_name: DB_MSG_1125.nameEmpty }; if (n.length > 100) return { m_name: DB_MSG_1125.nameLong }; if (n === b.name) return { m_name: DB_MSG_1125.same }; return {}; },
+      onOk: v => { dbSubmit_1125({ action: 'Rename', code: b.code, oldName: b.name, name: String(v.m_name).trim() }); } });
+  },
+  'db.toggle': code => {
+    const b = dbBank_1125(code); if (!b || !dbIsFinance_1125()) return;
+    if (dbPend_1125(code)) { toast(DB_MSG_1125.pending, 'err'); return; }
+    const action = b.status === 'Enabled' ? 'Disable' : 'Enable'; const r = { action, code: b.code, name: b.name };
+    if (dbLeavesNone_1125(r)) { toast(DB_MSG_1125.lastOne, 'err'); return; }
+    ask({ title: `${action} · ${b.code}`, ok: 'Submit', msg: (action === 'Disable' ? 'The bank will leave the Drawee Bank dropdown. Cheques already registered are not affected. ' : '') + '<span class="tiny">Needs approval by Senior Authorizer</span>',
+      onOk: () => { dbSubmit_1125(r); } });
+  },
+  'db.approve': id => {
+    const r = SEED.draweeBankReqs.find(x => x.id === id); if (!r || r.status !== 'Pending Approval') return;
+    if (r.by === me()) { toast(DB_MSG_1125.own, 'err'); return; }
+    if (!dbIsSenior_1125()) { toast(DB_MSG_1125.senior, 'err'); return; }
+    if (dbLeavesNone_1125(r)) { toast(DB_MSG_1125.lastOne, 'err'); return; }
+    ask({ title: `Approve ${r.id}`, ok: 'Approve', msg: esc(dbDesc_1125(r)) + '<br><span class="tiny">Takes effect on approval.</span>',
+      onOk: () => { r.status = 'Approved'; r.decidedBy = me(); r.decidedAt = nowS(); dbApply_1125(r);
+        audit('Claim Policy', 'Drawee bank change approved', r.id, dbDesc_1125(r)); toast(`${r.id} approved. Drawee Bank List updated.`); } });
+  },
+  'db.reject': id => {
+    const r = SEED.draweeBankReqs.find(x => x.id === id); if (!r || r.status !== 'Pending Approval' || r.by === me() || !dbIsSenior_1125()) return;
+    ask({ title: `Reject ${r.id}`, ok: 'Reject', danger: true, reason: { zh: 'Rejection Reason', en: 'Rejection Reason' },
+      onOk: v => { r.status = 'Rejected'; r.rejReason = v.m_reason.trim(); r.decidedBy = me(); r.decidedAt = nowS(); audit('Claim Policy', 'Drawee bank change rejected', r.id, r.rejReason); toast(`${r.id} rejected.`); } });
+  },
+  'db.withdraw': id => {
+    const r = SEED.draweeBankReqs.find(x => x.id === id); if (!r || r.status !== 'Pending Approval' || r.by !== me()) return;
+    r.status = 'Withdrawn'; r.decidedBy = me(); r.decidedAt = nowS(); audit('Claim Policy', 'Drawee bank change withdrawn', r.id, dbDesc_1125(r)); toast(`${r.id} withdrawn.`); render();
+  },
+});
+TODO_PROVIDERS.push(u => [{ n: hasRole('sa', u) ? SEED.draweeBankReqs.filter(r => r.status === 'Pending Approval' && r.by !== u.id).length : 0, zh: 'Drawee bank changes to approve', en: 'Drawee bank changes to approve', go: 'claims/policy' }]);
+
+/* =====================================================================
+ * B. Mock purge: Decommissioned participants are not sent the purge and not awaited (6A.4.6)
+ * ===================================================================== */
+function msDecom_1125(ch) { const c = chByCode(ch); return !!c && c.status === 'Decommissioned'; }
+(function msPurge1125() {
+  msPurgeExec = function (p) {
+    const pg = p.purge; const draws = msDraws(p);
+    const skip = p.channels.filter(msDecom_1125); const awaited = p.channels.filter(ch => !skip.includes(ch));
+    pg.counts = msCoreCounts(p); pg.per = {}; awaited.forEach(ch => { pg.per[ch] = { status: 'Awaiting', core: msChCounts(p, ch), rep: null, at: '' }; });
+    pg.notSent = skip.slice();
+    pg.manifest = { draws: draws.map(d => d.id), tx: msTx(p).map(x => x.id), players: msPlayers(p).map(x => x.upid) };
+    pg.hash = hexOf(p.id + '|' + JSON.stringify(pg.manifest) + '|' + JSON.stringify(pg.counts));
+    pg.apprBy = me(); pg.apprAt = nowS();
+    const ids = new Set(pg.manifest.draws); const at = nowS();
+    const mark = x => { x.purged = true; x.purgedAt = at; x.purgeRef = p.id; };
+    SEED.mockDraws1311.forEach(d => { if (d.mockPeriod === p.id && !d.purged) mark(d); });
+    ['mockTx', 'mockClaimRecs', 'mockPlayers', 'mockBigClaims', 'mockUnclaimed'].forEach(k => { (SEED[k] || []).forEach(x => { if (!x.purged && (x.mockPeriod === p.id || ids.has(x.drawId))) mark(x); }); });
+    if (awaited.length) {
+      const dirs = issueDirectives(awaited, { type: 'Mock Data Purge', summary: `${p.id} · mark all Mock data of the period as purged and report the counts`, reason: 'Mock period ended', by: pg.reqBy, authBy: me(), ref: p.id });
+      dirs.forEach(d => { if (pg.per[d.channel]) pg.per[d.channel].dir = d.id; });
+    }
+    msHist(p, 'Purge Pending', 'Purging', me(), 'Purge approved; Mock data marked as purged in Core' + (skip.length ? ` · not sent to ${skip.join(', ')} (Decommissioned)` : ''));
+    msAudit('Mock data purged', p.id, `${MS_CATS.map(k => `${k} ${pg.counts[k]}`).join(', ')} · dataset hash ${pg.hash}` + (skip.length ? ` · not sent to ${skip.join(', ')} (Decommissioned)` : ''));
+    const skipTxt = skip.length ? ` Not sent to ${skip.join(', ')} (Decommissioned); Core purged its own data only.` : '';
+    if (!awaited.length) {
+      msHist(p, 'Purging', 'Purged', 'System', 'No channel to await'); p.purgedAt = nowS(); msAudit('Mock data purge completed', p.id, 'No participating E-Channel to await');
+      toast(`${p.id} purged.${skipTxt}`); return;
+    }
+    toast(`Mock data of ${p.id} marked as purged in Core. Mock Data Purge sent to ${awaited.join(', ')}.${skipTxt}`);
+  };
+  /* purge tab: channels not sent the purge; purge approval dialog says so too */
+  const b0 = msBody;
+  msBody = function (p) {
+    let h = b0.apply(this, arguments);
+    const pg = p && p.purge;
+    if (S.dtab === 'purge' && pg && pg.notSent && pg.notSent.length) h += `<p class="tiny" id="msNotSent">Not sent (Decommissioned at approval, not awaited): ${esc(pg.notSent.join(', '))}. Core purged its own data only.</p>`;
+    else if (S.dtab === 'purge' && p && p.status === 'Purge Pending' && p.channels.some(msDecom_1125)) h += `<p class="tiny" id="msNotSent">Decommissioned participating E-Channels (${esc(p.channels.filter(msDecom_1125).join(', '))}) will not be sent the purge and are not awaited.</p>`;
+    return h;
+  };
+})();
+
+/* =====================================================================
+ * C. 6A.21.3 Channel Statement file: Mock / Synthetic exclusion line
+ * ===================================================================== */
+(function etSt1125() {
+  const m = MODULES.find(x => x.acts && x.acts.etStatement); if (!m) return;
+  const f0 = m.acts.etStatement;
+  m.acts.etStatement = function (mo) {
+    f0.apply(this, arguments);
+    const M = S.modal; if (!M || M._et1125) return; M._et1125 = true;
+    const b0 = M.body; M.body = () => (typeof b0 === 'function' ? b0() : (b0 || '')) + `<p class="tiny" id="etStMockNote">Printed on the statement: ${esc(MOCK_NOTE_1311)}</p>`;
+    const o0 = M.onOk; M.onOk = function (v) {
+      const r = o0.apply(this, arguments);
+      if (r !== false) { const a = SEED.audit[0]; if (a && a.action === 'Channel statement generated') a.detail = `${a.detail} · ${MOCK_NOTE_1311}`;
+        if (S.lastToast && /^Channel statement generated/.test(S.lastToast)) toast(`${S.lastToast} ${MOCK_NOTE_1311}`); }
+      return r;
+    };
+    render();
+  };
+})();
+
+/* =====================================================================
+ * D. Terminology (glossary 1125)
+ * ===================================================================== */
+/* PRD 6A.20.3 module names after the rename: aliases of the old PERM rows (same object) */
+const MOD_RENAME_1125 = { 'Game Registry': 'Game Reference Register', 'Draw Calendar': 'Official Draw Calendar', 'Player Registry': 'Central Player Registry' };
+Object.keys(MOD_RENAME_1125).forEach(o => { const n = MOD_RENAME_1125[o]; if (PERM[o] && !PERM[n]) PERM[n] = PERM[o]; });
+/* display renames; every rule is idempotent (the new text never matches again) */
+const TERMS_1125 = [
+  [/i\x4cotto Core \u00b7 Administration Portal/g, 'I-Lotto Core System \u00b7 Core Administration Portal'],
+  [/PCSO Core Management Portal/g, 'Core Administration Portal'],
+  [/\bCore Management Portal\b/g, 'Core Administration Portal'],
+  [/\bCore Portal\b/g, 'Core Administration Portal'],
+  [/i\x4cotto Core(?! System)/g, 'I-Lotto Core System'],
+  [/i\x4cotto Admin(?:istration Portal)?\b|i\x4cotto Back Office/g, 'I-Lotto Administration Portal'],
+  [/i\x4cotto/g, 'I-Lotto'],
+  [/Back Office Deposit/g, 'Administration Portal Deposit'],
+  [/Game Regist(?:ry|er)\b/g, 'Game Reference Register'],
+  [/(?<!Official )Draw Calendar/g, 'Official Draw Calendar'],
+  [/(?<!Central )Player Registry/g, 'Central Player Registry'],
+  [/Sealed Summary/g, 'Sealed Wager Summary'],
+  [/Non-compliant/g, 'Non-Conformant'], [/non-compliant/g, 'non-conformant'],
+  [/(?<!Transaction )Unit Value/g, 'Transaction Unit Value'],
+  [/(?<![-\w])Channel Code/g, 'E-Channel System Code'],
+  [/\bPlay Type/g, 'Bet Type'],
+  [/No-[Dd]raw [Dd]ates/g, 'No Draw Dates'], [/No-[Dd]raw (?:[Dd]ate|[Dd]ay)\b/g, 'No Draw Date'], [/No-[Dd]raw\b/g, 'No Draw Date'],
+  [/(?<!Enrolled )Payment Account\b/g, 'Enrolled Payment Account'], [/Bound Account\b/g, 'Enrolled Payment Account'],
+  [/Winner [Rr]econciliation [Cc]onfirmation/g, 'Winner Reconciliation Confirmation'], [/Winner [Rr]econciliation(?! Confirmation)/g, 'Winner Reconciliation Confirmation'],
+  [/PlaySafe(?! Page)/g, 'Responsible Gaming'],
+];
+const TERM_PRE_1125 = /i\x4cotto|Portal|Back Office|Game Regist|Draw Calendar|Player Registry|Sealed Summary|on-compliant|Unit Value|Channel Code|Play Type|No-[Dd]raw|Payment Account|Bound Account|Winner [Rr]econciliation|PlaySafe/;
+function rn1125(s) {
+  if (typeof s !== 'string' || !TERM_PRE_1125.test(s)) return s;
+  let o = s; TERMS_1125.forEach(([re, to]) => { o = o.replace(re, to); }); return o;
+}
+const RN_ATTRS_1125 = ['placeholder', 'title', 'data-tip', 'aria-label'];
+function rnNode1125(root) {
+  if (!root) return;
+  if (root.nodeType === 3) { const v = root.nodeValue; const n = rn1125(v); if (n !== v) root.nodeValue = n; return; }
+  if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
+  if (root.nodeType === 1 && /^(SCRIPT|STYLE|TEXTAREA)$/.test(root.tagName)) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentNode && /^(SCRIPT|STYLE|TEXTAREA)$/.test(n.parentNode.nodeName)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  let x; while ((x = w.nextNode())) { const v = x.nodeValue; if (TERM_PRE_1125.test(v)) { const n = rn1125(v); if (n !== v) x.nodeValue = n; } }
+  if (root.querySelectorAll) RN_ATTRS_1125.forEach(a => root.querySelectorAll(`[${a}]`).forEach(el => { const v = el.getAttribute(a); const n = rn1125(v); if (n !== v) el.setAttribute(a, n); }));
+}
+(function seedNames1125() { const c = chByCode('ILT'); if (c && c.name === 'i\x4cotto') c.name = 'I-Lotto'; })();
+(function wrap1125() {
+  const t0 = toast; toast = function (msg, tone) { return t0.call(this, rn1125(msg), tone); };
+  const r0 = render; render = function () { const x = r0.apply(this, arguments); try { rnNode1125(document.body); } catch (e) { console.error(e); } return x; };
+  document.title = rn1125(document.title);
+  if (typeof MutationObserver === 'function') {
+    const mo = new MutationObserver(list => { list.forEach(m => { if (m.type === 'characterData') rnNode1125(m.target); else m.addedNodes.forEach(n => rnNode1125(n)); }); });
+    const go = () => mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+    if (document.body) go(); else document.addEventListener('DOMContentLoaded', go);
+  }
 })();
 
 </script>
