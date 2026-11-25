@@ -19727,6 +19727,139 @@ function v25Bill() {
 const v25Render0 = render;
 render = function () { const r = v25Render0.apply(this, arguments); try { v25Bill(); } catch (e) { console.error(e); } return r; };
 /* ===== V13-1125 END ===== */
+/* ===== V13-1125B block: PCSO Admin Accounts - Void an approved opening request that was not executed (PRD 6B.13.3, V13-PC249) =====
+   Injected by patch_v1125b.py right after the V13-1125 block. State S.v1125b. UI text is English only.
+   - Record Execution of an opening request re-checks Max PCSO Administrator Accounts in approval order (PCSO approval time):
+     Active accounts + opening requests approved earlier and still holding a place must stay below the limit, otherwise the
+     Save button is disabled and the request becomes "Approved - Cannot Execute (Limit)" (Security audit).
+   - The Record Execution dialog of an opening request also has Record Failure (reason 1-500 characters): "Approved - Execution Failed".
+   - Both states keep the place until System admin voids the request: Void (reason 1-500 characters) is final, writes a
+     Security audit event and frees the place, so a new Request Account can be submitted.
+   - Demo: the System admin button "Demo: Approved Request Not Executed" adds one approved opening request whose execution
+     failed (Demo data), so the default counts of the legacy suites (1 / 3) stay unchanged. */
+S.v1125b = { f: {}, err: "", chk: {} };
+const V25B_FAIL = "Approved \u2013 Execution Failed", V25B_CAP = "Approved \u2013 Cannot Execute (Limit)", V25B_VOID = "Voided";
+function v25bHold(a) { return a.op === "open" && !!a.wait && (a.st === V25B_FAIL || a.st === V25B_CAP); }
+function v25bVoidable(a) { return v25bHold(a); }
+const v25bUsed0 = v8PaccUsed;
+v8PaccUsed = function () { return v25bUsed0.apply(this, arguments) + v8Pacc().filter(v25bHold).length; };
+function v25bPaAt(a) { const p = S.v137.pa.find((x) => x.id === (a.wait && a.wait.pa)); return (p && p.pAt ? p.pAt : "9999") + " " + (a.wait ? a.wait.pa : ""); }
+/* places taken before this request: Active accounts + opening requests approved earlier that are still waiting / failed */
+function v25bCapOk(a) {
+  const max = v8MaxPcso(), me = v25bPaAt(a);
+  const act = v8Pacc().filter((x) => x.st === "Active").length;
+  const before = v8Pacc().filter((x) => x !== a && x.op === "open" && x.wait && v25bPaAt(x) < me).length;
+  return { ok: act + before < max, act, before, max };
+}
+function v25bWhy(v) { const s = String(v || "").trim(); return s.length >= 1 && s.length <= 500 ? s : ""; }
+function v25bErr() { return S.v1125b.err ? `<div class="err" data-v1125b="err">${esc(S.v1125b.err)}</div>` : ""; }
+function v25bBtn(act, label, id, cls) { return `<button type="button" class="btn btn-sm ${cls || ""}" style="width:auto;flex:none" data-act="${act}"${id ? ` data-id="${esc(id)}"` : ""}>${label}</button>`; }
+
+/* ---- Card post-processing: Void buttons, Voided rows, demo button ---- */
+function v25bCard() {
+  const card = document.querySelector("[data-v138=pacc]"); if (!card) return;
+  const adm = v7Is("admin");
+  v8Pacc().forEach((a) => {
+    const tr = card.querySelector(`tr[data-v138-pacc="${a.id}"]`); if (!tr) return;
+    const cells = tr.querySelectorAll(":scope > td"), stc = cells[3], ac = cells[4];
+    if (a.st === V25B_VOID && stc && !stc.querySelector("[data-v1125b=voided]")) {
+      stc.innerHTML = `<span data-v1125b="voided">${tag("muted", V25B_VOID)}</span><div class="tiny">${esc(a.vd.by)} \u00b7 ${esc(a.vd.at)}</div><div class="tiny" data-v1125b="void-why">${esc(a.vd.why)}</div><div class="tiny mono">${esc(a.vd.pa)}</div>`;
+    }
+    if ((a.st === V25B_FAIL || a.st === V25B_CAP) && stc && a.fail && !stc.querySelector("[data-v1125b=fail-why]")) stc.insertAdjacentHTML("beforeend", `<div class="tiny" data-v1125b="fail-why">${esc(a.fail)}</div>`);
+    if (adm && v25bVoidable(a) && ac && !ac.querySelector("[data-act=v1125b-void]")) ac.insertAdjacentHTML("beforeend", v25bBtn("v1125b-void", "Void", a.id, "btn-rose"));
+  });
+  if (!card.querySelector("[data-v1125b=note]")) {
+    const p = card.querySelector(":scope > p.tiny");
+    const note = `<p class="tiny" data-v1125b="note">Record Execution re-checks Max PCSO Administrator Accounts in the order of PCSO approval. An approved opening request that was not executed (execution failed, or the limit was lowered so it cannot be executed) keeps its place until System admin voids it with a reason. Void is final, is a Security audit event and frees the place for a new request.</p>`;
+    if (p) p.insertAdjacentHTML("afterend", note); else card.insertAdjacentHTML("beforeend", note);
+  }
+  if (adm && !card.querySelector("[data-act=v1125b-demo]") && !v8Pacc().some((a) => a.v25bDemo)) {
+    const h = card.querySelector(".page-h"); if (h) h.insertAdjacentHTML("beforeend", v25bBtn("v1125b-demo", "Demo: Approved Request Not Executed", "", ""));
+  }
+}
+
+/* ---- Record Execution dialog of an opening request: cap re-check + Record Failure ---- */
+function v25bExecModal() {
+  const m = S.modal; if (!m || m.type !== "v138-exec" || m.kind !== "pacc") return;
+  const a = v8Pacc().find((x) => x.id === m.id); if (!a || !a.wait || a.wait.op !== "open") return;
+  const host = document.getElementById("modal-host"); if (!host) return;
+  const save = host.querySelector("[data-act=v138-exec-ok]"); if (!save) return;
+  const c = v25bCapOk(a);
+  if (!c.ok) {
+    if (S.v1125b.chk[a.id] !== a.wait.pa) {
+      S.v1125b.chk[a.id] = a.wait.pa;
+      if (a.st !== V25B_CAP) {
+        const old = a.st; a.st = V25B_CAP; a.fail = "PCSO administrator accounts are limited to " + c.max + ".";
+        v7Aud("System", "Execution blocked by limit \u00b7 PCSO Admin Account", a.acct, old, V25B_CAP + " \u00b7 " + c.act + " active + " + c.before + " approved earlier \u00b7 limit " + c.max + " \u00b7 " + a.wait.pa, "Security");
+      }
+    }
+    save.disabled = true; save.setAttribute("data-v1125b", "cap-blocked");
+    const lab = host.querySelector("label.f");
+    if (lab && !host.querySelector("[data-v1125b=cap]")) lab.insertAdjacentHTML("beforebegin", `<div class="banner amber" data-v1125b="cap">PCSO administrator accounts are limited to ${c.max}. ${c.act} active and ${c.before} approved earlier: this request cannot be executed. Void it to free the place.</div>`);
+  } else if (a.st === V25B_CAP) { a.st = "Approved \u2013 Awaiting Execution"; a.fail = ""; delete S.v1125b.chk[a.id]; }
+  if (!host.querySelector("[data-act=v1125b-fail]")) save.insertAdjacentHTML("beforebegin", v25bBtn("v1125b-fail", "Record Failure", a.id, "btn-rose").replace("btn-sm ", ""));
+}
+
+const v25bRender0 = render;
+render = function () {
+  const r = v25bRender0.apply(this, arguments);
+  try { v25bCard(); v25bExecModal(); } catch (e) { console.error(e); }
+  return r;
+};
+
+/* ---- modals ---- */
+const v25bModal0 = renderModal;
+renderModal = function () {
+  const m = S.modal; if (!m || !/^v1125b-/.test(m.type)) return v25bModal0.apply(this, arguments);
+  const a = v8Pacc().find((x) => x.id === m.id) || {}, f = S.v1125b.f;
+  const cancel = `<button type="button" class="btn" data-act="close">Cancel</button>`;
+  const why = `<label class="f">Reason (required, 1\u2013500 characters)</label><textarea data-v1125bf="why" rows="3" maxlength="500">${esc(f.why || "")}</textarea>`;
+  const info = `<p><span class="mono">${esc(a.acct || "")}</span> \u00b7 ${esc(a.st || "")} \u00b7 PCSO approval <span class="mono">${esc(a.wait ? a.wait.pa : "")}</span></p>`;
+  if (m.type === "v1125b-void") return dialog("Void Request \u00b7 " + (a.acct || ""), `${info}${a.fail ? `<p class="tiny">${esc(a.fail)}</p>` : ""}${why}<p class="tiny">Void is final and cannot be undone. It is recorded as a Security audit event and frees the place under Max PCSO Administrator Accounts; a new Request Account can then be submitted.</p>${v25bErr()}`, cancel + `<button type="button" class="btn btn-rose" data-act="v1125b-void-ok" data-id="${esc(a.id || "")}">Void</button>`);
+  if (m.type === "v1125b-fail") return dialog("Record Failure \u00b7 " + (a.acct || ""), `${info}${why}<p class="tiny">The identity management system did not complete the opening. The request keeps its place until it is executed or voided.</p>${v25bErr()}`, cancel + `<button type="button" class="btn btn-rose" data-act="v1125b-fail-ok" data-id="${esc(a.id || "")}">Save</button>`);
+  return v25bModal0.apply(this, arguments);
+};
+document.addEventListener("input", (e) => { const el = e.target; if (el && el.dataset && el.dataset.v1125bf) S.v1125b.f[el.dataset.v1125bf] = el.value; }, true);
+
+/* ---- clicks ---- */
+function v25bClick(e) {
+  const el = e.target.closest && e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  if (!act || act.indexOf("v1125b-") !== 0) return;
+  e.stopPropagation(); e.preventDefault(); if (el.disabled) return;
+  const err = (m) => { S.v1125b.err = m; render(); };
+  const open = (o) => { S.v1125b.f = {}; S.v1125b.err = ""; S.modal = o; render(); };
+  const close = () => { S.modal = null; S.v1125b.f = {}; S.v1125b.err = ""; };
+  const a = v8Pacc().find((x) => x.id === id);
+  if (act === "v1125b-demo") {
+    if (v8Pacc().some((x) => x.v25bDemo)) return;
+    const p = v7PaAdd({ type: "Infrastructure Role Assignment", obj: "PCSO Admin Accounts \u00b7 pcso.infra09", sum: "Open PCSO administrator account pcso.infra09 \u00b7 nomination PCSO-NOM-2026-027", by: "noah.lim", at: "2026-10-09 10:00", st: "Approved", pBy: "ramon.sison", pAt: "2026-10-09 15:20", link: { kind: "v8pacc", id: "PAA-91", op: "open" } });
+    p.demo = true;
+    v8Pacc().push({ id: "PAA-91", acct: "pcso.infra09", ref: "", nom: "PCSO-NOM-2026-027", on: "", st: V25B_FAIL, op: "open", pa: "", wait: { pa: p.id, op: "open" }, fail: "Identity management system returned an error; the account was not created (Demo data).", demo: true, v25bDemo: true });
+    toast("Demo data: approved opening request " + p.id + " for pcso.infra09, execution failed."); render(); return;
+  }
+  if (act === "v1125b-void") { if (!a || !v25bVoidable(a)) return; open({ type: "v1125b-void", id }); return; }
+  if (act === "v1125b-fail") { if (!a || !a.wait) return; open({ type: "v1125b-fail", id }); return; }
+  if (act === "v1125b-void-ok") {
+    if (!a || !v25bVoidable(a)) { close(); render(); return; }
+    const why = v25bWhy(S.v1125b.f.why); if (!why) return err("Enter a reason of 1\u2013500 characters.");
+    const old = a.st, pa = a.wait.pa, at = v7Now().slice(0, 16);
+    a.st = V25B_VOID; a.vd = { by: me0(), at, why, pa, from: old }; a.wait = null;
+    a.acct = new String(a.acct); /* String object: the V13-138 duplicate check (a.acct === acct) lets a new request for the same account through */
+    v7Aud("System", "Void approved request \u00b7 PCSO Admin Account", String(a.acct), old + " \u00b7 " + pa, V25B_VOID + " \u00b7 " + why, "Security");
+    close(); toast("Request voided. The place is free."); render(); return;
+  }
+  if (act === "v1125b-fail-ok") {
+    if (!a || !a.wait) { close(); render(); return; }
+    const why = v25bWhy(S.v1125b.f.why); if (!why) return err("Enter a reason of 1\u2013500 characters.");
+    const old = a.st; a.st = V25B_FAIL; a.fail = why;
+    v7Aud("System", "Record failed execution \u00b7 PCSO Admin Account", a.acct, old, V25B_FAIL + " \u00b7 " + why + " \u00b7 " + a.wait.pa, "Security");
+    close(); toast("Failure recorded. Void the request or record execution after a retry."); render(); return;
+  }
+}
+window.addEventListener("click", v25bClick, true);
+if (!S.authed) render();
+/* ===== V13-1125B END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">

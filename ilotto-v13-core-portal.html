@@ -14426,7 +14426,10 @@ CR_APPLY.bankHolDisable = cr => { const b = SEED.bankHol.find(x => x.id === cr.p
 /* p8s_1125.js - batch 1125 (PRD 1.3.13, terminology alignment + small decisions). Loaded last in build.sh.
  *  A. 6A.11.2 Drawee Bank List (Bank Code / Bank Name / Status). Add, Rename, Enable / Disable are requests submitted by
  *     PCSO Finance and approved by a Senior Authorizer who is not the submitter; effective on approval; audited.
- *     At least one bank stays enabled. Default seed: LBP / Land Bank of the Philippines only.
+ *     Disabled banks can be re-enabled through the same flow. Disabling the last enabled bank is refused with
+ *     'At least one drawee bank must remain enabled.' Default seed: LBP / Land Bank of the Philippines only.
+ *     Cheque records keep the bank code and name captured at registration (rename / disable never changes history).
+ *     'Not Applicable' is not a list row: it is offered only when registering a Mock ticket rehearsal at the desk.
  *     6A.11.4 Big Prize Claims Desk: the Drawee Bank dropdown (C2_BANKS) lists the enabled banks only.
  *  B. 6A.4.6 Mock purge: participating channels that are Decommissioned at approval get no Mock Data Purge directive and
  *     are not awaited; the period becomes Purged when every awaited channel matches.
@@ -14455,7 +14458,7 @@ function dbBank_1125(code) { return SEED.draweeBanks.find(b => b.code === code);
 const DB_MSG_1125 = {
   codeEmpty: 'Enter a bank code.', codeDup: 'This bank code already exists.', codeFmt: 'Enter 2 to 10 uppercase letters or digits.',
   nameEmpty: 'Enter the bank name.', nameLong: 'Up to 100 characters.', same: 'Change the value first.',
-  lastOne: 'At least one bank must stay enabled.', pending: 'A request for this bank is already awaiting approval.',
+  lastOne: 'At least one drawee bank must remain enabled.', pending: 'A request for this bank is already awaiting approval.',
   own: 'You cannot approve a request you submitted.', senior: 'Only a Senior Authorizer can approve this request.',
 };
 function dbDesc_1125(r) {
@@ -14499,7 +14502,7 @@ function dbCard_1125() {
       { h: '', r: r => r.status !== 'Pending Approval' ? '' : (sr && r.by !== me() ? btn('Approve', 'db.approve', r.id, { cls: 'sm ok', id: `dbOk_${r.id}` }) + ' ' + btn('Reject', 'db.reject', r.id, { cls: 'sm', id: `dbRej_${r.id}` }) : '')
         + (r.by === me() ? btn('Withdraw', 'db.withdraw', r.id, { cls: 'sm', id: `dbWd_${r.id}` }) : '') }], reqs.map(r => Object.assign({}, r)), { nopage: true });
   }
-  h += '<p class="tiny" id="dbNote">Source of the Drawee Bank list on the Big Prize Claims Desk. Used in Core only; not sent to E-Channels. Add, rename, enable and disable are submitted by PCSO Finance and take effect when a Senior Authorizer other than the submitter approves them. Disabled banks leave the list; cheques already registered are not affected. At least one bank stays enabled.</p>';
+  h += '<p class="tiny" id="dbNote">Source of the Drawee Bank list on the Big Prize Claims Desk. Used in Core only; not sent to E-Channels. Add, rename, enable and disable are submitted by PCSO Finance and take effect when a Senior Authorizer other than the submitter approves them. Disabled banks leave the dropdown and can be re-enabled through the same flow. Cheques already registered keep the bank code and name captured at registration. At least one drawee bank must remain enabled. Not Applicable is not a bank: it is offered only when registering a Mock ticket rehearsal.</p>';
   return `<div id="dbCard">` + card('Drawee Bank List', h, fin ? btn('Add Bank', 'db.add', '', { cls: 'primary', id: 'btnDbAdd' }) : '') + `</div>`;
 }
 (function dbPolicyView() {
@@ -14554,6 +14557,22 @@ Object.assign(ACT, {
     r.status = 'Withdrawn'; r.decidedBy = me(); r.decidedAt = nowS(); audit('Claim Policy', 'Drawee bank change withdrawn', r.id, dbDesc_1125(r)); toast(`${r.id} withdrawn.`); render();
   },
 });
+/* cheque records: snapshot bank code + name at registration; real tickets accept enabled banks only (never Not Applicable) */
+(SEED.claims || []).forEach(c => { if (c.bank && !c.bankCode) { const b = SEED.draweeBanks.find(x => x.name === c.bank); if (b) c.bankCode = b.code; } });
+(function dbRegister1125() {
+  const b0 = boot; boot = function () { b0();
+    const r0 = ACT['cl.register'];
+    ACT['cl.register'] = function (id) {
+      const c = c2claim(id); if (!c || c.mock) return r0.apply(this, arguments);
+      snap(); const bank = fval('dk_bank', '');
+      if (bank && !dbEnabled_1125().some(b => b.name === bank)) { setErr({ dk_bank: 'Select the bank.' }); return; }
+      const m0 = S.modal; const x = r0.apply(this, arguments); const M = S.modal;
+      if (M && M !== m0 && typeof M.onOk === 'function' && !M._db1125) { M._db1125 = true; const o0 = M.onOk;
+        const bk = dbEnabled_1125().find(b => b.name === bank);
+        M.onOk = function () { const r = o0.apply(this, arguments); if (r !== false && c.status === 'CLAIMED' && bk) { c.bankCode = bk.code; c.bankName = bk.name; c.bank = bk.name; } return r; }; }
+      return x; };
+  };
+})();
 TODO_PROVIDERS.push(u => [{ n: hasRole('sa', u) ? SEED.draweeBankReqs.filter(r => r.status === 'Pending Approval' && r.by !== u.id).length : 0, zh: 'Drawee bank changes to approve', en: 'Drawee bank changes to approve', go: 'claims/policy' }]);
 
 /* =====================================================================

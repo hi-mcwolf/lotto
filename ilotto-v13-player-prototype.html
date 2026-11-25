@@ -5045,6 +5045,43 @@ idTxt137=function(){const v=CFG137C().ids;if(!v)return 'Bring this code and 1 va
 A.ids137=()=>{const c=CFG137C();c.ids=!c.ids?2:c.ids===2?1:0;
  toast(c.ids===2?'Claim policy: 2 government-issued IDs of different types (Demo data)':c.ids===1?'Claim policy: 2 IDs from '+ID_TYPES137+' (Demo data)':'Claim policy: 1 valid government-issued ID');render()};
 render();
+/* ===== Batch 1125b, player side: Web Push is out of this release (PRD 6B.1.2 rule 4, 6B.5.4, V13-PC247) =====
+   Loaded after p7z7_1313.js (build.sh). Switches off what p7z3_138.js and p7z4_fill.js built for Web Push; nothing else.
+     6B.1.2   the PWA keeps Add to Home Screen, the offline page and the new-version bar (p7z_137.js, unchanged).
+              No notification-permission explainer card on the H5 / PWA home, no browser permission prompt, no Web Push
+              switches in the demo panel.
+     6B.5.4   no Web Push delivery: in-app messages (e.g. Draw postponed) stay in the bell only; the App push channel is
+              not affected. Home-screen icon unread badge = bell unread count, shown only when the PWA is on the home
+              screen AND the browser supports app badges (navigator.setAppBadge); otherwise only the bell count is used.
+   Frozen page-spec data (p6y_spec2.js, p6z_spec.js, SPEC_D patches) is not touched. */
+const WP_OFF='Web Push is not offered in this release. Messages stay in the bell (in-app) and App push.';
+/* no explainer card: never armed, never answered */
+const wpOff=()=>{const p=P138();p.pushDue=0;if(p.pushAns==='granted')p.pushAns='';};
+{const _ld=A.loginDone;A.loginDone=function(){const r=_ld.apply(this,arguments);wpOff();return r}}
+A.pushDue138=()=>{wpOff();toast(WP_OFF)};
+A.pushNo138=()=>{wpOff();render()};
+A.pushOn138=()=>{wpOff();toast(WP_OFF)};
+A.pushPerm138=()=>{wpOff();A.close();render()};
+A.pushDen138=()=>{wpOff();toast(WP_OFF)};
+A.pushRevoke=()=>{wpOff();toast(WP_OFF)};
+/* no Web Push delivery */
+pushDeliver=function(){const o=document.getElementById('wpush_pf');if(o)o.remove()};
+/* icon badge: PWA on the home screen + browser supports app badges; otherwise the bell count only */
+const bdgSup=()=>{const F=PF();if(F.badgeSup==null)F.badgeSup=1;return !!F.badgeSup};
+const bdgWhy=()=>!S.logged?'not signed in':S.term==='app'?'App (native icon badge)':!(S.p137&&S.p137.inst)?'PWA not added to the home screen':!bdgSup()?'this browser does not support app badges':'';
+const bdgOn=()=>!bdgWhy();
+badgeSync=function(){const F=PF(),on=bdgOn(),n=on?unread():0;F.badge=on?n:null;F.badgeApi=('setAppBadge' in navigator)?'setAppBadge':'';
+ if(n===F.badgeLast)return;F.badgeLast=n;try{if(F.badgeApi){if(n>0)navigator.setAppBadge(n).catch(()=>{});else if(navigator.clearAppBadge)navigator.clearAppBadge().catch(()=>{})}}catch(e){}};
+A.badgeSup=()=>{const F=PF();bdgSup();F.badgeSup=F.badgeSup?0:1;F.badgeLast=-1;toast(F.badgeSup?'Browser supports app badges':'Browser without app badge support: the bell count is used');render()};
+{const _r=render;render=function(){wpOff();const r=_r.apply(this,arguments);const c=document.getElementById('push138');if(c)c.remove();const w=document.getElementById('wpush_pf');if(w)w.remove();return r}}
+/* demo panel: drop the Web Push switches */
+{const _p=panel138;panel138=function(){const h=_p.apply(this,arguments);const i=h.indexOf('<h4>Web Push (H5 / PWA)</h4>');return i<0?h:h.slice(0,i)}}
+{const _p=panelPf;panelPf=function(){const h=_p.apply(this,arguments);const i=h.indexOf('<h4>Web Push and PWA icon badge</h4>');if(i<0)return h;
+ const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;const F=PF(),bdg=bdgOn()?unread():null,why=bdgWhy();
+ return h.slice(0,i)+`<h4>PWA icon badge</h4><div class="row" style="gap:4px;flex-wrap:wrap">${pb('PWA added to the home screen','A.pwaAdd137()',S.p137&&S.p137.inst,'pf_pwa_inst')}${pb('Browser supports app badges','A.badgeSup()',bdgSup(),'pf_badge_sup')}</div>
+<div class="row g8" style="margin:6px 0;align-items:center"><span style="position:relative;display:inline-grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#004bc9;color:#fff;font-weight:800;font-size:11px">iL${bdg?`<i id="pf_badge" style="position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:#d60021;color:#fff;font-style:normal;font-size:10px;line-height:18px;text-align:center;padding:0 4px">${bdg}</i>`:''}</span><span class="xs" id="pf_badge_st" style="color:#444">Home screen icon badge: ${bdg?bdg+' unread (same as the bell)'+(F.badgeApi?' · navigator.setAppBadge('+bdg+') called':''):why?'not shown ('+why+'; the bell count is used)':'cleared (0 unread)'}</span></div>
+<div class="xs" id="pf_nopush" style="color:#666">${WP_OFF}</div>`}}
+render();
 </script>
 </body>
 </html>
