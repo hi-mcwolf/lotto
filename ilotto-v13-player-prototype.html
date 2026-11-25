@@ -5082,6 +5082,78 @@ A.badgeSup=()=>{const F=PF();bdgSup();F.badgeSup=F.badgeSup?0:1;F.badgeLast=-1;t
 <div class="row g8" style="margin:6px 0;align-items:center"><span style="position:relative;display:inline-grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#004bc9;color:#fff;font-weight:800;font-size:11px">iL${bdg?`<i id="pf_badge" style="position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:#d60021;color:#fff;font-style:normal;font-size:10px;line-height:18px;text-align:center;padding:0 4px">${bdg}</i>`:''}</span><span class="xs" id="pf_badge_st" style="color:#444">Home screen icon badge: ${bdg?bdg+' unread (same as the bell)'+(F.badgeApi?' · navigator.setAppBadge('+bdg+') called':''):why?'not shown ('+why+'; the bell count is used)':'cleared (0 unread)'}</span></div>
 <div class="xs" id="pf_nopush" style="color:#666">${WP_OFF}</div>`}}
 render();
+/* ===== Batch 1125c, player side: NCR has no province (PRD 6B.1.6, Appendix A item 482) =====
+   Loaded after p7z8_1125b.js (build.sh). Philippine address stays a 4-level PSGC cascade
+   Region -> Province -> City / Municipality -> Barangay, except NCR:
+     - choosing NCR hides the Province dropdown; the player goes straight to City / Municipality, then Barangay;
+     - I-Lotto fills the second level with the city's PSGC District and stores / reports it to Core
+       (e.g. Quezon City -> NCR, Second District; City of Manila -> NCR, City of Manila, First District);
+     - the player never sees or edits the District; the profile shows NCR / City / Barangay.
+   Applies to the registration form and Add your address (both use r_reg / r_prov / r_city / r_brgy).
+   The demo panel shows the address in the federation payload, District included.
+   Frozen page-spec data (p6y_spec2.js, p6z_spec.js) is not touched. */
+const NCR_K=Object.keys(REG).find(k=>/^NCR/.test(k));
+const NCR_D1='NCR, City of Manila, First District',NCR_D2='NCR, Second District',NCR_D3='NCR, Third District',NCR_D4='NCR, Fourth District';
+/* PSGC demo data: NCR city -> [District, barangays] */
+const NCR_C={'City of Manila':[NCR_D1,['Ermita','Malate']],'Quezon City':[NCR_D2,['Batasan Hills','Commonwealth','Fairview']],
+ 'Mandaluyong':[NCR_D2,['Plainview','Wack-Wack Greenhills']],'Marikina':[NCR_D2,['Concepcion Uno','Santo Niño']],'Pasig':[NCR_D2,['Kapitolyo','San Antonio']],
+ 'San Juan':[NCR_D2,['Greenhills','Little Baguio']],'Caloocan':[NCR_D3,['Bagong Silang','Grace Park East']],'Malabon':[NCR_D3,['Potrero','Tinajeros']],
+ 'Navotas':[NCR_D3,['San Roque','Tangos North']],'Valenzuela':[NCR_D3,['Karuhatan','Malinta']],'Las Piñas':[NCR_D4,['Almanza Uno','Pamplona Dos']],
+ 'Makati':[NCR_D4,['Poblacion','Bel-Air','Guadalupe Nuevo']],'Muntinlupa':[NCR_D4,['Alabang','Tunasan']],'Parañaque':[NCR_D4,['Baclaran','San Dionisio']],
+ 'Pasay':[NCR_D4,['Barangay 76','Barangay 183']],'Pateros':[NCR_D4,['Aguho','Poblacion']],'Taguig':[NCR_D4,['Fort Bonifacio','Western Bicutan']]};
+REG[NCR_K]=[]; /* no province level */
+/* Independent cities outside NCR (PSGC hangs them directly under the region): listed under their geographic province and
+   stored with that province, as the CAS report merges them into the province (Appendix A item 447). */
+const INDEP_C={'City of Cebu':'Cebu','City of Mandaue':'Cebu','City of Lapu-Lapu':'Cebu','City of Davao':'Davao del Sur','City of Cagayan De Oro':'Misamis Oriental','City of Iligan':'Lanao del Norte'};
+ADDR['Cebu']={'City of Cebu':['Lahug','Banilad','Guadalupe'],'City of Mandaue':['Subangdaku','Centro'],'City of Lapu-Lapu':['Mactan','Pusok'],'City of Talisay':['Lawaan I','Tabunok']};
+ADDR['Davao del Sur']={'City of Davao':['Buhangin','Talomo','Matina'],'City of Digos':['Zone I','Aplaya']};
+ADDR['Misamis Oriental']={'City of Cagayan De Oro':['Carmen','Lapasan'],'City of Gingoog':['Barangay 1','Anakan']};
+ADDR['Lanao del Norte']={'City of Iligan':['Poblacion','Tibanga'],'Kapatagan':['Poblacion','Tiacongan']};
+{const r11=Object.keys(REG).find(k=>/^Region XI\b/.test(k)),v=REG[r11];delete REG[r11];REG['Region X · Northern Mindanao']=['Lanao del Norte','Misamis Oriental'];REG[r11]=v}
+const indepProv=c=>INDEP_C[c]||'';
+const ncrDist=c=>(NCR_C[c]||[])[0]||'';
+const isNcr=()=>{const r=$('#r_reg');return !!r&&r.value===NCR_K};
+const selTxt=()=>{const r=$('#r_reg');return r&&r.options[0]?r.options[0].text:'Select'};
+const provRow=on=>{const p=$('#r_prov');if(!p)return;const lb=p.previousElementSibling;p.style.display=on?'':'none';if(lb&&lb.classList.contains('lb')){lb.style.display=on?'':'none';lb.id='r_prov_lb'}};
+{const _r=A.reg;A.reg=function(){if(!isNcr()){provRow(true);return _r.apply(this,arguments)}
+ provRow(false);$('#r_prov').innerHTML='<option value="NCR" selected>NCR</option>';
+ $('#r_city').innerHTML=`<option value="">${selTxt()}</option>`+opts(Object.keys(NCR_C));
+ $('#r_brgy').innerHTML=`<option value="">${$('#r_brgy').options[0]?$('#r_brgy').options[0].text:'Select city first'}</option>`}}
+{const _p=A.prov;A.prov=function(){if(isNcr())return;return _p.apply(this,arguments)}}
+{const _c=A.city;A.city=function(){if(!isNcr())return _c.apply(this,arguments);const c=$('#r_city').value,d=ncrDist(c);
+ $('#r_prov').innerHTML=`<option value="${d||'NCR'}" selected>${d||'NCR'}</option>`;
+ $('#r_brgy').innerHTML=`<option value="">${selTxt()}</option>`+(c&&NCR_C[c]?opts(NCR_C[c][1]):'')}}
+/* read the form; NCR second level = PSGC District of the city */
+const addrRead=()=>{const v=id=>{const e=document.getElementById(id);return e?String(e.value||'').trim():''};
+ if((S.regTmp&&S.regTmp.atype||'ph')==='ab')return {atype:'ab',st:v('r_st'),tw:v('r_tw'),sta:v('r_sta'),zip:v('r_zip'),ctry:v('r_ctry')};
+ const reg=v('r_reg'),ncr=reg===NCR_K,city=v('r_city');return {atype:'ph',ncr,reg,prov:ncr?ncrDist(city):(indepProv(city)||v('r_prov')),city,brgy:v('r_brgy')}};
+const regShort=r=>r===NCR_K?'NCR':String(r||'').split(' · ')[0];
+const addrDisp=a=>!a?'':a.atype==='ab'?[a.st,a.tw,a.sta,a.zip,a.ctry].join(', '):a.ncr?['NCR',a.city,a.brgy].join(' / '):[regShort(a.reg),a.prov,a.city,a.brgy].join(' / ');
+const addrCore=a=>!a?'':a.atype==='ab'?'Foreign: '+addrDisp(a):`Region: ${a.reg} · Province / District: ${a.prov} · City / Municipality: ${a.city} · Barangay: ${a.brgy}`;
+const addrOk=a=>a&&(a.atype==='ab'?[a.st,a.tw,a.sta,a.zip,a.ctry].every(Boolean):[a.reg,a.prov,a.city,a.brgy].every(Boolean));
+{const _f=fresh;fresh=function(){_f.apply(this,arguments);S.addr1125c=null}}
+{const _sd=seedDemo;seedDemo=function(){_sd.apply(this,arguments);S.addr1125c={atype:'ph',ncr:true,reg:NCR_K,prov:NCR_D2,city:'Quezon City',brgy:'Commonwealth'}}}
+{const _rn=A.regNext;A.regNext=function(){const a=addrRead(),sc=S.screen;const r=_rn.apply(this,arguments);
+ if(S.screen==='verify'&&sc!=='verify'&&addrOk(a)){S.addr1125c=a;if(S.reg)S.reg.addr=a}return r}}
+{const _s=A.addrSave137;A.addrSave137=function(){const a=addrRead(),m=S.addrMiss137;const r=_s.apply(this,arguments);
+ if(m&&!S.addrMiss137&&addrOk(a)){S.addr1125c=a;if(a.ncr)v13Audit('address-saved-ncr-district-auto-filled')}return r}}
+/* profile: read-only address, NCR / City / Barangay (no District) */
+{const _h=SC.profile.html;SC.profile.html=function(){const h=_h.apply(this,arguments);const a=S.addr1125c;
+ const v=S.addrMiss137||!addrOk(a)?'Not added':addrDisp(a);const row=`<label class="lb">Address</label><input class="inp" id="pf_addr" value="${v.replace(/"/g,'&quot;')}" readonly>`;
+ const i=h.indexOf('<label class="lb">',h.indexOf('id="pf_n"'));return i<0?h+row:h.slice(0,i)+row+h.slice(i)}}
+/* demo panel: federation payload address */
+function panel1125c(){const pb=(l,fn,c,id)=>`<button class="pb ${c?'on':''}" ${id?`id="${id}"`:''} onclick="${fn}">${l}</button>`;const a=S.addr1125c;
+ return `<h4>Address in the federation payload</h4><div class="xs" id="v1125c_payload" style="color:#666;margin:2px 0 4px">${addrOk(a)?addrCore(a):'No address saved'}</div>
+<div class="xs" style="color:#666;margin:0 0 4px">NCR has no province: I-Lotto fills the second level with the city's PSGC District and reports it to Core. The player only sees NCR / City / Barangay.</div>
+<div class="xs" style="color:#666;margin:0 0 4px">Independent cities outside NCR (e.g. City of Davao, City of Mandaue, City of Cagayan De Oro) are chosen under their geographic province and reported with that province.</div>
+<div class="row" style="gap:4px;flex-wrap:wrap">${pb('Saved address: NCR, City of Manila (Demo data)',"A.addrDemo1125c('mnl')",a&&a.city==='City of Manila','v1125c_mnl')}${pb('Saved address: NCR, Quezon City (Demo data)',"A.addrDemo1125c('qc')",a&&a.city==='Quezon City','v1125c_qc')}${pb('Saved address: City of Cebu (Demo data)',"A.addrDemo1125c('ceb')",a&&a.city==='City of Cebu','v1125c_ceb')}</div>`}
+A.addrDemo1125c=k=>{const C=Object.keys(REG).find(x=>/Region VII/.test(x));
+ S.addr1125c=k==='ceb'?{atype:'ph',ncr:false,reg:C,prov:'Cebu',city:'City of Cebu',brgy:'Lahug'}:k==='mnl'?{atype:'ph',ncr:true,reg:NCR_K,prov:NCR_D1,city:'City of Manila',brgy:'Ermita'}:{atype:'ph',ncr:true,reg:NCR_K,prov:NCR_D2,city:'Quezon City',brgy:'Commonwealth'};
+ toast('Address (Demo data): '+addrDisp(S.addr1125c));render()};
+{const _pe=panelExtra;panelExtra=function(){_pe.apply(this,arguments);const el=$('#panel');if(!el||S.pmode==='spec')return;
+ const old=el.querySelector('[data-v1125c]');if(old)old.remove();const v=el.querySelector('[data-v131]');const html=`<div data-v1125c="1">${panel1125c()}</div>`;
+ if(v)v.insertAdjacentHTML('afterend',html);else el.insertAdjacentHTML('beforeend',html)}}
+render();
 </script>
 </body>
 </html>
