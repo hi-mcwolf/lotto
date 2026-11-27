@@ -19860,6 +19860,128 @@ function v25bClick(e) {
 window.addEventListener("click", v25bClick, true);
 if (!S.authed) render();
 /* ===== V13-1125B END ===== */
+/* ===== V13-1127 block: Responsible Gaming help content -> Pending PCSO Approval (6B.13.5, type Responsible Gaming Help Content) =====
+   FAQ entries with "Is Responsible Gaming Related" ticked (PlaySafe FAQs and risk / warning-sign entries) and hotline rows of type
+   Responsible Gaming Helpline or Referral Organization go to Pending PCSO Approval after Ops reviewer approval and take effect only
+   after PCSO Approver approval. Unticked FAQs, outlets, contact channels and the Customer service hotline take effect on Ops
+   reviewer approval as before. */
+const X1127_RG_TYPES = ["Responsible Gaming Helpline", "Referral Organization"];
+const X1127_PA_TYPE = "Responsible Gaming Help Content";
+(function x1127Seed() {
+  const F = S.rc.help.faq, H = S.rc.help.hot;
+  if (!F.some((r) => r.id === "FAQ-004")) F.push({ id: "FAQ-004", title: "Warning signs: when is my play no longer fun?", body: "Chasing losses, playing longer or with more money than planned, borrowing to play, or hiding play from family are warning signs. Set limits or take a break under PlaySafe, or call the Responsible Gaming Helpline.", ps: true, tl: "Mga babalang palatandaan: kailan hindi na masaya ang aking paglalaro?", vi: "Mga timailhan sa pasidaan: kanus-a dili na makalingaw ang akong dula?", sort: 40, st: "Published", rgKind: "Risk and warning signs" });
+  if (!F.some((r) => r.id === "FAQ-005")) F.push({ id: "FAQ-005", title: "How do I change my mobile number?", body: "Open Account > Security, enter the new number and confirm the one-time code.", ps: false, sort: 50, st: "Published" });
+  const f2 = F.find((r) => r.id === "FAQ-002"); if (f2 && !f2.rgKind) f2.rgKind = "PlaySafe";
+  if (!H.some((r) => r.id === "HOT-002")) H.push({ id: "HOT-002", name: "Responsible Gaming Helpline (Demo data)", type: "Responsible Gaming Helpline", num: "(02) 8000-1127", ver: "2026-10-21", st: "Enabled", hrs: "06:00\u201322:00" });
+  if (!H.some((r) => r.id === "HOT-003")) H.push({ id: "HOT-003", name: "Partner counselling center (Demo data)", type: "Referral Organization", num: "https://example.org/referral", ver: "2026-10-21", st: "Enabled" });
+})();
+/* the Service Hours rule of 6B.13.1 covers helplines too */
+v8HotLine = function (r) { return /hotline|helpline/i.test((r && r.type) || ""); };
+function x1127IsRg(k, r) { if (!r) return false; return k === "faq" ? !!r.ps : k === "hot" ? X1127_RG_TYPES.indexOf(r.type) >= 0 : false; }
+function x1127ReqRg(q) { if (!q || !q.nr || (q.kind !== "faq" && q.kind !== "hot")) return false; const it = rcHelpItem(q.target); return x1127IsRg(q.kind, q.nr) || (it && x1127IsRg(it[0], it[1])); }
+/* one pending request per item: a request waiting for PCSO also blocks a new edit */
+const x1127Pend0 = rcHelpPending;
+rcHelpPending = function (id) { return x1127Pend0.apply(this, arguments) || S.rc.helpReqs.find((r) => r.target === id && r.st === "pcso"); };
+
+/* FAQ editor: the Is Responsible Gaming Related check box */
+const x1127Modal0 = rcHelpModal;
+rcHelpModal = function () {
+  const m = S.modal, it = m && !m.csv ? rcHelpItem(m.id) : null;
+  if (!it || (it[0] !== "faq" && it[0] !== "hot")) return x1127Modal0.apply(this, arguments);
+  if (it[0] === "faq" && S.mf.ps == null) S.mf.ps = !!it[1].ps;
+  return v13Tpl(x1127Modal0.apply(this, arguments), (c) => {
+    const st = [...c.querySelectorAll("label.f")].find((x) => x.textContent.trim() === "Status"); if (!st) return;
+    const rgNote = "After Ops reviewer approval the change goes to System > Pending changes > Pending PCSO Approval (type " + X1127_PA_TYPE + ") and takes effect only after PCSO Approver approves.";
+    if (it[0] === "faq") st.insertAdjacentHTML("beforebegin", `<label class="f" data-v1127="ps-lbl" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" data-f="ps" data-v1127="ps-in" style="width:auto;margin:0"${S.mf.ps ? " checked" : ""} /> Is Responsible Gaming Related</label><p class="tiny" data-v1127="ps-hint">Tick for PlaySafe FAQs and risk and warning-sign entries (shown in Filipino and Visayan too). ${rgNote} Unticked FAQs take effect on Ops reviewer approval.</p>`);
+    else st.insertAdjacentHTML("beforebegin", `<p class="tiny" data-v1127="hot-hint">Type: <b>${esc(it[1].type)}</b>. ${X1127_RG_TYPES.indexOf(it[1].type) >= 0 ? rgNote : "Takes effect on Ops reviewer approval (not a Responsible Gaming item)."}</p>`);
+  });
+};
+
+const x1127Act0 = rcHelpAct;
+rcHelpAct = function (act, arg, id) {
+  if (act === "rc-help-ok" && id !== "CSV") {
+    const it = rcHelpItem(id);
+    if (it && it[0] === "faq") {
+      const ps = S.mf.ps == null ? !!it[1].ps : !!S.mf.ps;
+      const n0 = S.rc.helpReqs.length, res = x1127Act0.apply(this, arguments);
+      if (S.rc.helpReqs.length > n0) { const q = S.rc.helpReqs[0]; if (q.nr) { q.nr.ps = ps; q.after = rcHelpSummary("faq", q.nr); if (ps !== !!it[1].ps) { q.before += " \u00b7 Is Responsible Gaming Related " + (it[1].ps ? "Yes" : "No"); q.after += " \u00b7 Is Responsible Gaming Related " + (ps ? "Yes" : "No"); } } q.rg = x1127ReqRg(q); }
+      return res;
+    }
+    if (it && it[0] === "hot") {
+      const n0 = S.rc.helpReqs.length, res = x1127Act0.apply(this, arguments);
+      if (S.rc.helpReqs.length > n0) S.rc.helpReqs[0].rg = x1127ReqRg(S.rc.helpReqs[0]);
+      return res;
+    }
+  }
+  if (act === "rc-hreq-ok") {
+    const q = S.rc.helpReqs.find((x) => x.id === id), me = me0();
+    if (q && q.st === "pending" && q.by !== me && x1127ReqRg(q)) {
+      const it = rcHelpItem(q.target), lbl = q.kind === "faq" ? "FAQ" : (it ? it[1].type : "Hotline");
+      const p = v7PaAdd({ type: X1127_PA_TYPE, obj: "Help content \u00b7 " + lbl + " \u00b7 " + (q.nr.title || q.nr.name || q.target), sum: q.before + " \u2192 " + q.after, by: q.by, chAppr: me, at: v7Now(), link: { kind: "x1127help", id: q.id } });
+      q.st = "pcso"; q.appr = me; q.pa = p.id; q.rg = true;
+      a2Aud(z("Help content", "Help content"), "Approve help content request", q.id, q.before, q.after + " \u00b7 sent to Pending PCSO Approval " + p.id, "Audit");
+      toast("Approved by Ops reviewer. Responsible Gaming help content: sent to Pending PCSO Approval (" + p.id + "); takes effect after PCSO approval.");
+      render(); return true;
+    }
+  }
+  return x1127Act0.apply(this, arguments);
+};
+
+/* PCSO decision applies (or drops) the change */
+const x1127Decide0 = v7PaDecide;
+v7PaDecide = function (p, ok, why) {
+  const r = x1127Decide0.apply(this, arguments);
+  const L = (p && p.link) || {};
+  if (L.kind === "x1127help") {
+    const q = S.rc.helpReqs.find((x) => x.id === L.id);
+    if (q && q.st === "pcso") {
+      if (ok) { const i = S.rc.help[q.kind].findIndex((x) => x.id === q.target); if (i >= 0) S.rc.help[q.kind][i] = q.nr; q.st = "approved"; q.pcso = p.id; }
+      else { q.st = "rejected"; q.rej = "Rejected by PCSO: " + (why || ""); q.pcso = p.id; }
+    }
+  }
+  return r;
+};
+function x1127Sync() {
+  S.rc.helpReqs.forEach((q) => { if (q.st !== "pcso" || !q.pa) return; const p = S.v137.pa.find((x) => x.id === q.pa); if (p && p.st === "Withdrawn") { q.st = "withdrawn"; q.pcso = p.id; } });
+}
+
+/* Pending Operations review: status of the requests that went on to PCSO */
+const x1127Ops0 = rcOpsReviewTab;
+rcOpsReviewTab = function () {
+  x1127Sync();
+  return v13Tpl(x1127Ops0.apply(this, arguments), (c) => {
+    const bn = c.querySelector("[data-x13=ops-tab]"); if (bn) bn.insertAdjacentHTML("beforeend", ` <span data-v1127="ops-note">Responsible Gaming help content (FAQs with Is Responsible Gaming Related ticked, Responsible Gaming Helpline and Referral Organization rows) goes on to Pending PCSO Approval after your approval and takes effect only after PCSO Approver approves; other help content takes effect at once.</span>`);
+    c.querySelectorAll("tr[data-hreq]").forEach((tr) => {
+      const q = S.rc.helpReqs.find((x) => x.id === tr.dataset.hreq); if (!q) return;
+      const st = tr.children[5], ac = tr.lastElementChild;
+      if (q.rg && tr.children[1]) tr.children[1].insertAdjacentHTML("beforeend", `<div data-v1127="rg-tag">${tag("warn", "Responsible Gaming \u00b7 PCSO approval")}</div>`);
+      if (!st) return;
+      if (q.st === "pcso") { st.innerHTML = tag("warn", "Pending PCSO approval") + `<div class="tiny mono" data-v1127="pa-ref">${q.pa}</div><div class="tiny mono">Ops reviewer ${esc(q.appr || "")}</div>`; if (ac) ac.innerHTML = ""; }
+      else if (q.pcso && q.st === "approved") st.insertAdjacentHTML("beforeend", `<div class="tiny mono" data-v1127="pa-ref">PCSO Approval Ref ${q.pcso}</div>`);
+      else if (q.pcso && q.st === "rejected") { st.innerHTML = tag("rose", "Rejected by PCSO") + `<div class="tiny" data-v1127="pa-rej">${esc(q.rej || "")}</div>`; if (ac) ac.innerHTML = ""; }
+      else if (q.st === "withdrawn") { st.innerHTML = tag("muted", "Withdrawn") + `<div class="tiny mono" data-v1127="pa-ref">${q.pcso || ""}</div>`; if (ac) ac.innerHTML = ""; }
+    });
+  });
+};
+
+/* Help content page: notes and per-row marker */
+const x1127Help0 = viewHelp;
+viewHelp = function () {
+  x1127Sync();
+  const sub = S.rc.helpSub;
+  return v13Tpl(x1127Help0.apply(this, arguments), (c) => {
+    const bn = c.querySelector("[data-x13=help-note]"); if (bn) bn.insertAdjacentHTML("beforeend", ` <span data-v1127="help-note">Exception: Responsible Gaming help content (FAQs with Is Responsible Gaming Related ticked, Responsible Gaming Helpline and Referral Organization rows) goes to Pending PCSO Approval after Ops reviewer approval and takes effect only after PCSO Approver approves.</span>`);
+    if (sub !== "faq" && sub !== "hot") return;
+    const tb = c.querySelector(".card table"); if (!tb) return;
+    tb.querySelectorAll(":scope > tbody > tr[data-help]").forEach((tr) => {
+      const it = rcHelpItem(tr.dataset.help); if (!it || !x1127IsRg(it[0], it[1])) return;
+      const cell = tr.children[sub === "faq" ? 1 : 1]; if (cell) cell.insertAdjacentHTML("beforeend", `<div class="tiny" data-v1127="rg-row">${esc(it[1].rgKind ? it[1].rgKind + " \u00b7 " : "")}PCSO approval</div>`);
+    });
+    tb.insertAdjacentHTML("afterend", `<p class="tiny" data-v1127="${sub}-note">${sub === "faq" ? "Is Responsible Gaming Related: tick it for PlaySafe FAQs and risk and warning-sign entries; ticked entries need PCSO approval, unticked ones take effect on Ops reviewer approval." : "Responsible Gaming Helpline and Referral Organization rows need PCSO approval after Ops reviewer approval; the Customer service hotline takes effect on Ops reviewer approval."}</p>`);
+  });
+};
+if (!S.authed) render();
+/* ===== V13-1127 END ===== */
 </script>
 <!--SKIN:START-->
 <style id="skin-css">
