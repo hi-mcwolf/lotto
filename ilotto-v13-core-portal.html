@@ -14694,6 +14694,135 @@ function rnNode1125(root) {
 
 </script>
 <script>
+/* ===== p8t_1127.js ===== */
+/* p8t_1127.js - batch 1127 (V13-R-003 + 6A.19.3 filters). Loaded last in build.sh.
+ *  A. 6A.4.2 Add Draw and 6A.4.6 Add Mock Draw: cut-off = draw time - the MAXIMUM Betting Cut-off Lead Time among the
+ *     game's draw schedule sessions (2D / 3D sessions 15 / 15 / 30 min -> 30 min); 30 min when no session is found.
+ *     Both paths use drawCutLead1127() / drawCutAt1127(); the form shows the computed cut-off live, the change request
+ *     lists it as a field and the created draw carries it. Scheduled sessions generated for a Mock period keep their
+ *     own session lead (only the added draw uses the maximum).
+ *  B. 6A.19.3 Scheduled Distribution: a report with an attached category (Core SLA report + Sales Opportunity Loss
+ *     Estimate; Monthly Service Report + Equal Treatment / Security Operations Metrics) applies the schedule Filters to
+ *     the attached part too. Filters and attached category are used together (no either/or check). The form shows
+ *     the attached parts, Run Now reports the filter applied and Run History lists Filters Applied / Attached Parts.
+ */
+'use strict';
+const B1127 = { ver: 'batch-1127', defaultLead: 30 };
+
+/* =====================================================================
+ * A. cut-off helper shared by Add Draw and Add Mock Draw
+ * ===================================================================== */
+function drawCutLead1127(game) {
+  const g = gameByCode(game); const def = g ? gameDef(g) : null;
+  const leads = ((def && def.schedule) || []).map(s => +s.lead).filter(n => isFinite(n) && n > 0);
+  return leads.length ? Math.max(...leads) : B1127.defaultLead;
+}
+function drawCutAt1127(game, at) { return addMin(at, -drawCutLead1127(game)); }
+function cutPrev1127(game, atRaw) {
+  const at = normDT(atRaw || ''); const lead = drawCutLead1127(game);
+  const g = gameByCode(game); const def = g ? gameDef(g) : null;
+  const sess = def ? [...new Set(def.schedule.map(s => s.time + ' ' + s.lead + ' min'))].join(' / ') : '-';
+  return `<div class="ro" id="cutPrev1127" data-lead="${lead}" data-cut="${at ? esc(drawCutAt1127(game, at)) : ''}">`
+    + `<b>${at ? esc(drawCutAt1127(game, at)) : '-'}</b> <span class="tiny">(draw time - ${lead} min)</span>`
+    + `<div class="hint">Maximum Betting Cut-off Lead Time among the draw schedule sessions of ${esc(game || '-')} (${esc(sess)}); 30 minutes when not found.</div></div>`;
+}
+/* inject a live "Betting Cut-off" row after the draw time field of an ask() form */
+function withCutField1127(fn, gameDef0) {
+  const a0 = ask;
+  ask = o => {
+    const fs = (o.fields || []).map(f => (f.k === 'm_game' || f.k === 'm_at') ? Object.assign({}, f, { chg: true }) : f);
+    const i = fs.findIndex(f => f.k === 'm_at');
+    fs.splice(i + 1, 0, { k: 'm_cut1127', zh: 'Betting Cut-off', en: 'Betting Cut-off', ctl: 'html', html: () => cutPrev1127(fval('m_game', gameDef0()), fval('m_at', '')) });
+    a0(Object.assign({}, o, { fields: fs }));
+  };
+  try { fn(); } finally { ask = a0; }
+}
+
+/* Add Draw (Official Draw Calendar) */
+(function addDraw1127() {
+  const f0 = ACT.drawAdd; if (!f0) return;
+  ACT.drawAdd = id => withCutField1127(() => {
+    const s0 = submitCR;
+    /* the change request preview lists the computed cut-off */
+    const a1 = ask; ask = o => { const ok0 = o.onOk; a1(Object.assign({}, o, { onOk: v => {
+      submitCR = c => { if (c && c.kind === 'addDraw' && c.payload) { const cut = drawCutAt1127(c.payload.game, c.payload.at); c.payload = Object.assign({}, c.payload, { cutoff: cut }); c.fields = (c.fields || []).concat([{ f: 'Betting Cut-off', cur: '-', pro: `${cut} (lead ${drawCutLead1127(c.payload.game)} min)`, crit: false }]); } return s0(c); };
+      try { return ok0 ? ok0(v) : undefined; } finally { submitCR = s0; } } })); };
+    try { f0(id); } finally { ask = a1; }
+  }, () => 'L655');
+  CR_APPLY.addDraw = cr => {
+    const { game, at } = cr.payload; const g = gameByCode(game); const def = gameDef(g); const ds = at.slice(0, 10);
+    const scheduled = def.schedule.filter(s => s.day === dow(dt(ds))).length; const occupied = Math.max(0, ...SEED.draws.filter(d => d.game === game && d.drawAt.slice(0, 10) === ds).map(d => +d.id.split('-')[2]));
+    const sess = Math.max(scheduled, occupied) + 1; const seq = Math.max(...SEED.draws.filter(d => d.game === game).map(d => +d.seq)) + 1;
+    const d = { id: `${game}-${ds.replace(/-/g, '')}-${sess}`, game, seq: pad(seq, 5), drawAt: at, cutoff: drawCutAt1127(game, at), salesOpen: nowS(), status: 'Scheduled', jackpot: null, special: null, regVersion: 'v' + curVersion(g).v, closure: null, history: [{ at: nowS(), from: '-', to: 'Scheduled', by: me(), reason: 'Added draw · ' + cr.note }], refunds: null, session: at.slice(11, 16), cutLead: drawCutLead1127(game) };
+    SEED.draws.push(d); const w = windowStatus(d, dt(d.cutoff)); if (w === 'Open for Betting') pushHist(d, w, 'System', 'Sales open'); cr.object = d.id;
+  };
+})();
+
+/* Add Mock Draw (6A.4.6) */
+(function addMock1127() {
+  const f0 = ACT['ms.addDraw']; if (!f0) return;
+  ACT['ms.addDraw'] = id => { const p = msById(id); if (!p) return f0(id);
+    withCutField1127(() => {
+      const n0 = msNewDraw;
+      const a1 = ask; ask = o => { const ok0 = o.onOk; a1(Object.assign({}, o, { onOk: v => {
+        msNewDraw = (pp, game, at, by, reason) => { const d = n0(pp, game, at, by, reason); const lead = drawCutLead1127(game); d.cutoff = drawCutAt1127(game, at); d.cutLead = lead;
+          const st = pp.status === 'Running' && dt(d.cutoff) > S.now ? 'Open for Betting' : dt(d.cutoff) <= S.now && pp.status === 'Running' ? 'Betting Closed' : 'Scheduled';
+          if (st !== d.status) { d.status = st; if (d.history && d.history[0]) d.history[0].to = st; } return d; };
+        try { return ok0 ? ok0(v) : undefined; } finally { msNewDraw = n0; } } })); };
+      try { f0(id); } finally { ask = a1; }
+    }, () => (p.games || [])[0]);
+  };
+})();
+
+/* =====================================================================
+ * B. 6A.19.3 Scheduled Distribution: Filters also apply to the attached category
+ * ===================================================================== */
+const SCH_ATTACH_1127 = { coresla: ['sol'], msr: ['equal', 'secops'] };
+function schAttached1127(repId) { return (SCH_ATTACH_1127[repId] || []).map(id => ({ id, name: (repById(id) || {}).en || id })); }
+function schFilterCh1127(filters) { const m = String(filters || '').match(/E-Channel\s*=\s*([A-Za-z0-9_-]+)/); return m ? m[1] : 'All'; }
+function schAttachRows1127(id, ch) {
+  if (id === 'sol') return (SEED.sol137 || []).filter(x => ch === 'All' || x.ch === ch).length;
+  try { const rep = repById(id); if (rep && typeof repGroups === 'function') return (repGroups(rep, Object.assign({}, typeof repDefQ === 'function' ? repDefQ(id) : {}, { ch })) || []).length; } catch (e) { /* demo count */ }
+  return 0;
+}
+function schAttachNote1127(repId, filters) {
+  const at = schAttached1127(repId); if (!at.length) return '';
+  const f = String(filters || '').trim() || 'E-Channel = All';
+  return `<div class="card" id="schAttach1127"><h4>Attached Parts</h4><p class="tiny">This report carries: <b>${at.map(a => esc(a.name)).join(', ')}</b>. The Filters (<span class="mono">${esc(f)}</span>) apply to the attached parts as well; filters and attached parts can be used together.</p></div>`;
+}
+(function schForm1127() {
+  const sf0 = schForm;
+  schForm = function (s) {
+    sf0(s); const D = S.drawer; if (!D) return; const b0 = D.body;
+    D.body = () => b0() + schAttachNote1127(fval('s_report', (D.vals || {}).s_report), fval('s_filters', (D.vals || {}).s_filters));
+    render();
+  };
+})();
+(function schActs1127() {
+  const m = modById('reports'); if (!m || !m.acts) return; const A = m.acts;
+  A.schRun = id => {
+    const s = SEED.reportSchedules.find(x => x.id === id); if (!s) return;
+    const filters = s.filters && s.filters !== '-' ? s.filters : (String(s.report).startsWith('view:') ? '-' : 'E-Channel = All'); const ch = schFilterCh1127(filters);
+    const n = s.recips.length + s.ext.length;
+    const attached = schAttached1127(s.report).map(a => ({ name: a.name, rows: schAttachRows1127(a.id, ch), filters, recips: s.recips.filter(u => schRepCan(a.id, userById(u))).length }));
+    const r = { at: nowS(), period: s.freq === 'Real-time' ? 'Live view' : 'Last complete period', rows: 10 + (m5Hash(s.id + nowS(true)) % 40), result: `Delivered (${n}/${n})`, hash: m5Sha(s.id + nowS(true)), filters, attached };
+    s.runs.unshift(r);
+    const att = attached.length ? ` · attached ${attached.map(a => a.name).join(', ')} filtered the same way` : '';
+    audit('Reports', 'Schedule run now', s.id, `${s.name} · Filters: ${filters}${att} · ${r.result}`);
+    toast(`Generated and delivered. Filters applied: ${filters}${attached.length ? ` (also to ${attached.map(a => a.name).join(', ')})` : ''}.`); render();
+  };
+  A.schHist = id => {
+    const s = SEED.reportSchedules.find(x => x.id === id); if (!s) return;
+    openModal({ title: `Run History · ${s.name}`, size: 'lg m5d', cancel: false, ok: { zh: 'Close', en: 'Close' }, body: () => table('schRuns', [
+      { h: 'Run At', k: 'at' }, { h: 'Period Covered', k: 'period' }, { h: 'Filters Applied', r: r => `<span class="mono">${esc(r.filters || s.filters || '-')}</span>` }, { h: 'Rows', k: 'rows', cls: 'num' },
+      { h: 'Attached Parts', r: r => (r.attached || []).length ? r.attached.map(a => `<div>${esc(a.name)} · ${fmtN(a.rows)} ${a.rows === 1 ? "row" : "rows"} · <span class="mono">${esc(a.filters)}</span></div>`).join('') : '-' },
+      { h: 'Delivery Result', k: 'result' }, { h: 'File Checksum', r: r => `<span class="mono">${m5Short(r.hash)}</span>` }], s.runs.map((r, i) => Object.assign({ id: i }, r)), { empty: { zh: 'No runs yet.', en: 'No runs yet.' } })
+      + `<p class="m5-note">Failed deliveries are retried 3 times, then the creator is notified. Filters apply to the attached parts too.</p>` });
+  };
+})();
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
