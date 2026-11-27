@@ -14705,6 +14705,11 @@ function rnNode1125(root) {
  *     Estimate; Monthly Service Report + Equal Treatment / Security Operations Metrics) applies the schedule Filters to
  *     the attached part too. Filters and attached category are used together (no either/or check). The form shows
  *     the attached parts, Run Now reports the filter applied and Run History lists Filters Applied / Attached Parts.
+ *  C. (1127c) 6A.4.2 / 6A.4.3 calendar checks that were dead in p8f_134.js (it hooked modById('calendar').acts, which
+ *     does not exist): Reschedule Effective At earlier than the draw's cut-off; Set Special Draw Effective At earlier
+ *     than the draw's sales opening (cut-off when sales are already open); Add Draw lists Active register games only.
+ *  D. (1127c) 6A.19.3 Delivery: a schedule whose report or attached parts include a Restricted report is restricted as a
+ *     whole; Email is disabled in the form and blocked on save and Run Now.
  */
 'use strict';
 const B1127 = { ver: 'batch-1127', defaultLead: 30 };
@@ -14778,6 +14783,48 @@ function addDrawEffErr1127(v) {
   };
 })();
 
+/* =====================================================================
+ * C. (1127c) Reschedule / Set Special Draw Effective At limits, Add Draw Active games only
+ *    Wrapped on ACT directly (the p8f_134.js versions targeted the non-existent calendar acts). Existing messages reused.
+ * ===================================================================== */
+const MSG_EFF_OPEN_1127 = 'The effective time must be earlier than the sales opening of this draw.';
+function reschedEffErr1127(id, v) {
+  const d = drawById(id); const eff = normDT((v && v.m_eff) || '');
+  if (!d || !eff || !d.cutoff) return '';
+  return dt(eff) >= dt(d.cutoff) ? MSG_EFF_CUT_1127 : '';
+}
+function specialEffLimit1127(id) {
+  const d = drawById(id); if (!d) return null; const op = d.openAt || d.salesOpen;
+  if (op && dt(op) > S.now) return { at: op, msg: MSG_EFF_OPEN_1127 };
+  return d.cutoff ? { at: d.cutoff, msg: MSG_EFF_CUT_1127 } : null;
+}
+function specialEffErr1127(id, v) {
+  const eff = normDT((v && v.m_eff) || ''); const lim = specialEffLimit1127(id);
+  return eff && lim && dt(eff) >= dt(lim.at) ? lim.msg : '';
+}
+function activeGames1127() { return SEED.games.filter(g => (gameDef(g) || {}).status === 'Active').map(g => g.code); }
+function wrapEff1127(name, errFn) {
+  const f0 = ACT[name]; if (!f0) return;
+  ACT[name] = id => {
+    const a0 = ask;
+    ask = o => { const v0 = o.validate || (() => ({}));
+      a0(Object.assign({}, o, { validate: v => { const e = v0(v) || {}; if (!e.m_eff) { const m = errFn(id, v); if (m) e.m_eff = m; } return e; } })); };
+    try { return f0(id); } finally { ask = a0; }
+  };
+}
+wrapEff1127('drawResched', reschedEffErr1127);
+wrapEff1127('drawSpecial', specialEffErr1127);
+(function addDrawActive1127() {
+  const f0 = ACT.drawAdd; if (!f0) return;
+  ACT.drawAdd = id => {
+    const a0 = ask;
+    ask = o => { const act = activeGames1127();
+      const fs = (o.fields || []).map(f => f.k === 'm_game' ? Object.assign({}, f, { opts: act, def: act.includes(f.def) ? f.def : act[0] }) : f);
+      a0(Object.assign({}, o, { fields: fs })); };
+    try { return f0(id); } finally { ask = a0; }
+  };
+})();
+
 /* Add Mock Draw (6A.4.6) */
 (function addMock1127() {
   const f0 = ACT['ms.addDraw']; if (!f0) return;
@@ -14839,6 +14886,31 @@ function schAttachNote1127(repId, filters) {
       { h: 'Delivery Result', k: 'result' }, { h: 'File Checksum', r: r => `<span class="mono">${m5Short(r.hash)}</span>` }], s.runs.map((r, i) => Object.assign({ id: i }, r)), { empty: { zh: 'No runs yet.', en: 'No runs yet.' } })
       + `<p class="m5-note">Failed deliveries are retried 3 times, then the creator is notified. Filters apply to the attached parts too.</p>` });
   };
+})();
+
+/* =====================================================================
+ * D. (1127c) 6A.19.3 Delivery: restricted attached part makes the whole schedule restricted (Email not allowed)
+ * ===================================================================== */
+const MSG_RESTRICTED_1127 = 'Restricted reports can only be delivered by secure download.';
+(function schRestricted1127() {
+  const r0 = schRestricted;
+  schRestricted = id => r0(id) || schAttached1127(id).some(a => r0(a.id));
+})();
+(function schFormRestricted1127() {
+  const sf0 = schForm;
+  schForm = function (s) {
+    sf0(s); const D = S.drawer; if (!D) return; const b0 = D.body;
+    D.body = () => { const rep = fval('s_report', (D.vals || {}).s_report); let h = b0(); if (!schRestricted(rep)) return h;
+      const why = schAttached1127(rep).filter(a => (repById(a.id) || {}).sens === 'Restricted').map(a => a.name);
+      const note = `<div class="hint" id="schRestr1127">${esc(MSG_RESTRICTED_1127)}${why.length ? ` The attached part ${esc(why.join(', '))} is restricted, so the whole schedule is treated as restricted.` : ''}</div>`;
+      h = h.replace(/(<input type="radio" name="r_s_delivery" data-k="s_delivery" value="Email")([^>]*>[^<]*<\/label><\/div>)/, (m0, a, b) => a + ' disabled id="schEmail1127"' + b + note);
+      return h.includes('id="schRestr1127"') ? h : h + note; };
+    render();
+  };
+})();
+(function schRunRestricted1127() {
+  const m = modById('reports'); if (!m || !m.acts || !m.acts.schRun) return; const r0 = m.acts.schRun;
+  m.acts.schRun = id => { const s = SEED.reportSchedules.find(x => x.id === id); if (s && s.delivery === 'Email' && schRestricted(s.report)) { toast(MSG_RESTRICTED_1127, 'err'); return; } return r0(id); };
 })();
 
 </script>
