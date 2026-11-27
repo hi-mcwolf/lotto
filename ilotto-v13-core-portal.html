@@ -14758,6 +14758,26 @@ function withCutField1127(fn, gameDef0) {
   };
 })();
 
+/* Add Draw: Effective At must be earlier than the draw's betting cut-off (6A.4.2 form, Effective At row).
+ * The p8f_134.js wrapper hooked modById('calendar').acts, which does not exist, so the rule never fired.
+ * Wraps ACT.drawAdd as the outermost layer and checks against the max-lead cut-off from drawCutAt1127();
+ * the message reuses the existing prototype text for this rule. */
+const MSG_EFF_CUT_1127 = 'The effective time must be earlier than the cut-off of this draw.';
+function addDrawEffErr1127(v) {
+  const eff = normDT((v && v.m_eff) || ''); const at = normDT((v && v.m_at) || '');
+  if (!eff || !at || !v.m_game) return '';
+  return dt(eff) >= dt(drawCutAt1127(v.m_game, at)) ? MSG_EFF_CUT_1127 : '';
+}
+(function addDrawEff1127() {
+  const f1 = ACT.drawAdd; if (!f1) return;
+  ACT.drawAdd = id => {
+    const a0 = ask;
+    ask = o => { const v0 = o.validate || (() => ({}));
+      a0(Object.assign({}, o, { validate: v => { const e = v0(v) || {}; if (!e.m_eff) { const m = addDrawEffErr1127(v); if (m) e.m_eff = m; } return e; } })); };
+    try { return f1(id); } finally { ask = a0; }
+  };
+})();
+
 /* Add Mock Draw (6A.4.6) */
 (function addMock1127() {
   const f0 = ACT['ms.addDraw']; if (!f0) return;
