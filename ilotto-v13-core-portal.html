@@ -14915,6 +14915,203 @@ const MSG_RESTRICTED_1127 = 'Restricted reports can only be delivered by secure 
 
 </script>
 <script>
+/* ===== p8u_1128.js ===== */
+/* p8u_1128.js - batch 1128 (PRD 6A.2.7 gateway enforcement rule 3, 6A.2.2 over-limit, 6A.21.3, Appendix A item 483).
+ *  A. 6A.18 Audit Trail: gateway rejection audit aggregation. Unauthenticated rejections (Missing / Invalid / Expired /
+ *     Replay) are aggregated per "Reason + 1 minute"; Rate Limited / Circuit Open per "E-Channel + Reason + 1 minute"
+ *     into ONE Security audit event carrying the count, first / last time, error code distribution, top source IPs and
+ *     5 individual samples. Counts are never lost (code distribution sums to the count). Other rejection reasons
+ *     (Revoked / Out Of Scope / Schema Invalid / Signature Invalid) are still logged one by one.
+ *     Event name: "Gateway Rejections (Aggregated)"; the Type column carries an "Aggregated x N" tag and the event
+ *     drawer lists the aggregation section.
+ *  B. 6A.21.3 Equal Treatment: "Rejected Requests Per 10,000" excludes unauthenticated rejections (the E-Channel code
+ *     on those requests is unverified). The metric values are computed from per-reason demo counts; a footnote and a
+ *     Breakdown drawer show counted and excluded rejections.
+ */
+'use strict';
+const B1128 = {
+  ver: 'batch-1128',
+  unauth: ['Missing', 'Invalid', 'Expired', 'Replay'],
+  perChannel: ['Rate Limited', 'Circuit Open'],
+  single: ['Revoked', 'Out Of Scope', 'Schema Invalid', 'Signature Invalid'],
+  aggAction: 'Gateway Rejections (Aggregated)',
+  sampleN: 5,
+};
+function aggKey1128(reason) { return B1128.unauth.includes(reason) ? 'Reason + 1 minute' : B1128.perChannel.includes(reason) ? 'E-Channel + Reason + 1 minute' : ''; }
+function isAggReason1128(reason) { return !!aggKey1128(reason); }
+
+/* =====================================================================
+ * A. aggregated gateway rejection events (demo rows, 2026-10-12)
+ * ===================================================================== */
+function aggRow1128(o) {
+  const codes = o.codes; const count = Object.values(codes).reduce((a, b) => a + b, 0);
+  const min = o.min; /* 'YYYY-MM-DD HH:MM' */
+  const samples = o.samples.map((s, i) => Object.assign({ n: i + 1 }, s));
+  return {
+    id: o.id, at: o.last.slice(0, 19), ms: +o.last.slice(20, 23) || 0, user: 'System', ip: '-', module: 'API Gateway',
+    action: B1128.aggAction, object: o.channel || o.reason, channel: o.channel || '-', evType: 'Security', result: 'Rejected',
+    detail: `${o.reason} · ${fmtN(count)} rejections · window ${min}:00 to ${min}:59 · key ${aggKey1128(o.reason)}`,
+    agg: { reason: o.reason, key: aggKey1128(o.reason), channel: o.channel || '', window: [min + ':00', min + ':59'], first: o.first, last: o.last, count, codes, ips: o.ips, samples },
+  };
+}
+const AGG_ROWS_1128 = [
+  aggRow1128({ id: 'AUD-900001', reason: 'Missing', min: '2026-10-12 20:41', first: '2026-10-12 20:41:00.112', last: '2026-10-12 20:41:59.870',
+    codes: { 'GW-401-01 Credential Missing': 1284 },
+    ips: [['203.177.42.18', 702], ['203.177.42.19', 391], ['112.198.7.240', 121], ['49.145.66.3', 52], ['180.190.11.9', 18]],
+    samples: [
+      { at: '2026-10-12 20:41:00.112', ip: '203.177.42.18', req: 'GW-REQ-8F21A001', ep: 'POST /transactions/report', code: 'GW-401-01', claimed: 'EC2 (unverified)' },
+      { at: '2026-10-12 20:41:12.530', ip: '203.177.42.19', req: 'GW-REQ-8F21A0C4', ep: 'GET /draws/results', code: 'GW-401-01', claimed: '-' },
+      { at: '2026-10-12 20:41:27.004', ip: '112.198.7.240', req: 'GW-REQ-8F21A19E', ep: 'POST /players/federate', code: 'GW-401-01', claimed: 'ILT (unverified)' },
+      { at: '2026-10-12 20:41:43.381', ip: '49.145.66.3', req: 'GW-REQ-8F21A2F0', ep: 'GET /games/register', code: 'GW-401-01', claimed: '-' },
+      { at: '2026-10-12 20:41:59.870', ip: '203.177.42.18', req: 'GW-REQ-8F21A3B7', ep: 'POST /transactions/report', code: 'GW-401-01', claimed: 'EC2 (unverified)' },
+    ] }),
+  aggRow1128({ id: 'AUD-900002', reason: 'Invalid', min: '2026-10-12 20:41', first: '2026-10-12 20:41:02.640', last: '2026-10-12 20:41:58.215',
+    codes: { 'GW-401-02 Credential Not Recognized': 268, 'GW-401-03 Credential Format Invalid': 44 },
+    ips: [['203.177.42.18', 190], ['203.177.42.19', 88], ['112.198.7.240', 34]],
+    samples: [
+      { at: '2026-10-12 20:41:02.640', ip: '203.177.42.18', req: 'GW-REQ-8F21A011', ep: 'POST /transactions/report', code: 'GW-401-02', claimed: 'EC2 (unverified)' },
+      { at: '2026-10-12 20:41:15.208', ip: '203.177.42.19', req: 'GW-REQ-8F21A0D9', ep: 'POST /transactions/report', code: 'GW-401-02', claimed: 'EC2 (unverified)' },
+      { at: '2026-10-12 20:41:30.777', ip: '112.198.7.240', req: 'GW-REQ-8F21A1B2', ep: 'GET /draws/results', code: 'GW-401-03', claimed: '-' },
+      { at: '2026-10-12 20:41:44.019', ip: '203.177.42.18', req: 'GW-REQ-8F21A2F8', ep: 'POST /claims/record', code: 'GW-401-02', claimed: 'ILT (unverified)' },
+      { at: '2026-10-12 20:41:58.215', ip: '203.177.42.19', req: 'GW-REQ-8F21A3A1', ep: 'POST /transactions/report', code: 'GW-401-03', claimed: '-' },
+    ] }),
+  aggRow1128({ id: 'AUD-900003', reason: 'Replay', min: '2026-10-12 20:52', first: '2026-10-12 20:52:03.418', last: '2026-10-12 20:52:41.090',
+    codes: { 'GW-409-01 Duplicate Gateway Request ID': 29, 'GW-409-02 Timestamp Outside Window': 8 },
+    ips: [['112.198.7.240', 31], ['49.145.66.3', 6]],
+    samples: [
+      { at: '2026-10-12 20:52:03.418', ip: '112.198.7.240', req: 'GW-REQ-77D0B110', ep: 'POST /transactions/report', code: 'GW-409-01', claimed: 'ILT (unverified)' },
+      { at: '2026-10-12 20:52:09.551', ip: '112.198.7.240', req: 'GW-REQ-77D0B110', ep: 'POST /transactions/report', code: 'GW-409-01', claimed: 'ILT (unverified)' },
+      { at: '2026-10-12 20:52:18.902', ip: '49.145.66.3', req: 'GW-REQ-77D0B2C3', ep: 'POST /claims/record', code: 'GW-409-02', claimed: 'EC2 (unverified)' },
+      { at: '2026-10-12 20:52:30.266', ip: '112.198.7.240', req: 'GW-REQ-77D0B110', ep: 'POST /transactions/report', code: 'GW-409-01', claimed: 'ILT (unverified)' },
+      { at: '2026-10-12 20:52:41.090', ip: '112.198.7.240', req: 'GW-REQ-77D0B110', ep: 'POST /transactions/report', code: 'GW-409-01', claimed: 'ILT (unverified)' },
+    ] }),
+  aggRow1128({ id: 'AUD-900004', reason: 'Rate Limited', channel: 'EC2', min: '2026-10-12 20:58', first: '2026-10-12 20:58:00.904', last: '2026-10-12 20:58:59.412',
+    codes: { 'GW-429-01 Rate Limit Exceeded': 76, 'GW-429-02 Daily Quota Exceeded': 4 },
+    ips: [['10.40.2.11', 52], ['10.40.2.12', 28]],
+    samples: [
+      { at: '2026-10-12 20:58:00.904', ip: '10.40.2.11', req: 'GW-REQ-91AA0001', ep: 'GET /draws/results', code: 'GW-429-01', claimed: 'EC2' },
+      { at: '2026-10-12 20:58:14.337', ip: '10.40.2.12', req: 'GW-REQ-91AA0042', ep: 'GET /draws/results', code: 'GW-429-01', claimed: 'EC2' },
+      { at: '2026-10-12 20:58:29.760', ip: '10.40.2.11', req: 'GW-REQ-91AA0090', ep: 'GET /games/register?version=14', code: 'GW-429-01', claimed: 'EC2' },
+      { at: '2026-10-12 20:58:47.115', ip: '10.40.2.11', req: 'GW-REQ-91AA00D1', ep: 'GET /players/lookup', code: 'GW-429-02', claimed: 'EC2' },
+      { at: '2026-10-12 20:58:59.412', ip: '10.40.2.12', req: 'GW-REQ-91AA0118', ep: 'GET /draws/results', code: 'GW-429-01', claimed: 'EC2' },
+    ] }),
+  aggRow1128({ id: 'AUD-900005', reason: 'Circuit Open', channel: 'ILT', min: '2026-10-12 19:30', first: '2026-10-12 19:30:00.051', last: '2026-10-12 19:30:59.988',
+    codes: { 'GW-503-01 Circuit Open (Federation Engine)': 412 },
+    ips: [['10.40.1.21', 214], ['10.40.1.22', 198]],
+    samples: [
+      { at: '2026-10-12 19:30:00.051', ip: '10.40.1.21', req: 'GW-REQ-5C10E001', ep: 'POST /players/federate', code: 'GW-503-01', claimed: 'ILT' },
+      { at: '2026-10-12 19:30:11.420', ip: '10.40.1.22', req: 'GW-REQ-5C10E05A', ep: 'POST /players/federate', code: 'GW-503-01', claimed: 'ILT' },
+      { at: '2026-10-12 19:30:26.873', ip: '10.40.1.21', req: 'GW-REQ-5C10E0B3', ep: 'POST /players/federate', code: 'GW-503-01', claimed: 'ILT' },
+      { at: '2026-10-12 19:30:44.300', ip: '10.40.1.22', req: 'GW-REQ-5C10E129', ep: 'POST /players/federate', code: 'GW-503-01', claimed: 'ILT' },
+      { at: '2026-10-12 19:30:59.988', ip: '10.40.1.21', req: 'GW-REQ-5C10E19F', ep: 'POST /players/federate', code: 'GW-503-01', claimed: 'ILT' },
+    ] }),
+];
+/* other rejection reasons stay one event per rejection */
+const SINGLE_ROWS_1128 = [
+  { id: 'AUD-900006', at: '2026-10-12 20:59:10', ms: 214, user: 'System', ip: '10.40.2.11', module: 'API Gateway', action: 'Request rejected', object: 'EC2', channel: 'EC2', evType: 'Security', result: 'Rejected', reason: 'Schema Invalid',
+    detail: 'Schema Invalid · GW-422-01 · POST /transactions/report · GW-REQ-91AA0131 · contract ICD v1.4 · field ticket.betType not in schema', gwReason: 'Schema Invalid' },
+  { id: 'AUD-900007', at: '2026-10-12 20:44:37', ms: 508, user: 'System', ip: '10.40.1.21', module: 'API Gateway', action: 'Request rejected', object: 'ILT', channel: 'ILT', evType: 'Security', result: 'Rejected', reason: 'Signature Invalid',
+    detail: 'Signature Invalid · GW-401-09 · POST /claims/record · GW-REQ-5C10F207 · high-sensitivity payload signature check failed', gwReason: 'Signature Invalid' },
+];
+AGG_ROWS_1128.concat(SINGLE_ROWS_1128).forEach(r => { if (!SEED.audit.some(x => x.id === r.id)) SEED.audit.push(r); });
+
+/* Type column: "Aggregated x N" tag */
+(function audCols1128() {
+  const c0 = audCols;
+  audCols = function () {
+    const cols = c0.apply(this, arguments); const i = cols.findIndex(c => c.h === 'Type');
+    if (i >= 0) { const r1 = cols[i].r; cols[i] = Object.assign({}, cols[i], { r: r => r1(r) + (r.agg ? ` <span class="tag info agg1128" data-count="${r.agg.count}">Aggregated × ${fmtN(r.agg.count)}</span>` : '') }); }
+    return cols;
+  };
+})();
+
+/* event drawer: aggregation section */
+function aggSection1128(r) {
+  const a = r.agg; if (!a) return '';
+  const sum = Object.values(a.codes).reduce((x, y) => x + y, 0);
+  const ipTotal = a.ips.reduce((x, y) => x + y[1], 0);
+  let h = `<div id="aggSec1128" data-count="${a.count}" data-samples="${a.samples.length}">`;
+  h += `<h4 style="margin:14px 0 6px">${esc('Aggregation (6A.2.7 rule 3)')}</h4>`;
+  h += dl([
+    ['Aggregation Key', esc(a.key)],
+    ['Rejection Reason', badge(a.reason, 'bad') + (B1128.unauth.includes(a.reason) ? ' <span class="tiny">Unauthenticated · E-Channel code unverified</span>' : '')],
+    ['E-Channel', esc(a.channel || 'Not attributed (unauthenticated)')],
+    ['Window', `<span class="mono">${esc(a.window[0])} to ${esc(a.window[1])}</span> (1 minute)`],
+    ['Count', `<b id="aggCount1128">${fmtN(a.count)}</b> rejections`],
+    ['First Rejection', `<span class="mono">${esc(a.first)}</span>`],
+    ['Last Rejection', `<span class="mono">${esc(a.last)}</span>`],
+  ]);
+  h += `<div class="tiny" style="margin:10px 0 4px"><b>Error Code Distribution</b></div>`
+    + `<table class="tbl" id="aggCodes1128"><thead><tr><th>Error Code</th><th class="num">Count</th><th class="num">Share</th></tr></thead><tbody>`
+    + Object.keys(a.codes).map(k => `<tr><td class="mono">${esc(k)}</td><td class="num">${fmtN(a.codes[k])}</td><td class="num">${(a.codes[k] / a.count * 100).toFixed(1)}%</td></tr>`).join('')
+    + `<tr><td><b>Total</b></td><td class="num"><b>${fmtN(sum)}</b></td><td class="num">100.0%</td></tr></tbody></table>`;
+  h += `<div class="tiny" style="margin:10px 0 4px"><b>Top Source IPs</b></div>`
+    + `<table class="tbl" id="aggIps1128"><thead><tr><th>Source IP</th><th class="num">Count</th></tr></thead><tbody>`
+    + a.ips.map(x => `<tr><td class="mono">${esc(x[0])}</td><td class="num">${fmtN(x[1])}</td></tr>`).join('')
+    + (ipTotal < a.count ? `<tr><td class="tiny">Other IPs</td><td class="num">${fmtN(a.count - ipTotal)}</td></tr>` : '') + `</tbody></table>`;
+  h += `<div class="tiny" style="margin:10px 0 4px"><b>Individual Samples (${a.samples.length})</b></div>`
+    + `<table class="tbl" id="aggSamples1128"><thead><tr><th>Time</th><th>Source IP</th><th>Gateway Request ID</th><th>Endpoint</th><th>Error Code</th><th>Claimed Code</th></tr></thead><tbody>`
+    + a.samples.map(s => `<tr data-n="${s.n}"><td class="mono nowrap">${esc(s.at.slice(11))}</td><td class="mono">${esc(s.ip)}</td><td class="mono">${esc(s.req)}</td><td class="mono" style="word-break:break-all">${esc(s.ep)}</td><td class="mono">${esc(s.code)}</td><td>${esc(s.claimed)}</td></tr>`).join('')
+    + `</tbody></table>`;
+  h += `<p class="m5-note" id="aggNote1128">Every rejection in the window is counted (the error code counts add up to the total); only ${B1128.sampleN} individual samples are kept. Unauthenticated rejections (Missing / Invalid / Expired / Replay) are aggregated per Reason + 1 minute, Rate Limited / Circuit Open per E-Channel + Reason + 1 minute. Other rejection reasons (Revoked / Out Of Scope / Schema Invalid / Signature Invalid) are logged one by one.</p></div>`;
+  return h;
+}
+(function audDetail1128() {
+  const d0 = audDetail;
+  audDetail = function (r) { return d0(r) + aggSection1128(r); };
+})();
+
+/* =====================================================================
+ * B. 6A.21.3 Rejected Requests Per 10,000 excludes unauthenticated rejections
+ * ===================================================================== */
+const ET_REJ_1128 = {
+  ILT: {
+    '2026-09': { req: 1200000, r: { Revoked: 0, 'Out Of Scope': 40, 'Schema Invalid': 210, 'Signature Invalid': 12, 'Rate Limited': 90, 'Circuit Open': 20, Missing: 5400, Invalid: 820, Expired: 61, Replay: 14 } },
+    '2026-08': { req: 1000000, r: { Revoked: 0, 'Out Of Scope': 30, 'Schema Invalid': 170, 'Signature Invalid': 10, 'Rate Limited': 60, 'Circuit Open': 20, Missing: 3900, Invalid: 610, Expired: 44, Replay: 9 } },
+  },
+  EC2: {
+    '2026-09': { req: 600000, r: { Revoked: 2, 'Out Of Scope': 16, 'Schema Invalid': 110, 'Signature Invalid': 6, 'Rate Limited': 60, 'Circuit Open': 4, Missing: 14200, Invalid: 2310, Expired: 95, Replay: 37 } },
+    '2026-08': { req: 500000, r: { Revoked: 1, 'Out Of Scope': 14, 'Schema Invalid': 85, 'Signature Invalid': 4, 'Rate Limited': 42, 'Circuit Open': 4, Missing: 2100, Invalid: 400, Expired: 30, Replay: 6 } },
+  },
+};
+function rejSplit1128(ch, mo) {
+  const d = (ET_REJ_1128[ch] || {})[mo]; if (!d) return null;
+  let counted = 0, excluded = 0; Object.keys(d.r).forEach(k => { if (B1128.unauth.includes(k)) excluded += d.r[k]; else counted += d.r[k]; });
+  return { req: d.req, counted, excluded, per10k: +(counted / d.req * 10000).toFixed(2), withUnauth: +((counted + excluded) / d.req * 10000).toFixed(2), r: d.r };
+}
+(function etRej1128() {
+  const m = ET_METRICS.find(x => x.id === 'rej'); if (!m) return;
+  m.excl1128 = true;
+  Object.keys(ET_REJ_1128).forEach(ch => { m.v[ch] = ET_MONTHS.map(mo => { const s = rejSplit1128(ch, mo); return s ? s.per10k : null; }); });
+})();
+const ET_FN_1128 = 'Excludes unauthenticated rejections (Missing / Invalid / Expired / Replay): the E-Channel code on those requests is unverified, so they are not counted against any E-Channel. Counted reasons: Revoked / Out Of Scope / Schema Invalid / Signature Invalid / Rate Limited / Circuit Open.';
+(function etView1128() {
+  const v0 = etView;
+  etView = function () {
+    let h = v0.apply(this, arguments); const mo = fv('etF', 'month', ET_MONTHS[0]);
+    h = h.replace('<b>Rejected Requests Per 10,000</b>', `<b>Rejected Requests Per 10,000</b><sup class="fn1128" title="${esc(ET_FN_1128)}">1</sup> <button class="btn link tiny" id="btnEtRej1128" data-act="etRej1128" data-a="${esc(mo)}">Breakdown</button>`);
+    return h + `<p class="m5-note" id="etFn1128"><sup>1</sup> Rejected Requests Per 10,000: ${esc(ET_FN_1128)}</p>`;
+  };
+})();
+ACT.etRej1128 = mo => {
+  mo = mo || ET_MONTHS[0]; const chs = activeChannels().map(c => c.code).filter(c => ET_REJ_1128[c]);
+  const reasons = B1128.single.concat(B1128.perChannel);
+  openDrawer({ title: 'Rejected Requests Per 10,000 · ' + mo, sub: '6A.21.3 · counted and excluded rejections', size: 'md m5d', body: () => {
+    const sp = {}; chs.forEach(c => { sp[c] = rejSplit1128(c, mo); });
+    const tr = (lbl, f, cls, bold) => `<tr><td>${bold ? '<b>' + lbl + '</b>' : lbl}</td>${chs.map(c => `<td class="num ${cls || ''}" data-ch="${c}">${bold ? '<b>' + f(sp[c]) + '</b>' : f(sp[c])}</td>`).join('')}</tr>`;
+    return `<table class="tbl" id="etRejTbl1128"><thead><tr><th>Item</th>${chs.map(c => `<th class="num">${chTag(c)}</th>`).join('')}</tr></thead><tbody>`
+      + tr('Requests', x => fmtN(x.req))
+      + reasons.map(r => tr(`${esc(r)} <span class="tiny">(counted)</span>`, x => fmtN(x.r[r] || 0))).join('')
+      + tr('Counted Rejections', x => fmtN(x.counted), 'cnt', true)
+      + tr('Rejected Requests Per 10,000', x => x.per10k, 'per10k', true)
+      + B1128.unauth.map(r => tr(`${esc(r)} <span class="tiny">(excluded)</span>`, x => fmtN(x.r[r] || 0))).join('')
+      + tr('Unauthenticated (Excluded)', x => fmtN(x.excluded), 'excl', true)
+      + `</tbody></table><p class="m5-note">${esc(ET_FN_1128)} Unauthenticated rejections are shown here by the E-Channel code claimed in the request, for information only.</p>`;
+  } });
+};
+
+</script>
+<script>
 /* p9_tail: boot */
 boot();
 </script>
